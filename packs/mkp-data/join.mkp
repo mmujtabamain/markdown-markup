@@ -1,0 +1,43 @@
+join@1 "Two relations and their join on a key: step through the left rows and see each one's matches join the result."
+  in left rel "the left relation"
+  in right rel "the right relation"
+  in on text "the key column of the left relation"
+  in righton text = "" "the key column of the right relation, when its name differs"
+  in kind choice(inner|leftouter) = inner "inner keeps matched rows only; leftouter keeps every left row"
+
+  rkey = if(righton == "", on, righton)
+  lname = if(left.name == "", "l", left.name)
+  rname = if(right.name == "", "r", right.name)
+  fn lkey(i) = cell(left.cols, left.rows[i], on)
+  fn matches(i) = filter(range(0, len(right.rows) - 1), j => cell(right.cols, right.rows[j], rkey) == lkey(i))
+  # the right columns the result keeps (not the key again), named apart from the left's
+  rkeep = filter(range(0, len(right.cols) - 1), c => right.cols[c] != rkey)
+  outcols = left.cols + map(rkeep, c => if(indexof(left.cols, right.cols[c]) >= 0, rname + "." + right.cols[c], right.cols[c]))
+  fn rpart(j) = map(rkeep, c => if(j < 0, "NULL", at(right.rows[j], c, "")))
+  # every joined pair in order of the left rows; an unmatched left row pairs with -1 in a left outer join
+  pairs = flatten(map(range(0, len(left.rows) - 1), i =>
+      if(len(matches(i)) == 0 and kind == leftouter, [{i: i, j: -1}], map(matches(i), j => {i: i, j: j}))))
+
+  pos = steps (len(left.rows)) "left row"
+  hits = matches(pos)
+  lrows = map(range(0, len(left.rows) - 1), i => rrowof("L" + i, left.rows[i], i == pos))
+  rrows = map(range(0, len(right.rows) - 1), j => rrowof("R" + j, right.rows[j], indexof(hits, j) >= 0))
+  outrows = map(filter(pairs, p => p.i <= pos), p => rrowof("J" + p.i + "-" + p.j, left.rows[p.i] + rpart(p.j), p.i == pos))
+  sql = "SELECT * FROM " + lname + if(kind == leftouter, " LEFT JOIN ", " JOIN ") + rname + " ON " + lname + "." + on + " = " + rname + "." + rkey
+
+  project md = ("`" + sql + "`\n\n**" + lname + "**\n\n" + mdtable(left.cols, left.rows) + "\n**" + rname + "**\n\n" +
+      mdtable(right.cols, right.rows) + "\n**result** (" + len(pairs) + " rows)\n\n" +
+      mdtable(outcols, map(pairs, p => left.rows[p.i] + rpart(p.j))))
+
+  stack gap=m
+    text ("`" + sql + "`")
+    flex gap=xl align=start
+      stack grow
+        reltable left.cols lrows title=lname
+      stack grow
+        reltable right.cols rrows title=rname
+    text (on + " = " + lkey(pos) + if(len(hits) == 0, " matches no row of " + rname + if(kind == leftouter, ", so the row is kept with NULLs.", ", so it adds nothing."),
+        " matches " + len(hits) + " row" + if(len(hits) == 1, "", "s") + " of " + rname + ".")) tone=muted
+    reltable outcols outrows title=("result: " + len(outrows) + " of " + len(pairs) + " rows")
+  each j in hits
+    arrow from=("L" + pos) to=("R" + j)

@@ -1,0 +1,63 @@
+type seg = {a: point, b: point}
+
+# where the level c crosses the edge from p (value u) to q (value v), by linear interpolation
+fn cross(p: point, q: point, u: num, v: num, c: num): point = (p.x + (q.x - p.x) (c - u)/(v - u), p.y + (q.y - p.y) (c - u)/(v - u))
+# the crossings of one edge: none, or one point
+fn edge(p: point, q: point, u: num, v: num, c: num): list(point) = if((u >= c) != (v >= c), [cross(p, q, u, v, c)], [])
+# marching squares for one cell, corners counter-clockwise from bottom-left; a saddle pairs by the centre value
+fn cell(p0: point, p1: point, p2: point, p3: point, v0: num, v1: num, v2: num, v3: num, c: num): list(seg) = pair(
+    edge(p0, p1, v0, v1, c) + edge(p1, p2, v1, v2, c) + edge(p2, p3, v2, v3, c) + edge(p3, p0, v3, v0, c),
+    ((v0 + v1 + v2 + v3)/4 >= c) == (v0 >= c))
+fn pair(e: list(point), same: bool): list(seg) = if(len(e) == 2, [{a: e[0], b: e[1]}],
+    if(len(e) == 4, if(same, [{a: e[0], b: e[3]}, {a: e[1], b: e[2]}], [{a: e[0], b: e[1]}, {a: e[2], b: e[3]}]), []))
+
+contour@1 "Contour lines of f(x, y), computed by marching squares, with a point to drag that traces the level through it."
+  fields f
+  in f expr(x, y) = (x^2 + y^2) "the function"
+  in xmin num = -2
+  in xmax num = 2
+  in ymin num = -2
+  in ymax num = 2
+  in levels list(num) = [] "the levels to draw; empty picks nine evenly between the lowest and highest value"
+  in n int 6..48 = 28 "grid cells each way"
+  in probe bool = true "a point to drag, with the level through it"
+  in step num = 1 "background grid spacing"
+  budget 4000000
+  p = drag x=(xmin)..(xmax) y=(ymin)..(ymax) = (1, 0.5) "probe"
+  hx = (xmax - xmin)/n
+  hy = (ymax - ymin)/n
+  fn gx(a: int): num = xmin + a hx
+  fn gy(b: int): num = ymin + b hy
+  vals = map(range(0, n), b => map(range(0, n), a => f(gx(a), gy(b))))
+  lo = min(map(vals, row => min(row)))
+  hi = max(map(vals, row => max(row)))
+  shown = if(len(levels) > 0, levels, map(range(1, 9), k => round(100 (lo + k (hi - lo)/10))/100))
+  # the segments of level c in row b of cells
+  fn row(b: int, c: num): list(seg) = flatten(map(range(0, n - 1), a => cell(
+      (gx(a), gy(b)), (gx(a + 1), gy(b)), (gx(a + 1), gy(b + 1)), (gx(a), gy(b + 1)),
+      vals[b][a], vals[b][a + 1], vals[b + 1][a + 1], vals[b + 1][a], c)))
+  lines = map(shown, c => map(range(0, n - 1), b => row(b, c)))
+  here = f(p.x, p.y)
+  mine = map(range(0, n - 1), b => if(probe, row(b, here), []))
+  canvas x=(xmin)..(xmax) y=(ymin)..(ymax) size=m label="Contour lines of the function, and a point to drag"
+    layer opacity=0.35
+      each g in ticks(xmin, xmax, step)
+        line (g, ymin) (g, ymax) stroke=muted width=0.5
+      each g in ticks(ymin, ymax, step)
+        line (xmin, g) (xmax, g) stroke=muted width=0.5
+    layer
+      line (xmin, clamp(0, ymin, ymax)) (xmax, clamp(0, ymin, ymax)) stroke=muted
+      line (clamp(0, xmin, xmax), ymin) (clamp(0, xmin, xmax), ymax) stroke=muted
+    layer
+      each k in 0..(len(shown) - 1)
+        each b in 0..(n - 2)
+          each s in lines[k][b]
+            line s.a s.b stroke=info width=1.5 if=(shown[k] >= 0)
+            line s.a s.b stroke=warn width=1.5 dash if=(shown[k] < 0)
+    layer if=probe
+      each b in 0..(n - 2)
+        each s in mine[b]
+          line s.a s.b stroke=accent width=2.5
+      handle p
+  text "$f(\val{p.x}, \val{p.y}) = \val{here}$; the bold line is that level." if=probe
+  text ("Levels " + join(map(shown, c => format(c, 2)), ", ") + if(min(shown) < 0, "; the negative ones are dashed.", ".")) tone=muted

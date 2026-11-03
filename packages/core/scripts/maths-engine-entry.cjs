@@ -23,8 +23,5 @@ module.exports = {
   SerializedMmlVisitor,
   STATE,
   sre: { setupEngine: sre.setupEngine, engineReady: sre.engineReady, toSpeech: sre.toSpeech },
-  locales: {
-    base: require('speech-rule-engine/lib/mathmaps/base.json'),
-    en: require('speech-rule-engine/lib/mathmaps/en.json'),
-  },
+  locales: require('./sre-system-external.cjs').SystemExternal.locales,
 };

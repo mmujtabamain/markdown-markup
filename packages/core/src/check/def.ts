@@ -7,6 +7,7 @@ import { GFX_SHAPES } from '../base';
 import type { Ex } from '../syntax/expr';
 import { parseValueString, type ActionSyn, type Arg, type DefSyn, type EventSyn, type NodeSyn, type Val } from '../syntax/mkp';
 import { fits, resolve, showType, T, Type, TypeEnv } from '../types';
+import { canonical } from '../syntax/canon';
 import { ExprChecker, Scope, type Checked } from './expr';
 import type { DefEntry, FnEntry, Program } from './program';
 
@@ -89,6 +90,8 @@ export interface DefCheckOptions {
   sigs: Map<string, Sig>;
   /** fixtures may show parts on their own */
   allowParts?: boolean;
+  /** the lock's choice for a name used without @N (6.17) */
+  locked?: (name: string) => string | undefined;
 }
 
 export class DefChecker {
@@ -227,7 +230,7 @@ export class DefChecker {
             list.push(entry);
             this.scope.fns.set(m.name, list);
             if (sig) this.x.ensureFn(entry);
-            values.push(clean({ k: 'fn', name: m.name, fn: id, pos: pos(m.p), comment: cm(m.comments) }));
+            values.push(clean({ k: 'fn', name: m.name, fn: id, params: m.params.map((q) => (q.type ? { name: q.name, type: q.type } : { name: q.name })), ret: m.ret, body: normalize(m.src), pos: pos(m.p), comment: cm(m.comments) }));
             break;
           }
         }
@@ -366,8 +369,8 @@ export class DefChecker {
         if (!r || r.value.v !== 'range') this.fail(m.p, 'a slider needs its range: slider a..b');
         const lo = this.x.coerce(this.x.check(r.value.lo, this.scope), T.num, r.p);
         const hi = this.x.coerce(this.x.check(r.value.hi, this.scope), T.num, r.p);
-        args.min = this.irExpr(lo, srcOf(r.value.lo), r.p);
-        args.max = this.irExpr(hi, srcOf(r.value.hi), r.p);
+        args.min = this.constOrExpr(lo, r.value.loSrc, r.p);
+        args.max = this.constOrExpr(hi, r.value.hiSrc, r.p);
         const st = take('step');
         let intStep = false;
         if (st) {
@@ -462,7 +465,7 @@ export class DefChecker {
         if (v.v !== 'range') this.fail(p, `expected a range a..b, found ${v.src}`);
         const lo = this.x.coerce(this.x.check(v.lo, scope), T.num, p);
         const hi = this.x.coerce(this.x.check(v.hi, scope), T.num, p);
-        return { range: [this.constOrExpr(lo, srcOf(v.lo), p), this.constOrExpr(hi, srcOf(v.hi), p)] };
+        return { range: [this.constOrExpr(lo, v.loSrc, p), this.constOrExpr(hi, v.hiSrc, p)] };
       }
       case 'duration':
         if (v.v !== 'dur') this.fail(p, `expected a duration such as 6s or 500ms, found ${v.src}`);
@@ -782,7 +785,8 @@ export class DefChecker {
       const own = found.filter((d) => d.pack === this.entry.pack);
       if (!own.length) this.fail(p, `"${name}" is provided by several packs (${[...packs].join(', ')}); write pack:${name}`, 'mkp.ambiguous');
     }
-    const pick = want !== undefined ? found.find((d) => d.syn.version === want) : found[0];
+    const lockedId = want === undefined ? this.opts.locked?.(name) : undefined;
+    const pick = want !== undefined ? found.find((d) => d.syn.version === want) : (lockedId && found.find((d) => d.id === lockedId)) || found[0];
     if (!pick) this.fail(p, `there is no ${name}@${want}; versions: ${found.map((d) => d.syn.version).join(', ')}`, 'mkp.unknown-version');
     let sig = this.opts.sigs.get(pick.id);
     if (!sig) {
@@ -904,7 +908,7 @@ export class DefChecker {
       const lo = this.x.coerce(this.x.check(src.value.lo, scope), T.num, src.p);
       const hi = this.x.coerce(this.x.check(src.value.hi, scope), T.num, src.p);
       elem = resolve(lo.type, this.env).t === 'int' ? T.int : T.num;
-      inVal = { range: [this.constOrExpr(lo, srcOf(src.value.lo), src.p), this.constOrExpr(hi, srcOf(src.value.hi), src.p)] };
+      inVal = { range: [this.constOrExpr(lo, src.value.loSrc, src.p), this.constOrExpr(hi, src.value.hiSrc, src.p)] };
     } else if (src.value.v === 'expr') {
       const c = this.x.check(src.value.e, scope);
       const r = resolve(c.type, this.env);
@@ -922,7 +926,7 @@ export class DefChecker {
         keyed = true;
       } else this.fail(extra.p, 'each takes only key=expr after its list');
     }
-    if (!keyed) this.diags.warn('mkp.each-unkeyed', `each over a list without key= uses the index as identity; add key=${name}.id (or another unique value)`, n.p, [...this.path]);
+    if (!keyed) this.diags.warn('mkp.each-unkeyed', `each over a list without key= uses the index as identity, so items can't glide when the list changes; add key=… with a unique value of ${name}`, n.p, [...this.path]);
     if (n.events.length) this.fail(n.events[0].p, 'each has no events');
     const items = this.nodes(n.children, ctx, sc, depth + 1);
     this.placeChildren(out, items);
@@ -1117,7 +1121,7 @@ export function clean<T extends object>(o: T): T {
 }
 
 function normalize(src: string): string {
-  return src.replace(/\s+/g, ' ').trim();
+  return canonical(src);
 }
 
 /** An expression is static when it reads only inputs and constants (no state, no locals). */

@@ -1,0 +1,15 @@
+part toggle@1 "A switch for the caller's on/off state, with its label."
+  fields on label
+  in on ref bool "the caller's state"
+  in label text "what it switches"
+  out changed {on: bool} "after the reader flips it"
+  press id=switch kind=toggle selected=on
+    flex gap=s align=center wrap=false
+      flex pad=xs radius=pill stroke=surface wrap=false if=on
+        stack pad=m
+        stack pad=m radius=pill fill=surface
+      flex pad=xs radius=pill stroke=muted wrap=false if=(not on)
+        stack pad=m radius=pill fill=muted
+        stack pad=m
+      text label
+    @click set on=(not on) emit changed on=(not on)

@@ -94,6 +94,8 @@ export interface IRMeta {
   block?: number;
   /** the document block's own id (#id) */
   anchor?: string;
+  /** a heading's section role (profiles, 16) */
+  role?: string;
 }
 
 export interface IRNode {
@@ -158,7 +160,7 @@ export type IRValue =
   | IRState
   | { k: 'var'; name: string; type: Type; default: IRVal; about?: string; pos?: IRPos; comment?: string[] }
   | { k: 'derived'; name: string; value: IRExpr; pos?: IRPos; comment?: string[] }
-  | { k: 'fn'; name: string; fn: string; pos?: IRPos; comment?: string[] }
+  | { k: 'fn'; name: string; fn: string; params: { name: string; type?: Type }[]; ret?: Type; body: string; pos?: IRPos; comment?: string[] }
   | { k: 'host'; name: string; type: Type; default: IRVal; about?: string; pos?: IRPos; comment?: string[] };
 
 export interface IRFn {

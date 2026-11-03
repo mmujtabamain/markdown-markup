@@ -1,0 +1,37 @@
+part slider@1 "A labelled range over the caller's number, showing its value, with an optional Play that sweeps it."
+  fields value min max
+  in value ref num "the caller's number"
+  in min num = 0
+  in max num = 1
+  in step num = 0 "0 means any value"
+  in label text = "" "what it sets"
+  in unit text = "" "shown after the value"
+  in digits int = -1 "decimal places to show; -1 means up to four significant figures"
+  in play bool = false "show a Play button that sweeps from min to max in four seconds"
+  in loop bool = false "keep sweeping until paused"
+  out changed {value: num} "after the reader or Play moves it"
+  sweep = slider (min)..(max) step=step play=4s "sweep"
+    @change set value=sweep emit changed value=sweep
+    @end set going=false
+  sweeps = slider (min)..(max) step=step play=4s loop=repeat "sweep again"
+    @change set value=sweeps emit changed value=sweeps
+  # flipping going pauses both sweeps, so Play is: going on, then start one
+  going = toggle "playing"
+    @change pause sweep pause sweeps
+  shown = if(digits >= 0, format(value, digits), "" + value) + unit
+  flex gap=s align=center
+    stack hidden
+      controls sweep sweeps going
+    press id=play label=("play " + label) if=(play and not loop and not going)
+      text "▶"
+      @click set going=true sweep=value play sweep
+    press id=play_loop label=("play " + label) if=(play and loop and not going)
+      text "▶"
+      @click set going=true sweeps=value play sweeps
+    press id=pause label=("pause " + label) if=(play and going)
+      text "⏸"
+      @click set going=false
+    text label tone=muted if=(label != "")
+    range value min max step=step label=label
+      @change emit changed value=(change.value)
+    text shown

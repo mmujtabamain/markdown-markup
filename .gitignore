@@ -6,3 +6,4 @@ apps/playground/playwright-report/
 *.tsbuildinfo
 .mkp-out/
 apps/playground/.shots/
+scripts/.hermes/

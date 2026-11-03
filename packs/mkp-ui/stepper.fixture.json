@@ -1,0 +1,1 @@
+{ "widget": "stepper@1", "cases": { "middle": { "summary": "At 3 of 5.", "props": { "at": { "state": 2 }, "last": 4 }, "play": [ { "set": { "at": 4 } } ] } } }

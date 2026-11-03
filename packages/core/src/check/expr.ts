@@ -6,6 +6,7 @@ import { MkpError, Pos, didYouMean } from '../diag';
 import type { A, IRFn } from '../ir';
 import { Ex, valHoles } from '../syntax/expr';
 import { parseExprString } from '../syntax/mkp';
+import { canonical } from '../syntax/canon';
 import { fits, hasUnknown, isNumeric, join, resolve, sameType, showType, T, Type, TypeEnv } from '../types';
 import type { FnEntry, Program } from './program';
 
@@ -457,7 +458,7 @@ export class ExprChecker {
         types: f.sig,
         ret: f.syn.ret ?? body.type,
         body: body.ast,
-        src: f.syn.src,
+        src: canonical(f.syn.src),
         local: local || undefined,
         op: f.op,
         pos: [f.syn.p.line, f.syn.p.col],
@@ -494,7 +495,7 @@ export class ExprChecker {
           types,
           ret: f.syn.ret ?? body.type,
           body: body.ast,
-          src: f.syn.src,
+          src: canonical(f.syn.src),
           local: local || undefined,
           generic: f.id,
           pos: [f.syn.p.line, f.syn.p.col],

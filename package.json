@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Markdown Markup (MKP): a Markdown superset for documents with reusable, interactive widgets.",
   "packageManager": "pnpm@10.34.9",
-  "engines": { "node": ">=20.19" },
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "postinstall": "node packages/core/scripts/build-maths-engine.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",

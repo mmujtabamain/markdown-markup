@@ -70,8 +70,19 @@ export function fixtureCases(c: Compiled, diags = c.diags): FixtureCase[] {
 
 /** The document a case stands for: one widget block whose YAML body is the case's props. */
 export function caseDocument(fc: FixtureCase): string {
-  const body = { ...fc.props, summary: fc.summary ?? `${fc.widget}: ${fc.name}` };
-  return `\`\`\`${fc.pack}:${fc.widget}\n${JSON.stringify(body, null, 1)}\n\`\`\`\n`;
+  const body: Record<string, unknown> = { ...fc.props, summary: fc.summary ?? `${fc.widget}: ${fc.name}` };
+  // {"state": v} gives a ref input state of its own: a document state var bound with {ref}
+  const vars: string[] = [];
+  for (const [k, v] of Object.entries(body)) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && 'state' in v) {
+      const init = (v as { state: unknown }).state;
+      const type = typeof init === 'boolean' ? 'bool' : typeof init === 'string' ? 'text' : Number.isInteger(init) ? 'int' : 'num';
+      vars.push(`var ${k} ${type} = ${typeof init === 'string' ? JSON.stringify(init) : String(init)}`);
+      body[k] = { ref: k };
+    }
+  }
+  const state = vars.length ? `\`\`\`state\n${vars.join('\n')}\n\`\`\`\n\n` : '';
+  return `${state}\`\`\`${fc.pack}:${fc.widget}\n${JSON.stringify(body, null, 1)}\n\`\`\`\n`;
 }
 
 export interface CaseResult {

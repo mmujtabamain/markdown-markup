@@ -1,0 +1,25 @@
+{
+  "widget": "disclosure@1",
+  "cases": {
+    "closed": {
+      "summary": "A closed section that is then opened.",
+      "props": {
+        "title": "Why does this work?",
+        "body": "Because $e^{i\\pi} = -1$, every term **cancels** in pairs."
+      },
+      "play": [
+        {
+          "press": "header"
+        }
+      ]
+    },
+    "open": {
+      "summary": "A section that starts open.",
+      "props": {
+        "title": "Assumptions",
+        "open": true,
+        "body": "- the graph is connected\n- every weight is positive"
+      }
+    }
+  }
+}

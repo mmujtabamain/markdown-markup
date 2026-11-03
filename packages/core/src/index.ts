@@ -5,7 +5,7 @@ export * from './ir';
 export { CORE_MKP, REQUIRED_TOKENS } from './base';
 export { parseMkp, parseExprString, parseValueString } from './syntax/mkp';
 export { parseDoc } from './syntax/doc';
-export { compile, Compiled, digest, stripPos, type CompileOptions, type PackSource } from './build';
+export { compile, Compiled, digest, stripPos, omitPos, type CompileOptions, type PackSource } from './build';
 export { readZip, writeZip, loadPack, sanitizeSvg, safePath } from './pack';
 export { TokenTable, tokenSetIR, tokenNames } from './tokens';
 export { inlineRuns, plainText, markdownToNodes, safeHref, type Run } from './markdown';
@@ -22,3 +22,8 @@ export { writeMarkdown, canvasSvg, type MdToggle, type MdOptions, type MdResult 
 export { expand } from './expand';
 export { fixtureCases, caseDocument, compileCase, missingFixtures, fixtureShape, type FixtureCase, type FixtureFile, type PlayStep } from './fixtures';
 export { MathsEngine, prerender } from './maths';
+export { MkpPrinter, DocPrinter, printFile, fileItems, valSrc, yamlText, type FileItem, type PrintContext } from './print';
+export { canonical } from './syntax/canon';
+export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
+export { indexLine, signatureText } from './catalog';
+export { checkDocument } from './check/doc';

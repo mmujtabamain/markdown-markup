@@ -1,0 +1,4 @@
+{ "widget": "reltable@1", "cases": {
+  "marked": { "summary": "Rows with ids: a group heading, a marked row and a plain one.",
+    "props": { "cols": ["dept", "n"], "title": "by dept",
+      "rows": [{"id": "h", "cells": ["Eng"], "mark": "head"}, {"id": "a", "cells": ["Eng", "2"], "mark": "on"}, {"id": "b", "cells": ["Ops", "1"]}] } } } }

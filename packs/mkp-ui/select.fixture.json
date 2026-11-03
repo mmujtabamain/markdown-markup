@@ -1,0 +1,51 @@
+{
+  "widget": "select@1",
+  "cases": {
+    "menu": {
+      "summary": "A menu of three units, with metres picked.",
+      "props": {
+        "value": {
+          "state": "m"
+        },
+        "label": "unit",
+        "options": [
+          {
+            "value": "mm",
+            "label": "millimetres"
+          },
+          {
+            "value": "m",
+            "label": "metres"
+          },
+          {
+            "value": "km",
+            "label": "kilometres"
+          }
+        ]
+      }
+    },
+    "inline": {
+      "summary": "Three methods as a row of buttons.",
+      "props": {
+        "value": {
+          "state": "euler"
+        },
+        "label": "method",
+        "inline": true,
+        "options": [
+          {
+            "value": "euler",
+            "label": "Euler"
+          },
+          {
+            "value": "midpoint"
+          },
+          {
+            "value": "rk4",
+            "label": "Runge–Kutta 4"
+          }
+        ]
+      }
+    }
+  }
+}

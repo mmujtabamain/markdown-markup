@@ -1,0 +1,19 @@
+progress@1 "How far along something is: a bar with its label and amount."
+  fields value total label
+  in value num "how much is done"
+  in total num = 1 "how much there is"
+  in label text = ""
+  in show choice(percent|fraction|none) = percent "how the amount is written"
+  in tone color = accent
+  in size size = m
+  done = max(0, min(1, value/total))
+  amount = if(show == percent, "" + round(100 done) + "%", if(show == fraction, "" + value + " of " + total, ""))
+  stack gap=xs
+    flex gap=m justify=between if=(label != "" or show != none)
+      text label tone=muted size=small
+      text amount size=small
+    canvas x=0..1 y=0..1 aspect=28 size=size label=(if(label != "", label + ": ", "progress: ") + round(100 done) + "%")
+      layer opacity=0.25
+        rect (0, 0) (1, 1) fill=muted stroke=none radius=pill
+      layer
+        rect (0, 0) (done, 1) fill=tone stroke=none radius=pill if=(done > 0)

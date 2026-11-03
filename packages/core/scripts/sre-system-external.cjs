@@ -25,9 +25,26 @@ SystemExternal.xpath = (function () {
   return window.document;
 })();
 SystemExternal.mathmapsIePath = '';
-SystemExternal.fs = null;
+// a read-only file system over the bundled locales, so the engine loads them the way it does in Node
+const LOCALES = {
+  base: require('speech-rule-engine/lib/mathmaps/base.json'),
+  en: require('speech-rule-engine/lib/mathmaps/en.json'),
+};
+const localeOf = (file) => (/([A-Za-z-]+)\.json$/.exec(String(file)) || [])[1];
+SystemExternal.fs = {
+  readFileSync(file) {
+    const l = LOCALES[localeOf(file)];
+    if (l === undefined) throw new Error('no bundled locale for ' + file);
+    return l;
+  },
+  readFile(file, _enc, cb) {
+    const l = LOCALES[localeOf(file)];
+    setTimeout(() => (l === undefined ? cb(new Error('no bundled locale for ' + file)) : cb(null, l)), 0);
+  },
+};
+SystemExternal.locales = LOCALES;
 SystemExternal.url = variables.Variables.url;
-SystemExternal.jsonPath = '';
+SystemExternal.jsonPath = '/mathmaps';
 SystemExternal.WGXpath = variables.Variables.WGXpath;
 SystemExternal.wgxpath = null;
 exports.SystemExternal = SystemExternal;

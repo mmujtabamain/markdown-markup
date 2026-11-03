@@ -1,0 +1,4 @@
+{ "widget": "callout@1", "cases": {
+  "tip": { "summary": "A tip.", "props": { "kind": "tip", "body": "Every root lies on the unit circle." } },
+  "danger": { "summary": "A danger callout with a title.", "props": { "kind": "danger", "title": "Careful", "body": "Dividing by $0$ is undefined." } },
+  "bad-kind": { "props": { "kind": "loud", "body": "x" }, "expect": { "errors": ["mkp.enum"] } } } }

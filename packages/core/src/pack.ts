@@ -170,7 +170,7 @@ export function loadPack(pf: PackFiles, diags: Diagnostics): PackInfo | null {
     documents: [],
     digest: '',
   };
-  if (!manifest.requires.some((r) => r.startsWith('core@'))) diags.warn('mkp.pack-requires', `${manifest.name}: the manifest should say "requires core@1"`, where);
+  if (manifest.name !== 'core' && !manifest.requires.some((r) => r.startsWith('core@'))) diags.warn('mkp.pack-requires', `${manifest.name}: the manifest should say "requires core@1"`, where);
   const listing: Record<string, string> = {};
   let total = 0;
   for (const [path, bytes] of [...pf.files].sort(([a], [b]) => (a < b ? -1 : 1))) {

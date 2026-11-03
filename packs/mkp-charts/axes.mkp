@@ -1,0 +1,81 @@
+axes@1 "Axes with ticks and a grid, for plotting functions of x and marking points."
+  in xmin num = -5
+  in xmax num = 5
+  in ymin num = -3
+  in ymax num = 3
+  in plots list(record plot {f: expr(x), label: text = ""}) "functions of x, each in the next colour"
+  in marks list(record mark {at: point, label: text = ""}) "points to mark and name"
+  in xlabel text = "x"
+  in ylabel text = "y"
+  in grid bool = true
+  in aspect num = 0 "width over height; 0 keeps the ranges' own shape when it is between 0.75 and 2, else 1.6"
+  in size size = m
+  in title text = ""
+
+  xs = xmax - xmin
+  ys = ymax - ymin
+  asp = if(aspect > 0, aspect, if(xs/ys >= 0.75 and xs/ys <= 2, xs/ys, 1.6))
+  xstep = nicestep(xs/8)
+  ystep = nicestep(ys/(8/asp))
+  # where the axes sit: through 0 when it is in range, else along the edge
+  ax = if(ymin <= 0 and ymax >= 0, 0, ymin)
+  ay = if(xmin <= 0 and xmax >= 0, 0, xmin)
+  # room around the plot for tick labels when an axis runs along an edge
+  pl = if(ay == xmin, 0.1 xs, 0.02 xs)
+  pb = if(ax == ymin, 0.1 ys, 0.02 ys)
+  dx = 0.015 xs
+  dy = 0.025 ys
+  xt = filter(ticks(xmin, xmax, xstep), t => abs(t - ay) > xstep/2 and t < xmax - xstep/2)
+  yt = filter(ticks(ymin, ymax, ystep), t => abs(t - ax) > ystep/2 and t < ymax - ystep/2)
+  # samples far outside the y range are dropped, so a curve leaves the plot instead of running along its edge
+  fn clip(y: num): num = if(y >= ymin - 0.01 ys and y <= ymax + 0.01 ys, y, nan)
+  fn colour(c: int): list(int) = filter(range(0, len(plots) - 1), k => mod(k, 4) == c)
+  what = (if(title != "", title + ": ", "") + "axes from x = " + xmin + " to " + xmax + ", y = " + ymin + " to " + ymax
+    + if(len(plots) > 0, ", plotting " + join(map(plots, p => if(p.label != "", p.label, "a function")), ", "), ""))
+
+  project md = (if(title != "", "**" + title + "**\n\n", "") + "*" + what + "*"
+    + if(len(marks) > 0, "\n\n| point | " + xlabel + " | " + ylabel + " |\n|---|---:|---:|\n"
+      + join(map(marks, m => "| " + m.label + " | " + m.at.x + " | " + m.at.y + " |"), "\n"), ""))
+
+  stack gap=s
+    text title weight=bold if=(title != "")
+    canvas x=(xmin - pl)..(xmax + 0.02 xs) y=(ymin - pb)..(ymax + 0.02 ys) aspect=asp size=size label=what
+      layer opacity=0.3 if=grid
+        each t in xt key=t
+          line (t, ymin) (t, ymax) stroke=muted
+        each t in yt key=t
+          line (xmin, t) (xmax, t) stroke=muted
+      layer
+        line (xmin, ax) (xmax + 0.02 xs, ax) stroke=ink arrow
+        line (ay, ymin) (ay, ymax + 0.02 ys) stroke=ink arrow
+        label (xmax + 0.02 xs, ax + dy) xlabel anchor=nw tone=muted
+        label (ay + 1.5 dx, ymax) ylabel anchor=e tone=muted
+        each t in xt key=t
+          line (t, ax - dy/3) (t, ax + dy/3) stroke=ink
+          label (t, ax - dy) (short(t)) anchor=s tone=muted
+        each t in yt key=t
+          line (ay - dx/2, t) (ay + dx/2, t) stroke=ink
+          label (ay - dx, t) (short(t)) anchor=w tone=muted
+      layer
+        each k in colour(0) key=k
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=accent width=2
+        each k in colour(1) key=k
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=warn width=2
+        each k in colour(2) key=k
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=ok width=2
+        each k in colour(3) key=k
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=bad width=2
+        each j in 0..(len(marks) - 1)
+          circle (marks[j].at) (0.01 xs) fill=ink
+          label (marks[j].at + (dx, dy)) (marks[j].label) anchor=ne
+    legend if=(len(filter(plots, p => p.label != "")) > 0)
+      each k in 0..(len(plots) - 1)
+        switch on=(mod(k, 4))
+          case 0
+            item (plots[k].label) accent
+          case 1
+            item (plots[k].label) warn
+          case 2
+            item (plots[k].label) ok
+          else
+            item (plots[k].label) bad

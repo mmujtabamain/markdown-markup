@@ -9,7 +9,7 @@ import { chunks, Chunk, decodeText, LLine, PosMap, readLines, skipMaths } from '
 
 export type Val =
   | { v: 'expr'; e: Ex; src: string; p: Pos }
-  | { v: 'range'; lo: Ex; hi: Ex; src: string; p: Pos }
+  | { v: 'range'; lo: Ex; hi: Ex; src: string; loSrc: string; hiSrc: string; p: Pos }
   | { v: 'dur'; ms: number; src: string; p: Pos };
 
 export interface Arg {
@@ -671,7 +671,7 @@ function valueOf(ctx: LineCtx, c: Chunk): Val {
   if (dots >= 0) {
     const lo = ExprParser.parse(ctx.text, c.at, c.at + dots, ctx.map);
     const hi = ExprParser.parse(ctx.text, c.at + dots + 2, c.at + t.length, ctx.map);
-    return { v: 'range', lo, hi, src: t, p };
+    return { v: 'range', lo, hi, src: t, loSrc: t.slice(0, dots), hiSrc: t.slice(dots + 2), p };
   }
   const e = ExprParser.parse(ctx.text, c.at, c.at + t.length, ctx.map);
   return { v: 'expr', e, src: t, p };

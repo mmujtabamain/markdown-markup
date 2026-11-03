@@ -1,0 +1,35 @@
+{
+  "widget": "chart@1",
+  "cases": {
+    "line": {
+      "summary": "One series as a line: temperature over a day.",
+      "props": { "kind": "line", "title": "Temperature", "name": "°C", "xlabel": "hour", "ylabel": "°C",
+        "data": [ {"x": 0, "y": 11}, {"x": 3, "y": 9.5}, {"x": 6, "y": 10}, {"x": 9, "y": 15}, {"x": 12, "y": 19.5}, {"x": 15, "y": 21}, {"x": 18, "y": 17}, {"x": 21, "y": 13}, {"x": 24, "y": 11.5} ] }
+    },
+    "bars": {
+      "summary": "Two series as grouped bars over named categories.",
+      "props": { "kind": "bar", "title": "Sales by quarter", "cats": ["Q1", "Q2", "Q3", "Q4"], "ylabel": "units",
+        "series": [
+          { "name": "North", "data": [ {"x": 0, "y": 120}, {"x": 1, "y": 150}, {"x": 2, "y": 170}, {"x": 3, "y": 140} ] },
+          { "name": "South", "data": [ {"x": 0, "y": 90}, {"x": 1, "y": 110}, {"x": 2, "y": 160}, {"x": 3, "y": 180} ] } ] }
+    },
+    "area": {
+      "summary": "Two series as filled areas.",
+      "props": { "kind": "area", "xlabel": "week",
+        "series": [
+          { "name": "visits", "data": [ {"x": 1, "y": 30}, {"x": 2, "y": 42}, {"x": 3, "y": 38}, {"x": 4, "y": 55}, {"x": 5, "y": 61}, {"x": 6, "y": 58} ] },
+          { "name": "sign-ups", "data": [ {"x": 1, "y": 8}, {"x": 2, "y": 12}, {"x": 3, "y": 10}, {"x": 4, "y": 19}, {"x": 5, "y": 24}, {"x": 6, "y": 22} ] } ] }
+    },
+    "dots": {
+      "summary": "A scatter of points, negative values included.",
+      "props": { "kind": "dot", "zero": false, "xlabel": "x", "ylabel": "residual",
+        "data": [ {"x": 0.5, "y": 0.3}, {"x": 1.1, "y": -0.6}, {"x": 1.8, "y": 0.9}, {"x": 2.2, "y": -0.2}, {"x": 3.0, "y": 0.4}, {"x": 3.4, "y": -1.1}, {"x": 4.1, "y": 0.7}, {"x": 4.9, "y": -0.3}, {"x": 5.5, "y": 1.2}, {"x": 6.2, "y": -0.8} ] }
+    },
+    "stems": {
+      "summary": "A sampled signal as stems around zero.",
+      "props": { "kind": "stem", "title": "A sampled sine, $x[n] = \\sin(n\\pi/4)$", "xlabel": "n",
+        "data": [ {"x": 0, "y": 0}, {"x": 1, "y": 0.707}, {"x": 2, "y": 1}, {"x": 3, "y": 0.707}, {"x": 4, "y": 0}, {"x": 5, "y": -0.707}, {"x": 6, "y": -1}, {"x": 7, "y": -0.707}, {"x": 8, "y": 0} ] }
+    },
+    "bad-kind": { "props": { "kind": "pie", "data": [ {"x": 0, "y": 1} ] }, "expect": { "errors": ["mkp.enum"] } }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "widget": "chip@1",
+  "cases": {
+    "tag": {
+      "summary": "A plain tag.",
+      "props": {
+        "text": "linear algebra"
+      }
+    },
+    "icon": {
+      "summary": "A tag with a maths symbol in the accent colour.",
+      "props": {
+        "text": "complex numbers",
+        "icon": "$\\mathbb{C}$",
+        "tone": "accent"
+      }
+    }
+  }
+}

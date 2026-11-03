@@ -204,7 +204,7 @@ export class ExprParser {
     let a = this.atom();
     for (;;) {
       const t = this.peek();
-      if (t.k === 'op' && t.v === '(' && !t.sp) {
+      if (t.k === 'op' && t.v === '(' && !t.sp && a.k !== 'num') {
         this.next();
         const args = this.list(')');
         a = a.k === 'id' ? { k: 'call', f: a.name, args, p: a.p } : { k: 'apply', f: a, args, p: this.pos(t) };

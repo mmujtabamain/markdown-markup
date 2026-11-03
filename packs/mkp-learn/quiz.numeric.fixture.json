@@ -1,0 +1,3 @@
+{ "widget": "quiz.numeric@1", "cases": {
+  "half": { "summary": "What is one over two?", "props": { "question": "What is $1/2$ as a decimal?", "answer": 0.5, "wrongs": [ { "value": 2, "why": "That is $2/1$." } ], "hints": [ { "text": "Divide one by two." } ], "solutions": [ { "text": "$1/2 = 0.5$" } ] },
+    "play": [ { "set": { "entry": "2" } }, { "wait": 100 } ] } } }

@@ -1,0 +1,18 @@
+{
+  "widget": "axes@1",
+  "cases": {
+    "trig": {
+      "summary": "Sine and cosine on −2π … 2π, with two points marked.",
+      "props": { "xmin": -6.3, "xmax": 6.3, "ymin": -1.6, "ymax": 1.6,
+        "plots": [ { "f": "sin(x)", "label": "$\\sin x$" }, { "f": "cos(x)", "label": "$\\cos x$" } ],
+        "marks": [ { "at": [1.5708, 1], "label": "$\\tfrac{\\pi}{2}$" }, { "at": [0, 1], "label": "$(0, 1)$" } ] }
+    },
+    "parabola": {
+      "summary": "A parabola and a line in the first quadrant, crossing where marked.",
+      "props": { "xmin": 0, "xmax": 4, "ymin": 0, "ymax": 10, "title": "Where they meet",
+        "plots": [ { "f": "x^2", "label": "$y = x^2$" }, { "f": "2x + 3", "label": "$y = 2x + 3$" } ],
+        "marks": [ { "at": [3, 9], "label": "$(3, 9)$" } ] }
+    },
+    "empty": { "summary": "Bare axes with a grid.", "props": {} }
+  }
+}

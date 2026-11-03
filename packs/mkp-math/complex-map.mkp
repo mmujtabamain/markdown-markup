@@ -1,0 +1,61 @@
+# A point clamped into the square view −s..s (the canvas doesn't clip what runs outside it).
+fn inside(w: complex, s: num): complex = {re: clamp(w.re, -s, s), im: clamp(w.im, -s, s)}
+
+complex-map@1 "A grid or points in the z-plane and their images under w = f(z), side by side, with a point to drag."
+  fields f
+  in f expr(z: complex): complex = z^2 "the map, in z"
+  in mode choice(grid|points) = grid "map a grid of lines, or the points you give"
+  in zs list(point) = [] "the points to map in points mode"
+  in r num = 1.5 "the z-plane shows −r..r each way"
+  in wr num = 3 "the w-plane shows −wr..wr each way"
+  in lines int 2..16 = 6 "grid lines each way, minus one"
+  in step num = 1 "background grid spacing"
+  p = drag x=(-r)..(r) y=(-r)..(r) = (0.5, 0.5) "z"
+  zp = p.x + p.y i
+  wp = f(zp)
+  cs = map(range(0, lines), k => -r + 2 r k/lines)
+  dz = r/40
+  dw = wr/40
+  stack gap=m
+    flex gap=l
+      stack gap=xs
+        text "the $z$-plane" tone=muted
+        canvas x=(-r)..(r) y=(-r)..(r) size=m label="The z-plane: a grid or points, and a point z to drag"
+          layer opacity=0.35
+            each g in ticks(-r, r, step)
+              line (g, -r) (g, r) stroke=muted width=0.5
+              line (-r, g) (r, g) stroke=muted width=0.5
+          layer
+            line (-r, 0) (r, 0) stroke=muted
+            line (0, -r) (0, r) stroke=muted
+          layer if=(mode == grid)
+            each c in cs
+              line (-r, c) (r, c) stroke=info
+              line (c, -r) (c, r) stroke=warn
+          layer if=(mode == points)
+            each q in zs
+              circle q (1.2 dz) fill=info
+          layer
+            handle p
+            label (zp + dz + dz i) "$z$" anchor=ne
+      stack gap=xs
+        text "the $w$-plane, $w = f(z)$" tone=muted
+        canvas x=(-wr)..(wr) y=(-wr)..(wr) size=m label="The w-plane: the images under f, and f(z)"
+          layer opacity=0.35
+            each g in ticks(-wr, wr, step)
+              line (g, -wr) (g, wr) stroke=muted width=0.5
+              line (-wr, g) (wr, g) stroke=muted width=0.5
+          layer
+            line (-wr, 0) (wr, 0) stroke=muted
+            line (0, -wr) (0, wr) stroke=muted
+          layer if=(mode == grid)
+            each c in cs
+              curve (inside(f((-r + 2 r t) + c i), wr)) stroke=info
+              curve (inside(f(c + (-r + 2 r t) i), wr)) stroke=warn
+          layer if=(mode == points)
+            each q in zs
+              circle (f(q.x + q.y i)) (1.2 dw) fill=info if=(abs(f(q.x + q.y i)) < 2 wr)
+          layer
+            circle (inside(wp, wr)) (1.4 dw) fill=accent
+            label (inside(wp, wr) + dw + dw i) "$f(z)$" tone=accent anchor=ne
+    text "$z = \val{zp}$ maps to $f(z) = \val{wp}$, with $\lvert f(z) \rvert = \val{abs(wp)}$."

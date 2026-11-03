@@ -1,0 +1,28 @@
+{
+  "widget": "toggle@1",
+  "cases": {
+    "off": {
+      "summary": "A switch that starts off and is flipped on.",
+      "props": {
+        "on": {
+          "state": false
+        },
+        "label": "Show the grid"
+      },
+      "play": [
+        {
+          "press": "switch"
+        }
+      ]
+    },
+    "on": {
+      "summary": "A switch that starts on.",
+      "props": {
+        "on": {
+          "state": true
+        },
+        "label": "Label the points"
+      }
+    }
+  }
+}

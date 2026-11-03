@@ -40,11 +40,10 @@ export class MathsEngine implements MathsRenderer {
   private readonly speechCache = new Map<string, string>();
   private speechOn = false;
 
-  private constructor(macros: Record<string, string>) {
+  private constructor(_macros: Record<string, string>) {
     engine.RegisterHTMLHandler(this.adaptor);
     const tex = new engine.TeX({
       packages: ['base', 'ams', 'newcommand', 'boldsymbol', 'cancel', 'mathtools'],
-      macros,
       formatError: (_jax: unknown, err: Error) => {
         throw err;
       },

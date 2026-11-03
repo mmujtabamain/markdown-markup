@@ -87,7 +87,7 @@ class DocChecker {
   guard(v: unknown, p: Pos, where: string): void {
     if (typeof v === 'string') {
       // eslint-disable-next-line no-control-regex
-      const m = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.exec(v);
+      const m = /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/.exec(v);
       if (m) {
         const names: Record<string, string> = { '\t': '\\t', '\b': '\\b', '\f': '\\f', '\v': '\\v', '\r': '\\r' };
         const c = names[m[0]] ?? `U+${m[0].charCodeAt(0).toString(16).padStart(4, '0')}`;
@@ -141,7 +141,7 @@ class DocChecker {
   private stateNames(body: string): string[] {
     return body
       .split('\n')
-      .map((l) => /^\s*([A-Za-z_][A-Za-z0-9_]*)\s+=/.exec(l)?.[1])
+      .map((l) => /^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:=|[a-z(])/.exec(l)?.[1])
       .filter((x): x is string => !!x);
   }
 
@@ -443,7 +443,12 @@ class DocChecker {
     for (const [k, v] of Object.entries(props)) {
       const p = this.p(line);
       if (!sig) {
-        this.diags.warn('mkp.attrs', `attribute ${k} on a Markdown block is ignored; only #id applies`, p);
+        // section roles for profiles (16): {role=example} on a heading
+        if (k === 'role' && node.node === 'heading') {
+          (node.meta ??= {}).role = v.replace(/^"|"$/g, '');
+          continue;
+        }
+        this.diags.warn('mkp.attrs', `attribute ${k} on a Markdown block is ignored; only #id and role= (on headings) apply`, p);
         continue;
       }
       const inp = sig.inputs.get(k);

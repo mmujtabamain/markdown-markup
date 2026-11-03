@@ -41,6 +41,16 @@ export class Compiled {
     readonly opts: CompileOptions,
   ) {}
 
+  /** The locked id for a bare name, from the lock this build was given (6.17). */
+  lockedFn(): (name: string) => string | undefined {
+    const ids = Object.keys(this.opts.lock?.defs ?? {});
+    return (name) => {
+      const bare = name.includes(':') ? name.slice(name.indexOf(':') + 1) : name;
+      const hits = ids.filter((id) => id.slice(id.indexOf(':') + 1).replace(/@\d+$/, '') === bare && (!name.includes(':') || id.startsWith(name.slice(0, name.indexOf(':') + 1))));
+      return hits.length === 1 ? hits[0] : undefined;
+    };
+  }
+
   tokenNameFn(): (kind: string) => Set<string> {
     const names = tokenNames(this.tokens);
     return (kind) => names.get(kind) ?? new Set();
@@ -49,7 +59,7 @@ export class Compiled {
   /** Checks a document and assembles its bundle (null when it has errors). */
   document(text: string, file: string, diags = this.diags, opts: { allowParts?: boolean } = {}): IRBundle | null {
     const before = diags.errors.length;
-    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts });
+    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn() });
     if (this.opts.profile) checkProfile(this, cd.front, cd.body, file, diags);
     if (diags.errors.length > before) return null;
     const doc: IRDoc = { file, front: cd.front, body: cd.body };
@@ -144,6 +154,15 @@ export function digest(v: unknown): string {
   return 'sha256:' + sha256(canonicalJson(v));
 }
 
+/** IR without source positions (the source map), keeping everything else. */
+export function omitPos<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(omitPos) as unknown as T;
+  if (!v || typeof v !== 'object') return v;
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (k !== 'pos') out[k] = omitPos(x);
+  return out as T;
+}
+
 /** IR without source positions and comments (what "IR-identical" compares, and digests hash). */
 export function stripPos<T>(v: T): T {
   if (Array.isArray(v)) return v.map(stripPos) as unknown as T;
@@ -217,7 +236,7 @@ export function compile(opts: CompileOptions): Compiled {
   const checkers: DefChecker[] = [];
   for (const d of prog.defs.values()) c.sigs.set(d.id, signatureOf(prog, d));
   for (const d of prog.defs.values()) {
-    const dc = new DefChecker(prog, d, diags, { tokenNames: c.tokenNameFn(), sigs: c.sigs });
+    const dc = new DefChecker(prog, d, diags, { tokenNames: c.tokenNameFn(), sigs: c.sigs, locked: c.lockedFn() });
     try {
       const ir = dc.check();
       c.defs.set(d.id, ir);
