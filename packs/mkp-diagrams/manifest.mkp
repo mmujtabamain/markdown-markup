@@ -1,0 +1,3 @@
+pack mkp-diagrams@1 "Diagrams laid out by compute and arrows: trees and graphs."
+  requires core@1
+  provides tree graph tnode edge

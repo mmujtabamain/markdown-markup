@@ -1,0 +1,4 @@
+pack mkp-math@1 "Maths over the base set: the complex type, planes, maps and orbits."
+  requires core@1
+  depends mkp-ui@1
+  provides complex i exp arg abs conj re im show orbit

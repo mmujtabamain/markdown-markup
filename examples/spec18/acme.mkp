@@ -1,0 +1,11 @@
+tokens acme@1 "Acme brand"
+  color accent "#2563eb" dark="#60a5fa"
+  color surface "#ffffff" dark="#0b0b0b"
+  color ink "#111111" dark="#f5f5f5"
+  font body "Inter" size=16 weight=400 line=1.6
+  font heading "Inter" size=24 weight=700
+  space xs=2 s=4 m=8 l=16 xl=32
+  size s=160 m=320 l=480
+  radius card=10 pill=999
+  shadow raised y=1 blur=2 color="#0000001f"
+  motion settle=300ms quick=180ms

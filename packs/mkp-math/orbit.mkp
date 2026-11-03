@@ -1,0 +1,23 @@
+orbit@1 "A point going round the unit circle and its image under f, with the image's path."
+  fields f
+  in f expr(z: complex): complex = z^2 "the map, in z"
+  s = slider 0..1 step=0.005 play=6s loop=repeat "turn"
+  z = exp(2 pi i s)
+  w = f(z)
+  flex gap=l
+    canvas x=-2..2 y=-2..2 size=m
+      layer opacity=0.5
+        circle (0, 0) 1 stroke=muted
+        line (-2, 0) (2, 0) stroke=muted
+        line (0, -2) (0, 2) stroke=muted
+      layer
+        curve (f(exp(2 pi i t))) stroke=accent
+        line (0, 0) z stroke=muted
+        circle z 0.05 fill=ink
+        circle w 0.06 fill=accent
+        label (z + 0.25) $z$
+        label (w + 0.25) $f(z)$ tone=accent
+    stack gap=s
+      value arg(z) $\arg z$
+      value abs(w) $\lvert f(z) \rvert$
+      value arg(w) $\arg f(z)$

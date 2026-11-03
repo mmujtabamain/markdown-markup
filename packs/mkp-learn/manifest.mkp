@@ -1,0 +1,4 @@
+pack mkp-learn@1 "Learning pieces: quizzes, worked steps and theorem cards."
+  requires core@1
+  depends mkp-ui@1
+  provides quiz.numeric

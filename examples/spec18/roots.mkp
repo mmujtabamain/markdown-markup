@@ -1,0 +1,52 @@
+# uses mkp-ui (tabs, card, value, stepper), mkp-math (complex, orbit) and mkp-learn (quiz.numeric)
+roots@1 "The n-th roots of unity on the unit circle, and what multiplying by one does."
+  in n int 2..12 = 5 "how many roots"
+  in level choice(intro|exam) = intro "intro adds a hint"
+  in labels bool = true "label the points"
+
+  k = slider 0..(n-1) step=1 play=8s loop=repeat "which root"
+  spin = toggle "multiply the plane by it"
+  tour = steps 3 "guided tour"
+    @end reveal check
+  w = exp(2 pi i k/n)
+  p = 1 + 0.5i
+
+  tabs
+    tab "Roots"
+      flex gap=l
+        canvas x=-1.6..1.6 y=-1.6..1.6 size=m
+          layer opacity=0.5
+            circle (0, 0) 1 stroke=muted
+          layer
+            each j in 0..(n-1)
+              circle (exp(2 pi i j/n)) 0.04 fill=ink
+              label (1.18 exp(2 pi i j/n)) if=labels $\omega^{\val{j}}$
+            line (0, 0) w stroke=accent
+            circle (p w) 0.05 if=spin fill=accent
+            label (p w + 0.15) if=spin $p\,\omega^{\val{k}}$
+        stack gap=s grow
+          value arg(w) $\arg \omega^k$
+          text "Multiplying by $\omega^{\val{k}}$ turns the plane by $\val{k}/\val{n}$ of a turn."
+          card title="Step through the roots"
+            stepper at=k last=(n-1)
+              @moved set spin=true
+    tab "Powers"
+      orbit f=(z^n)
+
+  switch on=tour
+    case 0
+      text "Every root lies on the unit circle, $\lvert\omega\rvert = 1$."
+    case 1
+      text "Each step turns by $2\pi/n$."
+    else
+      text """
+        After $n$ steps you are back at $1$,
+        so $\omega^n = 1$ for every root.
+        """
+
+  quiz.numeric id=check hidden
+    question "What is $\omega^n$ for every root $\omega$?"
+    answer 1
+    wrong -1 "That is $\omega^{n/2}$, and only when $n$ is even."
+    hint "Each root is a turn of $1/n$." if=(level == intro)
+    solution $\omega^n = e^{2\pi i k} = 1$

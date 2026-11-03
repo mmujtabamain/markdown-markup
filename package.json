@@ -1,0 +1,26 @@
+{
+  "name": "mkp-workspace",
+  "private": true,
+  "type": "module",
+  "description": "Markdown Markup (MKP): a Markdown superset for documents with reusable, interactive widgets.",
+  "packageManager": "pnpm@10.34.9",
+  "engines": { "node": ">=20.19" },
+  "scripts": {
+    "postinstall": "node packages/core/scripts/build-maths-engine.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:rn": "pnpm --filter @mkp/react-native test",
+    "conformance": "node scripts/conformance.mjs",
+    "hermes": "node scripts/hermes-run.mjs",
+    "e2e": "pnpm --filter @mkp/playground e2e",
+    "cli": "node packages/cli/dist/mkp.cjs"
+  },
+  "devDependencies": {
+    "@swc/core": "1.10.1",
+    "@types/node": "^22.10.0",
+    "ajv": "^8.17.1",
+    "esbuild": "0.24.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

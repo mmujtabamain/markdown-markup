@@ -1,0 +1,8 @@
+card@1 "A surface with an optional title, holding anything."
+  fields title
+  in title text = "" "shown in bold above the content"
+  in tone color = surface "the card's background"
+  in body slot
+  stack pad=l gap=m fill=tone stroke=muted radius=card
+    text title weight=bold if=(title != "")
+    slot body

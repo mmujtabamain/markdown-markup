@@ -1,0 +1,12 @@
+type tnode = {id: text, label: text, kids: list(tnode)}
+
+part tree@1 "A tidy tree: each node above a row of its children."
+  in node tnode
+  stack align=center gap=l
+    stack id=(node.id) pad=s fill=surface stroke=ink radius=card
+      text node.label
+    flex gap=m
+      each k in node.kids key=k.id
+        tree node=k
+  each k in node.kids key=k.id
+    arrow from=(node.id) to=(k.id)

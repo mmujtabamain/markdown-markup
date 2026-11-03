@@ -1,0 +1,5 @@
+part value@1 "A live value with its label, as maths: label = value."
+  fields v label
+  in v num "the value"
+  in label latex = $x$ "what it is"
+  text "$\val{label} = \val{v}$"
