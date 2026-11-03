@@ -30,9 +30,23 @@ class Translator {
   terms = 0;
   readonly uniforms: Record<string, number> = {};
   private readonly uniformKinds = new Map<string, G>();
+  /** an expression input's lambda and the scope its other names come from */
+  /** fns written inside the definition */
+  localFns?: Record<string, IRFn>;
+  /** statements of main(): shared subexpressions held in temporaries, so inlining stays linear */
+  readonly lines: string[] = [];
+
+  tmp(g: G): G {
+    if (/^[A-Za-z_][A-Za-z0-9_.]*$|^\(?-?[\d.]+(e-?\d+)?\)?$/.test(g.code)) return g;
+    const name = `t${this.lines.length}`;
+    const type = g.kind === 'v2' ? 'vec2' : g.kind === 'v3' ? 'vec3' : g.kind === 'b' ? 'bool' : 'float';
+    this.lines.push(`  ${type} ${name} = ${g.code};`);
+    return { ...g, code: name };
+  }
+  lambdaOf?: (name: string) => { params: string[]; body: A; lookup: (name: string, local: boolean) => V } | null;
   constructor(
     readonly bundle: IRBundle,
-    readonly lookup: (name: string, local: boolean) => V,
+    public lookup: (name: string, local: boolean) => V,
   ) {}
 
   tick(): void {
@@ -51,8 +65,12 @@ class Translator {
     const known = this.uniformKinds.get(key);
     if (known) return known;
     let g: G;
-    if (typeof v === 'number' || typeof v === 'boolean') {
-      this.uniforms[key] = Number(v);
+    if (typeof v === 'boolean') {
+      // a boolean travels as a float uniform and reads back as a comparison
+      this.uniforms[key] = v ? 1 : 0;
+      g = { code: `(${key} > 0.5)`, kind: 'b' };
+    } else if (typeof v === 'number') {
+      this.uniforms[key] = v;
       g = { code: key, kind: 'f' };
     } else if (Array.isArray(v) && v.length === 2) {
       this.uniforms[key + '.x'] = v[0] as number;
@@ -88,7 +106,7 @@ class Translator {
         return this.uniform(a.name, this.lookup(a.name, a.from === 'local'));
       }
       case 'rec': {
-        const parts = a.fields.map(([, x]) => this.tr(x, locals, fnStack));
+        const parts = a.fields.map(([, x]) => this.tmp(this.tr(x, locals, fnStack)));
         const names = a.fields.map(([k]) => k);
         if (parts.length === 2 && parts.every((p) => p.kind === 'f')) return { code: `vec2(${parts[0].code}, ${parts[1].code})`, kind: 'v2', fields: names };
         if (parts.length === 3 && parts.every((p) => p.kind === 'f')) {
@@ -128,7 +146,31 @@ class Translator {
         return { code: `(${c.code} ? ${x.code} : ${y.code})`, kind: x.kind, fields: x.fields };
       }
       case 'call':
-        return this.call(a.fn, a.args.map((x) => this.tr(x, locals, fnStack)), fnStack);
+        return this.call(a.fn, a.args.map((x) => this.tmp(this.tr(x, locals, fnStack))), fnStack);
+      case 'apply': {
+        // an expr(…) input (or a lambda) called inside pixels: its body is inlined with the arguments
+        const args = a.args.map((x) => this.tmp(this.tr(x, locals, fnStack)));
+        if (a.f.t === 'lam') {
+          const l2 = new Map(locals);
+          a.f.params.forEach((p, i) => l2.set(p, args[i]));
+          return this.tr(a.f.body, l2, fnStack);
+        }
+        if (a.f.t === 'var' && this.lambdaOf) {
+          const found = this.lambdaOf(a.f.name);
+          if (found) {
+            const saved = this.lookup;
+            this.lookup = found.lookup;
+            try {
+              const l2 = new Map<string, G>();
+              found.params.forEach((p, i) => l2.set(p, args[i]));
+              return this.tr(found.body, l2, fnStack);
+            } finally {
+              this.lookup = saved;
+            }
+          }
+        }
+        throw new EvalError('mkp.gfx-value', 'pixels can call only expression inputs and declared fns');
+      }
       case 'builtin':
         return this.builtin(a.fn, a.args, locals, fnStack);
       case 'tmpl':
@@ -142,7 +184,7 @@ class Translator {
   /** Declared fns and ops are inlined (recursion is not allowed in pixels). */
   call(id: string, args: G[], fnStack: string[]): G {
     if (fnStack.includes(id)) throw new EvalError('mkp.gfx-recursion', 'pixels functions may not recurse');
-    const fn: IRFn | undefined = this.bundle.fns[id];
+    const fn: IRFn | undefined = this.bundle.fns[id] ?? this.localFns?.[id];
     if (!fn) throw new EvalError('mkp.gfx-value', `pixels can't call ${id}`);
     const locals = new Map<string, G>();
     fn.params.forEach((p, i) => {
@@ -176,7 +218,7 @@ class Translator {
       if (parts[0].kind === 'v2' && fn === 'sumT') return { code: `(${parts.map((p) => p.code).join(' + ')})`, kind: 'v2', fields: parts[0].fields };
       return { code: `(${parts.map((p) => p.code).join(fn.startsWith('prod') ? ' * ' : ' + ')})`, kind: 'f' };
     }
-    const g = argsA.map((x) => this.tr(x, locals, fnStack));
+    const g = argsA.map((x) => this.tmp(this.tr(x, locals, fnStack)));
     const [x, y, z] = g;
     if (fn in MAP1) return { code: `${MAP1[fn]}(${x.code})`, kind: 'f' };
     switch (fn) {
@@ -252,10 +294,12 @@ vec3 mkp_hsl(float h, float s, float l) {
 }`;
 
 /** Compiles a pixels expression (a lambda over x and y returning {r, g, b}). */
-export function compilePixels(f: IRExpr, bundle: IRBundle, inst: (name: string) => V, env: Env): CompiledPixels {
+export function compilePixels(f: IRExpr, bundle: IRBundle, inst: (name: string) => V, env: Env, lambdaOf?: Translator['lambdaOf'], localFns?: Record<string, IRFn>): CompiledPixels {
   const lam = f.ast;
   if (lam.t !== 'lam' || lam.params.length !== 2) throw new EvalError('mkp.gfx-value', 'pixels needs an expression in x and y');
   const tr = new Translator(bundle, (name, local) => (local ? env.local(name) : name.includes(':') ? env.prog.constValue(name) : inst(name)));
+  tr.lambdaOf = lambdaOf;
+  tr.localFns = localFns;
   const locals = new Map<string, G>([
     [lam.params[0], { code: 'mkp_p.x', kind: 'f' }],
     [lam.params[1], { code: 'mkp_p.y', kind: 'f' }],
@@ -263,9 +307,9 @@ export function compilePixels(f: IRExpr, bundle: IRBundle, inst: (name: string) 
   const body = tr.tr(lam.body, locals, []);
   if (body.kind !== 'v3') throw new EvalError('mkp.gfx-value', 'pixels must return a colour: rgb(r, g, b) or hsl(h, s, l)');
   const decl = tr.declarations('glsl');
-  const glsl = `precision highp float;\n${decl}\nuniform vec2 mkp_x;\nuniform vec2 mkp_y;\nuniform vec2 mkp_size;\n${PRELUDE}\nvoid main() {\n  vec2 uv = gl_FragCoord.xy / mkp_size;\n  vec2 mkp_p = vec2(mix(mkp_x.x, mkp_x.y, uv.x), mix(mkp_y.x, mkp_y.y, uv.y));\n  gl_FragColor = vec4(${body.code}, 1.0);\n}\n`;
+  const glsl = `precision highp float;\n${decl}\nuniform vec2 mkp_x;\nuniform vec2 mkp_y;\nuniform vec2 mkp_size;\n${PRELUDE}\nvoid main() {\n  vec2 uv = gl_FragCoord.xy / mkp_size;\n  vec2 mkp_p = vec2(mix(mkp_x.x, mkp_x.y, uv.x), mix(mkp_y.x, mkp_y.y, uv.y));\n${tr.lines.join('\n')}\n  gl_FragColor = vec4(${body.code}, 1.0);\n}\n`;
   const sk = (s: string): string => s.replace(/\bvec2\b/g, 'float2').replace(/\bvec3\b/g, 'float3');
-  const sksl = sk(`${tr.declarations('sksl')}\nuniform float2 mkp_x;\nuniform float2 mkp_y;\nuniform float2 mkp_size;\n${PRELUDE}\nhalf4 main(float2 frag) {\n  float2 uv = float2(frag.x / mkp_size.x, 1.0 - frag.y / mkp_size.y);\n  float2 mkp_p = float2(mix(mkp_x.x, mkp_x.y, uv.x), mix(mkp_y.x, mkp_y.y, uv.y));\n  return half4(half3(${body.code}), 1.0);\n}\n`);
+  const sksl = sk(`${tr.declarations('sksl')}\nuniform float2 mkp_x;\nuniform float2 mkp_y;\nuniform float2 mkp_size;\n${PRELUDE}\nhalf4 main(float2 frag) {\n  float2 uv = float2(frag.x / mkp_size.x, 1.0 - frag.y / mkp_size.y);\n  float2 mkp_p = float2(mix(mkp_x.x, mkp_x.y, uv.x), mix(mkp_y.x, mkp_y.y, uv.y));\n${tr.lines.join('\n')}\n  return half4(half3(${body.code}), 1.0);\n}\n`);
   if (glsl.length > GFX_LIMITS.source) throw new EvalError('mkp.gfx-source', 'the compiled shader is over 64 KB');
   const fn = compileAst(lam)(env) as Fun;
   return {

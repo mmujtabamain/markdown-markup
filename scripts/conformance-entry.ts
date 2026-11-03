@@ -39,7 +39,7 @@ if (generate) {
     const r = compileCase(c, fc);
     if (!r.bundle) throw new Error(`${fc.pack}/${fc.widget}/${fc.name} does not compile`);
     const id = `${fc.pack}.${fc.widget.replace('@', '.')}.${fc.name}`;
-    const cc = makeCase(id, omitPos(r.bundle), fc.play ?? [], fc.hosts);
+    const cc = makeCase(id, omitPos(r.bundle), fc.play ?? [], fc.hosts, fc.expect?.tolerance);
     writeFileSync(join(dir, `${id}.json`), JSON.stringify(cc));
     ids.push(id);
   }

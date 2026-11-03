@@ -1,0 +1,7 @@
+{ "widget": "quiz.self-check@1", "cases": {
+  "limit": { "summary": "State $\\lim_{x \\to 0} \\frac{\\sin x}{x}$, reveal it and rate yourself.",
+    "props": { "question": "What is $\\displaystyle\\lim_{x \\to 0} \\frac{\\sin x}{x}$?", "answer": "$1$: near $0$, $\\sin x \\approx x$, so the ratio tends to $1$." },
+    "play": [ { "press": "reveal" }, { "press": "partly" }, { "wait": 100 } ] },
+  "closed": { "summary": "A self-check before the answer is shown.",
+    "props": { "question": "Why is $\\sqrt{2}$ irrational?", "answer": "If $\\sqrt 2 = p/q$ in lowest terms then $p^2 = 2q^2$, so $p$ is even, then $q$ is even too: a contradiction.", "prompt": "Sketch the proof first." } },
+  "no-answer": { "props": { "question": "?" }, "expect": { "errors": ["mkp.missing-input"] } } } }

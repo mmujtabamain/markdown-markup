@@ -219,3 +219,60 @@ spec doesn't have that the implementation needed), **Deviation** (differs from t
     *Proposed (18.3 note):* "Long edges are straight; route them with dummy nodes if crossings matter."
 55. **18.4 tabs carry no ids.** The verbatim `tabs` has no ids on its presses, so fixtures can't press a
     tab by id. The tests press it through the renderer instead.
+
+## Found while writing the packs
+
+56. **Computed style props.** *Extension (7).* A style prop takes a token name or an expression that
+    gives one (`stroke=(s.tone)`, a choice whose options are token names). Token words are values
+    wherever a token is expected. The name is checked against the build's tokens when it renders;
+    an unknown one falls back to the pack default (7: never a render error).
+57. **A range's ends.** `x[0]` and `x[1]` read the ends of a `range` value.
+58. **`var` defaults may read inputs** (`var shown bool = open`), like derived values.
+59. **A `ref num` binds `int` state.** Values written back are rounded, so `range` can scrub a
+    `steps` or integer slider.
+60. **Record lists can't take a computed list.** *Gap (6.8).* A record-list input is filled only by
+    record lines (and `each`/`switch` among them), not by an expression such as
+    `items=(map(…))`. Writing `each x in list` with a record line inside does the same job.
+    *Proposed:* "A record-list input also takes an expression giving a list of records of its type."
+61. **`play=` takes a literal duration**, so a speed control needs one hidden clock per speed.
+    *Proposed:* `play=(expr)` with a duration-typed expression, or `speed=` on play.
+62. **Arrow labels** sit at the middle of the shaft, in a box of fixed width, so nearby labels can
+    overlap (the ER example's two arrows into one entity). Placing labels to avoid each other is a
+    renderer improvement, not language.
+63. **`curve` has no breaks.** Non-finite samples are dropped, so the curve joins across a pole
+    (`1/x`). *Proposed (8):* a curve breaks its path at non-finite samples and where it leaves the
+    canvas's y range.
+64. **A tooltip's anchor is a button**, because `overlay` makes its first slot pressable. A tooltip on
+    plain text would need an anchor that takes focus without being a button. *Proposed (8):* `overlay`
+    `mode=tooltip` anchors on focusable text.
+65. **`press` has no `expanded` state** for disclosure-style buttons. *Proposed (8):* `press
+    expanded=(bool)`, read out as `aria-expanded`.
+66. **No text functions beyond `+`, `format` and `join`.** *Gap (6.7).* There is no `slice`, `split`,
+    `replace` or `len` on text, so a trace can't re-indent code, and a projection can't escape Mermaid
+    labels. *Proposed (6.7 Text row):* `split(t, sep)`, `replace(t, a, b)`, `slice(t, a, b)`, `len(t)`.
+67. **`id=(name)` is a computed id.** *Reading (6.8).* Brackets make an id computed even around a
+    single name, so items written in an `each` get the value as their id, not the word.
+68. **Expression variables are named by the type.** A truth table over any variables needs
+    `expr(p: bool, q: bool, …)` with fixed names. *Proposed:* `expr(*: bool): bool` taking the names
+    from a list input.
+69. **A bracketed expression is not called.** *Reading (6.7).* `(a+b)(a+b)` is a product, like
+    `2(x+1)`. Only a name, field, index or call result is called by a following `(`.
+70. **Records before props.** *Reading (6.8).* When a record kind has the same name as a field of the
+    record list that holds it (`layer` has a `pixels` list of `pixels` records), the record wins.
+    A prop line can't set a record list anyway.
+71. **How `pixels` compiles.** *Reading (8.1, 17).*
+    - Declared fns, local fns and `expr(…)` inputs are inlined, and shared subexpressions become
+      temporaries (`float t3 = …;`), so the shader grows linearly.
+    - Values from outside the expression are uniforms: numbers, booleans read back as `(u > 0.5)`,
+      and two-number records as `vec2`.
+    - Recursion and text are build errors. The term cap is 2,000 and the source cap 64 KB.
+72. **The canvas clips its shapes** to its box. Labels and placed elements are HTML and may overhang.
+73. **The Hermes run is batched.** It runs in batches of 16 cases per process, because Hermes has a
+    1 GB heap.
+74. **Nested record lists are always lists.** *Reading (6.8).* A record's nested record list reads as
+    an empty list when no records are written.
+75. **A fixture may loosen the tolerance.** *Extension (11).* `expect.tolerance` sets a fixture's
+    relative tolerance (at most 1e-3). Long iterations of `sqrt` and `atan2` amplify the last-bit
+    differences between engines: the 120-step force layout differs by about 1e-9 between V8 and
+    Hermes. The difference grows through the layout's 120 steps to about 1e-4 in final positions, so the
+    force-graph fixtures say 1e-3, a hundredth of a pixel on a 320 px canvas; everything else keeps 11's 1e-9.

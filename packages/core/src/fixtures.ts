@@ -22,7 +22,7 @@ export interface FixtureCase {
   summary?: string;
   play?: PlayStep[];
   hosts?: Record<string, unknown>;
-  expect?: { errors?: string[]; md?: Record<string, string>; values?: Record<string, unknown>; visible?: string[] };
+  expect?: { errors?: string[]; md?: Record<string, string>; values?: Record<string, unknown>; visible?: string[]; tolerance?: number };
 }
 
 export interface FixtureFile {

@@ -258,7 +258,7 @@ export class MkpPrinter {
         out.push(line(['controls', ...(n.names ?? [])]));
         return out;
       case 'arrow':
-        out.push(line(['arrow', `from=${valSrc(n.from!)}`, `to=${valSrc(n.to!)}`, n.label ? valSrc(n.label, { t: 'text' }) : '', n.curve ? 'curve' : '', ...this.meta(n)]));
+        out.push(line(['arrow', `from=${valSrc(n.from!)}`, `to=${valSrc(n.to!)}`, n.label ? ('text' in n.label && !('ast' in n.label) ? valSrc(n.label, { t: 'text' }) : `label=${valSrc(n.label, { t: 'text' })}`) : '', n.curve ? 'curve' : '', ...this.meta(n)]));
         return out;
       case '$record': {
         const t = recs?.get(n.record!);
@@ -494,13 +494,18 @@ export class DocPrinter {
     }
     const obj: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(n.props ?? {})) obj[k] = this.yamlValue(v, d?.inputs.find((x) => x.name === k)?.type);
-    const recLists = new Map<string, unknown[]>();
-    for (const r of n.records ?? []) {
+    // records as YAML lists of mappings, with records nested in records as lists of their own
+    const recordObj = (r: IRNode): Record<string, unknown> => {
       const o: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(r.props ?? {})) o[k] = this.yamlValue(v);
+      for (const x of r.records ?? []) ((o[x.input!] ??= []) as unknown[]).push(recordObj(x));
       if (r.children?.length) o.slot = this.blocks(r.children, 3).join('\n\n');
+      return o;
+    };
+    const recLists = new Map<string, unknown[]>();
+    for (const r of n.records ?? []) {
       const list = recLists.get(r.input!) ?? [];
-      list.push(o);
+      list.push(recordObj(r));
       recLists.set(r.input!, list);
     }
     for (const [k, v] of recLists) obj[k] = v;

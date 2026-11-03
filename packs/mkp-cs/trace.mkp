@@ -1,3 +1,11 @@
+# Text has no slicing, so leading spaces are counted by comparison: s starts with k spaces exactly when
+# k spaces <= s < (k - 1 spaces) + "!", since a space sorts before every other printable character.
+fn spaces(k: int): text = join(map(range(1, k), x => " "), "")
+fn lead(s: text): int = fold(range(1, 24), 0, (n, k) => if(n == k - 1 and s >= spaces(k) and s < spaces(k - 1) + "!", k, n))
+# a line of code as inline code that keeps its indentation: Markdown collapses the leading spaces to one,
+# so all but one become no-break spaces in front
+fn indented(s: text): text = "`" + join(map(range(1, lead(s) - 1), x => " "), "") + s + "`"
+
 trace@1 "A program trace: the code with the current line marked, the variables at each step, and the output so far."
   in code list(text) "the program, one line each"
   in lang text = "" "the language, for the Markdown code block"
@@ -18,12 +26,15 @@ trace@1 "A program trace: the code with the current line marked, the variables a
         join(map(range(0, len(vars) - 1), v => at(run[k].values, v, "")), " | ") + " | " + run[k].output + " |"), "\n") + "\n")
 
   flex gap=l align=start
-    stack gap=xs pad=s stroke=muted radius=card grow
+    stack gap=none pad=s stroke=muted radius=card grow
       each l in lines key=l.id
-        flex gap=s align=baseline
-          text (if(l.on, "▶", " ")) tone=accent font=mono
-          text ("" + l.n) tone=muted font=mono
-          text ("`" + l.src + "`") weight=(if(l.on, bold, regular))
+        stack id=(l.id)
+          flex gap=s align=center pad=xs stroke=accent radius=card if=(l.on)
+            text ("" + l.n) tone=accent font=mono weight=bold
+            text (indented(l.src)) weight=bold
+          flex gap=s align=center pad=xs if=(not l.on)
+            text ("" + l.n) tone=muted font=mono
+            text (indented(l.src))
     stack gap=s
       grid cols=2 gap=s pad=s
         text "variable" weight=bold tone=muted

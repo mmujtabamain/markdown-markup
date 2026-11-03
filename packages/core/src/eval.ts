@@ -79,6 +79,7 @@ export function fromJson(v: unknown): V {
 export function toJson(v: V): unknown {
   if (Array.isArray(v)) return v.map(toJson);
   if (typeof v === 'function') return '<fn>';
+  if (v && typeof v === 'object' && (v as { __slot?: boolean }).__slot) return '<slot>';
   if (v && typeof v === 'object') {
     const o: Record<string, unknown> = {};
     for (const k of Object.keys(v)) o[k] = toJson(v[k]);

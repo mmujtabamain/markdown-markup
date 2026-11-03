@@ -1,0 +1,62 @@
+quiz.choice@1 "A question with options to pick: one right answer, or several with multiple; feedback for each option, hints and a worked solution."
+  in question text "the question, with maths"
+  in multiple bool = false "several options may be right, and the reader ticks every one"
+  in options list(record option {text: text, right: bool = false, why: text = ""}) "the options, with why each is right or wrong"
+  in hints list(record hint {text: text})
+  in solutions list(record solution {text: text})
+  out correct
+  out wrong
+  signal answered {correct: bool, picked: list(int)} "sent on every check"
+  var picked list(int) = []
+  var result choice(none|pass|fail) = none
+  var hinted int = 0
+  var shown bool = false
+  n = len(options)
+  rights = filter(range(0, n - 1), k => options[k].right)
+  right = len(picked) == len(rights) and len(filter(picked, k => options[k].right)) == len(rights)
+  fn has(k: int): bool = indexof(picked, k) >= 0
+  fn mark(k: int): text = if(multiple, if(has(k), "☑", "☐"), if(has(k), "◉", "○"))
+  fn answers(sep: text): text = join(map(filter(options, o => o.right), o => "- " + o.text + if(o.why == "", "", sep + o.why)), "\n")
+  project md = (question + if(multiple, " *(Tick every right answer.)*", "") + "\n\n"
+      + join(map(options, o => if(multiple, "- [ ] ", "- ") + o.text), "\n")
+      + "\n\n:::details \"Answer\"\n" + answers(": ")
+      + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
+  stack gap=m pad=m stroke=muted radius=card
+    text question
+    text "Tick every right answer." tone=muted size=small if=multiple
+    stack gap=xs
+      each k in 0..(n - 1)
+        stack gap=xs
+          press kind=option selected=(has(k)) if=(not multiple)
+            flex gap=s align=baseline wrap=false
+              text (mark(k))
+              text options[k].text
+            @click set picked=[k] result=none
+          press kind=toggle selected=(has(k)) if=multiple
+            flex gap=s align=baseline wrap=false
+              text (mark(k))
+              text options[k].text
+            @click set picked=(if(has(k), filter(picked, j => j != k), sort(picked + [k], j => j))) result=none
+          text ("✓ " + options[k].why) tone=ok size=small if=(result != none and has(k) and options[k].right and options[k].why != "")
+          text ("✗ " + options[k].why) tone=bad size=small if=(result != none and has(k) and not options[k].right and options[k].why != "")
+    flex gap=s align=center
+      press id=check_ok if=(right) disabled=(len(picked) == 0)
+        text "Check"
+        @click set result=pass send answered correct=true picked=picked emit correct
+      press id=check if=(not right) disabled=(len(picked) == 0)
+        text "Check"
+        @click set result=fail send answered correct=false picked=picked emit wrong
+      press if=(hinted < len(hints))
+        text "Hint"
+        @click set hinted=(hinted + 1)
+      press if=(result == fail and not shown)
+        text "Show the answer"
+        @click set shown=true
+    text "Right." tone=ok if=(result == pass)
+    text (if(multiple and len(filter(picked, k => options[k].right)) == len(picked), "Right so far, but there is more to tick.", "Not quite.")) tone=bad if=(result == fail)
+    each k in 0..(hinted - 1)
+      text hints[k].text tone=muted
+    stack gap=s if=(shown or result == pass)
+      text (answers(" — ")) if=shown
+      each s in solutions
+        text s.text

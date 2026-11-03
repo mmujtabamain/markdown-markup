@@ -1,0 +1,62 @@
+quiz.order@1 "Put items in order: they start shuffled, the reader moves them with up and down presses, then checks."
+  in question text "what to order, and by what"
+  in items list(record item {text: text}) "the items, in the right order"
+  in hints list(record hint {text: text})
+  in solutions list(record solution {text: text})
+  out correct
+  out wrong
+  signal answered {correct: bool, order: list(int)} "sent on every check, with the item indices as placed"
+  host seed int = 0 "per-reader seed for the shuffle"
+  var moved list(int) = []
+  var result choice(none|pass|fail) = none
+  var hinted int = 0
+  var solved bool = false
+  n = len(items)
+  mixed = sort(range(0, n - 1), k => rand(seed + 17, k))
+  # never start already in order
+  start = if(n > 1 and len(filter(range(0, n - 1), k => mixed[k] == k)) == n, reverse(mixed), mixed)
+  now = if(len(moved) == n, moved, start)
+  fn swap(xs: list(int), a: int, b: int): list(int) = map(range(0, len(xs) - 1), k => if(k == a, xs[b], if(k == b, xs[a], xs[k])))
+  fn pos(j: int): int = indexof(now, j)
+  placed = len(filter(range(0, n - 1), k => now[k] == k))
+  right = placed == n
+  project md = (question + "\n\n" + join(map(start, j => "- " + items[j].text), "\n")
+      + "\n\n:::details \"Answer\"\n" + join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].text), "\n")
+      + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
+  stack gap=m pad=m stroke=muted radius=card
+    text question
+    stack gap=xs
+      each j in now key=j
+        flex gap=s align=center wrap=false pad=s stroke=muted radius=card
+          text ("" + (pos(j) + 1) + ".") tone=muted
+          stack grow
+            text items[j].text
+          text "✓" tone=ok if=(result != none and pos(j) == j)
+          text "✗" tone=bad if=(result != none and pos(j) != j)
+          press label=("move up: " + items[j].text) disabled=(pos(j) == 0)
+            text "↑"
+            @click set moved=(swap(now, pos(j), pos(j) - 1)) result=none
+          press label=("move down: " + items[j].text) disabled=(pos(j) == n - 1)
+            text "↓"
+            @click set moved=(swap(now, pos(j), pos(j) + 1)) result=none
+    flex gap=s align=center
+      press id=check_ok if=(right)
+        text "Check"
+        @click set result=pass send answered correct=true order=now emit correct
+      press id=check if=(not right)
+        text "Check"
+        @click set result=fail send answered correct=false order=now emit wrong
+      press if=(hinted < len(hints))
+        text "Hint"
+        @click set hinted=(hinted + 1)
+      press if=(result == fail and not solved)
+        text "Show the order"
+        @click set solved=true
+    text "Right order." tone=ok if=(result == pass)
+    text "\val{placed} of \val{n} in the right place." tone=bad if=(result == fail)
+    each k in 0..(hinted - 1)
+      text hints[k].text tone=muted
+    stack gap=s if=solved
+      text (join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].text), "  \n"))
+      each s in solutions
+        text s.text

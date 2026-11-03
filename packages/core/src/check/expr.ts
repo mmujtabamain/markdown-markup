@@ -78,9 +78,13 @@ export const RGB: Type = { t: 'rec', name: 'rgb', fields: [['r', T.num], ['g', T
 
 export class ExprChecker {
   /** specialisations being checked, to catch recursion without a return type */
-  private readonly inProgress = new Map<string, Type | undefined>();
+  private get inProgress(): Map<string, Type | undefined> {
+    return this.prog.fnsInProgress;
+  }
   readonly env: TypeEnv;
   depth = 0;
+  /** token names by kind, so token words are values where a token is expected */
+  tokenNames?: (kind: string) => Set<string>;
 
   constructor(
     readonly prog: Program,
@@ -185,6 +189,7 @@ export class ExprChecker {
           return { ast: { t: 'index', o: o.ast, i: i.ast }, type: ot.of };
         }
         if (ot.t === 'any') return { ast: { t: 'index', o: o.ast, i: this.check(e.i, scope).ast }, type: T.any };
+        if (ot.t === 'range') return { ast: { t: 'index', o: o.ast, i: this.coerce(this.check(e.i, scope, T.int), T.num, e.i.p).ast }, type: T.num };
         return this.fail(e.p, `only lists and dicts can be indexed; found ${showType(o.type)}`);
       }
       case 'neg': {
@@ -254,6 +259,7 @@ export class ExprChecker {
       return { ast: { t: 'var', name, from: b.from }, type: b.type.t === 'ref' ? b.type.of : b.type };
     }
     if (ex && ex.t === 'choice' && ex.opts.includes(name)) return { ast: { t: 'str', v: name }, type: ex };
+    if (ex && ex.t === 'token' && this.tokenNames?.(ex.kind).has(name)) return { ast: { t: 'str', v: name }, type: ex };
     if (name in CONSTS) {
       const [type, ast] = CONSTS[name];
       return { ast, type };

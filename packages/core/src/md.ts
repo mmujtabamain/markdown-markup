@@ -29,7 +29,8 @@ const ALERT_TITLE: Record<string, string> = { note: 'Note', tip: 'Tip', importan
 
 export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
   const t = new Set(opts.toggles ?? []);
-  const rt = new Runtime(b, { snapshot: true, maths: opts.maths, now: () => 0, capabilities: ['core@1'] });
+  // the images toggle draws gfx content from its CPU fallback; otherwise no fallback is needed
+  const rt = new Runtime(b, { snapshot: true, maths: opts.maths, now: () => 0, capabilities: t.has('images') ? ['core@1'] : ['core@1', 'gfx@1'] });
   const tokens = new TokenTable(b.tokens);
   const files = new Map<string, string>();
   let imageNo = 0;

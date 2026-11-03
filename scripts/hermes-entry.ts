@@ -8,23 +8,25 @@ import data from './.hermes/data.json';
 declare const print: (s: string) => void;
 const out = (kind: string, v: unknown): void => print(`MKP-RESULT ${JSON.stringify({ kind, ...(v as object) })}`);
 
-const d = data as { cases: ConfCase[]; packs: { label: string; files: Record<string, string> }[]; doc: { path: string; text: string; digest: string } };
+const d = data as { cases: ConfCase[]; packs: { label: string; files: Record<string, string> }[]; doc: { path: string; text: string; digest: string } | null };
 const enc = new TextEncoder();
 
 let failed = 0;
 for (const c of d.cases) {
   let diffs: string[];
+  const started = Date.now();
   try {
-    diffs = checkCase(c);
+    // the full-toggle Markdown (CPU-rendered images) is checked on Node; Hermes checks the rest
+    diffs = checkCase(c, { mdAll: false });
   } catch (e) {
     diffs = [`threw: ${(e as Error).message}`];
   }
   if (diffs.length) failed++;
-  out('case', { id: c.id, ok: !diffs.length, diffs: diffs.slice(0, 5) });
+  out('case', { id: c.id, ok: !diffs.length, diffs: diffs.slice(0, 5), ms: Date.now() - started });
 }
 
-// the compiler itself, on the section-18 document
-try {
+// the compiler itself, on the section-18 document (in the first batch)
+if (d.doc) try {
   const packs: PackSource[] = d.packs.map((p) => ({ label: p.label, files: new Map(Object.entries(p.files).map(([k, v]) => [k, enc.encode(v)])) }));
   const c = compile({ packs });
   const b = c.document(d.doc.text, d.doc.path);
@@ -33,7 +35,8 @@ try {
   out('compile', { ok: false, error: (e as Error).message });
 }
 
-MathsEngine.create().then(
+if (!d.doc) out('done', { failed, total: d.cases.length });
+else MathsEngine.create().then(
   (m) => {
     const t0 = Date.now();
     const r = m.render('\\omega^n = 1', false);

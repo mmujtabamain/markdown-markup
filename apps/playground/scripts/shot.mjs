@@ -21,7 +21,7 @@ const opt = (f, d) => {
   const i = args.indexOf(f);
   return i >= 0 ? args[i + 1] : d;
 };
-const targets = args.filter((a, i) => !a.startsWith('--') && !['--every', '--wait', '--width'].includes(args[i - 1]));
+const targets = args.filter((a, i) => !a.startsWith('--') && !['--every', '--wait', '--width', '--count', '--length'].includes(args[i - 1]));
 if (!targets.length) {
   console.error('usage: npm run shot -- <pack/widget@N/case | folder/doc.mkp.md> [--page] [--dark] [--video] [--images --every 400ms] [--play]');
   process.exit(2);

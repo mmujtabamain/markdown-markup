@@ -5,7 +5,7 @@ progress@1 "How far along something is: a bar with its label and amount."
   in label text = ""
   in show choice(percent|fraction|none) = percent "how the amount is written"
   in tone color = accent
-  in size size = m
+  in size size = fill "the bar's width: s, m, l or fill (the default: as wide as its place)"
   done = max(0, min(1, value/total))
   amount = if(show == percent, "" + round(100 done) + "%", if(show == fraction, "" + value + " of " + total, ""))
   stack gap=xs

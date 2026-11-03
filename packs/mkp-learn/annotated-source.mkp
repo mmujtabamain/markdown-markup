@@ -1,0 +1,25 @@
+annotated-source@1 "Source code with numbered notes on its lines; picking a note shows the line it is about."
+  in code list(text) "the source, one line per item"
+  in lang text = "" "the language, for highlighting and the Markdown code block"
+  in notes list(record note {line: int, text: text}) "notes on lines, counted from 1"
+  in numbers bool = true "number the lines in the code block"
+  var sel int = -1
+  n = len(code)
+  width = len("" + n)
+  # a line with its number in a fixed-width gutter
+  fn numbered(l: int): text = join(map(range(1, width - len("" + (l + 1))), k => " "), "") + (l + 1) + "  " + code[l]
+  shown = if(numbers, map(range(0, n - 1), l => numbered(l)), code)
+  project md = ("```" + lang + "\n" + join(code, "\n") + "\n```\n\n"
+      + join(map(range(0, len(notes) - 1), k => "" + (k + 1) + ". **Line " + notes[k].line + ":** " + notes[k].text), "\n") + "\n")
+  stack gap=m
+    code (join(shown, "\n")) lang
+    stack gap=xs
+      each k in 0..(len(notes) - 1)
+        press kind=option selected=(sel == k)
+          flex gap=s align=baseline wrap=false
+            text ("" + (k + 1) + ".") weight=bold
+            text ("line " + notes[k].line + ":")
+            text notes[k].text
+          @click set sel=(if(sel == k, -1, k))
+        stack pad=xs if=(sel == k)
+          code (at(shown, notes[k].line - 1, "")) lang

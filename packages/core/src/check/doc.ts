@@ -322,10 +322,10 @@ class DocChecker {
       case 'list': {
         if (!Array.isArray(v)) return bad(`a list of ${showType(t.of)}`);
         const items = v.map((x, i) => this.yamlData(x, t.of, env, p, `${what}[${i}]`));
-        return { lit: items, type };
+        return { lit: items };
       }
       default:
-        return { lit: this.yamlData(v, type, env, p, what), type };
+        return { lit: this.yamlData(v, type, env, p, what) };
     }
   }
 
@@ -367,8 +367,8 @@ class DocChecker {
           if (!(k in src)) {
             const d = t.defaults?.[k];
             if (d !== undefined) {
-              const dv = this.dc.staticValue(parseValueString(d), ft, p) as { lit?: unknown };
-              o[k] = dv.lit;
+              const dv = this.dc.staticValue(parseValueString(d), ft, p) as Record<string, unknown>;
+              o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : dv.lit;
               continue;
             }
             throw new MkpError('mkp.missing-field', `${what} needs ${k} (${showType(ft)})`, p);

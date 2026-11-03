@@ -1,0 +1,12 @@
+{ "widget": "exchange@1", "cases": {
+  "tcp": { "summary": "The TCP three-way handshake, then the first data.",
+    "props": { "messages": [
+      { "text": "SYN seq=100", "note": "The client picks a starting sequence number." },
+      { "dir": "reply", "text": "SYN-ACK seq=300 ack=101", "note": "The server acknowledges it and picks its own." },
+      { "text": "ACK ack=301", "note": "Both sides now know both numbers: the connection is open." },
+      { "text": "data seq=101" } ] },
+    "play": [{ "set": { "pos": 1 } }, { "wait": 300 }, { "set": { "pos": 3 } }] },
+  "dns": { "summary": "A resolver asking a name server for an address.",
+    "props": { "a": "resolver", "b": "name server", "messages": [
+      { "text": "query: example.org A?" }, { "dir": "reply", "text": "answer: 93.184.215.14" } ] },
+    "play": [{ "set": { "pos": 1 } }] } } }

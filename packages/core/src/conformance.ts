@@ -22,6 +22,8 @@ export interface ConfCase {
   initial: ConfExpect;
   final: ConfExpect;
   md: { plain: string; all: string };
+  /** relative tolerance for values (11: 1e-9 unless the fixture says otherwise) */
+  tolerance?: number;
 }
 
 /** The visible nodes, in document order: kind, and id when the node has one. */
@@ -54,55 +56,58 @@ function play(rt: Runtime, steps: PlayStep[]): void {
 }
 
 /** Runs a case's bundle: what a provider's runtime must reproduce. */
-export function runCase(bundle: IRBundle, steps: PlayStep[], hosts?: Record<string, unknown>): { initial: ConfExpect; final: ConfExpect; md: { plain: string; all: string } } {
-  const rt = new Runtime(bundle, { now: () => 0, hosts: hosts ? { '0': hosts } : undefined });
+export function runCase(bundle: IRBundle, steps: PlayStep[], hosts?: Record<string, unknown>, mdAll = true): { initial: ConfExpect; final: ConfExpect; md: { plain: string; all: string } } {
+  // gfx@1 declared: conformance compares values and nodes, not fallback pixels
+  const rt = new Runtime(bundle, { now: () => 0, hosts: hosts ? { '0': hosts } : undefined, capabilities: ['core@1', 'gfx@1'] });
   const initial = observe(rt);
   play(rt, steps);
   const final = observe(rt);
   const md = {
     plain: writeMarkdown(bundle).md,
-    all: writeMarkdown(bundle, { toggles: ['gfm', 'math', 'mermaid', 'html', 'images'] }).md,
+    all: mdAll ? writeMarkdown(bundle, { toggles: ['gfm', 'math', 'mermaid', 'html', 'images'] }).md : '',
   };
   return { initial, final, md };
 }
 
-export function makeCase(id: string, bundle: IRBundle, steps: PlayStep[] = [], hosts?: Record<string, unknown>): ConfCase {
+export function makeCase(id: string, bundle: IRBundle, steps: PlayStep[] = [], hosts?: Record<string, unknown>, tolerance?: number): ConfCase {
   const r = runCase(bundle, steps, hosts);
-  return { id, bundle, hosts, steps, initial: r.initial, final: r.final, md: r.md };
+  return { id, bundle, hosts, steps, initial: r.initial, final: r.final, md: r.md, ...(tolerance ? { tolerance } : {}) };
 }
 
 /** Numbers agree within relative 1e-9, or absolute 1e-12 near zero (11). */
-export function close(a: number, b: number): boolean {
+export function close(a: number, b: number, rel = 1e-9): boolean {
   if (Number.isNaN(a) && Number.isNaN(b)) return true;
   if (a === b) return true;
   const d = Math.abs(a - b);
-  return d <= 1e-12 || d <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
+  return d <= 1e-12 || d <= rel * Math.max(Math.abs(a), Math.abs(b));
 }
 
-export function diffValues(want: unknown, got: unknown, path = ''): string[] {
-  if (typeof want === 'number' && typeof got === 'number') return close(want, got) ? [] : [`${path}: expected ${want}, got ${got}`];
+export function diffValues(want: unknown, got: unknown, path = '', rel = 1e-9): string[] {
+  if (typeof want === 'number' && typeof got === 'number') return close(want, got, rel) ? [] : [`${path}: expected ${want}, got ${got}`];
   if (Array.isArray(want) && Array.isArray(got)) {
     if (want.length !== got.length) return [`${path}: expected ${want.length} items, got ${got.length}`];
-    return want.flatMap((w, i) => diffValues(w, got[i], `${path}[${i}]`));
+    return want.flatMap((w, i) => diffValues(w, got[i], `${path}[${i}]`, rel));
   }
   if (want && got && typeof want === 'object' && typeof got === 'object') {
     const out: string[] = [];
-    for (const k of new Set([...Object.keys(want), ...Object.keys(got)])) out.push(...diffValues((want as Record<string, unknown>)[k], (got as Record<string, unknown>)[k], `${path}.${k}`));
+    for (const k of new Set([...Object.keys(want), ...Object.keys(got)])) out.push(...diffValues((want as Record<string, unknown>)[k], (got as Record<string, unknown>)[k], `${path}.${k}`, rel));
     return out;
   }
   return want === got ? [] : [`${path}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`];
 }
 
 /** Every difference between a case's expectations and a run. */
-export function checkCase(c: ConfCase): string[] {
-  const got = runCase(c.bundle, c.steps, c.hosts);
+export function checkCase(c: ConfCase, opts: { mdAll?: boolean } = {}): string[] {
+  const mdAll = opts.mdAll ?? true;
+  const got = runCase(c.bundle, c.steps, c.hosts, mdAll);
   const out: string[] = [];
-  out.push(...diffValues(c.initial.values, got.initial.values, 'initial'));
-  out.push(...diffValues(c.final.values, got.final.values, 'final'));
+  const rel = c.tolerance ?? 1e-9;
+  out.push(...diffValues(c.initial.values, got.initial.values, 'initial', rel));
+  out.push(...diffValues(c.final.values, got.final.values, 'final', rel));
   if (c.initial.visible.join(' ') !== got.initial.visible.join(' ')) out.push('initial visible nodes differ');
   if (c.final.visible.join(' ') !== got.final.visible.join(' ')) out.push('final visible nodes differ');
   // Markdown can carry formatted numbers; compare with numbers read within tolerance
-  for (const k of ['plain', 'all'] as const) if (!sameMd(c.md[k], got.md[k])) out.push(`markdown (${k}) differs`);
+  for (const k of mdAll ? (['plain', 'all'] as const) : (['plain'] as const)) if (!sameMd(c.md[k], got.md[k])) out.push(`markdown (${k}) differs`);
   return out;
 }
 

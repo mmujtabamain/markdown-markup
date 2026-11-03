@@ -83,6 +83,10 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
   const prevKeys = useRef<Set<string> | null>(null);
   const prevNodes = useRef<VNode[]>([]);
   const [leaving, setLeaving] = useState<Leaving[]>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
   const curKeys = new Set(list.map((n) => n.key));
   const mounted = prevKeys.current !== null;
 
@@ -93,10 +97,12 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
     if (gone.length) {
       const until = Date.now() + 200;
       setLeaving((l) => [...l.filter((x) => !curKeys.has(x.node.key)), ...gone.map(({ n, i }) => ({ node: n, index: i, until }))]);
-      const t = setTimeout(() => setLeaving((l) => l.filter((x) => x.until > Date.now())), 220);
-      return () => clearTimeout(t);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        setLeaving((l) => l.filter((x) => x.until > Date.now()));
+      }, 220);
     }
-    return undefined;
   });
 
   // FLIP: children that moved glide from their old place
@@ -105,7 +111,7 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
       for (const [k, el] of els.current) {
         const before = rects.current.get(k);
         if (!before || !el.isConnected) continue;
-        const after = el.getBoundingClientRect();
+        const after = relRect(el);
         const dx = before.left - after.left;
         const dy = before.top - after.top;
         if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
@@ -119,7 +125,7 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
       }
     }
     const next = new Map<string, DOMRect>();
-    for (const [k, el] of els.current) if (el.isConnected) next.set(k, el.getBoundingClientRect());
+    for (const [k, el] of els.current) if (el.isConnected) next.set(k, relRect(el));
     rects.current = next;
     prevKeys.current = curKeys;
     prevNodes.current = list;
@@ -130,6 +136,13 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
   return rendered.map(({ n, leaving: isLeaving }) => (
     <Slot key={n.key} n={n} entering={mounted && !prevKeys.current!.has(n.key) && !reducedMotion} leaving={isLeaving} reg={(el) => (el ? els.current.set(n.key, el) : els.current.delete(n.key))} />
   ));
+}
+
+/** A rectangle relative to the parent element (moves of the parent itself are not the child's). */
+function relRect(el: HTMLElement): DOMRect {
+  const r = el.getBoundingClientRect();
+  const p = el.parentElement?.getBoundingClientRect();
+  return p ? new DOMRect(r.left - p.left, r.top - p.top, r.width, r.height) : r;
 }
 
 function Slot({ n, entering, leaving, reg }: { n: VNode; entering: boolean; leaving: boolean; reg: (el: HTMLElement | null) => void }): ReactNode {

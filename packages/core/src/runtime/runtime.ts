@@ -392,7 +392,9 @@ export class Runtime {
         const recs = (use?.records ?? []).filter((r) => r.input === inp.name || (r.node === 'each' || r.node === 'switch'));
         const callerEnv = inst.callerEnv ?? env;
         const caller = inst.caller ?? inst;
-        inst.inputs.set(inp.name, { k: 'records', get: () => this.recordValues(recs, inp.name, callerEnv, caller) });
+        // memoised like a derived value: rebuilt only when state its records read (if=, fields) changes
+        const memo = new Memo(() => this.recordValues(recs, inp.name, callerEnv, caller, t), `${def.name}.${inp.name}`);
+        inst.inputs.set(inp.name, { k: 'records', get: () => memo.get() });
         continue;
       }
       if (given && 'ref' in given) {
@@ -468,7 +470,8 @@ export class Runtime {
   }
 
   /** The current list of record values of a record-list input (records, each and switch among them). */
-  private recordValues(nodes: IRNode[], input: string, env: Env, inst: Inst): V {
+  private recordValues(nodes: IRNode[], input: string, env: Env, inst: Inst, type?: Type): V {
+    const nested = type && type.t === 'records' ? type.fields.map(([f, ft]) => [f, this.resolveType(ft)] as const).filter(([, ft]) => ft.t === 'records') : [];
     const out: V[] = [];
     const visit = (ns: IRNode[], e: Env): void => {
       for (const n of ns) {
@@ -485,9 +488,11 @@ export class Runtime {
         if (n.meta?.if && !this.evalExpr(n.meta.if, e, inst)) continue;
         const o = Object.create(null) as Record<string, V>;
         for (const [k, v] of Object.entries(n.props ?? {})) o[k] = this.valueOf(v, e, inst);
-        // nested record lists (fields of record-list type)
+        // nested record lists (fields of record-list type), empty when none are written
+        for (const [f, ft] of nested) o[f] = this.recordValues(n.records ?? [], f, e, inst, ft);
         for (const r of n.records ?? []) if (r.input && !(r.input in o)) o[r.input] = this.recordValues(n.records ?? [], r.input, e, inst);
-        o.slot = { __slot: true, nodes: n.children ?? [], env: e, inst } as unknown as V;
+        // a record's slot, when its type has one
+        if (!type || (type.t === 'records' && type.slot)) o.slot = { __slot: true, nodes: n.children ?? [], env: e, inst } as unknown as V;
         out.push(o);
       }
     };
@@ -1060,7 +1065,7 @@ export class Runtime {
         }
         case 'pixels': {
           const fexpr = r.props?.f as IRExpr;
-          const compiled = compilePixels(fexpr, this.bundle, (name) => inst.get(name), env);
+          const compiled = compilePixels(fexpr, this.bundle, (name) => inst.get(name), env, (name) => this.lambdaInput(inst, name), inst.fns);
           s = { t: 'pixels', key: k, glsl: compiled.glsl, sksl: compiled.sksl, uniforms: compiled.uniforms, res: p.res as number, fallback: gfx ? undefined : compiled.fallback?.() };
           break;
         }
@@ -1076,6 +1081,21 @@ export class Runtime {
       }
       if (s) out.push(s);
     });
+  }
+
+  /** An expr(…) input's lambda, with the caller's scope for its other names (for pixels). */
+  private lambdaInput(inst: Inst, name: string): { params: string[]; body: A; lookup: (name: string, local: boolean) => V } | null {
+    const given = inst.use?.props?.[name];
+    const decl = inst.def.inputs.find((x) => x.name === name);
+    const val = given ?? decl?.default;
+    if (!val || !('ast' in val) || val.ast.t !== 'lam') return null;
+    const scopeEnv = given ? inst.callerEnv ?? inst.env : inst.env;
+    const scopeInst = given ? inst.caller ?? inst : inst;
+    return {
+      params: val.ast.params,
+      body: val.ast.body,
+      lookup: (n, local) => (local ? scopeEnv.local(n) : n.includes(':') ? this.prog.constValue(n) : scopeInst.get(n)),
+    };
   }
 
   private stateFor(inst: Inst, name: string): { inst: Inst; state: IRState } | undefined {
@@ -1181,11 +1201,20 @@ export class Runtime {
   setCell(inst: Inst, name: string, v: V): void {
     const c = inst.cellOf(name);
     if (!c) return;
+    if (typeof v === 'number' && Number.isInteger(c.value) && this.isIntState(inst, name)) v = Math.round(v);
     if (c.set(v)) {
       // a ref writes the caller's state: its change events fire there
       const owner = inst.cells.has(name) ? { inst, name } : this.ownerOfRef(inst, name);
       if (owner) this.stateChanged(owner.inst, owner.name);
     }
+  }
+
+  private isIntState(inst: Inst, name: string): boolean {
+    const owner = inst.cells.has(name) ? { inst, name } : this.ownerOfRef(inst, name);
+    if (!owner) return false;
+    const s = owner.inst.states.get(owner.name);
+    const decl = s ? s.type : ((owner.inst.def.values ?? []).find((x) => x.name === owner.name && x.k === 'var') as { type?: Type } | undefined)?.type;
+    return !!decl && this.resolveType(decl).t === 'int';
   }
 
   private ownerOfRef(inst: Inst, name: string): { inst: Inst; name: string } | null {

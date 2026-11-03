@@ -120,6 +120,7 @@ export class DefChecker {
     const s = entry.syn;
     this.env = prog.typeEnv(entry.pack);
     this.x = new ExprChecker(prog, entry.pack, this.localFns, entry.file);
+    this.x.tokenNames = opts.tokenNames;
     this.ir = {
       ir: IR_VERSION,
       kind: s.kind,
@@ -205,7 +206,7 @@ export class DefChecker {
           }
           case 'var': {
             this.checkType(m.type, m.p);
-            const def = this.staticValue(m.def, m.type, m.p);
+            const def = this.value(m.def, m.type, this.scope, m.p, true);
             this.declare(m.name, m.p);
             this.scope.set(m.name, { type: m.type, from: 'inst', kind: 'var' });
             this.stateNames.set(m.name, { settable: true, type: m.type });
@@ -330,7 +331,8 @@ export class DefChecker {
     const inp: IRInput = { name: m.name, type: m.type, pos: pos(m.p) };
     if (m.about) inp.about = m.about;
     if (m.comments.length) inp.comment = m.comments;
-    if (m.def) inp.default = this.staticValue(m.def, m.type, m.p);
+    const emptyRecords = rt0(m.type, this.env) === 'records' && m.def?.v === 'expr' && m.def.e.k === 'list' && !m.def.e.items.length;
+    if (m.def && !emptyRecords) inp.default = this.staticValue(m.def, m.type, m.p);
     this.ir.inputs.push(inp);
     const rt = resolve(m.type, this.env);
     this.scope.set(m.name, { type: this.scopeType(m.type), from: 'inst', kind: rt.t === 'ref' ? 'ref' : 'input' });
@@ -442,7 +444,7 @@ export class DefChecker {
 
   private collectIds(n: NodeSyn): void {
     for (const a of n.args) {
-      if (a.key === 'id' && a.value.v === 'expr' && a.value.e.k === 'id') {
+      if (a.key === 'id' && a.value.v === 'expr' && a.value.e.k === 'id' && !a.value.src.startsWith('(')) {
         const id = a.value.e.name;
         const hidden = n.args.some((b) => !b.key && b.value.v === 'expr' && b.value.e.k === 'id' && b.value.e.name === 'hidden');
         if (this.staticIds.has(id)) this.err(new MkpError('mkp.duplicate-id', `the id "${id}" is used twice in this definition`, a.p, [...this.path]));
@@ -478,7 +480,8 @@ export class DefChecker {
         if (v.v !== 'expr' || v.e.k !== 'id') this.fail(p, `a ref takes the name of the caller's state, found ${v.src}`);
         const st = this.stateNames.get(v.e.name) ?? this.refInScope(v.e.name, scope);
         if (!st) this.fail(p, `"${v.e.name}" is not state, a var or a ref here; a ref input needs settable state`, 'mkp.not-state');
-        if (!fits(st.type, t.of, this.env) || !fits(t.of, st.type, this.env)) this.fail(p, `this ref is ${showType(t.of)}, but ${v.e.name} is ${showType(st.type)}`);
+        const numInt = resolve(t.of, this.env).t === 'num' && resolve(st.type, this.env).t === 'int';
+        if (!numInt && (!fits(st.type, t.of, this.env) || !fits(t.of, st.type, this.env))) this.fail(p, `this ref is ${showType(t.of)}, but ${v.e.name} is ${showType(st.type)}`);
         return { ref: v.e.name };
       }
       case 'token': {
@@ -489,7 +492,12 @@ export class DefChecker {
           if (b && resolve(b.type, this.env).t === 'token') return this.irExpr({ ast: { t: 'var', name: w, from: b.from === 'const' ? 'const' : b.from }, type: b.type }, w, p);
           this.fail(p, `"${w}" is not a ${t.kind} token${didYouMean(w, this.opts.tokenNames(t.kind))}`, 'mkp.unknown-token');
         }
-        return this.fail(p, `style props take token names only; found ${v.src}`, 'mkp.style-token');
+        if (v.v !== 'expr') return this.fail(p, `style props take token names; found ${v.src}`, 'mkp.style-token');
+        // a computed style: an expression giving a token name (checked against the tokens at runtime)
+        const c = this.x.check(v.e, scope, t);
+        const ct = resolve(c.type, this.env);
+        if (ct.t === 'token' || ct.t === 'text' || ct.t === 'choice') return this.irExpr({ ast: c.ast, type: t }, v.src, p);
+        return this.fail(p, `style props take token names; found ${showType(c.type)}`, 'mkp.style-token');
       }
       case 'expr': {
         if (v.v !== 'expr') this.fail(p, `expected an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
@@ -554,6 +562,8 @@ export class DefChecker {
     const a = c.ast;
     if (a.t === 'num' || a.t === 'bool' || a.t === 'str') return { lit: a.v };
     if (a.t === 'builtin' && a.fn === 'neg' && a.args[0].t === 'num') return { lit: -a.args[0].v };
+    const folded = literalOf(a);
+    if (folded !== undefined && (a.t === 'list' || a.t === 'rec') && !JSON.stringify(c.type).includes('"choice"')) return { lit: folded };
     return this.irExpr(c, src, p);
   }
 
@@ -616,7 +626,9 @@ export class DefChecker {
     // under a use or a record: prop lines and records first (6.8)
     if (ctx.kind === 'use' || ctx.kind === 'record') {
       const fields = ctx.kind === 'use' ? null : ctx.type;
-      const isInput = ctx.kind === 'use' ? ctx.sig.inputs.has(head) : fields!.fields.some((f) => f[0] === head);
+      const isInput = ctx.kind === 'use'
+        ? ctx.sig.inputs.has(head) && resolve(ctx.sig.inputs.get(head)!.type, this.env).t !== 'records'
+        : fields!.fields.some((f) => f[0] === head && resolve(f[1], this.env).t !== 'records');
       if (isInput) return { node: '$prop', record: head, ...this.propLine(n, ctx, scope) } as IRNode;
       const rec = this.findRecord(head, ctx);
       if (rec) return this.record(n, rec, ctx.sig, scope, depth);
@@ -717,7 +729,7 @@ export class DefChecker {
     const fills: NodeSyn[] = [];
     for (const c of n.children) {
       if (c.head === 'fill') fills.push(c);
-      else if (sig.inputs.has(c.head) || sig.records.has(c.head) || ((c.head === 'each' || c.head === 'switch') && this.recordsInside(c, sig))) own.push(c);
+      else if ((sig.inputs.has(c.head) && resolve(sig.inputs.get(c.head)!.type, this.env).t !== 'records') || sig.records.has(c.head) || ((c.head === 'each' || c.head === 'switch') && this.recordsInside(c, sig))) own.push(c);
       else els.push(c);
     }
     const ownIr = this.nodes(own, { kind: 'use', sig }, scope, depth + 1);
@@ -873,7 +885,7 @@ export class DefChecker {
   private meta(a: Arg, meta: IRMeta, scope: Scope): void {
     switch (a.key) {
       case 'id': {
-        if (a.value.v === 'expr' && a.value.e.k === 'id') meta.id = a.value.e.name;
+        if (a.value.v === 'expr' && a.value.e.k === 'id' && !a.value.src.startsWith('(')) meta.id = a.value.e.name;
         else if (a.value.v === 'expr') {
           const c = this.x.coerce(this.x.check(a.value.e, scope), T.text, a.p);
           meta.id = this.irExpr(c, a.value.src, a.p);
@@ -915,8 +927,9 @@ export class DefChecker {
     } else if (src.value.v === 'expr') {
       const c = this.x.check(src.value.e, scope);
       const r = resolve(c.type, this.env);
-      if (r.t !== 'list') this.fail(src.p, `each needs a list or a range; found ${showType(c.type)}`);
-      elem = r.of;
+      if (r.t === 'records') elem = { t: 'rec', fields: r.slot ? [...r.fields, ['slot', T.slot]] : r.fields };
+      else if (r.t !== 'list') this.fail(src.p, `each needs a list or a range; found ${showType(c.type)}`);
+      else elem = r.of;
       inVal = this.irExpr(c, src.value.src, src.p);
     } else this.fail(src.p, 'each needs a list or a range');
     const sc = scope.child();
@@ -984,7 +997,7 @@ export class DefChecker {
       if (a.key === 'from' || a.key === 'to') {
         out[a.key] = this.idValue(a, scope);
       } else if (!a.key && a.value.v === 'expr' && a.value.e.k === 'id' && a.value.e.name === 'curve') out.curve = true;
-      else if (!a.key && a.value.v === 'expr' && (a.value.e.k === 'str' || a.value.e.k === 'tex')) out.label = this.value(a.value, T.text, scope, a.p);
+      else if (!a.key && a.value.v === 'expr' && a.value.e.k !== 'id') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'label') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'if') {
         const meta: IRMeta = {};
@@ -1040,6 +1053,7 @@ export class DefChecker {
       }
       case 'play':
       case 'pause': {
+        if (a.args.length !== 1) this.fail(a.p, `${a.name} takes exactly one slider or steps name`, 'mkp.extra-arg');
         const nm = word(a.args[0] ?? this.fail(a.p, `${a.name} takes a slider or steps name`));
         const c = this.controlNames.get(nm);
         if (c !== 'slider' && c !== 'steps') this.fail(a.p, `"${nm}" is not a slider or steps of this definition`, 'mkp.not-playable');
@@ -1097,6 +1111,37 @@ export class DefChecker {
     const kind = this.scope.get(x.key!)?.kind;
     return { a: 'set', name: x.key!, target: kind === 'ref' ? 'ref' : kind === 'var' ? 'var' : 'state', value: this.irExpr(c, x.value.src, x.p) };
   }
+}
+
+/** The value of a literal tree (numbers, booleans, strings, and lists and records of them). */
+function literalOf(a: A): unknown {
+  switch (a.t) {
+    case 'num':
+    case 'bool':
+    case 'str':
+      return a.v;
+    case 'builtin':
+      return a.fn === 'neg' && a.args[0].t === 'num' ? -a.args[0].v : undefined;
+    case 'list': {
+      const items = a.items.map(literalOf);
+      return items.every((x) => x !== undefined) ? items : undefined;
+    }
+    case 'rec': {
+      const o: Record<string, unknown> = {};
+      for (const [k, x] of a.fields) {
+        const v = literalOf(x);
+        if (v === undefined) return undefined;
+        o[k] = v;
+      }
+      return o;
+    }
+    default:
+      return undefined;
+  }
+}
+
+function rt0(t: Type, env: TypeEnv): string {
+  return resolve(t, env).t;
 }
 
 function srcOf(e: Ex): string {

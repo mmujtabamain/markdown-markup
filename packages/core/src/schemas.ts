@@ -194,7 +194,7 @@ export const fixtureSchema = {
               properties: { press: { type: 'string' }, set: { type: 'object' }, command: { type: 'string' }, args: { type: 'object' }, wait: { type: 'number', minimum: 0 } },
             },
           },
-          expect: { type: 'object', additionalProperties: false, properties: { errors: { type: 'array', items: { type: 'string' } }, md: { type: 'object', additionalProperties: { type: 'string' } }, values: { type: 'object' }, visible: { type: 'array', items: { type: 'string' } } } },
+          expect: { type: 'object', additionalProperties: false, properties: { errors: { type: 'array', items: { type: 'string' } }, md: { type: 'object', additionalProperties: { type: 'string' } }, values: { type: 'object' }, visible: { type: 'array', items: { type: 'string' } }, tolerance: { type: 'number', exclusiveMinimum: 0, maximum: 0.001 } } },
         },
       },
     },

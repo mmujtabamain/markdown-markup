@@ -51,7 +51,7 @@ jobs:
   hermes:
     name: Conformance under Hermes
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

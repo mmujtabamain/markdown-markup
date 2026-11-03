@@ -63,6 +63,8 @@ export class Program {
   /** checked fn bodies, by id (pack fns, ops and specialisations) */
   readonly irFns: Record<string, IRFn> = {};
   readonly irConsts: Record<string, IRExpr> = {};
+  /** fns (and specialisations) being checked: recursion returns their declared type */
+  readonly fnsInProgress = new Map<string, import('../types').Type | undefined>();
 
   constructor(readonly diags: Diagnostics) {}
 

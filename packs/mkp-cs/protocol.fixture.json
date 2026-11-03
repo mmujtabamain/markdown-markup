@@ -1,0 +1,19 @@
+{ "widget": "protocol@1", "cases": {
+  "tcp": { "summary": "A TCP client's connection states, through opening and closing a connection.",
+    "props": {
+      "states": ["CLOSED", "SYN_SENT", "ESTABLISHED", "FIN_WAIT", "TIME_WAIT"],
+      "moves": [
+        { "from": "CLOSED", "to": "SYN_SENT", "on": "connect" },
+        { "from": "SYN_SENT", "to": "ESTABLISHED", "on": "syn_ack" },
+        { "from": "SYN_SENT", "to": "CLOSED", "on": "timeout" },
+        { "from": "ESTABLISHED", "to": "FIN_WAIT", "on": "close" },
+        { "from": "FIN_WAIT", "to": "TIME_WAIT", "on": "fin" },
+        { "from": "TIME_WAIT", "to": "CLOSED", "on": "expire" } ],
+      "run": ["connect", "syn_ack", "close", "fin", "expire"] },
+    "play": [{ "set": { "pos": 2 } }, { "wait": 300 }, { "set": { "pos": 5 } }] },
+  "turnstile": { "summary": "A turnstile, with an event that has no transition from where it is.",
+    "props": {
+      "states": ["locked", "open"],
+      "moves": [ { "from": "locked", "to": "open", "on": "coin" }, { "from": "open", "to": "locked", "on": "push" } ],
+      "run": ["push", "coin", "push"] },
+    "play": [{ "set": { "pos": 1 } }] } } }

@@ -1,0 +1,65 @@
+part quiz.gap@1 "One blank in a cloze: a short field that reports what is typed, and a tick or cross once checked."
+  in checked bool = false "whether the cloze has been checked"
+  in ok bool = false "whether this blank is right"
+  in label text = "blank"
+  out typed {value: text}
+  var entry text = ""
+  flex gap=xs align=baseline wrap=false
+    field entry label=label width=s
+      @change emit typed value=change.value
+    text "✓" tone=ok if=(checked and ok)
+    text "✗" tone=bad if=(checked and not ok)
+
+quiz.cloze@1 "Fill in the blanks: text pieces and fields flowing as one paragraph, checked as exact text, numbers or expressions."
+  in prompt text = "" "an instruction above the text"
+  in pieces list(record piece {text: text, answer: text = ""}) "each piece is some text, followed by a blank when it has an answer"
+  in match choice(exact|number|expression) = exact "how a blank is checked"
+  in vars list(text) = ["x"] "the variables, when match is expression"
+  in tolerance num = 0.000001 "how close counts, when match is number"
+  in hints list(record hint {text: text})
+  in solutions list(record solution {text: text})
+  out correct
+  out wrong
+  signal answered {correct: bool, values: list(text)} "sent on every check, with every blank's entry"
+  var entries dict(text) = {}
+  var result choice(none|pass|fail) = none
+  var hinted int = 0
+  var solved bool = false
+  n = len(pieces)
+  gaps = filter(range(0, n - 1), k => pieces[k].answer != "")
+  fn entry(k: int): text = get(entries, "" + k, "")
+  fn ok(k: int): bool = entry(k) != "" and if(match == number, abs(parse(entry(k), [])() - parse(pieces[k].answer, [])()) <= tolerance,
+      if(match == expression, equivalent(entry(k), pieces[k].answer, vars), entry(k) == pieces[k].answer))
+  right = len(filter(gaps, k => ok(k))) == len(gaps)
+  values = map(gaps, k => entry(k))
+  project md = (if(prompt == "", "", prompt + "\n\n") + join(map(pieces, p => p.text + if(p.answer == "", "", " \\_\\_\\_\\_\\_")), " ")
+      + "\n\n:::details \"Answer\"\n" + join(map(pieces, p => p.text + if(p.answer == "", "", " **" + p.answer + "**")), " ")
+      + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
+  stack gap=m pad=m stroke=muted radius=card
+    text prompt if=(prompt != "")
+    flex wrap align=baseline gap=xs
+      each k in 0..(n - 1)
+        text pieces[k].text if=(pieces[k].text != "")
+        quiz.gap ok=(ok(k)) checked=(result != none) label=("blank " + (indexof(gaps, k) + 1)) if=(pieces[k].answer != "")
+          @typed set entries=(put(entries, "" + k, typed.value)) result=none
+    flex gap=s align=center
+      press id=check_ok if=(right)
+        text "Check"
+        @click set result=pass send answered correct=true values=values emit correct
+      press id=check if=(not right)
+        text "Check"
+        @click set result=fail send answered correct=false values=values emit wrong
+      press if=(hinted < len(hints))
+        text "Hint"
+        @click set hinted=(hinted + 1)
+      press if=(not solved)
+        text "Show the answers"
+        @click set solved=true
+    text "All right." tone=ok if=(result == pass)
+    text ("\val{len(filter(gaps, k => ok(k)))} of \val{len(gaps)} right; the crosses mark the rest.") tone=bad if=(result == fail)
+    each k in 0..(hinted - 1)
+      text hints[k].text tone=muted
+    stack gap=s if=solved
+      text (join(map(pieces, p => p.text + if(p.answer == "", "", " **" + p.answer + "**")), " "))
+      each s in solutions
+        text s.text

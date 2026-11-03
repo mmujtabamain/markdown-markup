@@ -201,13 +201,16 @@ export class ExprParser {
     return base;
   }
   private postfix(): Ex {
+    const bracketed = this.isOp('(');
     let a = this.atom();
+    let steps = 0;
     for (;;) {
       const t = this.peek();
-      if (t.k === 'op' && t.v === '(' && !t.sp && a.k !== 'num') {
+      if (t.k === 'op' && t.v === '(' && !t.sp && a.k !== 'num' && !(bracketed && steps === 0 && a.k !== 'lam')) {
         this.next();
         const args = this.list(')');
         a = a.k === 'id' ? { k: 'call', f: a.name, args, p: a.p } : { k: 'apply', f: a, args, p: this.pos(t) };
+        steps++;
       } else if (t.k === 'op' && t.v === '[' && !t.sp) {
         this.next();
         const i = this.expr();

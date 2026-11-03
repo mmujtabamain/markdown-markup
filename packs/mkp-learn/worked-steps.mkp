@@ -1,0 +1,19 @@
+worked-steps@1 "A worked solution revealed one step at a time, each with its reason, ending in the result."
+  in problem text "what is being solved"
+  in lines list(record line {text: text, why: text = ""}) "the steps, in order, with the reason for each"
+  in result text = "" "the conclusion, shown after the last step"
+  at = steps (len(lines)) "step"
+  project md = (problem + "\n\n" + join(map(range(0, len(lines) - 1), k => "" + (k + 1) + ". " + lines[k].text + if(lines[k].why == "", "", " *(" + lines[k].why + ")*")), "\n")
+      + if(result == "", "", "\n\n**" + result + "**") + "\n")
+  stack gap=m pad=m stroke=muted radius=card
+    text problem weight=medium
+    stack gap=s
+      each k in 0..(len(lines) - 1)
+        flex gap=s align=baseline wrap=false if=(k <= at)
+          text ("" + (k + 1) + ".") tone=muted
+          stack gap=xs
+            text lines[k].text weight=bold if=(k == at)
+            text lines[k].text if=(k < at)
+            text lines[k].why tone=muted size=small if=(lines[k].why != "")
+    text result tone=ok weight=bold if=(at == len(lines) - 1 and result != "")
+    text ("" + (len(lines) - at - 1) + if(len(lines) - at - 1 == 1, " more step.", " more steps.")) tone=muted size=small if=(at < len(lines) - 1)

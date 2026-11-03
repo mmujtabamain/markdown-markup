@@ -1,0 +1,8 @@
+{ "widget": "queue@1", "cases": {
+  "drive": { "summary": "A queue with two waiting: one more joins, then two are served.",
+    "props": { "start": ["Ann", "Bo"], "incoming": ["Cy", "Di", "Ed"] },
+    "play": [{ "press": "enq" }, { "wait": 300 }, { "press": "deq" }, { "wait": 300 }, { "press": "deq" }] },
+  "bounded": { "summary": "A queue that holds at most three: Enqueue stops when it is full.",
+    "props": { "capacity": 3 },
+    "play": [{ "press": "enq" }, { "press": "enq" }, { "press": "enq" }, { "wait": 300 }] },
+  "too-big": { "summary": "A capacity past 50 is refused.", "props": { "capacity": 80 }, "expect": { "errors": ["mkp.input-range"] } } } }

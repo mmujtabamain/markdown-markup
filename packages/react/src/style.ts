@@ -52,6 +52,7 @@ export const shadow = (name: unknown): string | undefined => (name && name !== '
 export const BASE_CSS = `
 .mkp-root { color: var(--mkp-color-ink); background: var(--mkp-color-surface); font-family: var(--mkp-font-body), system-ui, sans-serif; font-size: var(--mkp-font-body-size); line-height: var(--mkp-font-body-line); }
 .mkp-root * { box-sizing: border-box; }
+.mkp-root [hidden] { display: none !important; }
 .mkp-root :focus-visible { outline: 2px solid var(--mkp-color-accent); outline-offset: 2px; }
 .mkp-root h1, .mkp-root h2, .mkp-root h3, .mkp-root h4, .mkp-root h5, .mkp-root h6 { font-family: var(--mkp-font-heading), system-ui, sans-serif; font-weight: var(--mkp-font-heading-weight); line-height: var(--mkp-font-heading-line); margin: 0.6em 0 0.3em; }
 .mkp-root h1 { font-size: calc(var(--mkp-font-heading-size) * 1.35); } .mkp-root h2 { font-size: var(--mkp-font-heading-size); } .mkp-root h3 { font-size: calc(var(--mkp-font-heading-size) * 0.85); }
@@ -67,6 +68,7 @@ export const BASE_CSS = `
 .mkp-press:hover:not(:disabled) { border-color: var(--mkp-color-accent); }
 .mkp-press:disabled { opacity: 0.45; cursor: default; }
 .mkp-press[aria-selected=true], .mkp-press[aria-pressed=true], .mkp-press[aria-checked=true] { background: var(--mkp-color-accent); color: var(--mkp-color-surface); border-color: var(--mkp-color-accent); }
+.mkp-press[aria-selected=true] *, .mkp-press[aria-pressed=true] *, .mkp-press[aria-checked=true] * { color: inherit !important; }
 .mkp-press.mkp-tab { border-radius: var(--mkp-radius-card) var(--mkp-radius-card) 0 0; }
 .mkp-bar { display: flex; flex-wrap: wrap; gap: var(--mkp-space-m) var(--mkp-space-l); align-items: center; padding: var(--mkp-space-s) 0 0; margin-top: var(--mkp-space-m); border-top: 1px solid color-mix(in srgb, var(--mkp-color-muted) 35%, transparent); }
 .mkp-range { accent-color: var(--mkp-color-accent); width: 160px; max-width: 100%; }
@@ -75,8 +77,8 @@ export const BASE_CSS = `
 .mkp-error small { color: var(--mkp-color-bad); display: block; margin-top: var(--mkp-space-s); }
 .mkp-math svg { overflow: visible; }
 .mkp-math-display { display: block; text-align: center; margin: 0.6em 0; overflow-x: auto; }
-.mkp-canvas { position: relative; max-width: 100%; touch-action: none; }
-.mkp-canvas > svg { display: block; overflow: visible; }
+.mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
+.mkp-canvas > svg { display: block; overflow: hidden; }
 .mkp-canvas > svg circle { transition: cx var(--mkp-motion-quick, 180ms) linear, cy var(--mkp-motion-quick, 180ms) linear, r var(--mkp-motion-quick, 180ms) ease; }
 .mkp-overlay-label, .mkp-place { transition: left var(--mkp-motion-quick, 180ms) linear, top var(--mkp-motion-quick, 180ms) linear; }
 .mkp-overlay-label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; font-size: 0.95em; }
