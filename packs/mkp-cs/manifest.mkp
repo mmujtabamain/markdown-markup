@@ -1,3 +1,3 @@
 pack mkp-cs@1 "Computer science pieces over the base set: structures and trees step by step, traces, exchanges, queues and protocols."
   requires core@1
-  provides
+  provides structure sitem itemsof trace

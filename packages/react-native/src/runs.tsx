@@ -74,16 +74,13 @@ function Run({ r, fontSize }: { r: VRun; fontSize: number }): ReactNode {
   const { theme } = useCtx();
   switch (r.t) {
     case 'text': {
-      const st: TextStyle = {};
-      if (r.b) st.fontWeight = '700';
-      if (r.i) st.fontStyle = 'italic';
-      const lines: string[] = [];
-      if (r.s) lines.push('line-through');
-      if (r.href) {
-        lines.push('underline');
-        st.color = theme.color('accent');
-      }
-      if (lines.length) st.textDecorationLine = lines.join(' ') as TextStyle['textDecorationLine'];
+      const lines = [r.s ? 'line-through' : '', r.href ? 'underline' : ''].filter(Boolean).join(' ');
+      const st: TextStyle = {
+        fontWeight: r.b ? '700' : undefined,
+        fontStyle: r.i ? 'italic' : undefined,
+        color: r.href ? theme.color('accent') : undefined,
+        textDecorationLine: lines ? (lines as TextStyle['textDecorationLine']) : undefined,
+      };
       const href = r.href;
       return href ? (
         <Text style={st} accessibilityRole="link" onPress={() => open(href)}>

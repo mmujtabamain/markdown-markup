@@ -6,6 +6,7 @@ part playback@1 "A playback bar over frames 0..last: restart, step, play and pau
   in loop bool = false "start again after the last frame"
   out moved "after any button or Play moves the frame"
   next = if(at >= last, if(loop, 0, last), at + 1)
+  project md = "Frame " + (at + 1) + " of " + (last + 1) + "."
   # three clocks; each flip of one moves a frame
   tslow = steps 2 play=2400ms loop=repeat "slow clock"
     @change set going=(loop or next < last) at=next emit moved
@@ -17,7 +18,7 @@ part playback@1 "A playback bar over frames 0..last: restart, step, play and pau
   going = toggle "playing"
     @change pause tslow pause tnormal pause tfast
   flex gap=xs align=center
-    stack hidden
+    stack if=(going and not going)
       controls tslow tnormal tfast going
     press id=restart label="restart" disabled=(at <= 0 and not going)
       text "⏮"

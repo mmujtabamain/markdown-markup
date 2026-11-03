@@ -1,7 +1,7 @@
 // The base set as React Native components (spec 8): layout, text, media, press, range, field,
 // overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import {
   Animated,
   Modal,
@@ -69,20 +69,18 @@ export function Kids({ nodes, cell }: { nodes: VNode[] | undefined; cell?: (n: V
 }
 
 function layoutStyle(n: VNode, theme: Theme): ViewStyle {
-  const s: ViewStyle = {};
-  if (n.layout?.grow) Object.assign(s, { flexGrow: 1, flexShrink: 1, flexBasis: 0 });
-  if (n.layout?.basis) {
-    const b = theme.size(n.layout.basis);
-    if (b !== undefined) s.flexBasis = b;
-  }
-  return s;
+  const basis = n.layout?.basis ? theme.size(n.layout.basis) : undefined;
+  return {
+    ...(n.layout?.grow ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 } : null),
+    ...(basis !== undefined ? { flexBasis: basis } : null),
+  };
 }
 
 /** One keyed child: its own animated wrapper, which also reports its layout to scopes measuring arrows. */
 function Slot({ n, entering, leaving, extra }: { n: VNode; entering: boolean; leaving: boolean; extra?: ViewStyle }): ReactNode {
   const { theme } = useCtx();
   const regs = useContext(MeasureCtx);
-  const host = useRef<View>(null);
+  const host = useRef<ComponentRef<typeof View>>(null);
   const opacity = useRef(new Animated.Value(entering ? 0 : 1)).current;
   useEffect(() => {
     if (!entering) return undefined;
@@ -628,7 +626,7 @@ interface Drawn {
 
 function Scope({ n }: { n: VNode }): ReactNode {
   const parents = useContext(MeasureCtx);
-  const container = useRef<View>(null);
+  const container = useRef<ComponentRef<typeof View>>(null);
   const arrows = n.arrows;
   const entries = useRef(new Map<string, Entry>());
   const rects = useRef(new Map<string, Rect>());
@@ -707,9 +705,8 @@ function Scope({ n }: { n: VNode }): ReactNode {
   );
   const chain = useMemo(() => (arrows?.length ? [...parents, registry] : parents), [parents, registry, !!arrows?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // keyed moves animate for the settle time: keep redrawing a little longer than that
+  // keyed moves animate for the settle time: measure again a little after that
   const { theme } = useCtx();
-  const sig = (arrows ?? []).map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}`).join(';');
   useEffect(() => {
     if (!arrows?.length) return undefined;
     measure();
@@ -729,18 +726,18 @@ function Scope({ n }: { n: VNode }): ReactNode {
       <MeasureCtx.Provider value={chain}>
         <Kids nodes={n.kids} />
       </MeasureCtx.Provider>
-      {arrows?.length ? <Arrows paths={paths} sig={sig} /> : null}
+      {arrows?.length ? <Arrows paths={paths} /> : null}
     </View>
   );
 }
 
 /** The drawn arrows, over the scope and out of the touch and accessibility trees (they are decoration; the structure is in the content). */
-function Arrows({ paths, sig }: { paths: Drawn[]; sig: string }): ReactNode {
+function Arrows({ paths }: { paths: Drawn[] }): ReactNode {
   const { theme } = useCtx();
   const muted = theme.color('muted');
   const body = theme.font('body');
   return (
-    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} testID={`arrows:${sig.length ? 'on' : 'off'}`}>
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} testID="mkp-arrows">
       <Svg width="100%" height="100%" style={{ overflow: 'visible' }}>
         {paths.map((p) => [
           <Path key={`${p.key}.d`} d={p.d} fill="none" stroke={muted} strokeWidth={1.5} />,

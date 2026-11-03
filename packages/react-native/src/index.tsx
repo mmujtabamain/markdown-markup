@@ -29,10 +29,11 @@ export interface MkpDocumentProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** The system's reduce-motion setting, kept current. */
-export function useReduceMotion(): boolean {
+/** The system's reduce-motion setting, kept current (when `enabled`; a host's override skips it). */
+export function useReduceMotion(enabled = true): boolean {
   const [on, setOn] = useState(false);
   useEffect(() => {
+    if (!enabled) return undefined;
     let live = true;
     AccessibilityInfo.isReduceMotionEnabled()
       .then((v) => live && setOn(!!v))
@@ -42,7 +43,7 @@ export function useReduceMotion(): boolean {
       live = false;
       sub?.remove();
     };
-  }, []);
+  }, [enabled]);
   return on;
 }
 
@@ -68,7 +69,7 @@ export function keyedChange(a: VNode[], b: VNode[]): boolean {
 }
 
 export function MkpDocument(props: MkpDocumentProps): ReactNode {
-  const system = useReduceMotion();
+  const system = useReduceMotion(props.reducedMotion === undefined);
   const reducedMotion = props.reducedMotion ?? system;
   const rt = useMemo(
     () => props.runtime ?? new Runtime(props.bundle, { capabilities: capabilities(), ...props.options, maths: props.maths, reducedMotion }),

@@ -1,0 +1,65 @@
+# A construction object: a point (at a), a segment or line (a to b), or a circle (centre a, radius r).
+type gobj = {kind: choice(pt|seg|ln|circ), a: point, b: point, r: num}
+
+fn gpt(p: point): gobj = {kind: pt, a: p, b: p, r: 0}
+fn gsub(a: point, b: point): point = (a.x - b.x, a.y - b.y)
+fn gadd(a: point, b: point): point = (a.x + b.x, a.y + b.y)
+fn gdist(a: point, b: point): num = sqrt((a.x - b.x)^2 + (a.y - b.y)^2)
+fn gturn(v: point): point = (-v.y, v.x)
+fn gunit(v: point): point = (v.x/max(sqrt(v.x^2 + v.y^2), 0.000000001), v.y/max(sqrt(v.x^2 + v.y^2), 0.000000001))
+# where the lines a1-b1 and a2-b2 meet (far away when they are parallel)
+fn gmeet(a1: point, b1: point, a2: point, b2: point): point = gadd(a1, gscale(gsub(b1, a1),
+    gcross(gsub(a2, a1), gsub(b2, a2))/gnz(gcross(gsub(b1, a1), gsub(b2, a2)))))
+fn gcross(u: point, v: point): num = u.x v.y - u.y v.x
+fn gnz(v: num): num = if(abs(v) < 0.000000001, 0.000000001, v)
+fn gscale(v: point, s: num): point = (s v.x, s v.y)
+# clipping a line p + t v to the square −r..r (the canvas doesn't clip): the range of t on each axis, then both
+fn glo(p: num, v: num, r: num): num = if(abs(v) < 0.000000001, -1000000000, min((-r - p)/v, (r - p)/v))
+fn ghi(p: num, v: num, r: num): num = if(abs(v) < 0.000000001, 1000000000, max((-r - p)/v, (r - p)/v))
+fn gend(o: gobj, r: num, s: num): point = gadd(o.a, gscale(gsub(o.b, o.a), if(gt0(o, r) > gt1(o, r), 0, if(s < 0, gt0(o, r), gt1(o, r)))))
+fn gt0(o: gobj, r: num): num = max(glo(o.a.x, o.b.x - o.a.x, r), glo(o.a.y, o.b.y - o.a.y, r))
+fn gt1(o: gobj, r: num): num = min(ghi(o.a.x, o.b.x - o.a.x, r), ghi(o.a.y, o.b.y - o.a.y, r))
+construction@1 "A ruler-and-compass construction over points A, B and C that you drag; every step follows."
+  in steps list(record step {op: choice(segment|line|circle|midpoint|bisector|perpendicular|parallel|angle|meet|foot), args: list(text), name: text = ""}) "the steps, in order; args name points or earlier steps"
+  in a point = (-1.5, -1) "where A starts"
+  in b point = (1.5, -1) "where B starts"
+  in c point = (0.3, 1.4) "where C starts"
+  in free int 2..3 = 3 "how many free points: A and B, or A, B and C"
+  in r num = 2.5 "the view is −r..r each way"
+  in caption text = "" "what the construction shows"
+  A = drag x=(-r)..(r) y=(-r)..(r) = a "A"
+  B = drag x=(-r)..(r) y=(-r)..(r) = b "B"
+  C = drag x=(-r)..(r) y=(-r)..(r) = c "C"
+  start = if(free == 3, put(put(put({}, "A", gpt(A)), "B", gpt(B)), "C", gpt(C)), put(put({}, "A", gpt(A)), "B", gpt(B)))
+  # one construction step from the objects so far
+  fn gstep(op, o: list(gobj)): gobj = if(op == segment, {kind: seg, a: o[0].a, b: o[1].a, r: 0},
+      if(op == line, {kind: ln, a: o[0].a, b: o[1].a, r: 0},
+      if(op == circle, {kind: circ, a: o[0].a, b: o[1].a, r: gdist(o[0].a, o[1].a)},
+      if(op == midpoint, gpt(gscale(gadd(o[0].a, o[1].a), 0.5)),
+      if(op == bisector, {kind: ln, a: gscale(gadd(o[0].a, o[1].a), 0.5), b: gadd(gscale(gadd(o[0].a, o[1].a), 0.5), gturn(gsub(o[1].a, o[0].a))), r: 0},
+      if(op == perpendicular, {kind: ln, a: o[1].a, b: gadd(o[1].a, gturn(gsub(o[0].b, o[0].a))), r: 0},
+      if(op == parallel, {kind: ln, a: o[1].a, b: gadd(o[1].a, gsub(o[0].b, o[0].a)), r: 0},
+      if(op == angle, {kind: ln, a: o[1].a, b: gadd(o[1].a, gadd(gunit(gsub(o[0].a, o[1].a)), gunit(gsub(o[2].a, o[1].a)))), r: 0},
+      if(op == meet, gpt(gmeet(o[0].a, o[0].b, o[1].a, o[1].b)),
+      gpt(gmeet(o[0].a, o[0].b, o[1].a, gadd(o[1].a, gturn(gsub(o[0].b, o[0].a))))))))))))))
+  fn nm(k: int): text = if(steps[k].name == "", "#" + format(k + 1, 0), steps[k].name)
+  objs = fold(range(0, len(steps) - 1), start, (d, k) => put(d, nm(k), gstep(steps[k].op, map(steps[k].args, n => get(d, n, gpt((0, 0)))))))
+  fn ob(k: int): gobj = get(objs, nm(k), gpt((0, 0)))
+  canvas x=(-r)..(r) y=(-r)..(r) size=m label=(if(caption == "", "A construction over points you can drag", caption))
+    layer
+      each k in 0..(len(steps) - 1)
+        line (gend(ob(k), r, -1)) (gend(ob(k), r, 1)) stroke=muted if=(ob(k).kind == ln)
+        line (ob(k).a) (ob(k).b) stroke=ink if=(ob(k).kind == seg)
+        circle (ob(k).a) (ob(k).r) stroke=muted if=(ob(k).kind == circ)
+    layer
+      each k in 0..(len(steps) - 1)
+        circle (ob(k).a) 0.06 fill=info if=(ob(k).kind == pt)
+        label (gadd(ob(k).a, (0.08, 0.08))) (steps[k].name) tone=info anchor=ne if=(ob(k).kind == pt and steps[k].name != "")
+    layer
+      handle A
+      handle B
+      handle C if=(free == 3)
+      label (gadd(A, (-0.1, -0.1))) "$A$" anchor=sw
+      label (gadd(B, (0.1, -0.1))) "$B$" anchor=se
+      label (gadd(C, (0, 0.12))) "$C$" anchor=n if=(free == 3)
+  text caption if=(caption != "")

@@ -1,0 +1,43 @@
+trace@1 "A program trace: the code with the current line marked, the variables at each step, and the output so far."
+  in code list(text) "the program, one line each"
+  in lang text = "" "the language, for the Markdown code block"
+  in vars list(text) "the variables shown, in order"
+  in run list(record snap {line: int, values: list(text), output: text = "", note: text = ""}) "one record per step: the line about to run (from 1), each variable's value then, what that line printed, a note"
+
+  pos = steps (len(run)) "step"
+  now = run[pos]
+  before = if(pos == 0, now, run[pos - 1])
+  lines = map(range(0, len(code) - 1), i => {id: "l" + i, n: i + 1, src: code[i], on: i + 1 == now.line})
+  fn changed(k) = pos > 0 and at(now.values, k, "") != at(before.values, k, "")
+  table = map(range(0, len(vars) - 1), k => {id: vars[k], name: vars[k], value: at(now.values, k, "—"), on: changed(k)})
+  printed = filter(map(first(run, pos + 1), s => s.output), o => o != "")
+
+  project md = ("```" + lang + "\n" + join(code, "\n") + "\n```\n\n| step | line | " + join(vars, " | ") + " | output |\n|" +
+      join(map(range(0, len(vars) + 2), c => " --- "), "|") + "|\n" +
+      join(map(range(0, len(run) - 1), k => "| " + (k + 1) + " | " + run[k].line + " | " +
+        join(map(range(0, len(vars) - 1), v => at(run[k].values, v, "")), " | ") + " | " + run[k].output + " |"), "\n") + "\n")
+
+  flex gap=l align=start
+    stack gap=xs pad=s stroke=muted radius=card grow
+      each l in lines key=l.id
+        flex gap=s align=baseline
+          text (if(l.on, "▶", " ")) tone=accent font=mono
+          text ("" + l.n) tone=muted font=mono
+          text ("`" + l.src + "`") weight=(if(l.on, bold, regular))
+    stack gap=s
+      grid cols=2 gap=s pad=s
+        text "variable" weight=bold tone=muted
+        text "value" weight=bold tone=muted
+      each v in table key=v.id
+        stack id=(v.id)
+          grid cols=2 gap=s pad=s stroke=accent radius=card if=(v.on)
+            text ("`" + v.name + "`")
+            text v.value weight=bold
+          grid cols=2 gap=s pad=s if=(not v.on)
+            text ("`" + v.name + "`")
+            text v.value
+      stack gap=xs if=(len(printed) > 0)
+        text "output" weight=bold tone=muted
+        each o in 0..(len(printed) - 1)
+          text ("`" + printed[o] + "`")
+  text ("Step " + (pos + 1) + " of " + len(run) + ", line " + now.line + if(now.note == "", ".", ": " + now.note))

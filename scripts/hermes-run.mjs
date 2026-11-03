@@ -42,7 +42,7 @@ const folder = (d) => {
   walk(d);
   return { label: relative(root, d), files };
 };
-const packs = [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), folder(join(root, 'examples/spec18'))];
+const packs = [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), ...readdirSync(join(root, 'examples')).map((n) => folder(join(root, 'examples', n)))];
 const docCase = cases.find((c) => c.id === 'spec18.roots.doc');
 const doc = { path: 'spec18/roots.mkp.md', text: readFileSync(join(root, 'examples/spec18/roots.mkp.md'), 'utf8'), digest: docCase?.bundle.doc.digest };
 writeFileSync(join(work, 'data.json'), JSON.stringify({ cases, packs, doc }));

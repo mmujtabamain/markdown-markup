@@ -15,10 +15,10 @@ import type { Theme } from './theme';
 
 const SIZES: Record<string, number> = { s: 160, m: 320, l: 480 };
 
-/** The canvas width: as wide as its parent allows, up to its size token. */
-function useWidth(max: number): [number, (w: number) => void] {
+/** The canvas width: as wide as its parent allows (once laid out), up to its size token. */
+function useWidth(max: number, initial: number): [number, (w: number) => void] {
   const [w, setW] = useState<number | null>(null);
-  return [Math.max(80, Math.min(max, w ?? max)), (avail) => setW((prev) => (prev === avail ? prev : avail))];
+  return [Math.max(80, Math.min(max, w ?? initial)), (avail) => setW((prev) => (prev === avail ? prev : avail))];
 }
 
 interface Geo {
@@ -43,7 +43,7 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const sizeTok = String(p.size ?? 'm');
   const tokenMax = theme.size(sizeTok);
   const max = sizeTok === 'fill' ? 4000 : typeof tokenMax === 'number' ? tokenMax : SIZES[sizeTok] ?? 320;
-  const [W, setAvail] = useWidth(max);
+  const [W, setAvail] = useWidth(max, Math.min(max, SIZES.m));
   const x = (p.x as number[] | undefined) ?? [-1, 1];
   const y = (p.y as number[] | undefined) ?? [-1, 1];
   const aspect = Number(p.aspect) > 0 ? Number(p.aspect) : (x[1] - x[0]) / (y[1] - y[0]) || 1;

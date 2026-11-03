@@ -1,16 +1,22 @@
 // Every fixture case compiles, renders in the runtime without an error boundary, runs its play
 // steps, and writes Markdown; every definition has a valid case (spec 11).
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { compile } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
 import { compileCase, fixtureCases, missingFixtures } from '../src/fixtures';
 import { writeMarkdown } from '../src/md';
+import { MathsEngine, prerender } from '../src/maths';
+import { Diagnostics } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
 import { allPacks } from './helpers';
 
 const c = compile({ packs: allPacks() });
 const cases = fixtureCases(c);
+let maths: MathsEngine;
+beforeAll(async () => {
+  maths = await MathsEngine.create({ speech: false });
+});
 
 describe('packs', () => {
   it('build without errors', () => expect(c.diags.errors.map(formatDiagnostic)).toEqual([]));
@@ -21,7 +27,13 @@ describe.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as co
   it('compiles (or fails as expected)', () => {
     const r = compileCase(c, fc);
     if (fc.expect?.errors?.length) expect(r.diags.errors.map((d) => d.code)).toEqual(expect.arrayContaining(fc.expect.errors));
-    else expect(r.diags.errors.map(formatDiagnostic)).toEqual([]);
+    else {
+      expect(r.diags.errors.map(formatDiagnostic)).toEqual([]);
+      // every formula is valid for the maths engine (6.15)
+      const d = new Diagnostics();
+      prerender(r.bundle!, maths, d);
+      expect(d.errors.map(formatDiagnostic)).toEqual([]);
+    }
   });
   if (fc.expect?.errors?.length) return;
   it('renders, plays and writes Markdown', () => {

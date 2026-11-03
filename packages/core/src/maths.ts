@@ -68,7 +68,7 @@ export class MathsEngine implements MathsRenderer {
   /** The error MathJax reports for a formula, or null. \val{} holes are checked as placeholders. */
   check(tex: string, display = false): string | null {
     try {
-      this.doc.convert(tex.replace(/\\val\{(?:[^{}]|\{[^{}]*\})*\}/g, '\\square'), { display, end: engine.STATE.CONVERT });
+      this.doc.convert(tex.replace(/\\val\{(?:[^{}]|\{[^{}]*\})*\}/g, '{\\square}'), { display, end: engine.STATE.CONVERT });
       return null;
     } catch (e) {
       return (e as Error).message;
@@ -169,7 +169,7 @@ export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): voi
       const src = String(o.v);
       const parts = o.t === 'tmpl' ? (o.tex ? [src] : inlineMaths(src)) : o.t === 'str' && /\$/.test(src) ? inlineMaths(src) : [];
       for (const t of parts) {
-        const err = m.check(expand(t.replace(/\\val\{\d+\}/g, '\\square'), macros));
+        const err = m.check(expand(t.replace(/\\val\{\d+\}/g, '{\\square}'), macros));
         if (err) report(t, err, here, file);
       }
     }

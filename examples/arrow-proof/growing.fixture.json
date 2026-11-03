@@ -1,0 +1,7 @@
+{
+  "widget": "growing@1",
+  "cases": {
+    "start": { "summary": "The root alone; play to grow it.", "props": {}, "play": [ { "press": "stage.play" }, { "wait": 6000 } ] },
+    "middle": { "summary": "Three levels, with a node about to be inserted.", "props": {}, "play": [ { "set": { "stage": 3 } }, { "wait": 400 }, { "set": { "stage": 4 } }, { "wait": 400 } ] }
+  }
+}

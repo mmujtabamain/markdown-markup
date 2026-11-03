@@ -1,0 +1,33 @@
+sequence@1 "A sequence diagram: participants side by side with their lifelines, and messages between them in order; replies are dashed."
+  fields actors messages
+  in actors list(record actor {id: text, label: text = ""}) "the participants, left to right"
+  in messages list(record message {from: text, to: text, label: text = "", reply: bool = false}) "in the order they are sent"
+  in size size = l
+  ids = map(actors, a => a.id)
+  na = max(len(actors), 1)
+  msgs = filter(messages, mm => indexof(ids, mm.from) >= 0 and indexof(ids, mm.to) >= 0)
+  m = len(msgs)
+  # one column per participant; rows stay about the same height however many there are
+  row = 0.095 max(na, 2)
+  top = (m + 1.7) row
+  fn x(id: text): num = indexof(ids, id) + 0.5
+  fn y(j: int): num = top - (j + 1.6) row
+  fn name(a: {id: text, label: text}): text = if(a.label != "", a.label, a.id)
+  project mermaid = ("sequenceDiagram\n"
+    + join(map(actors, a => "  participant " + a.id + if(a.label != "", " as " + a.label, "")), "\n") + "\n"
+    + join(map(msgs, mm => "  " + mm.from + if(mm.reply, "-->>", "->>") + mm.to + ": " + mm.label), "\n"))
+  canvas x=0..(na) y=0..(top) aspect=(na/top) size=size label=("a sequence of " + m + " messages between " + join(map(actors, a => name({id: a.id, label: a.label})), ", "))
+    layer
+      each a in actors key=a.id
+        line (x(a.id), top - 0.8 row) (x(a.id), 0) stroke=muted dash
+    layer
+      each j in 0..(m - 1)
+        line (x(msgs[j].from), y(j)) (x(msgs[j].to), y(j)) stroke=ink width=1.5 dash=(msgs[j].reply) arrow if=(msgs[j].from != msgs[j].to)
+        label ((x(msgs[j].from) + x(msgs[j].to))/2, y(j) + 0.06 row) (msgs[j].label) anchor=n if=(msgs[j].from != msgs[j].to)
+        path ([(x(msgs[j].from), y(j) + 0.2 row), (x(msgs[j].from) + 0.18, y(j) + 0.2 row), (x(msgs[j].from) + 0.18, y(j) - 0.2 row)]) stroke=ink width=1.5 dash=(msgs[j].reply) if=(msgs[j].from == msgs[j].to)
+        line (x(msgs[j].from) + 0.18, y(j) - 0.2 row) (x(msgs[j].from), y(j) - 0.2 row) stroke=ink width=1.5 dash=(msgs[j].reply) arrow if=(msgs[j].from == msgs[j].to)
+        label (x(msgs[j].from) + 0.21, y(j)) (msgs[j].label) anchor=e if=(msgs[j].from == msgs[j].to)
+      each a in actors key=a.id
+        place (x(a.id), top - 0.45 row)
+          stack pad=s fill=surface stroke=ink radius=card
+            text (name({id: a.id, label: a.label})) weight=medium wrap=false

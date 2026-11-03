@@ -58,6 +58,8 @@ export interface VNode {
   ev?: string[];
   arrows?: VArrow[];
   layers?: VLayer[];
+  /** source map (12.1): the definition (or document) and the [line, col] this node was written at */
+  src?: [string, number, number];
 }
 
 export function walk(nodes: VNode[], f: (n: VNode) => void): void {

@@ -157,6 +157,10 @@ function boxStyle(p: Record<string, unknown>): CSSProperties {
   };
 }
 
+function cssEscape(s: string): string {
+  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+}
+
 const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch', baseline: 'baseline' };
 const JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around' };
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
@@ -164,7 +168,7 @@ const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important:
 export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
-  const common = { 'data-mkp-key': n.key, 'data-mkp-id': n.id, hidden: n.hidden || undefined, className: cls, ref: reg } as const;
+  const common = { 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined, className: cls, ref: reg } as const;
   const lay = layoutStyle(n);
   switch (n.t) {
     case 'scope':
@@ -204,7 +208,7 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
       const font = String(p.font ?? 'body');
       const st: CSSProperties = {
         color: color(p.tone),
-        fontFamily: `var(--mkp-font-${font})`,
+        fontFamily: `var(--mkp-font-${font}), ${font === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}`,
         fontWeight: p.weight === 'bold' ? 700 : p.weight === 'medium' ? 550 : undefined,
         fontSize: p.size === 'small' ? '0.875em' : p.size === 'large' ? '1.25em' : undefined,
         textAlign: (p.align as CSSProperties['textAlign']) ?? undefined,
@@ -472,9 +476,10 @@ function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElem
   measure.current = () => {
     const root = box.current;
     if (!root) return;
+    const t0 = performance.now();
     const base = root.getBoundingClientRect();
     const find = (key: string): DOMRect | null => {
-      const el = root.querySelector<HTMLElement>(`[data-mkp-key="${CSS.escape(key)}"]`);
+      const el = root.querySelector<HTMLElement>(`[data-mkp-key="${cssEscape(key)}"]`);
       if (!el || el.hidden || !el.offsetParent) return null;
       const r = el.getBoundingClientRect();
       return r;
@@ -488,6 +493,13 @@ function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElem
       if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), label: a.label ? p.label : undefined, runs: a.label });
     }
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
+    // measuring cost, for performance probes (spike 2): passes, total and worst time, arrows drawn
+    const stats = ((globalThis as { __mkpArrowStats?: { passes: number; total: number; max: number; arrows: number } }).__mkpArrowStats ??= { passes: 0, total: 0, max: 0, arrows: 0 });
+    const dt = performance.now() - t0;
+    stats.passes++;
+    stats.total += dt;
+    stats.max = Math.max(stats.max, dt);
+    stats.arrows = Math.max(stats.arrows, out.length);
   };
   useLayoutEffect(() => {
     measure.current();

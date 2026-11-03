@@ -1,0 +1,91 @@
+{
+  "widget": "sequence@1",
+  "cases": {
+    "request": {
+      "summary": "A browser asks a server, which asks a database and replies.",
+      "props": {
+        "actors": [
+          {
+            "id": "b",
+            "label": "Browser"
+          },
+          {
+            "id": "s",
+            "label": "Server"
+          },
+          {
+            "id": "db",
+            "label": "Database"
+          }
+        ],
+        "messages": [
+          {
+            "from": "b",
+            "to": "s",
+            "label": "GET /orders",
+            "reply": false
+          },
+          {
+            "from": "s",
+            "to": "s",
+            "label": "check session",
+            "reply": false
+          },
+          {
+            "from": "s",
+            "to": "db",
+            "label": "SELECT orders",
+            "reply": false
+          },
+          {
+            "from": "db",
+            "to": "s",
+            "label": "rows",
+            "reply": true
+          },
+          {
+            "from": "s",
+            "to": "b",
+            "label": "200 OK",
+            "reply": true
+          }
+        ]
+      }
+    },
+    "handshake": {
+      "summary": "A two-party handshake.",
+      "props": {
+        "actors": [
+          {
+            "id": "client",
+            "label": ""
+          },
+          {
+            "id": "server",
+            "label": ""
+          }
+        ],
+        "messages": [
+          {
+            "from": "client",
+            "to": "server",
+            "label": "SYN",
+            "reply": false
+          },
+          {
+            "from": "server",
+            "to": "client",
+            "label": "SYN-ACK",
+            "reply": true
+          },
+          {
+            "from": "client",
+            "to": "server",
+            "label": "ACK",
+            "reply": false
+          }
+        ]
+      }
+    }
+  }
+}

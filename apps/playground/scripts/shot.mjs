@@ -84,5 +84,11 @@ try {
   }
 } finally {
   await browser.close();
-  if (server) process.kill(-server.pid);
+  if (server) {
+    try {
+      process.kill(-server.pid);
+    } catch {
+      // already gone
+    }
+  }
 }

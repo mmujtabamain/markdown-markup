@@ -1,0 +1,77 @@
+# rows by breadth-first distance from the start nodes, so loops back up the chart don't push nodes down
+fn levels(ids: list(text), starts: list(text), links: list({from: text, to: text})) = iterate(
+    fold(ids, {}, (d, id) => put(d, id, if(indexof(starts, id) >= 0, 0, 1000))),
+    len(ids),
+    d => fold(links, d, (d2, l) => put(d2, l.to, min(d2[l.to], d2[l.from] + 1))))
+
+flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows from the start, joined by labelled arrows."
+  fields steps links
+  in steps list(record step {id: text, label: text, kind: choice(start|step|decision|io|end) = step}) "the boxes, by id"
+  in links list(record link {from: text, to: text, label: text = ""}) "arrows between ids, with an optional label such as yes or no"
+  in dir choice(down|right) = down "which way the chart runs"
+  ids = map(steps, s => s.id)
+  good = filter(links, l => indexof(ids, l.from) >= 0 and indexof(ids, l.to) >= 0)
+  marked = map(filter(steps, s => s.kind == start), s => s.id)
+  heads = filter(ids, id => len(filter(good, l => l.to == id)) == 0)
+  starts = if(len(marked) > 0, marked, if(len(heads) > 0, heads, first(ids, 1)))
+  lv0 = levels(ids, starts, map(good, l => {from: l.from, to: l.to}))
+  # anything unreachable goes in a row after the rest
+  reach = max([0] + filter(map(ids, id => lv0[id]), v => v < 1000))
+  fn lv(id: text): int = if(lv0[id] >= 1000, reach + 1, lv0[id])
+  depth = max([0] + map(ids, id => lv(id)))
+  forward = filter(good, l => lv(l.from) < lv(l.to))
+  layers = filter(map(range(0, depth), r => filter(steps, s => lv(s.id) == r)), l => len(l) > 0)
+  # four barycentre passes over the forward links keep crossings down
+  rows = iterate(layers, 4, ls => map(ls, l => sort(l, s =>
+      mean([position(ls, s.id)] + map(filter(forward, e => e.to == s.id), e => position(ls, e.from))))))
+  fn shape(s: {id: text, label: text, kind: text}): text = if(s.kind == "start" or s.kind == "end", "([\"" + s.label + "\"])",
+      if(s.kind == "decision", "{\"" + s.label + "\"}", if(s.kind == "io", "[/\"" + s.label + "\"/]", "[\"" + s.label + "\"]")))
+  project mermaid = ("flowchart " + if(dir == down, "TD", "LR") + "\n"
+    + join(map(steps, s => "  " + s.id + shape({id: s.id, label: s.label, kind: "" + s.kind})), "\n") + "\n"
+    + join(map(good, l => "  " + l.from + " -->" + if(l.label != "", "|" + l.label + "|", "") + " " + l.to), "\n"))
+  switch on=dir
+    case down
+      stack gap=xl align=center
+        each r in 0..(len(rows) - 1)
+          flex gap=l justify=center align=center
+            each s in rows[r] key=s.id
+              switch on=(s.kind)
+                case start
+                  stack id=(s.id) pad=s stroke=ok radius=pill
+                    text s.label align=center
+                case end
+                  stack id=(s.id) pad=s stroke=bad radius=pill
+                    text s.label align=center
+                case decision
+                  stack id=(s.id) pad=m stroke=warn
+                    text s.label weight=medium align=center
+                case io
+                  stack id=(s.id) pad=s stroke=info
+                    text s.label align=center
+                else
+                  stack id=(s.id) pad=s stroke=ink radius=card
+                    text s.label align=center
+    else
+      flex gap=xl align=center wrap=false
+        each r in 0..(len(rows) - 1)
+          stack gap=l align=center
+            each s in rows[r] key=s.id
+              switch on=(s.kind)
+                case start
+                  stack id=(s.id) pad=s stroke=ok radius=pill
+                    text s.label align=center
+                case end
+                  stack id=(s.id) pad=s stroke=bad radius=pill
+                    text s.label align=center
+                case decision
+                  stack id=(s.id) pad=m stroke=warn
+                    text s.label weight=medium align=center
+                case io
+                  stack id=(s.id) pad=s stroke=info
+                    text s.label align=center
+                else
+                  stack id=(s.id) pad=s stroke=ink radius=card
+                    text s.label align=center
+  each l in good key=(l.from + ">" + l.to)
+    arrow from=(l.from) to=(l.to) label=(l.label) if=(lv(l.from) < lv(l.to))
+    arrow from=(l.from) to=(l.to) label=(l.label) curve if=(lv(l.from) >= lv(l.to))

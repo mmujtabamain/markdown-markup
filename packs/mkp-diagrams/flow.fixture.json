@@ -1,0 +1,151 @@
+{
+  "widget": "flow@1",
+  "cases": {
+    "login": {
+      "summary": "Signing in: a decision with a retry loop back up the chart.",
+      "props": {
+        "steps": [
+          {
+            "id": "start",
+            "label": "Start",
+            "kind": "start"
+          },
+          {
+            "id": "ask",
+            "label": "Enter name and password",
+            "kind": "io"
+          },
+          {
+            "id": "check",
+            "label": "Correct?",
+            "kind": "decision"
+          },
+          {
+            "id": "tries",
+            "label": "Three tries used?",
+            "kind": "decision"
+          },
+          {
+            "id": "home",
+            "label": "Show the home page",
+            "kind": "step"
+          },
+          {
+            "id": "lock",
+            "label": "Lock the account",
+            "kind": "step"
+          },
+          {
+            "id": "done",
+            "label": "End",
+            "kind": "end"
+          }
+        ],
+        "links": [
+          {
+            "from": "start",
+            "to": "ask",
+            "label": ""
+          },
+          {
+            "from": "ask",
+            "to": "check",
+            "label": ""
+          },
+          {
+            "from": "check",
+            "to": "home",
+            "label": "yes"
+          },
+          {
+            "from": "check",
+            "to": "tries",
+            "label": "no"
+          },
+          {
+            "from": "tries",
+            "to": "ask",
+            "label": "no"
+          },
+          {
+            "from": "tries",
+            "to": "lock",
+            "label": "yes"
+          },
+          {
+            "from": "home",
+            "to": "done",
+            "label": ""
+          },
+          {
+            "from": "lock",
+            "to": "done",
+            "label": ""
+          }
+        ]
+      }
+    },
+    "right": {
+      "summary": "A short pipeline running left to right.",
+      "props": {
+        "dir": "right",
+        "steps": [
+          {
+            "id": "a",
+            "label": "Read",
+            "kind": "step"
+          },
+          {
+            "id": "b",
+            "label": "Parse",
+            "kind": "step"
+          },
+          {
+            "id": "c",
+            "label": "Check",
+            "kind": "step"
+          },
+          {
+            "id": "d",
+            "label": "Write",
+            "kind": "step"
+          }
+        ],
+        "links": [
+          {
+            "from": "a",
+            "to": "b",
+            "label": ""
+          },
+          {
+            "from": "b",
+            "to": "c",
+            "label": ""
+          },
+          {
+            "from": "c",
+            "to": "d",
+            "label": ""
+          }
+        ]
+      }
+    },
+    "bad-kind": {
+      "props": {
+        "steps": [
+          {
+            "id": "a",
+            "label": "A",
+            "kind": "circle"
+          }
+        ],
+        "links": []
+      },
+      "expect": {
+        "errors": [
+          "mkp.enum"
+        ]
+      }
+    }
+  }
+}

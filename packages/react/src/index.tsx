@@ -41,7 +41,8 @@ export function useRuntime(bundle: IRBundle, opts: RuntimeOptions): Runtime {
 export function MkpDocument(props: MkpDocumentProps): ReactNode {
   const prefers = usePrefersReducedMotion();
   const reducedMotion = props.reducedMotion ?? prefers;
-  const made = useMemo(() => props.runtime ?? new Runtime(props.bundle, { ...props.options, maths: props.maths, reducedMotion }), [props.bundle, props.runtime]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the web provides gfx@1 (WebGL for pixels, projected polygons for mesh)
+  const made = useMemo(() => props.runtime ?? new Runtime(props.bundle, { capabilities: ['core@1', 'gfx@1'], ...props.options, maths: props.maths, reducedMotion }), [props.bundle, props.runtime]); // eslint-disable-line react-hooks/exhaustive-deps
   const rt = made;
   const tree = useSyncExternalStore(
     (f) => rt.subscribe(f),
@@ -67,7 +68,7 @@ export function MkpDocument(props: MkpDocumentProps): ReactNode {
   return (
     <RuntimeCtx.Provider value={ctx}>
       <style>{css}</style>
-      <div className={['mkp-root', props.className].filter(Boolean).join(' ')} data-theme={props.theme && props.theme !== 'auto' ? props.theme : undefined}>
+      <div className={['mkp-root', props.className].filter(Boolean).join(' ')} data-theme={props.theme && props.theme !== 'auto' ? props.theme : undefined} data-reduced-motion={reducedMotion || undefined}>
         <Kids nodes={tree} />
       </div>
     </RuntimeCtx.Provider>

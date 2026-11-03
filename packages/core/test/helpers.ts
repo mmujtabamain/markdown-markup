@@ -3,7 +3,9 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PackSource } from '../src/build';
 
-export const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const here = new URL('../../../', import.meta.url);
+// under jsdom import.meta.url is not a file: URL; tests run from the workspace root
+export const ROOT = here.protocol === 'file:' ? fileURLToPath(here) : process.cwd() + '/';
 
 export function folder(dir: string): PackSource {
   const files = new Map<string, Uint8Array>();
@@ -20,5 +22,6 @@ export function folder(dir: string): PackSource {
 
 export function allPacks(): PackSource[] {
   const packs = readdirSync(join(ROOT, 'packs')).map((n) => folder(join(ROOT, 'packs', n)));
-  return [...packs, folder(join(ROOT, 'examples/spec18'))];
+  const examples = readdirSync(join(ROOT, 'examples')).map((n) => folder(join(ROOT, 'examples', n)));
+  return [...packs, ...examples];
 }

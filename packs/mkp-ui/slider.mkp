@@ -19,8 +19,9 @@ part slider@1 "A labelled range over the caller's number, showing its value, wit
   going = toggle "playing"
     @change pause sweep pause sweeps
   shown = if(digits >= 0, format(value, digits), "" + value) + unit
+  project md = "**" + if(label != "", label, "value") + ":** " + shown + " (from " + min + " to " + max + ")"
   flex gap=s align=center
-    stack hidden
+    stack if=(going and not going)
       controls sweep sweeps going
     press id=play label=("play " + label) if=(play and not loop and not going)
       text "▶"

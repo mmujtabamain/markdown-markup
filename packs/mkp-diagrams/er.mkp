@@ -1,0 +1,36 @@
+fn mark(c: text, left: bool): text = if(c == "one", "||", if(c == "zero_one", if(left, "|o", "o|"),
+    if(c == "many", if(left, "}|", "|{"), if(left, "}o", "o{"))))
+fn count(c: text): text = if(c == "one", "1", if(c == "zero_one", "0..1", if(c == "many", "1..*", "0..*")))
+
+er@1 "An entity–relationship diagram: entities with their attributes and keys, joined by named relationships with their cardinalities."
+  fields entities rels
+  in entities list(record entity {name: text, attrs: list(record attr {type: text, name: text, kind: choice(plain|pk|fk) = plain})}) "tables and their columns; kind marks primary and foreign keys"
+  in rels list(record rel {a: text, b: text, label: text = "", left: choice(one|zero_one|many|zero_many) = one, right: choice(one|zero_one|many|zero_many) = zero_many}) "a's side is left, b's side is right"
+  names = map(entities, e => e.name)
+  good = filter(rels, r => indexof(names, r.a) >= 0 and indexof(names, r.b) >= 0)
+  # rows by relationship, as in a layered graph
+  rank = ranks(map(entities, e => {id: e.name, label: e.name}), map(filter(good, r => r.a != r.b), r => {from: r.a, to: r.b}))
+  depth = max([0] + map(names, nm => rank[nm]))
+  rows = map(range(0, depth), k => filter(entities, e => rank[e.name] == k))
+  fn tag(c: text): text = if(c == "pk", "PK", if(c == "fk", "FK", ""))
+  project mermaid = ("erDiagram\n"
+    + join(map(good, r => "  " + r.a + " " + mark("" + r.left, true) + "--" + mark("" + r.right, false) + " " + r.b + " : \"" + r.label + "\""), "\n") + "\n"
+    + join(map(entities, e => "  " + e.name + " {\n" + join(map(e.attrs, c => "    " + c.type + " " + c.name
+        + if(c.kind != plain, " " + tag("" + c.kind), "")), "\n") + "\n  }"), "\n"))
+  stack gap=xl align=center
+    each k in 0..(len(rows) - 1)
+      flex gap=xl justify=center align=start
+        each e in rows[k] key=e.name
+          stack id=(e.name) stroke=ink radius=card fill=surface
+            stack pad=s
+              text e.name weight=bold align=center
+            stack pad=s gap=xs stroke=muted
+              # each over a nested record list is refused, so copy the attributes into plain records
+              each c in map(e.attrs, a => {type: a.type, name: a.name, kind: "" + a.kind}) key=c.name
+                flex gap=m justify=between wrap=false
+                  flex gap=s wrap=false
+                    text (tag(c.kind)) font=mono size=small tone=accent if=(c.kind != "plain")
+                    text c.name size=small wrap=false
+                  text c.type font=mono size=small tone=muted wrap=false
+  each r in good key=(r.a + ">" + r.b + ">" + r.label)
+    arrow from=(r.a) to=(r.b) label=((if(r.label != "", r.label + " · ", "") + count("" + r.left) + " : " + count("" + r.right)))

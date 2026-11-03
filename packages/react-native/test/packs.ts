@@ -23,5 +23,6 @@ export function allPacks(): PackSource[] {
   const packs = readdirSync(join(ROOT, 'packs'))
     .filter((n) => statSync(join(ROOT, 'packs', n)).isDirectory())
     .map((n) => folder(join(ROOT, 'packs', n)));
-  return [...packs, folder(join(ROOT, 'examples/spec18'))];
+  const examples = readdirSync(join(ROOT, 'examples')).map((n) => folder(join(ROOT, 'examples', n)));
+  return [...packs, ...examples];
 }

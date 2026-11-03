@@ -3,6 +3,7 @@ part toggle@1 "A switch for the caller's on/off state, with its label."
   in on ref bool "the caller's state"
   in label text "what it switches"
   out changed {on: bool} "after the reader flips it"
+  project md = if(on, "- [x] ", "- [ ] ") + label
   press id=switch kind=toggle selected=on
     flex gap=s align=center wrap=false
       flex pad=xs radius=pill stroke=surface wrap=false if=on

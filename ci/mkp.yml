@@ -86,6 +86,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: mkp/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: Types (strict)
+        run: pnpm exec tsc -p packages/react-native/tsconfig.json --noEmit
       - name: Every fixture case and the section-18 document render in the RN renderer
         run: pnpm test:rn
 

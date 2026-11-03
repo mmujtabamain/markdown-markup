@@ -1,0 +1,9 @@
+{ "widget": "ode@1", "cases": {
+  "harmonic": { "summary": "The harmonic oscillator $x' = y$, $y' = -x$: every trajectory is a circle about the origin.",
+    "props": { "f": "y", "g": "-x" }, "play": [ { "press": "s.play" }, { "wait": 1500 } ] },
+  "damped": { "summary": "A damped pendulum $x' = y$, $y' = -\\sin x - 0.3y$ from three starts, spiralling into rest.",
+    "props": { "f": "y", "g": "-sin(x) - 0.3y", "xmin": -4, "xmax": 4, "starts": 3, "time": 20, "a": [2.5, 0], "b": [-3, 2], "c": [0, -2.5] },
+    "play": [ { "set": { "s": 0.4 } } ] },
+  "lotka-volterra": { "summary": "Predator and prey, $x' = x(1 - y)$, $y' = y(x - 1)$: closed orbits round $(1, 1)$, traced both ways in time.",
+    "props": { "f": "x (1 - y)", "g": "y (x - 1)", "xmin": 0, "xmax": 4, "ymin": 0, "ymax": 4, "starts": 1, "a": [0.5, 1], "back": true, "time": 7, "field": false } },
+  "bad-step": { "props": { "h": 5 }, "expect": { "errors": ["mkp.input-range"] } } } }

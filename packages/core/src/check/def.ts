@@ -278,6 +278,9 @@ export class DefChecker {
       }
     }
     if (Object.keys(this.localFns).length) ir.fns = this.localFns;
+    if (this.usesGfx.size && !s.about && s.kind !== 'extern') {
+      this.err(new MkpError('mkp.no-fallback', `${s.name}@${s.version} needs gfx@1 (${[...this.usesGfx].join(', ')}) and has no fallback: give it an "about" text, shown where gfx@1 is missing`, s.p));
+    }
     if (this.usesGfx.size && !(ir.requires ?? []).includes('gfx@1')) {
       this.err(new MkpError('mkp.requires-gfx', `${[...this.usesGfx].join(', ')} need the gfx@1 capability; add "requires gfx@1" to ${s.name}@${s.version}`, s.p));
     }

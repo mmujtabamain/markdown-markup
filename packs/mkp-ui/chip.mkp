@@ -3,8 +3,9 @@ chip@1 "A compact outlined tag: a term, a filter or an attribute, with an option
   in text text
   in icon text = "" "a symbol or $maths$ shown before the text"
   in tone color = muted "the outline and symbol colour"
-  flex pad=xs gap=s stroke=tone radius=pill align=center wrap=false
-    text ""
-    text icon tone=tone size=small if=(icon != "")
-    text text size=small wrap=false
-    text ""
+  flex
+    flex pad=xs gap=s stroke=tone radius=pill align=center wrap=false
+      text ""
+      text icon tone=tone size=small if=(icon != "")
+      text text size=small wrap=false
+      text ""

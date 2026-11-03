@@ -116,6 +116,7 @@ export class Compiled {
       for (const f of Object.values(d.fns ?? {})) visitAst(f.body);
     }
     defs[docDef.id] = docDef;
+    markFallbacks(doc.body, defs);
     for (const f of Object.values(docDef.fns ?? {})) visitAst(f.body);
     const types: Record<string, Type> = {};
     for (const [k, t] of this.prog.types) types[k] = t.type;
@@ -249,10 +250,37 @@ export function compile(opts: CompileOptions): Compiled {
   for (const dc of checkers) dc.runDeferred();
   // nesting depth of definitions (non-recursive chains) and digests
   depthCheck(c, checkers, diags);
+  markDefFallbacks(c.defs);
   for (const ir of c.defs.values()) ir.digest = digest(stripPos({ ...ir, fns: ir.fns }));
   // the lock: pack digests and the version each name resolved to
   c.lock = makeLock(c, opts.lock, diags);
   return c;
+}
+
+/** Marks uses of gfx definitions, and gfx canvases, with their fallback (8.1). */
+function markFallbacks(body: IRNode[], defs: Record<string, IRDef>): void {
+  const gfx = (n: IRNode): boolean => {
+    if (n.node === 'canvas' && n.props?.dims && 'lit' in n.props.dims && n.props.dims.lit === 3) return true;
+    const walk = (rs: IRNode[] | undefined): boolean => (rs ?? []).some((r) => r.record === 'pixels' || r.record === 'mesh' || walk(r.records) || walk(r.children));
+    return walk(n.records);
+  };
+  const visit = (ns: IRNode[] | undefined, summary: string | undefined): void => {
+    for (const n of ns ?? []) {
+      const d = n.def ? defs[n.def] : undefined;
+      const here = n.meta?.summary ?? summary ?? d?.about;
+      if (d && (d.requires ?? []).includes('gfx@1')) n.fallback = { summary: here ?? d.about ?? d.name };
+      else if (gfx(n)) n.fallback = { summary: here ?? 'figure' };
+      visit(n.children, here);
+      for (const f of Object.values(n.fills ?? {})) visit(f, here);
+    }
+  };
+  visit(body, undefined);
+}
+
+/** Definition views are marked once, at compile time, before their digests. */
+export function markDefFallbacks(defs: Map<string, IRDef>): void {
+  const all = Object.fromEntries(defs);
+  for (const d of defs.values()) if ((d.requires ?? []).includes('gfx@1') && d.view) markFallbacks(d.view, all);
 }
 
 function depthCheck(c: Compiled, checkers: DefChecker[], diags: Diagnostics): void {

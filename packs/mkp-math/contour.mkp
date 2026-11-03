@@ -60,4 +60,4 @@ contour@1 "Contour lines of f(x, y), computed by marching squares, with a point 
           line s.a s.b stroke=accent width=2.5
       handle p
   text "$f(\val{p.x}, \val{p.y}) = \val{here}$; the bold line is that level." if=probe
-  text ("Levels " + join(map(shown, c => format(c, 2)), ", ") + if(min(shown) < 0, "; the negative ones are dashed.", ".")) tone=muted
+  text ("Levels " + join(shown, ", ") + if(min(shown) < 0, "; the negative ones are dashed.", ".")) tone=muted

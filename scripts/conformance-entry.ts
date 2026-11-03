@@ -21,7 +21,7 @@ function folder(d: string): PackSource {
 }
 
 export function packsOf(): PackSource[] {
-  return [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), folder(join(root, 'examples/spec18'))];
+  return [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), ...readdirSync(join(root, 'examples')).map((n) => folder(join(root, 'examples', n)))];
 }
 
 const generate = process.argv.includes('--generate');

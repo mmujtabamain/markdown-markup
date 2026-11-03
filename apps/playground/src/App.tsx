@@ -34,7 +34,17 @@ export function App(): ReactNode {
     addEventListener('hashchange', f);
     return () => removeEventListener('hashchange', f);
   }, []);
-  const compiled = useMemo<Compiled>(() => compile({ packs: packFolders().map((p) => ({ label: p.label, files: p.files })) }), []);
+  // packs and documents opened from disk join the repository's own
+  const [opened, setOpened] = useState<{ packs: { label: string; zip: Uint8Array }[]; docs: { label: string; path: string; text: string }[] }>({ packs: [], docs: [] });
+  const compiled = useMemo<Compiled>(() => compile({ packs: [...packFolders().map((p) => ({ label: p.label, files: p.files })), ...opened.packs] }), [opened]);
+  const open = async (files: FileList | null): Promise<void> => {
+    const next = { packs: [...opened.packs], docs: [...opened.docs] };
+    for (const f of Array.from(files ?? [])) {
+      if (f.name.endsWith('.mkpack')) next.packs.push({ label: f.name, zip: new Uint8Array(await f.arrayBuffer()) });
+      else if (f.name.endsWith('.md')) next.docs.push({ label: 'opened', path: f.name, text: await f.text() });
+    }
+    setOpened(next);
+  };
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
     for (const p of packFolders()) {
@@ -42,9 +52,10 @@ export function App(): ReactNode {
         if (path.endsWith('.mkp.md')) out.push({ id: `doc:${p.label}/${path}`, group: p.label, title: path, kind: 'doc', doc: { label: p.label, path, text: new TextDecoder().decode(bytes) } });
       }
     }
+    for (const d of opened.docs) out.push({ id: `doc:opened/${d.path}`, group: 'opened', title: d.path, kind: 'doc', doc: d });
     for (const fc of fixtureCases(compiled)) out.push({ id: `case:${fc.pack}/${fc.widget}/${fc.name}`, group: fc.pack, title: `${fc.widget} · ${fc.name}`, kind: 'case', fc });
     return out;
-  }, [compiled]);
+  }, [compiled, opened]);
   const selected = entries.find((e) => e.id === hash.e) ?? entries.find((e) => e.kind === 'doc') ?? entries[0];
   const result = useMemo(() => {
     if (!selected || !maths) return null;
@@ -97,6 +108,9 @@ export function App(): ReactNode {
             <label>
               <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.currentTarget.checked)} /> reduced motion
             </label>
+            <label className="pg-open">
+              Open .mkpack or .mkp.md <input type="file" accept=".mkpack,.md" multiple onChange={(e) => void open(e.currentTarget.files)} />
+            </label>
           </div>
         </header>
         {!maths ? <p className="pg-muted">Loading the maths engine…</p> : null}
@@ -140,7 +154,7 @@ export function App(): ReactNode {
 }
 
 function Shown({ entry, bundle, maths, theme, reduced, negative, ok, diags }: { entry: Entry; bundle: IRBundle | null; maths: MathsEngine | null; theme: 'light' | 'dark'; reduced: boolean; negative: boolean; ok: boolean; diags: string[] }): ReactNode {
-  const runtime = useMemo(() => (bundle ? new Runtime(bundle, { maths: maths ?? undefined, reducedMotion: reduced, hosts: entry.fc?.hosts ? { '0': entry.fc.hosts } : undefined }) : null), [bundle, maths, reduced, entry]);
+  const runtime = useMemo(() => (bundle ? new Runtime(bundle, { capabilities: ['core@1', 'gfx@1'], maths: maths ?? undefined, reducedMotion: reduced, hosts: entry.fc?.hosts ? { '0': entry.fc.hosts } : undefined }) : null), [bundle, maths, reduced, entry]);
   const [log, setLog] = useState<string[]>([]);
   useEffect(() => {
     if (!runtime) return;

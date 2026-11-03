@@ -133,7 +133,7 @@ function check(rt: Runtime): number {
         expect(hasType(el, 'Image')).toBe(true);
         break;
       case 'scope':
-        if (n.arrows?.length) expect(within(el).queryAllByTestId('arrows:on', H).length).toBeGreaterThan(0);
+        if (n.arrows?.length) expect(within(el).queryAllByTestId('mkp-arrows', H).length).toBeGreaterThan(0);
         break;
       case 'bar':
         expect(all(el, (i) => i.props.accessibilityRole === 'toolbar').length).toBe(1);
@@ -157,7 +157,15 @@ async function play(rt: Runtime, fc: FixtureCase): Promise<void> {
 
 const name = (fc: FixtureCase): string => `${fc.pack}/${fc.widget}/${fc.name}`;
 
+// The document drives playing controls on animation frames; here the play steps' waits tick the
+// runtime instead, so frames are held (fake timers) and only the 'play' test below runs them.
+function holdFrames(): void {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+}
+
 describe('every fixture case renders', () => {
+  holdFrames();
   // (build errors in packs are the core's fixture test's to report; a case that cannot compile fails below)
   it('finds the packs and their cases', () => {
     expect(cases.length).toBeGreaterThan(10);
@@ -170,6 +178,7 @@ describe('every fixture case renders', () => {
 });
 
 describe('the section-18 document', () => {
+  holdFrames();
   const text = readFileSync(join(ROOT, 'examples/spec18/roots.mkp.md'), 'utf8');
   it('compiles and renders in light and dark, playing its controls', async () => {
     const diags = new Diagnostics();
@@ -187,10 +196,10 @@ describe('the section-18 document', () => {
       await fireEvent.press(within(el).getAllByRole(/button|tab|radio|togglebutton/, H)[0]);
       check(rt);
     }
-    screen.unmount();
+    await screen.unmount();
     const dark = await mount(bundle!, { theme: 'dark' });
     check(dark);
-    const root = screen.toJSON() as { props: { style: { backgroundColor?: string }[] } };
+    const root = screen.toJSON() as unknown as { props: { style: { backgroundColor?: string }[] } };
     expect(root.props.style[0].backgroundColor).toBe(new TokenTable(bundle!.tokens).color('surface', 'dark'));
   });
 });
@@ -337,7 +346,7 @@ describe('interactions', () => {
     const shader = screen.getAllByTestId('skia-shader', H)[0];
     const uniforms = JSON.parse(shader.props.accessibilityHint);
     expect(uniforms.mkp_size).toHaveLength(2);
-    screen.unmount();
+    await screen.unmount();
     setSkia(null);
     try {
       expect(capabilities()).toEqual(['core@1']);
@@ -362,6 +371,29 @@ describe('interactions', () => {
     const tabs = screen.getAllByRole('tab');
     await fireEvent.press(tabs[tabs.findIndex((t) => !t.props.accessibilityState?.selected)]);
     await waitFor(() => check(rt), { timeout: 2000 });
+  });
+});
+
+describe('play', () => {
+  it('drives a playing runtime on animation frames once a control starts it', async () => {
+    // the first case whose play steps press a control's play button
+    const fc = cases.find((x) => (x.play ?? []).some((st) => /(^|\.)play$/.test(st.press ?? '')));
+    expect(fc).toBeDefined();
+    const bundle = build(fc!);
+    const rt = new Runtime(bundle, { now: () => 0, maths, reducedMotion: true, hosts: fc!.hosts ? { '0': fc!.hosts } : undefined });
+    const tick = jest.spyOn(rt, 'tick');
+    await render(<MkpDocument bundle={bundle} runtime={rt} reducedMotion theme="light" />);
+    const id = fc!.play!.find((st) => /(^|\.)play$/.test(st.press ?? ''))!.press!;
+    await act(async () => {
+      expect(rt.press(id)).toBe(true);
+      await new Promise((r) => setTimeout(r, 150));
+    });
+    expect(rt.playing() || tick.mock.calls.length > 0).toBe(true);
+    expect(tick).toHaveBeenCalled();
+    check(rt);
+    await act(async () => {
+      await screen.unmount();
+    });
   });
 });
 

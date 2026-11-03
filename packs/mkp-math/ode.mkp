@@ -1,0 +1,69 @@
+ode@1 "Trajectories of the system x' = f(x, y), y' = g(x, y) from start points you drag, integrated by RK4 over the direction field."
+  fields f g
+  in f expr(x, y) = y "x′, in x and y"
+  in g expr(x, y) = (-x) "y′, in x and y"
+  in xmin num = -3
+  in xmax num = 3
+  in ymin num = -3
+  in ymax num = 3
+  in time num = 8 "how long to follow each trajectory"
+  in h num 0.001..1 = 0.05 "the RK4 step"
+  in starts int 1..3 = 2 "how many start points"
+  in a point = (1, 0) "where the first start point begins"
+  in b point = (0, 2) "the second"
+  in c point = (-2, -1) "the third"
+  in back bool = false "also follow each trajectory backwards in time"
+  in field bool = true "draw the direction field"
+  in step num = 1 "background grid spacing"
+  budget 6000000
+  P = drag x=(xmin)..(xmax) y=(ymin)..(ymax) = a "start 1"
+  Q = drag x=(xmin)..(xmax) y=(ymin)..(ymax) = b "start 2"
+  R = drag x=(xmin)..(xmax) y=(ymin)..(ymax) = c "start 3"
+  s = slider 0..1 step=0.002 play=6s loop=repeat "time"
+  span = max(xmax - xmin, ymax - ymin)
+  fn v(p: point, k: num): point = (k f(p.x, p.y), k g(p.x, p.y))
+  fn add(p: point, q: point, k: num): point = (p.x + k q.x, p.y + k q.y)
+  fn rk3(p: point, k1: point, k2: point, k3: point, k4: point): point = (p.x + (k1.x + 2 k2.x + 2 k3.x + k4.x)/6, p.y + (k1.y + 2 k2.y + 2 k3.y + k4.y)/6)
+  fn rk2(p: point, k: num, k1: point, k2: point, k3: point): point = rk3(p, k1, k2, k3, v(add(p, k3, 1), k))
+  fn rk(p: point, k: num, k1: point, k2: point): point = rk2(p, k, k1, k2, v(add(p, k2, 0.5), k))
+  # one classical Runge–Kutta step of size k; a point far outside the view stops moving, which ends the scan
+  fn rk4(p: point, k: num): point = if(abs(p.x - (xmin + xmax)/2) > 4 span or abs(p.y - (ymin + ymax)/2) > 4 span, p, rk(p, k,
+      v(p, k), v(add(p, v(p, k), 0.5), k)))
+  m = min(round(time/h), 4000)
+  fn path(p: point, k: num): list(point) = scan(p, m, q => rk4(q, k))
+  fn whole(p: point): list(point) = if(back, reverse(path(p, -h)) + path(p, h), path(p, h))
+  tP = whole(P)
+  tQ = if(starts >= 2, whole(Q), [])
+  tR = if(starts >= 3, whole(R), [])
+  # where each start point has got to at time s
+  fn now(p: point): point = at(path(p, h), round(s m), p)
+  n = 15
+  hx = (xmax - xmin)/n
+  hy = (ymax - ymin)/n
+  fn cen(i: int, j: int): point = (xmin + (i + 0.5) hx, ymin + (j + 0.5) hy)
+  # a short direction mark through a grid point
+  fn dirn(q: point, sg: num): point = add(q, v(q, 1), sg 0.38 min(hx, hy)/max(sqrt(f(q.x, q.y)^2 + g(q.x, q.y)^2), 0.000000001))
+  canvas x=(xmin)..(xmax) y=(ymin)..(ymax) size=m label="Trajectories of the system from start points you can drag"
+    layer opacity=0.35
+      each gx in ticks(xmin, xmax, step)
+        line (gx, ymin) (gx, ymax) stroke=muted width=0.5
+      each gy in ticks(ymin, ymax, step)
+        line (xmin, gy) (xmax, gy) stroke=muted width=0.5
+    layer
+      line (xmin, clamp(0, ymin, ymax)) (xmax, clamp(0, ymin, ymax)) stroke=muted
+      line (clamp(0, xmin, xmax), ymin) (clamp(0, xmin, xmax), ymax) stroke=muted
+    layer if=field opacity=0.6
+      each i in 0..(n - 1)
+        each j in 0..(n - 1)
+          line (dirn(cen(i, j), -1)) (dirn(cen(i, j), 1)) stroke=muted
+    layer
+      path tP stroke=accent width=2
+      path tQ stroke=info width=2 if=(starts >= 2)
+      path tR stroke=ok width=2 if=(starts >= 3)
+      circle (now(P)) (span/80) fill=accent
+      circle (now(Q)) (span/80) fill=info if=(starts >= 2)
+      circle (now(R)) (span/80) fill=ok if=(starts >= 3)
+      handle P
+      handle Q tone=info if=(starts >= 2)
+      handle R tone=ok if=(starts >= 3)
+  text "Start $(\val{P.x}, \val{P.y})$; at $t = \val{s time}$ it is at $(\val{now(P).x}, \val{now(P).y})$."

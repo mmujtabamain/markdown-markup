@@ -1,0 +1,20 @@
+surface@1 "The surface z = f(x, y) in 3D, turned with a slider, with the height at a point you drag on the floor plan."
+  requires gfx@1
+  fields f
+  in f expr(x, y) = (sin(x) cos(y)) "the height, in x and y"
+  in xmin num = -3
+  in xmax num = 3
+  in ymin num = -3
+  in ymax num = 3
+  in n int 4..200 = 40 "mesh lines each way"
+  in tilt num 0..90 = 25 "the camera's elevation in degrees"
+  turn = slider 0..360 step=1 play=12s loop=repeat = 35 "turn"
+  # the height range, sampled on a 21 × 21 grid
+  zs = flatten(map(range(0, 20), a => map(range(0, 20), b => f(xmin + a (xmax - xmin)/20, ymin + b (ymax - ymin)/20))))
+  lo = min(zs)
+  hi = max(zs)
+  pad = max((hi - lo)/10, 0.1)
+  canvas dims=3 x=(xmin)..(xmax) y=(ymin)..(ymax) z=(lo - pad)..(hi + pad) view=((turn, tilt)) size=m label="The surface z = f(x, y), seen from the side"
+    layer
+      mesh f=(f(x, y)) n=n fill=accent
+  text "Heights run from $\val{lo}$ to $\val{hi}$ over $[\val{xmin}, \val{xmax}] \times [\val{ymin}, \val{ymax}]$." tone=muted

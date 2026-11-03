@@ -678,6 +678,7 @@ export class Runtime {
     if (def && def.kind !== 'extern') v = this.renderUse(n, def, env, inst, key);
     else v = this.renderBase(n, env, inst, key);
     if (!v) return null;
+    if (n.pos) v.src = [inst.def.file ?? inst.def.id, n.pos[0], n.pos[1]];
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
       if (inst.ids.has(id)) throw new EvalError('mkp.duplicate-id', `the id "${id}" appears twice in ${inst.label()}`);
@@ -958,7 +959,8 @@ export class Runtime {
   private canvas(n: IRNode, env: Env, inst: Inst, key: string): VNode {
     const p = this.props(n, env, inst);
     const layers: VLayer[] = [];
-    const gfx = (this.opts.capabilities ?? ['core@1', 'gfx@1']).includes('gfx@1');
+    // a provider declares gfx@1 when it has it; otherwise gfx shapes show their fallback (8.1)
+    const gfx = (this.opts.capabilities ?? ['core@1']).includes('gfx@1');
     const visitLayers = (rs: IRNode[], e: Env, k: string): void => {
       rs.forEach((r, i) => {
         const lk = `${k}/${i}`;

@@ -7,6 +7,7 @@ part select@1 "Pick one of several options for the caller's text: a menu, or a r
   out changed {value: text} "after the reader picks"
   fn name(o: {value: text, label: text}): text = if(o.label != "", o.label, o.value)
   current = find(options, o => o.value == value, {value: value, label: ""})
+  project md = (if(label != "", "**" + label + ":** ", "") + join(map(options, o => if(o.value == value, "**" + name(o) + "**", name(o))), " / "))
   flex gap=s align=center
     text label tone=muted if=(label != "")
     flex gap=xs if=inline

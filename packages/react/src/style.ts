@@ -50,13 +50,13 @@ export const radius = (name: unknown): string | undefined => (name && name !== '
 export const shadow = (name: unknown): string | undefined => (name && name !== 'none' ? `var(--mkp-shadow-${String(name)})` : undefined);
 
 export const BASE_CSS = `
-.mkp-root { color: var(--mkp-color-ink); background: var(--mkp-color-surface); font-family: var(--mkp-font-body); font-size: var(--mkp-font-body-size); line-height: var(--mkp-font-body-line); }
+.mkp-root { color: var(--mkp-color-ink); background: var(--mkp-color-surface); font-family: var(--mkp-font-body), system-ui, sans-serif; font-size: var(--mkp-font-body-size); line-height: var(--mkp-font-body-line); }
 .mkp-root * { box-sizing: border-box; }
 .mkp-root :focus-visible { outline: 2px solid var(--mkp-color-accent); outline-offset: 2px; }
-.mkp-root h1, .mkp-root h2, .mkp-root h3, .mkp-root h4, .mkp-root h5, .mkp-root h6 { font-family: var(--mkp-font-heading); font-weight: var(--mkp-font-heading-weight); line-height: var(--mkp-font-heading-line); margin: 0.6em 0 0.3em; }
+.mkp-root h1, .mkp-root h2, .mkp-root h3, .mkp-root h4, .mkp-root h5, .mkp-root h6 { font-family: var(--mkp-font-heading), system-ui, sans-serif; font-weight: var(--mkp-font-heading-weight); line-height: var(--mkp-font-heading-line); margin: 0.6em 0 0.3em; }
 .mkp-root h1 { font-size: calc(var(--mkp-font-heading-size) * 1.35); } .mkp-root h2 { font-size: var(--mkp-font-heading-size); } .mkp-root h3 { font-size: calc(var(--mkp-font-heading-size) * 0.85); }
 .mkp-root p { margin: 0.5em 0; }
-.mkp-root code, .mkp-root pre { font-family: var(--mkp-font-mono); font-size: var(--mkp-font-mono-size); }
+.mkp-root code, .mkp-root pre { font-family: var(--mkp-font-mono), ui-monospace, monospace; font-size: var(--mkp-font-mono-size); }
 .mkp-root pre { background: color-mix(in srgb, var(--mkp-color-muted) 12%, transparent); padding: var(--mkp-space-m); border-radius: var(--mkp-radius-card); overflow-x: auto; }
 .mkp-root a { color: var(--mkp-color-accent); }
 .mkp-root hr { border: 0; border-top: 1px solid color-mix(in srgb, var(--mkp-color-muted) 50%, transparent); margin: var(--mkp-space-l) 0; }
@@ -77,6 +77,8 @@ export const BASE_CSS = `
 .mkp-math-display { display: block; text-align: center; margin: 0.6em 0; overflow-x: auto; }
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; }
 .mkp-canvas > svg { display: block; overflow: visible; }
+.mkp-canvas > svg circle { transition: cx var(--mkp-motion-quick, 180ms) linear, cy var(--mkp-motion-quick, 180ms) linear, r var(--mkp-motion-quick, 180ms) ease; }
+.mkp-overlay-label, .mkp-place { transition: left var(--mkp-motion-quick, 180ms) linear, top var(--mkp-motion-quick, 180ms) linear; }
 .mkp-overlay-label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; font-size: 0.95em; }
 .mkp-place { position: absolute; transform: translate(-50%, -50%); }
 .mkp-handle { cursor: grab; } .mkp-handle:focus { outline: none; } .mkp-handle:focus-visible circle { stroke: var(--mkp-color-accent); stroke-width: 3; }
@@ -89,5 +91,6 @@ export const BASE_CSS = `
 .mkp-dialog > div, .mkp-popover { background: var(--mkp-color-surface); color: var(--mkp-color-ink); border: 1px solid color-mix(in srgb, var(--mkp-color-muted) 45%, transparent); border-radius: var(--mkp-radius-card); box-shadow: var(--mkp-shadow-raised); padding: var(--mkp-space-l); max-width: min(90vw, 480px); }
 .mkp-popover { position: absolute; z-index: 100; top: calc(100% + 4px); left: 0; min-width: 160px; }
 .mkp-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .mkp-enter { animation: none; } .mkp-leaving { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .mkp-enter { animation: none; } .mkp-leaving, .mkp-canvas > svg circle, .mkp-overlay-label, .mkp-place { transition: none; } }
+.mkp-root[data-reduced-motion] .mkp-canvas > svg circle, .mkp-root[data-reduced-motion] .mkp-overlay-label, .mkp-root[data-reduced-motion] .mkp-place { transition: none; }
 `;

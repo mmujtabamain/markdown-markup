@@ -151,13 +151,19 @@ async function build(a: Args): Promise<number> {
   return ok ? 0 : 1;
 }
 
-function check(a: Args): number {
+async function check(a: Args): Promise<number> {
   const c = compiled(a);
   let ok = report(c.diags);
   const cases = fixtureCases(c);
+  // maths is checked with the same engine that renders it (6.15)
+  const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: false });
   let n = 0;
   for (const fc of cases) {
     const r = compileCase(c, fc);
+    if (r.bundle && maths && !fc.expect?.errors?.length) {
+      prerender(r.bundle, maths, r.diags);
+      if (!r.diags.ok) r.ok = false;
+    }
     n++;
     if (!r.ok) {
       ok = false;
@@ -281,7 +287,7 @@ export async function main(argv: string[]): Promise<number> {
       case 'build':
         return await build(a);
       case 'check':
-        return check(a);
+        return await check(a);
       case 'index':
         return index(a);
       case 'show':
