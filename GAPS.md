@@ -509,3 +509,18 @@ rule of the spec, not a defect), *in progress*.
      Markdown target) draws every branch whose condition reads state, so `quiz.choice`, `predict` and
      `quiz.find-error`, which give an option the same id in each branch, threw `mkp.duplicate-id` and
      came out as their summary alone. *Fixed:* a snapshot allows a repeated id.
+
+162. **MKP: every build checks every pack again.** A five-section lesson takes about 1.2 s and peaks
+     near 195 MB (140 MB with a 2 MB young generation), almost all of it spent parsing and checking
+     the seven packs, whose own warnings (`mkp.each-unkeyed` in plane, contour and others) come out
+     of every lesson's build. Study Pad runs one compile at a time per service to stay inside the
+     API's memory. *Open:* a checked-pack cache keyed by the packs' digests (or a long-lived build
+     server), and a pack's warnings reported when the pack is built, not with each document.
+163. **MKP: four of Study Pad's old widgets have no counterpart.** `map.geo` (places and routes on a
+     world outline): MKP has no map. `math.annotated` (one formula with numbered notes on its parts):
+     `annotated-source` notes lines of code, but nothing marks a part of a formula, as KaTeX draws it
+     whole. `lab.process-feedback` (when feedback arrives under waterfall, incremental and spiral) and
+     `lab.requirement-criteria` (requirement or wish) were bespoke labs; `scenario` and a multiple
+     `quiz.choice` cover the second in part. New lessons do without them. *Open:* an annotated
+     formula in mkp-math (parts named in the source, as `\htmlClass` or a list of terms), and a map
+     if a course needs one.
