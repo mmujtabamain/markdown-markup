@@ -8,4 +8,10 @@
     "play": [ { "set": { "firsts": { "0": true, "1": false, "2": true } } }, { "press": "finish" }, { "wait": 100 } ] },
   "one": { "summary": "A set of one multiple-answer question.",
     "props": { "items": [ { "kind": "pick", "multiple": true, "question": "Which are rational?", "options": [ { "text": "$0.5$", "right": true }, { "text": "$\\sqrt{2}$" }, { "text": "$\\frac{22}{7}$", "right": true } ] } ] } },
+  "exam": { "summary": "An exam of two picks: answers are saved without verdicts, Submit at any time, then each question shows how it went.",
+    "props": { "title": "Exam", "exam": true,
+      "items": [
+        { "kind": "pick", "question": "Which is a factor of $91$?", "options": [ { "text": "$3$" }, { "text": "$7$", "right": true }, { "text": "$11$" } ] },
+        { "kind": "pick", "question": "Which is prime?", "options": [ { "text": "$21$" }, { "text": "$23$", "right": true } ], "solution": "No prime up to $\\sqrt{23}$ divides $23$." } ] },
+    "play": [ { "set": { "lasts": { "0": true, "1": false } } }, { "press": "submit" }, { "wait": 100 } ] },
   "bad-kind": { "props": { "items": [ { "kind": "essay", "question": "?" } ] }, "expect": { "errors": ["mkp.enum"] } } } }
