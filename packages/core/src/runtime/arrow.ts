@@ -17,7 +17,13 @@ export interface ArrowPath {
   label: [number, number];
   /** which side of `label` its text runs to, when it isn't centred there (a self-loop's) */
   align?: 'start' | 'end';
+  /** the marks at its ends other than a plain head: path data, and how it is filled */
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
 }
+
+/** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
+ *  crow's foot (many), or nothing. */
+export type ArrowEnd = 'arrow' | 'hollow' | 'one' | 'many' | 'none';
 
 /** Where the ray from a rectangle's centre towards (tx, ty) leaves the rectangle, plus a gap. */
 function exit(r: Rect, tx: number, ty: number, gap: number): [number, number] {
@@ -168,6 +174,49 @@ export interface ArrowEnds {
   via?: Rect[];
   curve?: boolean;
   route?: 'down' | 'right';
+  /** the mark at `to` (default an arrow head) and at `from` (default none) */
+  head?: ArrowEnd;
+  tail?: ArrowEnd;
+}
+
+const r1 = (n: number): string => n.toFixed(1);
+
+/** The mark of one kind at P, the line arriving along u (a unit vector pointing into the element). */
+function mark(kind: ArrowEnd, P: Pt, u: Pt): { d: string; fill: 'solid' | 'none' | 'hollow' } | null {
+  const v: Pt = [-u[1], u[0]];
+  const at = (along: number, across: number): string => `${r1(P[0] - u[0] * along + v[0] * across)},${r1(P[1] - u[1] * along + v[1] * across)}`;
+  switch (kind) {
+    case 'arrow':
+      return { d: `M${at(0, 0)} L${at(7, 3.5)} L${at(7, -3.5)} Z`, fill: 'solid' };
+    case 'hollow':
+      return { d: `M${at(0, 0)} L${at(12, 6.5)} L${at(12, -6.5)} Z`, fill: 'hollow' };
+    case 'one':
+      return { d: `M${at(5, 5)} L${at(5, -5)}`, fill: 'none' };
+    case 'many':
+      return { d: `M${at(11, 0)} L${at(0, 5)} M${at(11, 0)} L${at(0, 0)} M${at(11, 0)} L${at(0, -5)}`, fill: 'none' };
+    default:
+      return null;
+  }
+}
+
+const unit = (p: Pt, q: Pt): Pt => {
+  const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+  return [(q[0] - p[0]) / l, (q[1] - p[1]) / l];
+};
+
+/** An arrow with other marks at its ends than a head at `to`: the shaft runs to the tip for a mark
+ *  that isn't a head, and each mark is drawn along the line where it meets its element. */
+function withEnds(p: ArrowPath, head: ArrowEnd, tail: ArrowEnd): ArrowPath {
+  if (head === 'arrow' && tail === 'none') return p;
+  const tip = p.head[0];
+  const back: Pt = [(p.head[1][0] + p.head[2][0]) / 2, (p.head[1][1] + p.head[2][1]) / 2];
+  const nums = [...p.d.matchAll(/-?[\d.]+/g)].slice(0, 4).map((m) => Number(m[0]));
+  const start: Pt = [nums[0], nums[1]];
+  const next: Pt = [nums[2], nums[3]];
+  const marks = [head === 'arrow' ? null : mark(head, tip, unit(back, tip)), mark(tail, start, unit(next, start))].filter((m): m is NonNullable<typeof m> => !!m);
+  // a mark that isn't a head lets the shaft run on to the element
+  const d = head === 'arrow' ? p.d : `${p.d} L${r1(tip[0])},${r1(tip[1])}`;
+  return { ...p, d, head: head === 'arrow' ? p.head : [], marks };
 }
 
 /** A loop on an element's right side, or its left when the right has no room. */
@@ -446,5 +495,5 @@ export function arrowPaths(arrows: ArrowEnds[], gap = 3, headSize = 7, width = I
     else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via);
   });
   squarePaths(arrows, square, out, gap, headSize);
-  return out;
+  return out.map((p, i) => (p ? withEnds(p, arrows[i].head ?? 'arrow', arrows[i].tail ?? 'none') : p));
 }

@@ -195,3 +195,39 @@ describe('layered diagrams route every edge row by row', () => {
     expect(arrows.filter((a) => a.label)).toEqual([]);
   });
 });
+
+describe('an arrow’s look and a code block’s marks', () => {
+  it('carries tone, line, its end marks, dim and bold to the view', () => {
+    const { b, errors } = build(`w@1 "w"
+  in hot bool = true
+  stack
+    stack id=a
+      text "a"
+    stack id=b
+      text "b"
+  arrow from=a to=b tone=info line=dashed head=hollow tail=many dim=(not hot) bold=hot
+`);
+    expect(errors).toEqual([]);
+    const a = (scopeWithArrows(new Runtime(b!).view())?.arrows as VArrow[])[0];
+    expect(a).toMatchObject({ tone: 'info', line: 'dashed', head: 'hollow', tail: 'many', bold: true });
+    expect(a.dim).toBeUndefined();
+  });
+
+  it('refuses a look it does not have', () => {
+    const { errors } = build(`w@1 "w"
+  stack id=a
+  stack id=b
+  arrow from=a to=b head=star
+`);
+    expect(errors.join('\n')).toMatch(/star/);
+  });
+
+  it('passes marks through on a code block', () => {
+    const { b, errors } = build(`w@1 "w"
+  code "x = 1\\ny = 2" marks=([{line: 2, tone: ok, note: "added", from: 0, to: 0}])
+`);
+    expect(errors).toEqual([]);
+    const find = (ns: VNode[]): VNode | undefined => ns.map((n) => (n.t === 'code' ? n : find(n.kids ?? []))).find(Boolean);
+    expect(find(new Runtime(b!).view())!.p.marks).toEqual([{ line: 2, tone: 'ok', note: 'added', from: 0, to: 0 }]);
+  });
+});

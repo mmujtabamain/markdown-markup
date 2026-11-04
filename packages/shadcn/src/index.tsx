@@ -22,6 +22,15 @@ export interface OptionRowProps {
   children?: ReactNode;
 }
 
+/** A mark on a code line: a tone for the line or for columns from to to (from 1), and a note at its end. */
+export interface CodeMark {
+  line: number;
+  tone?: string;
+  note?: string;
+  from?: number;
+  to?: number;
+}
+
 export type AlertKind = 'note' | 'tip' | 'important' | 'warning' | 'caution';
 
 export interface Kit {
@@ -63,7 +72,7 @@ export interface Kit {
   OptionRow: ComponentType<OptionRowProps>;
   Callout: ComponentType<{ alert: AlertKind; children?: ReactNode }>;
   /** With a `line`, a numbered listing with that line marked. */
-  CodeBlock: ComponentType<{ language: string; code: string; line?: number; style?: CSSProperties }>;
+  CodeBlock: ComponentType<{ language: string; code: string; line?: number; marks?: CodeMark[]; style?: CSSProperties }>;
   Paragraph: C;
   /** takes `level`, 1 to 6 */
   Heading: C;
@@ -179,6 +188,13 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
         <kit.OptionRow {...attrs} kind={kind === 'check' ? 'check' : 'radio'} selected={selected} verdict={p.tone === 'ok' ? 'right' : p.tone === 'bad' ? 'wrong' : undefined} disabled={disabled} aria-label={label} onClick={click} style={style}>
           <Kids nodes={n.kids} />
         </kit.OptionRow>
+      );
+    case 'plain':
+      // its content is what is pressed (a card, a node): a button with no look of its own
+      return (
+        <button {...attrs} type="button" className="mkp-plain" aria-pressed={selected} disabled={disabled} aria-label={label} onClick={click} style={style}>
+          <Kids nodes={n.kids} />
+        </button>
       );
     case 'toggle': {
       const Icon = glyphOf(n);
@@ -459,7 +475,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
           <Kids nodes={n.kids} />
         </kit.Quote>
       ),
-    code: ({ n, attrs, style }) => <kit.CodeBlock {...attrs} style={style} language={String(n.p.lang || '')} code={String(n.p.src)} line={Number(n.p.line) || 0} />,
+    code: ({ n, attrs, style }) => <kit.CodeBlock {...attrs} style={style} language={String(n.p.lang || '')} code={String(n.p.src)} line={Number(n.p.line) || 0} marks={(n.p.marks as CodeMark[] | undefined) ?? undefined} />,
     math: ({ n, attrs }) => (
       <div {...attrs}>
         <MathSpan m={n.p as { tex: string }} display />

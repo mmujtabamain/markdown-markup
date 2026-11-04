@@ -18,7 +18,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { Polygon, Path, Svg } from 'react-native-svg';
+import { G, Polygon, Path, Svg } from 'react-native-svg';
 import { arrowPaths, type ArrowEnds, type Rect, type VArrow, type VNode, type VRun } from '@mkp/core';
 import { MeasureCtx, useCtx, type Measurable, type Registry } from './context';
 import { InkCtx, InlineImage, MathView, Runs, useInk, type MathLike } from './runs';
@@ -202,16 +202,20 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'code': {
       const mono = theme.font('mono');
       const type = { fontFamily: mono.fontFamily, fontSize: mono.fontSize, lineHeight: mono.lineHeight };
-      if (p.line) {
+      const marks = (p.marks as { line: number; tone?: string; note?: string }[] | undefined) ?? [];
+      if (p.line || marks.length) {
         return (
           <ScrollView horizontal style={{ backgroundColor: theme.mix(theme.color('muted'), theme.color('surface'), 0.08) }}>
             <View accessibilityLabel={p.lang ? `${String(p.lang)} code` : 'code'} style={{ paddingVertical: theme.space('s') }}>
               {String(p.src).split('\n').map((line, i) => {
                 const on = i + 1 === p.line;
+                const m = marks.find((x) => x.line === i + 1);
+                const tone = m?.tone && m.tone !== 'none' ? theme.color(m.tone) : undefined;
                 return (
-                  <View key={i} accessibilityState={{ selected: on }} style={{ flexDirection: 'row', paddingHorizontal: theme.space('m'), backgroundColor: on ? theme.mix(theme.color('accent'), theme.color('surface'), 0.14) : undefined }}>
+                  <View key={i} accessibilityState={{ selected: on }} style={{ flexDirection: 'row', paddingHorizontal: theme.space('m'), backgroundColor: on ? theme.mix(theme.color('accent'), theme.color('surface'), 0.14) : tone ? theme.mix(tone, theme.color('surface'), 0.12) : undefined }}>
                     <Text style={{ ...type, color: theme.color('muted'), width: mono.fontSize * 2 }}>{i + 1}</Text>
                     <Text selectable style={{ ...type, color: ink, fontWeight: on ? '700' : undefined }}>{line}</Text>
+                    {m?.note ? <Text style={{ color: theme.color('muted'), fontSize: mono.fontSize * 0.85, marginLeft: theme.space('l') }}>{m.note}</Text> : null}
                   </View>
                 );
               })}
@@ -412,6 +416,7 @@ function Press({ n }: { n: VNode }): ReactNode {
   const tone = theme.color(p.tone);
   const state = kind === 'tab' ? { selected, disabled } : kind === 'button' ? { disabled } : { checked: selected, disabled };
   const mark = kind === 'check' || kind === 'radio' || kind === 'switch';
+  const plain = kind === 'plain';
   const r = theme.radius('card');
   return (
     <Pressable
@@ -421,7 +426,7 @@ function Press({ n }: { n: VNode }): ReactNode {
       disabled={disabled}
       hitSlop={6}
       onPress={() => rt.dispatch(n.key, 'click')}
-      style={({ pressed }) => ({
+      style={plain ? ({ pressed }) => ({ opacity: pressed ? 0.7 : 1 }) : ({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: mark ? 'flex-start' : 'center',
@@ -642,7 +647,13 @@ interface Drawn {
   label?: [number, number];
   align?: 'start' | 'end';
   runs?: VRun[];
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
+  tone?: string;
+  line?: string;
+  dim?: boolean;
+  bold?: boolean;
 }
+const DASH: Record<string, string | undefined> = { solid: undefined, dashed: '5 4', dotted: '2 3' };
 
 function Scope({ n }: { n: VNode }): ReactNode {
   const parents = useContext(MeasureCtx);
@@ -669,11 +680,11 @@ function Scope({ n }: { n: VNode }): ReactNode {
       // waypoints not measured yet, or hidden, are passed by
       const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
       shown.push(a);
-      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route });
+      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: a.head, tail: a.tail });
     }
     arrowPaths(ends).forEach((pth, i) => {
       const a = shown[i];
-      if (pth) out.push({ key: a.key, d: pth.d, head: pth.head.map((q) => q.join(',')).join(' '), label: a.label ? pth.label : undefined, align: pth.align, runs: a.label });
+      if (pth) out.push({ key: a.key, d: pth.d, head: pth.head.map((q) => q.join(',')).join(' '), marks: pth.marks, label: a.label ? pth.label : undefined, align: pth.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold });
     });
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
   }).current;
@@ -765,10 +776,19 @@ function Arrows({ paths }: { paths: Drawn[] }): ReactNode {
   return (
     <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} testID="mkp-arrows">
       <Svg width="100%" height="100%" style={{ overflow: 'visible' }}>
-        {paths.map((p) => [
-          <Path key={`${p.key}.d`} d={p.d} fill="none" stroke={muted} strokeWidth={1.5} />,
-          <Polygon key={`${p.key}.h`} points={p.head} fill={muted} />,
-        ])}
+        {paths.map((p) => {
+          const ink = (p.tone ? theme.color(p.tone) : undefined) ?? muted;
+          const width = p.bold ? 2 : 1.5;
+          return (
+            <G key={p.key} opacity={p.dim ? 0.3 : 1}>
+              <Path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
+              {p.head ? <Polygon points={p.head} fill={ink} /> : null}
+              {(p.marks ?? []).map((m, i) => (
+                <Path key={i} d={m.d} stroke={ink} strokeWidth={width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? theme.color('surface') : 'none'} />
+              ))}
+            </G>
+          );
+        })}
       </Svg>
       {paths.map((p) =>
         p.label && p.runs ? (

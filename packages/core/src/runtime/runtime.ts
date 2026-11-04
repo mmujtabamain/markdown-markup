@@ -791,6 +791,12 @@ export class Runtime {
       if (n.label) a.label = this.runs(String(this.valueOf(n.label, env, inst)));
       if (n.curve) a.curve = true;
       if (n.route) a.route = this.valueOf(n.route, env, inst) as 'down' | 'right';
+      for (const [k, v] of Object.entries(n.look ?? {})) {
+        const x = this.valueOf(v, env, inst);
+        if (k === 'dim' || k === 'bold') {
+          if (x) a[k] = true;
+        } else if (x !== 'none' || k === 'head') (a as unknown as Record<string, unknown>)[k] = String(x);
+      }
       if (n.via) {
         // waypoints: each id found like from and to; one that is missing is left out, with a warning
         const via: string[] = [];
@@ -864,7 +870,8 @@ export class Runtime {
         return { t: 'divider', key, p: {} };
       case 'code': {
         const p = this.props(n, env, inst);
-        return { t: 'code', key, p: { src: p.src, lang: p.lang ?? '', line: p.line ?? 0 } };
+        const marks = ((p.marks as V[] | undefined) ?? []).map((m) => Object.fromEntries(m instanceof Map ? m : Object.entries(m as object)));
+        return { t: 'code', key, p: { src: p.src, lang: p.lang ?? '', line: p.line ?? 0, ...(marks.length ? { marks } : {}) } };
       }
       case 'math': {
         const p = this.props(n, env, inst);

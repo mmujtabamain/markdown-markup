@@ -152,3 +152,27 @@ describe('arrows without route', () => {
     expect(p!.d).toMatch(/^M[\d.,-]+ L[\d.,-]+$/);
   });
 });
+
+describe('the marks at an arrow end', () => {
+  const f = { a: box(0, 0), b: box(0, 100) };
+
+  it('draws a crow’s foot and a bar instead of a head, the shaft running to the element', () => {
+    const [p] = arrowPaths([{ from: 'a', to: 'b', a: f.a, b: f.b, route: 'down', head: 'many', tail: 'one' }]);
+    expect(p!.head).toEqual([]);
+    expect(p!.marks).toHaveLength(2);
+    expect(p!.marks![0].d.match(/M/g)).toHaveLength(3);
+    expect(p!.marks![0].fill).toBe('none');
+    expect(p!.d.endsWith('L30.0,97.0')).toBe(true);
+  });
+
+  it('draws a hollow triangle for a kind of, filled with the surface', () => {
+    const [p] = arrowPaths([{ from: 'a', to: 'b', a: f.a, b: f.b, route: 'down', head: 'hollow' }]);
+    expect(p!.marks).toEqual([expect.objectContaining({ fill: 'hollow' })]);
+  });
+
+  it('keeps the plain head as it was', () => {
+    const [p] = arrowPaths([{ from: 'a', to: 'b', a: f.a, b: f.b, route: 'down' }]);
+    expect(p!.head).toHaveLength(3);
+    expect(p!.marks).toBeUndefined();
+  });
+});

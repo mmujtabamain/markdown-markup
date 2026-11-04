@@ -42,6 +42,15 @@ export interface Sig {
   requires: string[];
 }
 
+/** An arrow's look (6.10): its colour, its line, the marks at its ends, faded back or drawn strong. */
+const ARROW_LOOK: Record<string, Type> = {
+  tone: { t: 'token', kind: 'color' },
+  line: { t: 'choice', opts: ['solid', 'dashed', 'dotted'] },
+  head: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'none'] },
+  tail: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'none'] },
+  dim: T.bool,
+  bold: T.bool,
+};
 const META_KEYS = new Set(['id', 'if', 'basis', 'span']);
 const META_FLAGS = new Set(['hidden', 'grow']);
 const EVENT_ONLY_STATE = new Set(['change', 'end']);
@@ -1000,11 +1009,12 @@ export class DefChecker {
       else if (a.key === 'label') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'via') out.via = this.value(a.value, T.list(T.text), scope, a.p);
       else if (a.key === 'route') out.route = this.value(a.value, { t: 'choice', opts: ['down', 'right'] }, scope, a.p);
+      else if (a.key && ARROW_LOOK[a.key]) (out.look ??= {})[a.key] = this.value(a.value, ARROW_LOOK[a.key], scope, a.p);
       else if (a.key === 'if') {
         const meta: IRMeta = {};
         this.meta(a, meta, scope);
         out.meta = meta;
-      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids), route=down|right and curve', 'mkp.unknown-prop');
+      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim= and bold=', 'mkp.unknown-prop');
     }
     if (!out.from || !out.to) this.fail(n.p, 'arrow needs from=id and to=id');
     return out;

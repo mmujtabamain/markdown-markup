@@ -67,8 +67,8 @@ extern image@1 "An asset from the pack or the document's folder."
   in alt text
   in size size = none
 
-extern press@1 "Anything clickable and focusable: a button, a tab, an option among others, an on/off toggle or switch, or an answer row with a tick (check) or a dot (radio)."
-  in kind choice(button|tab|option|toggle|switch|check|radio) = button
+extern press@1 "Anything clickable and focusable: a button, a tab, an option among others, an on/off toggle or switch, an answer row with a tick (check) or a dot (radio), or its content itself, such as a card (plain)."
+  in kind choice(button|tab|option|toggle|switch|check|radio|plain) = button
   in selected bool = false
   in disabled bool = false
   in label text = "" "accessible name when the content has no text"
@@ -158,6 +158,7 @@ extern code@1 "A code block."
   in src text
   in lang text = ""
   in line int = 0 "the current line, from 1: the lines are numbered and this one is marked"
+  in marks list({line: int, tone: color, note: text, from: int, to: int}) = [] "lines with a tone (or none), only in the columns from and to (from 1) when from is above 0, and a note at the end (or empty); the lines are numbered"
 
 extern math@1 "A display formula."
   fields tex

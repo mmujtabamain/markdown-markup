@@ -139,7 +139,7 @@ export function expand(b: IRBundle): IRBundle {
       case 'slot':
         return [{ ...base, value: expr(n.value!, ctx) }];
       case 'arrow':
-        return [{ ...base, from: n.from ? val(n.from, ctx) : n.from, to: n.to ? val(n.to, ctx) : n.to, ...(n.via ? { via: val(n.via, ctx) } : {}), ...(n.route ? { route: val(n.route, ctx) } : {}), ...(n.label ? { label: val(n.label, ctx) } : {}) }];
+        return [{ ...base, from: n.from ? val(n.from, ctx) : n.from, to: n.to ? val(n.to, ctx) : n.to, ...(n.via ? { via: val(n.via, ctx) } : {}), ...(n.route ? { route: val(n.route, ctx) } : {}), ...(n.look ? { look: Object.fromEntries(Object.entries(n.look).map(([k, v]) => [k, val(v, ctx)])) } : {}), ...(n.label ? { label: val(n.label, ctx) } : {}) }];
       case 'controls':
         return [base];
     }

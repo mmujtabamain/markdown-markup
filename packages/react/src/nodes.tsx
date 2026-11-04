@@ -227,7 +227,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
       if (kind === 'tab') Object.assign(aria, { role: 'tab', 'aria-selected': !!p.selected });
       else if (kind === 'option' || kind === 'radio') Object.assign(aria, { role: 'radio', 'aria-checked': !!p.selected });
       else if (kind === 'check' || kind === 'switch') Object.assign(aria, { role: kind === 'check' ? 'checkbox' : 'switch', 'aria-checked': !!p.selected });
-      else if (kind === 'toggle') aria['aria-pressed'] = !!p.selected;
+      else if (kind === 'toggle' || kind === 'plain') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
         <button {...common} {...aria} data-kind={kind} data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined} type="button" disabled={!!p.disabled} className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
@@ -286,11 +286,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
       return (
         <pre {...common} style={lay}>
           <code data-lang={String(p.lang || '') || undefined}>
-            {p.line
-              ? String(p.src).split('\n').map((line, i) => (
-                  <span key={i} className="mkp-code-line" aria-current={i + 1 === p.line ? 'step' : undefined}>{line || ' '}</span>
-                ))
-              : String(p.src)}
+            {p.line || (p.marks as CodeMark[] | undefined)?.length ? <CodeLines src={String(p.src)} line={Number(p.line) || 0} marks={(p.marks as CodeMark[] | undefined) ?? []} /> : String(p.src)}
           </code>
         </pre>
       );
@@ -373,6 +369,37 @@ export function Node({ n }: { n: VNode }): ReactNode {
         </div>
       );
   }
+}
+
+/** A mark on a code line (code@1 marks): a tone for the line or for columns from to to, and a note. */
+export interface CodeMark {
+  line: number;
+  tone?: string;
+  note?: string;
+  from?: number;
+  to?: number;
+}
+
+function CodeLines({ src, line, marks }: { src: string; line: number; marks: CodeMark[] }): ReactNode {
+  return src.split('\n').map((text, i) => {
+    const m = marks.find((x) => x.line === i + 1);
+    const tone = m?.tone && m.tone !== 'none' ? m.tone : undefined;
+    const part = tone && m!.from ? [m!.from - 1, m!.to || text.length] : null;
+    return (
+      <span key={i} className="mkp-code-line" data-tone={tone && !part ? tone : undefined} aria-current={i + 1 === line ? 'step' : undefined} style={tone && !part ? { background: `color-mix(in srgb, var(--mkp-color-${tone}) 12%, transparent)` } : undefined}>
+        {part ? (
+          <>
+            {text.slice(0, part[0])}
+            <mark style={{ background: `color-mix(in srgb, var(--mkp-color-${tone}) 22%, transparent)`, color: 'inherit' }}>{text.slice(part[0], part[1])}</mark>
+            {text.slice(part[1])}
+          </>
+        ) : (
+          text || ' '
+        )}
+        {m?.note ? <span className="mkp-code-note">{m.note}</span> : null}
+      </span>
+    );
+  });
 }
 
 function Field({ n }: { n: VNode }): ReactNode {
@@ -490,9 +517,25 @@ function Scope({ n }: { n: VNode }): ReactNode {
 }
 
 /** Draws the arrows, measuring their ends after layout (run by Scope) and whenever a size changes (6.10). */
+/** One arrow as drawn: its shaft, head and other marks, label and look. */
+interface Drawn {
+  key: string;
+  d: string;
+  head: string;
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
+  label?: [number, number];
+  align?: 'start' | 'end';
+  runs?: VRun[];
+  tone?: string;
+  line?: string;
+  dim?: boolean;
+  bold?: boolean;
+}
+const DASH: Record<string, string | undefined> = { solid: undefined, dashed: '5 4', dotted: '2 3' };
+
 function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HTMLDivElement | null }; measure: { current: () => void } }): ReactNode {
-  const [paths, setPaths] = useState<{ key: string; d: string; head: string; label?: [number, number]; align?: 'start' | 'end'; runs?: VRun[] }[]>([]);
-  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${a.route ?? ''}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
+  const [paths, setPaths] = useState<Drawn[]>([]);
+  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${a.route ?? ''}|${a.head ?? ''}|${a.tail ?? ''}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
   measure.current = () => {
     const root = box.current;
     if (!root) return;
@@ -515,11 +558,11 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
       // waypoints that are not shown (hidden, or not laid out) are passed by
       const via = (a.via ?? []).map(find).filter((r): r is DOMRect => !!r).map(rel);
       shown.push(a);
-      ends.push({ from: a.from, to: a.to, a: rel(ra), b: rel(rb), via, curve: a.curve, route: a.route });
+      ends.push({ from: a.from, to: a.to, a: rel(ra), b: rel(rb), via, curve: a.curve, route: a.route, head: a.head, tail: a.tail });
     }
     arrowPaths(ends, 3, 7, base.width).forEach((p, i) => {
       const a = shown[i];
-      if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), label: a.label ? p.label : undefined, align: p.align, runs: a.label });
+      if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), marks: p.marks, label: a.label ? p.label : undefined, align: p.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold });
     });
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
     // measuring cost, for performance probes (spike 2): passes, total and worst time, arrows drawn
@@ -540,19 +583,27 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
   }, [sig, box, measure]);
   return (
     <svg className="mkp-arrows" aria-hidden="true">
-      {paths.map((p) => (
-        <g key={p.key} data-mkp-arrow={p.key}>
-          <path d={p.d} fill="none" stroke="var(--mkp-color-muted)" strokeWidth={1.5} />
-          <polygon points={p.head} fill="var(--mkp-color-muted)" />
+      {paths.map((p) => {
+        // a provider may give lines their own colour: --mkp-arrow-<tone>, else the tone's
+        const ink = `var(--mkp-arrow-${p.tone ?? 'muted'}, var(--mkp-color-${p.tone ?? 'muted'}))`;
+        const width = p.bold ? 2 : 1.5;
+        return (
+        <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} style={p.dim ? { opacity: 0.3 } : undefined}>
+          <path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
+          {p.head ? <polygon points={p.head} fill={ink} /> : null}
+          {(p.marks ?? []).map((m, i) => (
+            <path key={i} d={m.d} stroke={ink} strokeWidth={width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" />
+          ))}
           {p.label && p.runs ? (
             <foreignObject x={p.label[0] - (p.align === 'start' ? 0 : p.align === 'end' ? 120 : 60)} y={p.label[1] - 12} width={120} height={24}>
-              <div style={{ textAlign: p.align ?? 'center', fontSize: '0.8em', color: 'var(--mkp-color-muted)' }}>
+              <div className="mkp-arrow-label" style={{ textAlign: p.align ?? 'center', fontSize: '0.8em', color: p.tone ? ink : 'var(--mkp-color-muted)' }}>
                 <span style={{ background: 'var(--mkp-color-surface)', padding: '0 3px' }}><Runs runs={p.runs} /></span>
               </div>
             </foreignObject>
           ) : null}
         </g>
-      ))}
+        );
+      })}
     </svg>
   );
 }

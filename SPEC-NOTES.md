@@ -484,3 +484,12 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     renderers draw all four; `@mkp/shadcn` takes a kit's `Frame`, `Pane` and `Zoom` when it has them
     and otherwise draws MKP's own with the kit's buttons, and its icons are lucide's.
 
+109. **Line looks, code marks, plain presses.** *Extension (6.10, 8).* Study Pad's diagrams draw lines in
+    tones, dashed or dotted, with a crow's foot, a bar or a hollow triangle at their ends, faded when
+    something else is chosen and drawn strong when they are. Its listings tint added and removed lines
+    and mark a part of a line, with a note at its end. And its nodes and cards are pressed as
+    themselves, not as buttons. *Decided:* `arrow … tone= line=solid|dashed|dotted head= tail=
+    dim= bold=`, with `head` and `tail` one of arrow, hollow, one, many or none (`arrowPaths` draws the
+    marks; a provider may colour lines with `--mkp-arrow-<tone>`); `code marks=([{line, tone, note,
+    from, to}])`; and `press kind=plain`, whose content is what is pressed.
+

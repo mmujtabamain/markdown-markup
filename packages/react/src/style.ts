@@ -80,6 +80,7 @@ export const NEUTRAL_CSS = `
 .mkp-root pre code:has(.mkp-code-line) { counter-reset: mkp-line; }
 .mkp-code-line { display: block; position: relative; padding-left: 4ch; counter-increment: mkp-line; }
 .mkp-code-line::before { content: counter(mkp-line); position: absolute; left: 0; width: 3ch; text-align: right; color: var(--mkp-color-muted); }
+.mkp-code-note { float: right; padding-left: 2ch; color: var(--mkp-color-muted); font-family: var(--mkp-font-body), system-ui, sans-serif; font-size: 0.85em; }
 .mkp-code-line[aria-current] { background: color-mix(in srgb, var(--mkp-color-accent) 14%, transparent); font-weight: 700; }
 .mkp-root pre { background: color-mix(in srgb, var(--mkp-color-muted) 12%, transparent); padding: var(--mkp-space-m); border-radius: var(--mkp-radius-card); overflow-x: auto; }
 .mkp-root a { color: var(--mkp-color-accent); }
@@ -90,6 +91,8 @@ export const NEUTRAL_CSS = `
 .mkp-press { font: inherit; color: inherit; background: color-mix(in srgb, var(--mkp-color-muted) 14%, var(--mkp-color-surface)); border: 1px solid color-mix(in srgb, var(--mkp-color-muted) 45%, transparent); border-radius: var(--mkp-radius-card); padding: var(--mkp-space-xs) var(--mkp-space-m); cursor: pointer; min-height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; gap: var(--mkp-space-s); }
 .mkp-press:hover:not(:disabled) { border-color: var(--mkp-color-accent); }
 .mkp-press:disabled { opacity: 0.45; cursor: default; }
+.mkp-press[data-kind=plain] { display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 0; background: none; text-align: inherit; border-radius: var(--mkp-radius-card); }
+.mkp-press[data-kind=plain][aria-pressed=true] { background: none; color: inherit; }
 .mkp-press[data-emphasis=low] { background: none; border-color: transparent; }
 .mkp-press[data-emphasis=high] { background: var(--mkp-color-ink); color: var(--mkp-color-surface); border-color: var(--mkp-color-ink); }
 .mkp-press[aria-selected=true], .mkp-press[aria-pressed=true], .mkp-press[aria-checked=true] { background: var(--mkp-color-accent); color: var(--mkp-color-surface); border-color: var(--mkp-color-accent); }

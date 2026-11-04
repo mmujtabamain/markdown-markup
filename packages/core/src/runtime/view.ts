@@ -24,6 +24,13 @@ export interface VArrow {
   curve?: boolean;
   /** level and upright runs only, and lines with an end in common combine (route=, 6.10) */
   route?: 'down' | 'right';
+  /** its colour (a color token), its line, the marks at its ends, faded back or drawn strong */
+  tone?: string;
+  line?: 'solid' | 'dashed' | 'dotted';
+  head?: 'arrow' | 'hollow' | 'one' | 'many' | 'none';
+  tail?: 'arrow' | 'hollow' | 'one' | 'many' | 'none';
+  dim?: boolean;
+  bold?: boolean;
   /** the keys of the elements the path runs through, in order (via=, 6.10) */
   via?: string[];
 }
