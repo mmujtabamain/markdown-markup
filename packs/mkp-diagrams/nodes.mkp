@@ -1,0 +1,308 @@
+# How the node diagrams look and light up: graph, flow, hierarchy and network share these.
+#
+# A node is a compact card: an icon tile in its tone (a soft wash, the icon in the tone), its label,
+# and a small note in capitals where its kind needs one. A kind is a preset of all four; a node's
+# own icon, tone, shape or note overrides its kind's. Choosing a node lights it and the lines it is
+# on, keeps its neighbours, and fades the rest back.
+
+# each kind's look: its icon ("none" for no tile), tone ("" for neutral), shape and note
+const looks = [
+  {kind: "start", icon: "play", tone: "ok", shape: "pill", note: ""},
+  {kind: "end", icon: "flag", tone: "", shape: "pill", note: ""},
+  {kind: "process", icon: "square", tone: "", shape: "card", note: ""},
+  {kind: "step", icon: "layers", tone: "", shape: "card", note: ""},
+  {kind: "decision", icon: "branch", tone: "warn", shape: "card", note: "decision"},
+  {kind: "actor", icon: "user", tone: "info", shape: "card", note: "external role"},
+  {kind: "artifact", icon: "file", tone: "accent", shape: "card", note: ""},
+  {kind: "metric", icon: "gauge", tone: "ok", shape: "card", note: "measure"},
+  {kind: "focus", icon: "target", tone: "bad", shape: "card", note: ""},
+  {kind: "io", icon: "right", tone: "info", shape: "io", note: "input / output"},
+  {kind: "subprocess", icon: "layers", tone: "", shape: "stacked", note: "sub-process"},
+  {kind: "usecase", icon: "none", tone: "", shape: "oval", note: ""},
+  {kind: "label", icon: "none", tone: "", shape: "label", note: ""}]
+
+# a node's look: its kind's, with what the node sets itself on top (tone "neutral" clears a kind's)
+fn look(kind: text, icon: text, tone: text, shape: text, note: text) = {
+  icon: if(icon != "", icon, find(looks, p => p.kind == kind, {kind: "", icon: "square", tone: "", shape: "card", note: ""}).icon),
+  tone: if(tone == "neutral", "", if(tone != "", tone, find(looks, p => p.kind == kind, {kind: "", icon: "", tone: "", shape: "", note: ""}).tone)),
+  shape: if(shape != "", shape, find(looks, p => p.kind == kind, {kind: "", icon: "", tone: "", shape: "card", note: ""}).shape),
+  note: if(note != "", note, find(looks, p => p.kind == kind, {kind: "", icon: "", tone: "", shape: "", note: ""}).note)}
+
+# a node while `chosen` is: on (it is the chosen one), near (a line joins them), off (faded back),
+# or "" while nothing is chosen
+fn litnode(id: text, chosen: text, links: list({from: text, to: text})): text = if(chosen == "", "", if(id == chosen, "on",
+    if(len(filter(links, l => (l.from == chosen and l.to == id) or (l.to == chosen and l.from == id))) > 0, "near", "off")))
+
+# a line is lit when it touches the chosen node
+fn litline(from: text, to: text, chosen: text): bool = chosen != "" and (from == chosen or to == chosen)
+
+# what the bar says: the chosen node, and what it is
+fn told(label: text, detail: text): text = if(label == "", "Choose a node, or step through them.",
+    "**" + label + "**" + if(detail != "", " — " + detail, ""))
+
+part gcard@1 "One node of a diagram as a compact card: an icon tile in its tone, a bold label and a note in small capitals; lit (outlined and washed in info) when it is chosen, faded back when another is."
+  fields node
+  in node {id: text, label: text, icon: text, tone: text, shape: text, note: text, group: text, k: int, lit: text} "the node and its look (card), its place in the order the bar steps through (k), and how it is lit: on, chosen; near, next to the chosen one; off, faded back; empty, nothing is chosen"
+  round = node.shape == "pill" or node.shape == "oval"
+  on = node.lit == "on"
+  # a tone's colour; "accent" (or "thm") is the theme's own, anything else is neutral
+  fn hue(t: text): color = if(t == "info", info, if(t == "ok", ok, if(t == "warn", warn, if(t == "bad", bad,
+      if(t == "accent" or t == "thm", accent, muted)))))
+  fn outline(lit: bool): color = if(lit, info, muted)
+  # an input or output, and a label, are drawn dashed
+  dashes = node.shape == "label" or node.shape == "io"
+  fn wash(lit: bool): color = if(lit, info, if(round and node.tone == "", muted, surface))
+  fn tilt(lit: bool): color = if(lit, info, surface)
+  # a lit card is washed in info already: its tile stands out from it on the surface
+  fn tilewash(lit: bool, t: text): color = if(lit, surface, hue(t))
+  # a sub-process: the card inside a second outline
+  stack pad=xs stroke=(outline(on)) radius=card dim=(node.lit == "off") if=(node.shape == "stacked")
+    flex id=(node.id) gap=m align=center wrap=false pad=s stroke=(outline(on)) radius=card fill=surface tint=(tilt(on))
+      glyph (node.icon) tone=(hue(node.tone)) wash=(tilewash(on, node.tone)) if=(node.icon != "none")
+      stack
+        text (node.label) weight=bold align=start wrap=false
+        text (node.note) font=mono size=small tone=muted caps=true align=start wrap=false if=(node.note != "")
+  flex id=(node.id) gap=m align=center wrap=false pad=s if=(node.shape != "stacked") stroke=(outline(on)) line=(if(dashes, dashed, solid)) radius=(if(round, pill, card)) fill=surface tint=(wash(on)) dim=(node.lit == "off")
+    glyph (node.icon) tone=(if(round and node.tone == "", ink, hue(node.tone))) wash=(tilewash(on, node.tone)) round=round if=(node.icon != "none")
+    stack
+      text (node.label) weight=bold align=start wrap=false
+      text (node.note) font=mono size=small tone=muted caps=true align=start wrap=false if=(node.note != "")
+
+part gnode@1 "A node card the reader can press: pressing it says so (picked, with its place), and the caller chooses it, or lets it go if it was chosen."
+  fields node
+  in node {id: text, label: text, icon: text, tone: text, shape: text, note: text, group: text, k: int, lit: text} "the node, as gcard takes it"
+  out picked {k: int}
+  press kind=plain id=("press~" + node.id) selected=(node.lit == "on") label=(node.label)
+    @click emit picked k=(node.k)
+    gcard node
+
+# each row with the cells of lines back (by id) first, when `on`, and their labels marked "back"
+fn backfirst(rows: list(list({id: text, kind: text, row: int, label: text})), backs: list(text), on: bool) = if(on,
+    map(rows, r => map(sort(r, c => if(indexof(backs, c.id) >= 0, 0, 1)), c => {id: c.id, row: c.row, label: c.label,
+      kind: if(c.kind == "label" and indexof(backs, c.id) >= 0, "back", c.kind)})), rows)
+
+# a row in blocks: each group's nodes together in one, where its first node was, and anything else alone
+fn grp(c: {id: text, kind: text, row: int, label: text}, gof: dict(text)): text = if(c.kind == "node" and get(gof, c.id, "") != "", get(gof, c.id, ""), "~" + c.id)
+fn blocks(row: list({id: text, kind: text, row: int, label: text}), gof: dict(text)) = map(
+    filter(range(0, len(row) - 1), j => indexof(map(row, x => grp(x, gof)), grp(row[j], gof)) == j),
+    j => {id: "~b~" + row[j].id, group: grp(row[j], gof), cells: filter(row, c => grp(c, gof) == grp(row[j], gof))})
+
+part layers@1 "A layered diagram's rows (or, left to right, its columns) of node cards, lanes and labels, and its lines, square-routed through the lanes."
+  in rows list(list({id: text, kind: text, row: int, label: text})) "the cells of each row, from route"
+  in cards list({id: text, label: text, icon: text, tone: text, shape: text, note: text, group: text, k: int, lit: text}) "every node, looked up and lit"
+  in lines list({from: text, to: text, via: list(text), line: choice(solid|dashed|dotted), lit: bool, dim: bool, head: bool}) "every line"
+  in groups list({id: text, label: text}) = [] "the boxes that nodes sit in, by id"
+  in dir choice(down|right) = down
+  in hot list(text) = [] "the label cells of lit lines, drawn in the info tone"
+  in faded list(text) = [] "the label cells of faded lines"
+  in pick ref int "the caller's chosen node, by place; -1 for none"
+  byid = index(cards, c => c.id)
+  fn chipline(id: text): color = if(indexof(hot, id) >= 0, info, muted)
+  gof = fold(cards, {}, (d, c) => if(c.group != "", put(d, c.id, c.group), d))
+  titles = fold(groups, {}, (d, g) => put(d, g.id, g.label))
+  laid = map(rows, r => blocks(r, gof))
+  switch on=dir
+    case down
+      stack gap=xl align=center
+        each r in 0..(len(laid) - 1)
+          flex gap=l justify=center align=stretch wrap=false
+            each b in laid[r] key=b.id
+              switch on=(if(has(titles, b.group) or len(b.cells) > 1, "group", b.cells[0].kind))
+                # a group: a box with its title, under its nodes so lines from above reach them clear
+                case "group"
+                  stack gap=s pad=m stroke=muted line=dashed radius=card
+                    flex gap=l justify=center wrap=false
+                      each c in b.cells key=c.id
+                        gnode (byid[c.id])
+                          @picked set pick=(if(pick == picked.k, -1, picked.k))
+                    text (get(titles, b.group, "")) font=mono size=small tone=muted caps=true wrap=false
+                case "node"
+                  flex align=center wrap=false
+                    gnode (byid[b.cells[0].id])
+                      @picked set pick=(if(pick == picked.k, -1, picked.k))
+                # a label sits beside its line's lane, in a row between the nodes
+                case "label"
+                  flex gap=s align=stretch wrap=false
+                    stack id=(b.cells[0].id)
+                    flex align=center wrap=false dim=(indexof(faded, b.cells[0].id) >= 0)
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (b.cells[0].label) size=small tone=(chipline(b.cells[0].id)) wrap=false
+                else
+                  stack id=(b.cells[0].id)
+    else
+      flex gap=l align=center wrap=false
+        each r in 0..(len(laid) - 1)
+          stack gap=l align=stretch
+            each b in laid[r] key=b.id
+              switch on=(if(has(titles, b.group) or len(b.cells) > 1, "group", b.cells[0].kind))
+                case "group"
+                  stack gap=s pad=m stroke=muted line=dashed radius=card
+                    text (get(titles, b.group, "")) font=mono size=small tone=muted caps=true wrap=false
+                    stack gap=l align=center
+                      each c in b.cells key=c.id
+                        gnode (byid[c.id])
+                          @picked set pick=(if(pick == picked.k, -1, picked.k))
+                case "node"
+                  stack align=center
+                    gnode (byid[b.cells[0].id])
+                      @picked set pick=(if(pick == picked.k, -1, picked.k))
+                # a label sits just above its line's lane, in a column between the nodes, and a line
+                # back's just under it
+                case "label"
+                  stack gap=xs align=stretch
+                    flex justify=center wrap=false dim=(indexof(faded, b.cells[0].id) >= 0)
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (b.cells[0].label) size=small tone=(chipline(b.cells[0].id)) wrap=false
+                    stack id=(b.cells[0].id)
+                case "back"
+                  stack gap=xs align=stretch
+                    stack id=(b.cells[0].id)
+                    flex justify=center wrap=false dim=(indexof(faded, b.cells[0].id) >= 0)
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (b.cells[0].label) size=small tone=(chipline(b.cells[0].id)) wrap=false
+                else
+                  stack id=(b.cells[0].id)
+  each j in 0..(len(lines) - 1)
+    arrow from=(lines[j].from) to=(lines[j].to) via=(lines[j].via) route=dir line=(lines[j].line) tone=(if(lines[j].lit, info, muted)) bold=(lines[j].lit) dim=(lines[j].dim) if=(lines[j].head)
+    arrow from=(lines[j].from) to=(lines[j].to) via=(lines[j].via) route=dir line=(lines[j].line) tone=(if(lines[j].lit, info, muted)) bold=(lines[j].lit) dim=(lines[j].dim) head=none if=(not lines[j].head)
+
+# a node as layers@1 and gnode@1 take it: its own fields, its kind's look, its place and how it is lit
+fn card(n, k: int, lit: text) = {
+  id: n.id, label: n.label, group: n.group, k: k, lit: lit,
+  icon: look(n.kind, n.icon, n.tone, n.shape, n.note).icon, tone: look(n.kind, n.icon, n.tone, n.shape, n.note).tone,
+  shape: look(n.kind, n.icon, n.tone, n.shape, n.note).shape, note: look(n.kind, n.icon, n.tone, n.shape, n.note).note}
+
+part glyph@1 "A node's icon tile: a small rounded square with a soft wash, the icon in its tone, named as text so data can name it. A name the icon set doesn't have shows a square."
+  fields name
+  in name text "an icon's name"
+  in tone color = muted "the icon's colour"
+  in wash color = muted "the tile's"
+  in round bool = false "a round tile, for a pill-shaped node"
+  stack pad=s radius=(if(round, pill, card)) tint=wash
+    switch on=name
+      case "play"
+        icon name=play tone=tone size=small
+      case "pause"
+        icon name=pause tone=tone size=small
+      case "prev"
+        icon name=prev tone=tone size=small
+      case "next"
+        icon name=next tone=tone size=small
+      case "first"
+        icon name=first tone=tone size=small
+      case "last"
+        icon name=last tone=tone size=small
+      case "reset"
+        icon name=reset tone=tone size=small
+      case "check"
+        icon name=check tone=tone size=small
+      case "cross"
+        icon name=cross tone=tone size=small
+      case "plus"
+        icon name=plus tone=tone size=small
+      case "minus"
+        icon name=minus tone=tone size=small
+      case "up"
+        icon name=up tone=tone size=small
+      case "down"
+        icon name=down tone=tone size=small
+      case "left"
+        icon name=left tone=tone size=small
+      case "right"
+        icon name=right tone=tone size=small
+      case "ban"
+        icon name=ban tone=tone size=small
+      case "alert"
+        icon name=alert tone=tone size=small
+      case "info"
+        # written as an expression: mkp fmt prints a plain name=info as the bare word info, which
+        # is also a colour token
+        icon name=(if(name == "info", info, help)) tone=tone size=small
+      case "help"
+        icon name=help tone=tone size=small
+      case "lock"
+        icon name=lock tone=tone size=small
+      case "unlock"
+        icon name=unlock tone=tone size=small
+      case "eye"
+        icon name=eye tone=tone size=small
+      case "edit"
+        icon name=edit tone=tone size=small
+      case "search"
+        icon name=search tone=tone size=small
+      case "user"
+        icon name=user tone=tone size=small
+      case "users"
+        icon name=users tone=tone size=small
+      case "file"
+        icon name=file tone=tone size=small
+      case "folder"
+        icon name=folder tone=tone size=small
+      case "database"
+        icon name=database tone=tone size=small
+      case "server"
+        icon name=server tone=tone size=small
+      case "cloud"
+        icon name=cloud tone=tone size=small
+      case "mail"
+        icon name=mail tone=tone size=small
+      case "clock"
+        icon name=clock tone=tone size=small
+      case "calendar"
+        icon name=calendar tone=tone size=small
+      case "flag"
+        icon name=flag tone=tone size=small
+      case "target"
+        icon name=target tone=tone size=small
+      case "gauge"
+        icon name=gauge tone=tone size=small
+      case "layers"
+        icon name=layers tone=tone size=small
+      case "branch"
+        icon name=branch tone=tone size=small
+      case "box"
+        icon name=box tone=tone size=small
+      case "circle"
+        icon name=circle tone=tone size=small
+      case "dot"
+        icon name=dot tone=tone size=small
+      case "star"
+        icon name=star tone=tone size=small
+      case "bolt"
+        icon name=bolt tone=tone size=small
+      case "link"
+        icon name=link tone=tone size=small
+      case "key"
+        icon name=key tone=tone size=small
+      case "shield"
+        icon name=shield tone=tone size=small
+      case "cart"
+        icon name=cart tone=tone size=small
+      case "chart"
+        icon name=chart tone=tone size=small
+      case "code"
+        icon name=code tone=tone size=small
+      case "terminal"
+        icon name=terminal tone=tone size=small
+      case "bell"
+        icon name=bell tone=tone size=small
+      case "home"
+        icon name=home tone=tone size=small
+      case "settings"
+        icon name=settings tone=tone size=small
+      case "trash"
+        icon name=trash tone=tone size=small
+      case "copy"
+        icon name=copy tone=tone size=small
+      case "download"
+        icon name=download tone=tone size=small
+      case "upload"
+        icon name=upload tone=tone size=small
+      case "expand"
+        icon name=expand tone=tone size=small
+      case "lightbulb"
+        icon name=lightbulb tone=tone size=small
+      case "book"
+        icon name=book tone=tone size=small
+      else
+        icon name=square tone=tone size=small

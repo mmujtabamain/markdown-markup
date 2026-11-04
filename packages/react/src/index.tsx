@@ -8,7 +8,7 @@ import { SHELL_CSS } from './shell';
 
 export { Node, Kids, Runs, MathSpan, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, stackStyle, flexStyle, flexRole, gridStyle, textStyle, type BaseWidget, type HostProps, type HostRoute, type MkpComponents } from './nodes';
 export { Canvas } from './canvas';
-export { Frame, Pane, Zoom, Icon, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
+export { Frame, Pane, Zoom, FitBox, Icon, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
 export { tokenCss, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {

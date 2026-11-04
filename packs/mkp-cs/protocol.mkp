@@ -1,56 +1,127 @@
-protocol@1 "A protocol's states and transitions: step through a run of events and watch the current state move."
+protocol@1 "A protocol's states and transitions: step through a run of events and watch the current state move along its transitions."
   in states list(text) "the states; the first is where a run starts (names without spaces read best in Mermaid)"
-  in moves list(record move {from: text, to: text, on: text}) "the transitions: from a state, on an event, to a state"
-  in run list(text) "the events of one run, in order"
+  in moves list(record move {from: text, to: text, on: text, line: choice(solid|dashed|dotted) = solid}) "the transitions: from a state, on an event, to a state, and a dashed or dotted line"
+  in run list(text) = [] "the events of one run, in order"
+  in marks list({state: text, tone: text = "", note: text = ""}) = [] "states to mark: a tone (info, ok, warn, bad, accent) and a note under the name"
+  in dir choice(down|right) = down "top down, or left to right"
+  in kind text = "States" "what kind of diagram it is, said small before the title"
+  in title text = "" "the title"
 
   start = states[0]
-  fn next(s, ev) = find(moves, m => m.from == s and m.on == ev, {from: s, to: s, on: ""}).to
+  fn next(s, ev) = find(moves, m => m.from == s and m.on == ev, {from: s, to: s, on: "", line: solid}).to
   fn known(s, ev) = len(filter(moves, m => m.from == s and m.on == ev)) > 0
   # the state before each event, and after the last
   path = fold(run, [start], (p, ev) => p + [next(p[len(p) - 1], ev)])
-  # each state's layer: its shortest distance from the start along the transitions
-  rank = iterate(put({}, start, 0), len(states), d => fold(moves, d, (d2, m) => if(has(d2, m.from) and get(d2, m.to, 1000) > d2[m.from] + 1,
+  # each state's distance from the start along the transitions
+  near = iterate(put({}, start, 0), len(states), d => fold(moves, d, (d2, m) => if(has(d2, m.from) and get(d2, m.to, 1000) > d2[m.from] + 1,
       put(d2, m.to, d2[m.from] + 1), d2)))
+  # the states a state leads to
+  fn reach(s: text): dict(bool) = iterate(put({}, s, true), len(states), d => fold(moves, d, (d2, m) => if(has(d2, m.from), put(d2, m.to, true), d2)))
+  # a move to a state no further out that leads back round to it closes a loop; the others set
+  # the layers, each state on the longest path to it, so a state reached two ways sits past both
+  ahead = filter(moves, m => not (get(near, m.to, 0) <= get(near, m.from, 0) and has(reach(m.to), m.from)))
+  rank = iterate(fold(states, {}, (d, s) => put(d, s, 0)), len(states), d => fold(filter(ahead, m => m.from != m.to and has(d, m.from) and has(d, m.to)), d,
+      (d2, m) => put(d2, m.to, max(d2[m.to], d2[m.from] + 1))))
   depth = max([0] + map(states, s => get(rank, s, 0)))
-  layers = map(range(0, depth), r => filter(states, s => get(rank, s, 0) == r))
-  # a move back up more than one layer runs up a lane at the left of each layer between, so it
-  # passes beside their boxes (its arrow goes via the lanes); the longest runs outermost, and a
-  # spacer on the right of each lane's layer keeps the states centred
-  fn span(m) = get(rank, m.from, 0) - get(rank, m.to, 0)
-  ups = sort(filter(moves, m => span(m) > 1), m => 0 - span(m))
-  fn lane(m, r: int): text = "~" + m.from + ">" + m.on + "~" + r
-  fn lanes(r: int): list({from: text, to: text, on: text}) = filter(ups, m => get(rank, m.to, 0) < r and r < get(rank, m.from, 0))
+  layers = filter(map(range(0, depth), r => filter(states, s => get(rank, s, 0) == r)), l => len(l) > 0)
+  # a move's event sits beside its line in a row of its own, and a move that runs back up or
+  # across a layer runs through a lane in each row it crosses (route.mkp)
+  good = filter(moves, m => indexof(states, m.from) >= 0 and indexof(states, m.to) >= 0)
+  links = map(good, m => {from: m.from, to: m.to, label: m.on})
+  lay = route(layers, links)
+  # left to right, a move back sits first in each column it crosses, so it meets its ends level
+  # with the moves going on, its event under it
+  backs = flatten(map(filter(range(0, len(good) - 1), k => get(rank, good[k].to, 0) < get(rank, good[k].from, 0)), k => lay.via[k]))
+  rows = if(dir == right, map(lay.rows, r => map(sort(r, c => if(indexof(backs, c.id) >= 0, 0, 1)), c => {id: c.id, row: c.row, label: c.label,
+      kind: if(c.kind == "label" and indexof(backs, c.id) >= 0, "back", c.kind)})), lay.rows)
 
   pos = steps (len(run) + 1) "event"
   here = path[pos]
+  took = if(pos > 0, indexof(map(good, m => m.from + ">" + m.on), path[pos - 1] + ">" + run[pos - 1]), -1)
+  fn mark(s: text) = find(marks, m => m.state == s, {state: s, tone: "", note: ""})
+  cards = map(states, s => {id: s, tone: mark(s).tone, note: mark(s).note, on: s == here,
+      icon: if(s == start, "play", if(len(filter(good, m => m.from == s and m.to != s)) == 0, "flag", ""))})
+  lines = map(range(0, len(good) - 1), k => {from: good[k].from, to: good[k].to, via: lay.via[k], line: good[k].line, lit: k == took})
+  fn said(k: int): text = "**" + run[k] + "**: " + path[k] + " → " + path[k + 1] + if(known(path[k], run[k]), ".", " (no transition: it stays).")
 
   project mermaid = ("stateDiagram-v2\n  " + "[" + "*] --> " + start + "\n" + join(map(moves, m => "  " + m.from + " --> " + m.to + " : " + m.on), "\n"))
   project md = ("Run from " + start + ":\n\n" + join(map(range(0, len(run) - 1), k => "" + (k + 1) + ". " + run[k] + ": " +
       path[k] + " → " + path[k + 1] + if(known(path[k], run[k]), "", " (no transition: it stays)")), "\n") + "\n")
 
-  stack gap=l
-    stack gap=xl
-      each r in 0..(len(layers) - 1)
-        flex gap=xl justify=center align=stretch
-          each u in lanes(r) key=("<" + lane(u, r))
-            stack id=(lane(u, r))
-          each s in layers[r] key=s
-            stack id=("" + s)
-              stack pad=m stroke=accent radius=card if=(s == here)
-                text s weight=bold
-              stack pad=m stroke=muted radius=card if=(s != here)
-                text s tone=muted
-          each u in lanes(r) key=(">" + lane(u, r))
-            stack
-    flex gap=l justify=center
-      each m in moves key=(m.from + ">" + m.on)
-        text (m.from + " —" + m.on + "→ " + m.to) size=small tone=muted weight=(if(pos > 0 and m.from == path[pos - 1] and m.on == run[pos - 1], bold, regular))
-    stack gap=xs pad=s stroke=muted radius=card
-      text ("Start in " + start + ".") weight=(if(pos == 0, bold, regular))
-      each k in 0..(pos - 1)
-        text ("" + (k + 1) + ". **" + run[k] + "**: " + path[k] + " → " + path[k + 1] +
-            if(known(path[k], run[k]), "", " (no transition: it stays)")) weight=(if(k == pos - 1, bold, regular))
-      text ("Next: **" + run[pos] + "**") tone=muted if=(pos < len(run))
-  each m in moves key=(m.from + ">" + m.on)
-    arrow from=(m.from) to=(m.to) via=(map(reverse(range(get(rank, m.to, 0) + 1, get(rank, m.from, 0) - 1)), r => lane(m, r))) route=down if=(span(m) > 1)
-    arrow from=(m.from) to=(m.to) route=down if=(span(m) <= 1)
+  frame kind=kind title=title status=(if(pos == 0, "Start in **" + start + "**." + if(len(run) > 0, " Next: " + run[0] + ".", ""), said(pos - 1) + if(pos < len(run), " Next: " + run[pos] + ".", "")))
+    zoom
+      stack pad=l align=center
+        machine rows=rows cards=cards lines=lines dir=dir hot=(if(took >= 0, lay.via[took], []))
+
+part machine@1 "A state machine's rows (or columns) of states, lanes and events, and its moves, square-routed through the lanes; the current state and the move just taken light up."
+  in rows list(list({id: text, kind: text, row: int, label: text})) "the cells of each row, from route"
+  in cards list({id: text, tone: text, note: text, on: bool, icon: text}) "every state: its tone and note, whether the run is in it, and its icon (play for the start, flag for an end)"
+  in lines list({from: text, to: text, via: list(text), line: choice(solid|dashed|dotted), lit: bool}) "every move"
+  in dir choice(down|right) = down
+  in hot list(text) = [] "the event cells of the move just taken"
+  byid = index(cards, c => c.id)
+  fn chip(id: text): color = if(indexof(hot, id) >= 0, info, muted)
+  fn hue(t: text): color = if(t == "info", info, if(t == "ok", ok, if(t == "warn", warn, if(t == "bad", bad, if(t == "accent", accent, muted)))))
+  fn edge(on: bool): color = if(on, info, muted)
+  fn wash(on: bool): color = if(on, info, surface)
+  fn tile(on: bool, t: text): color = if(on, surface, hue(t))
+  switch on=dir
+    case down
+      stack gap=xl align=center
+        each r in 0..(len(rows) - 1)
+          flex gap=l justify=center align=stretch wrap=false
+            each c in rows[r] key=c.id
+              switch on=(c.kind)
+                case "node"
+                  flex align=center wrap=false
+                    flex id=(c.id) gap=s align=center wrap=false pad=s radius=pill stroke=(edge(byid[c.id].on)) fill=surface tint=(wash(byid[c.id].on))
+                      stack pad=s radius=pill tint=(tile(byid[c.id].on, byid[c.id].tone)) if=(byid[c.id].icon == "play")
+                        icon name=play tone=(hue(byid[c.id].tone)) size=small
+                      stack pad=s radius=pill tint=(tile(byid[c.id].on, byid[c.id].tone)) if=(byid[c.id].icon == "flag")
+                        icon name=flag tone=(hue(byid[c.id].tone)) size=small
+                      stack pad=xs
+                        text (c.id) weight=bold align=start wrap=false literal=true
+                        text (byid[c.id].note) font=mono size=small tone=muted caps=true align=start wrap=false if=(byid[c.id].note != "")
+                # an event sits beside its move's lane, in a row between the states
+                case "label"
+                  flex gap=s align=stretch wrap=false
+                    stack id=(c.id)
+                    flex align=center wrap=false
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (c.label) font=mono size=small tone=(chip(c.id)) wrap=false literal=true
+                else
+                  stack id=(c.id)
+    else
+      flex gap=l align=center wrap=false
+        each r in 0..(len(rows) - 1)
+          stack gap=l align=stretch
+            each c in rows[r] key=c.id
+              switch on=(c.kind)
+                case "node"
+                  stack align=center
+                    flex id=(c.id) gap=s align=center wrap=false pad=s radius=pill stroke=(edge(byid[c.id].on)) fill=surface tint=(wash(byid[c.id].on))
+                      stack pad=s radius=pill tint=(tile(byid[c.id].on, byid[c.id].tone)) if=(byid[c.id].icon == "play")
+                        icon name=play tone=(hue(byid[c.id].tone)) size=small
+                      stack pad=s radius=pill tint=(tile(byid[c.id].on, byid[c.id].tone)) if=(byid[c.id].icon == "flag")
+                        icon name=flag tone=(hue(byid[c.id].tone)) size=small
+                      stack pad=xs
+                        text (c.id) weight=bold align=start wrap=false literal=true
+                        text (byid[c.id].note) font=mono size=small tone=muted caps=true align=start wrap=false if=(byid[c.id].note != "")
+                # an event sits just above its move's lane, in a column between the states, and a
+                # move back's just under it
+                case "label"
+                  stack gap=xs align=stretch
+                    flex justify=center wrap=false
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (c.label) font=mono size=small tone=(chip(c.id)) wrap=false literal=true
+                    stack id=(c.id)
+                case "back"
+                  stack gap=xs align=stretch
+                    stack id=(c.id)
+                    flex justify=center wrap=false
+                      flex pad=xs radius=card stroke=muted fill=surface wrap=false
+                        text (c.label) font=mono size=small tone=(chip(c.id)) wrap=false literal=true
+                else
+                  stack id=(c.id)
+  each k in 0..(len(lines) - 1)
+    arrow from=(lines[k].from) to=(lines[k].to) via=(lines[k].via) route=dir line=(lines[k].line) tone=(edge(lines[k].lit)) bold=(lines[k].lit)

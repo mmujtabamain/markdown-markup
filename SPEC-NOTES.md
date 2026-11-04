@@ -501,3 +501,9 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     The icon set gains `sliders`. In `@mkp/shadcn` a press whose one child is an `icon` is an icon
     button, a plain press keeps its content's alignment, and a frame's bar lets its parts shrink, so a
     long status gives up width before the count and start over are pushed out.
+
+111. **A zoom fits what it holds.** *Extension (8).* A diagram wider than its frame was cut at both sides
+    at rest, on a phone or in a narrow column; Study Pad's views are seen whole. *Decided:* `zoom fit`
+    (default true): at rest, what is wider than the view is shrunk to fit it, never enlarged, leaving
+    the lock its own room; the reader zooms in from there. Arrows measure in their scope's own units,
+    so a scale above them (a zoom, a fit) no longer throws them off their ends.

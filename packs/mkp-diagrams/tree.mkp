@@ -1,12 +1,34 @@
 type tnode = {id: text, label: text, kids: list(tnode)}
 
-part tree@1 "A tidy tree: each node above a row of its children."
+part tree@1 "A tidy tree: each node above a row of its children, as node cards."
   in node tnode
-  stack align=center gap=l
-    stack id=(node.id) pad=s fill=surface stroke=ink radius=card
-      text node.label
-    flex gap=m
+  stack align=center gap=xl
+    gcard ({id: node.id, label: node.label, icon: "square", tone: "", shape: "card", note: "", group: "", k: 0, lit: ""})
+    flex gap=m justify=center wrap=false
       each k in node.kids key=k.id
         tree node=k
   each k in node.kids key=k.id
     arrow from=(node.id) to=(k.id) route=down
+
+# a node of hierarchy's tree: tnode's fields, and a kind, icon, tone, note and detail as graph's nodes have
+type hnode = {id: text, label: text, kids: list(hnode), kind: text = "", icon: text = "", tone: text = "", note: text = "", detail: text = ""}
+
+part htree@1 "A tidy tree of node cards that light up: each node above a row of its children; pressing one says so (picked, with its place)."
+  in node hnode
+  in chosen text = "" "the chosen node's id"
+  in order list(text) = [] "every node's id, in the order the bar steps through"
+  in up text = "" "the parent's id"
+  in heads bool = true "arrow heads on the lines to the children"
+  out picked {k: int}
+  lit = if(chosen == "", "", if(node.id == chosen, "on", if(up == chosen or len(filter(node.kids, k => k.id == chosen)) > 0, "near", "off")))
+  stack align=center gap=xl
+    gnode (card({id: node.id, label: node.label, kind: node.kind, icon: node.icon, tone: node.tone, shape: "", note: node.note, group: ""},
+        indexof(order, node.id), lit))
+      @picked emit picked k=(picked.k)
+    flex gap=m justify=center wrap=false
+      each k in node.kids key=k.id
+        htree node=k chosen=chosen order=order up=(node.id) heads=heads
+          @picked emit picked k=(picked.k)
+  each k in node.kids key=k.id
+    arrow from=(node.id) to=(k.id) route=down tone=(if(litline(node.id, k.id, chosen), info, muted)) bold=(litline(node.id, k.id, chosen)) dim=(chosen != "" and not litline(node.id, k.id, chosen)) if=heads
+    arrow from=(node.id) to=(k.id) route=down tone=(if(litline(node.id, k.id, chosen), info, muted)) bold=(litline(node.id, k.id, chosen)) dim=(chosen != "" and not litline(node.id, k.id, chosen)) head=none if=(not heads)

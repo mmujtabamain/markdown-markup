@@ -46,8 +46,19 @@
               ]
             }
           ]
+        },
+        "kind": "Org chart",
+        "title": "Who runs what",
+        "heads": false
+      },
+      "play": [
+        {
+          "press": "pick.next"
+        },
+        {
+          "press": "pick.next"
         }
-      }
+      ]
     },
     "leaf": {
       "summary": "A single node.",
@@ -58,6 +69,71 @@
           "kids": []
         }
       }
+    },
+    "people": {
+      "summary": "The same org chart as graph's, as a tidy tree: the chief executive, two heads with their notes, and their teams.",
+      "props": {
+        "kind": "Org chart",
+        "title": "Who reports to whom",
+        "heads": false,
+        "root": {
+          "id": "ceo",
+          "label": "Amara Osei",
+          "note": "chief executive",
+          "kind": "actor",
+          "tone": "neutral",
+          "kids": [
+            {
+              "id": "cto",
+              "label": "Lin Wei",
+              "note": "engineering",
+              "kind": "actor",
+              "kids": [
+                {
+                  "id": "web",
+                  "label": "Web team",
+                  "kind": "step",
+                  "kids": []
+                },
+                {
+                  "id": "data",
+                  "label": "Data team",
+                  "icon": "database",
+                  "kids": []
+                }
+              ]
+            },
+            {
+              "id": "coo",
+              "label": "Rafael Costa",
+              "note": "operations",
+              "kind": "actor",
+              "tone": "ok",
+              "kids": [
+                {
+                  "id": "support",
+                  "label": "Support",
+                  "kind": "step",
+                  "kids": []
+                },
+                {
+                  "id": "billing",
+                  "label": "Billing",
+                  "kind": "step",
+                  "kids": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "play": [
+        {
+          "set": {
+            "pick": 1
+          }
+        }
+      ]
     }
   }
 }

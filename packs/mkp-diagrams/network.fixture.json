@@ -1,293 +1,296 @@
 {
- "widget": "network@1",
- "cases": {
-  "deps": {
-   "summary": "Ten package dependencies as arrows that follow the nodes while the layout settles; two are labelled.",
-   "props": {
-    "nodes": [
-     {
-      "id": "app",
-      "label": "app"
-     },
-     {
-      "id": "ui",
-      "label": "ui"
-     },
-     {
-      "id": "core",
-      "label": "core"
-     },
-     {
-      "id": "maths",
-      "label": "maths"
-     },
-     {
-      "id": "charts",
-      "label": "charts"
-     },
-     {
-      "id": "parse",
-      "label": "parser"
-     },
-     {
-      "id": "render",
-      "label": "renderer"
-     },
-     {
-      "id": "fonts",
-      "label": "fonts"
-     },
-     {
-      "id": "cli",
-      "label": "cli"
-     },
-     {
-      "id": "docs",
-      "label": "docs"
-     }
-    ],
-    "edges": [
-     {
-      "from": "app",
-      "to": "ui"
-     },
-     {
-      "from": "app",
-      "to": "charts"
-     },
-     {
-      "from": "ui",
-      "to": "core"
-     },
-     {
-      "from": "charts",
-      "to": "core"
-     },
-     {
-      "from": "charts",
-      "to": "maths",
-      "label": "scales"
-     },
-     {
-      "from": "core",
-      "to": "parse"
-     },
-     {
-      "from": "core",
-      "to": "render"
-     },
-     {
-      "from": "render",
-      "to": "fonts"
-     },
-     {
-      "from": "maths",
-      "to": "parse",
-      "label": "exprs"
-     },
-     {
-      "from": "cli",
-      "to": "core"
-     },
-     {
-      "from": "docs",
-      "to": "charts"
-     },
-     {
-      "from": "docs",
-      "to": "cli"
-     }
-    ]
-   },
-   "play": [
-    {
-     "press": "settle.play"
+  "widget": "network@1",
+  "cases": {
+    "deps": {
+      "summary": "Ten package dependencies as arrows that follow the nodes while the layout settles; two are labelled.",
+      "props": {
+        "nodes": [
+          {
+            "id": "app",
+            "label": "app"
+          },
+          {
+            "id": "ui",
+            "label": "ui"
+          },
+          {
+            "id": "core",
+            "label": "core"
+          },
+          {
+            "id": "maths",
+            "label": "maths"
+          },
+          {
+            "id": "charts",
+            "label": "charts"
+          },
+          {
+            "id": "parse",
+            "label": "parser"
+          },
+          {
+            "id": "render",
+            "label": "renderer"
+          },
+          {
+            "id": "fonts",
+            "label": "fonts"
+          },
+          {
+            "id": "cli",
+            "label": "cli"
+          },
+          {
+            "id": "docs",
+            "label": "docs"
+          }
+        ],
+        "edges": [
+          {
+            "from": "app",
+            "to": "ui"
+          },
+          {
+            "from": "app",
+            "to": "charts"
+          },
+          {
+            "from": "ui",
+            "to": "core"
+          },
+          {
+            "from": "charts",
+            "to": "core"
+          },
+          {
+            "from": "charts",
+            "to": "maths",
+            "label": "scales"
+          },
+          {
+            "from": "core",
+            "to": "parse"
+          },
+          {
+            "from": "core",
+            "to": "render"
+          },
+          {
+            "from": "render",
+            "to": "fonts"
+          },
+          {
+            "from": "maths",
+            "to": "parse",
+            "label": "exprs"
+          },
+          {
+            "from": "cli",
+            "to": "core"
+          },
+          {
+            "from": "docs",
+            "to": "charts"
+          },
+          {
+            "from": "docs",
+            "to": "cli"
+          }
+        ],
+        "title": "What depends on what",
+        "kind": "Packages"
+      },
+      "play": [
+        {
+          "press": "settle.play"
+        },
+        {
+          "wait": 1500
+        }
+      ],
+      "expect": {
+        "tolerance": 0.001
+      }
     },
-    {
-     "wait": 1500
-    }
-   ],
-   "expect": {
-    "tolerance": 0.001
-   }
-  },
-  "friends": {
-   "summary": "Two friend groups joined by one pair, drawn with plain lines.",
-   "props": {
-    "directed": false,
-    "nodes": [
-     {
-      "id": "ann",
-      "label": "Ann"
-     },
-     {
-      "id": "bo",
-      "label": "Bo"
-     },
-     {
-      "id": "cy",
-      "label": "Cy"
-     },
-     {
-      "id": "di",
-      "label": "Di"
-     },
-     {
-      "id": "ed",
-      "label": "Ed"
-     },
-     {
-      "id": "fay",
-      "label": "Fay"
-     },
-     {
-      "id": "gus",
-      "label": "Gus"
-     },
-     {
-      "id": "hal",
-      "label": "Hal"
-     },
-     {
-      "id": "ida",
-      "label": "Ida"
-     },
-     {
-      "id": "jo",
-      "label": "Jo"
-     }
-    ],
-    "edges": [
-     {
-      "from": "ann",
-      "to": "bo"
-     },
-     {
-      "from": "ann",
-      "to": "cy"
-     },
-     {
-      "from": "bo",
-      "to": "cy"
-     },
-     {
-      "from": "cy",
-      "to": "di"
-     },
-     {
-      "from": "di",
-      "to": "ed"
-     },
-     {
-      "from": "bo",
-      "to": "ed"
-     },
-     {
-      "from": "ed",
-      "to": "fay"
-     },
-     {
-      "from": "fay",
-      "to": "gus"
-     },
-     {
-      "from": "fay",
-      "to": "hal"
-     },
-     {
-      "from": "gus",
-      "to": "hal"
-     },
-     {
-      "from": "hal",
-      "to": "ida"
-     },
-     {
-      "from": "ida",
-      "to": "jo"
-     },
-     {
-      "from": "gus",
-      "to": "jo"
-     }
-    ]
-   },
-   "play": [
-    {
-     "press": "settle.play"
+    "friends": {
+      "summary": "Two friend groups joined by one pair, drawn with plain lines.",
+      "props": {
+        "directed": false,
+        "nodes": [
+          {
+            "id": "ann",
+            "label": "Ann"
+          },
+          {
+            "id": "bo",
+            "label": "Bo"
+          },
+          {
+            "id": "cy",
+            "label": "Cy"
+          },
+          {
+            "id": "di",
+            "label": "Di"
+          },
+          {
+            "id": "ed",
+            "label": "Ed"
+          },
+          {
+            "id": "fay",
+            "label": "Fay"
+          },
+          {
+            "id": "gus",
+            "label": "Gus"
+          },
+          {
+            "id": "hal",
+            "label": "Hal"
+          },
+          {
+            "id": "ida",
+            "label": "Ida"
+          },
+          {
+            "id": "jo",
+            "label": "Jo"
+          }
+        ],
+        "edges": [
+          {
+            "from": "ann",
+            "to": "bo"
+          },
+          {
+            "from": "ann",
+            "to": "cy"
+          },
+          {
+            "from": "bo",
+            "to": "cy"
+          },
+          {
+            "from": "cy",
+            "to": "di"
+          },
+          {
+            "from": "di",
+            "to": "ed"
+          },
+          {
+            "from": "bo",
+            "to": "ed"
+          },
+          {
+            "from": "ed",
+            "to": "fay"
+          },
+          {
+            "from": "fay",
+            "to": "gus"
+          },
+          {
+            "from": "fay",
+            "to": "hal"
+          },
+          {
+            "from": "gus",
+            "to": "hal"
+          },
+          {
+            "from": "hal",
+            "to": "ida"
+          },
+          {
+            "from": "ida",
+            "to": "jo"
+          },
+          {
+            "from": "gus",
+            "to": "jo"
+          }
+        ],
+        "title": "Two friend groups"
+      },
+      "play": [
+        {
+          "press": "settle.play"
+        },
+        {
+          "wait": 1500
+        }
+      ],
+      "expect": {
+        "tolerance": 0.001
+      }
     },
-    {
-     "wait": 1500
+    "cycle": {
+      "summary": "A ring of six with one chord.",
+      "props": {
+        "seed": 3,
+        "nodes": [
+          {
+            "id": "a",
+            "label": "1"
+          },
+          {
+            "id": "b",
+            "label": "2"
+          },
+          {
+            "id": "c",
+            "label": "3"
+          },
+          {
+            "id": "d",
+            "label": "4"
+          },
+          {
+            "id": "e",
+            "label": "5"
+          },
+          {
+            "id": "f",
+            "label": "6"
+          }
+        ],
+        "edges": [
+          {
+            "from": "a",
+            "to": "b"
+          },
+          {
+            "from": "b",
+            "to": "c"
+          },
+          {
+            "from": "c",
+            "to": "d"
+          },
+          {
+            "from": "d",
+            "to": "e"
+          },
+          {
+            "from": "e",
+            "to": "f"
+          },
+          {
+            "from": "f",
+            "to": "a"
+          },
+          {
+            "from": "a",
+            "to": "d"
+          }
+        ]
+      },
+      "expect": {
+        "tolerance": 0.001
+      }
     }
-   ],
-   "expect": {
-    "tolerance": 0.001
-   }
-  },
-  "cycle": {
-   "summary": "A ring of six with one chord.",
-   "props": {
-    "seed": 3,
-    "nodes": [
-     {
-      "id": "a",
-      "label": "1"
-     },
-     {
-      "id": "b",
-      "label": "2"
-     },
-     {
-      "id": "c",
-      "label": "3"
-     },
-     {
-      "id": "d",
-      "label": "4"
-     },
-     {
-      "id": "e",
-      "label": "5"
-     },
-     {
-      "id": "f",
-      "label": "6"
-     }
-    ],
-    "edges": [
-     {
-      "from": "a",
-      "to": "b"
-     },
-     {
-      "from": "b",
-      "to": "c"
-     },
-     {
-      "from": "c",
-      "to": "d"
-     },
-     {
-      "from": "d",
-      "to": "e"
-     },
-     {
-      "from": "e",
-      "to": "f"
-     },
-     {
-      "from": "f",
-      "to": "a"
-     },
-     {
-      "from": "a",
-      "to": "d"
-     }
-    ]
-   },
-   "expect": {
-    "tolerance": 0.001
-   }
   }
- }
 }

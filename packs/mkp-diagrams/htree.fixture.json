@@ -1,0 +1,51 @@
+{
+  "widget": "htree@1",
+  "cases": {
+    "small": {
+      "summary": "A root with three children, the middle one chosen: it and its lines light up, its parent and children stay, the rest fade.",
+      "props": {
+        "node": {
+          "id": "a",
+          "label": "root",
+          "kids": [
+            {
+              "id": "b",
+              "label": "left",
+              "kids": []
+            },
+            {
+              "id": "c",
+              "label": "middle",
+              "kids": [
+                {
+                  "id": "e",
+                  "label": "x",
+                  "kids": []
+                },
+                {
+                  "id": "f",
+                  "label": "y",
+                  "kids": []
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "right",
+              "kids": []
+            }
+          ]
+        },
+        "chosen": "c",
+        "order": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f"
+        ]
+      }
+    }
+  }
+}

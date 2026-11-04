@@ -1,0 +1,19 @@
+{
+  "widget": "glyph@1",
+  "cases": {
+    "database": {
+      "summary": "A database icon in a soft info tile.",
+      "props": {
+        "name": "database",
+        "tone": "info",
+        "wash": "info"
+      }
+    },
+    "unknown": {
+      "summary": "A name the set doesn't have: a square.",
+      "props": {
+        "name": "rocket"
+      }
+    }
+  }
+}

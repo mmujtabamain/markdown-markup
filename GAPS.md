@@ -379,3 +379,43 @@ rule of the spec, not a defect), *in progress*.
 116. **MKP: no sliders icon.** *Fixed:* `icon name=sliders` (SN 110).
 117. **MKP: a pack-level `fn` can't name a colour token.** *Worked around:* one tone function per widget.
 118. **MKP: tick density can't follow the width.** *Open.*
+
+### Views parity: graphs (mkp-diagrams, mkp-cs protocol)
+
+119. **MKP zoom: no fit to the box.** A graph wider than its frame was cut at both sides at rest: a
+     left-to-right pipeline at 390px, or any of the three ports in the playground's 650px frame. Study
+     Pad fits it, and turns top-down under 560px. *Fixed:* `zoom fit` (SN 111). *Open:* turning
+     top-down on a narrow screen; the fitted drawing is small on a phone.
+120. **MKP layout: a centred row that overflows loses its start.** A cut pipeline lost Push as well as
+     Live. *Fixed* by 119 at rest; *Open* for a centred row outside a zoom.
+121. **MKP box: no dashed outline.** Study Pad draws groups, io nodes and label nodes dashed. *Fixed:*
+     `line=dashed` (SN 110); groups, io and label nodes use it.
+122. **MKP arrow: no quieter tone than muted.** *Worked around:* a quiet line is dashed and `dim`, and
+     its label chip stays readable.
+123. **MKP steps: no "nothing chosen".** *Worked around:* `steps (n) = -1`. It shows 0/N, doesn't wrap,
+     and ↺ goes to the first node, not to none. Pressing the chosen node again clears it.
+124. **MKP steps: a track from 7 steps.** Stepping through 7 or more nodes draws a track Study Pad
+     doesn't have, and a long status then pushed the count off a narrow bar. *Fixed* for the bar (91);
+     the track stays.
+125. **MKP press: no click on empty space.** A stack or zoom has no click, and a press around the
+     drawing would nest buttons. *Worked around:* pressing the chosen node again lets it go.
+126. **MKP arrow: lines inside a zoom must belong to a nested instance.** A widget's own arrows are drawn
+     in an overlay outside the zoom's transform and clip, so they would not follow it. *Worked around:*
+     each drawing is a part used inside the `zoom`. *Open.*
+127. **MKP icon: a computed name must be a choice.** `icon name=(x)` refuses a text value. *Worked
+     around:* `glyph@1` switches over the 64 names; an unknown name shows a square. *Open.*
+128. **MKP fmt: `icon name=info` reprints as the bare word `info`**, which is also a colour token, so the
+     round-trip test failed. *Worked around:* `name=(if(name == "info", info, help))`. *Open.*
+129. **MKP arrow: an empty label still draws its background box** over the middle of the line. *Worked
+     around:* separate arrows with and without a label. *Open.*
+130. **MKP routing: lanes in different rows can't share an x**, so a line back over several layers jogs
+     at every row (TCP's expire; 73 is the same). *Open.*
+131. **MKP routing: a line back arriving by its box's side crossed the box below it.** *Worked around:*
+     left to right, a line back's cells go first in each column, with its label under the lane.
+132. **MKP types: a named record type's defaults don't fill record literals.** Adding fields with
+     defaults to `tnode` broke `examples/arrow-proof/growing.mkp`. *Worked around:* new type `hnode`;
+     `tnode` is unchanged.
+133. **RN renderer: drawers aren't mounted while closed**, so the RN fixture test couldn't find `fill
+     details` content. *Fixed in the test* (102); protocol still has no details drawer.
+134. **MKP packs: protocol needs routing but mkp-cs depends on core only.** *Worked around:* a copied
+     `route.mkp` in mkp-cs. *Open.*

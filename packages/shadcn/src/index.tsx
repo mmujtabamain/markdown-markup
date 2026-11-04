@@ -86,7 +86,8 @@ export interface Kit {
   /** A titled column whose body scrolls on its own. */
   Pane?: ComponentType<{ title?: ReactNode; aside?: ReactNode; footer?: ReactNode; style?: CSSProperties; children?: ReactNode }>;
   /** Zoom and pan behind a lock. */
-  Zoom?: ComponentType<{ max: number; style?: CSSProperties; children?: ReactNode }>;
+  /** `fit`: at rest, shrink what is wider than the view to fit it (FitBox does it). */
+  Zoom?: ComponentType<{ max: number; fit: boolean; style?: CSSProperties; children?: ReactNode }>;
 }
 
 /** What a kit's own frame gets: the frame's parts, drawn. */
@@ -504,7 +505,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
     pane: (h) => pane(h, kit),
     zoom: ({ n, attrs, style }) =>
       kit.Zoom ? (
-        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} style={style}>
+        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} fit={n.p.fit !== false} style={style}>
           <Kids nodes={n.kids} />
         </kit.Zoom>
       ) : (

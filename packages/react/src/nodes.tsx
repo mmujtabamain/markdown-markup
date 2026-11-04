@@ -550,7 +550,11 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
       return r;
     };
     const out: typeof paths = [];
-    const rel = (r: DOMRect) => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
+    // a scale above the scope (a zoom, a fit) scales what is measured, and the drawing with it: measure
+    // in the scope's own units
+    const sx = root.offsetWidth ? base.width / root.offsetWidth : 1;
+    const sy = root.offsetHeight ? base.height / root.offsetHeight : 1;
+    const rel = (r: DOMRect) => ({ x: (r.left - base.left) / sx, y: (r.top - base.top) / sy, w: r.width / sx, h: r.height / sy });
     const shown: VArrow[] = [];
     const ends: ArrowEnds[] = [];
     for (const a of arrows) {
@@ -562,7 +566,7 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
       shown.push(a);
       ends.push({ from: a.from, to: a.to, a: rel(ra), b: rel(rb), via, curve: a.curve, route: a.route, head: a.head, tail: a.tail });
     }
-    arrowPaths(ends, 3, 7, base.width).forEach((p, i) => {
+    arrowPaths(ends, 3, 7, base.width / sx).forEach((p, i) => {
       const a = shown[i];
       if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), marks: p.marks, label: a.label ? p.label : undefined, align: p.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold });
     });

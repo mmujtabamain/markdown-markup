@@ -8,32 +8,38 @@
           {
             "id": "start",
             "label": "Start",
-            "kind": "start"
+            "kind": "start",
+            "detail": "The visitor opens the sign-in page."
           },
           {
             "id": "ask",
             "label": "Enter name and password",
-            "kind": "io"
+            "kind": "io",
+            "detail": "Name and password, typed into the form."
           },
           {
             "id": "check",
             "label": "Correct?",
-            "kind": "decision"
+            "kind": "decision",
+            "detail": "The password is checked against the stored hash."
           },
           {
             "id": "tries",
             "label": "Three tries used?",
-            "kind": "decision"
+            "kind": "decision",
+            "detail": "After three wrong tries in a row the account is locked."
           },
           {
             "id": "home",
             "label": "Show the home page",
-            "kind": "step"
+            "kind": "step",
+            "detail": "Signed in: the home page opens."
           },
           {
             "id": "lock",
             "label": "Lock the account",
-            "kind": "step"
+            "kind": "step",
+            "detail": "Locked until the owner resets the password."
           },
           {
             "id": "done",
@@ -82,8 +88,20 @@
             "to": "done",
             "label": ""
           }
-        ]
-      }
+        ],
+        "title": "Signing in"
+      },
+      "play": [
+        {
+          "press": "pick.next"
+        },
+        {
+          "press": "pick.next"
+        },
+        {
+          "press": "pick.next"
+        }
+      ]
     },
     "right": {
       "summary": "A short pipeline running left to right.",
@@ -127,7 +145,9 @@
             "to": "d",
             "label": ""
           }
-        ]
+        ],
+        "title": "Reading a file",
+        "kind": "Pipeline"
       }
     },
     "bad-kind": {

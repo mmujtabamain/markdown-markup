@@ -12,33 +12,51 @@ fn levels(ids: list(text), starts: list(text), links: list({from: text, to: text
     len(ids),
     d => fold(links, d, (d2, l) => put(d2, l.to, min(d2[l.to], d2[l.from] + 1))))
 
-graph@1 "Nodes in layers by their edges, laid out automatically."
-  in nodes list({id: text, label: text})
-  in edges list(edge)
-  # a link that closes a cycle doesn't count for the rows, so a cycle can't turn the graph upside down
+graph@1 "Nodes and the connections between them, in layers, top down or left to right: a pipeline, a process, an org chart, a state machine. Choose a node to light it and its connections."
+  fields nodes edges
+  in nodes list({id: text, label: text, kind: text = "", icon: text = "", tone: text = "", shape: text = "", note: text = "", group: text = "", detail: text = ""}) "each node: its id and label; a kind (start, end, process, step, decision, actor, artifact, metric, focus, io, subprocess, usecase, label) sets its icon, tone, shape and note, and icon (a name, or none), tone (info, ok, warn, bad, accent, neutral), shape (card, pill, oval, io, label) and note override it; group is the box it sits in; detail is said in the bar when it is chosen"
+  in edges list({from: text, to: text, label: text = "", line: choice(solid|dashed|dotted) = solid, muted: bool = false, back: bool = false, arrow: bool = true}) "connections between node ids: a label on the line; a dashed or dotted line; muted, drawn quieter; back, against the main flow (a retry), so it doesn't count for the layers; arrow, a head at the target"
+  in groups list({id: text, label: text}) = [] "boxes for nodes to sit in, each with a title"
+  in dir choice(down|right) = down "top down, or left to right"
+  in kind text = "Graph" "what kind of diagram it is, said small before the title"
+  in title text = "" "the title"
   ids = map(nodes, n => n.id)
-  heads = filter(ids, id => len(filter(edges, e => e.to == id and e.from != id)) == 0)
-  near = levels(ids, if(len(heads) > 0, heads, first(ids, 1)), edges)
-  onward = filter(edges, e => not (near[e.to] <= near[e.from] and levels(ids, [e.to], edges)[e.from] < 1000))
+  good = filter(edges, e => indexof(ids, e.from) >= 0 and indexof(ids, e.to) >= 0)
+  # a link that closes a cycle, or is marked back, doesn't count for the layers, so a cycle can't
+  # turn the graph upside down
+  plain = map(filter(good, e => not e.back), e => {from: e.from, to: e.to})
+  heads = filter(ids, id => len(filter(plain, e => e.to == id and e.from != id)) == 0)
+  near = levels(ids, if(len(heads) > 0, heads, first(ids, 1)), plain)
+  onward = filter(plain, e => not (near[e.to] <= near[e.from] and levels(ids, [e.to], plain)[e.from] < 1000))
   rank = ranks(nodes, onward)
   depth = max([0] + map(nodes, n => rank[n.id]))
-  layers = map(range(0, depth), r => map(filter(nodes, n => rank[n.id] == r), n => n.id))
-  # an edge that spans layers runs through a lane in each layer it crosses, ordered with the
-  # nodes by barycentre passes (route.mkp)
-  links = map(edges, e => {from: e.from, to: e.to, label: ""})
+  layers = filter(map(range(0, depth), r => map(filter(nodes, n => rank[n.id] == r), n => n.id)), l => len(l) > 0)
+  # an edge that spans layers runs through a lane in each layer it crosses, and a labelled one puts
+  # its label beside its lane in a row of its own (route.mkp)
+  links = map(good, e => {from: e.from, to: e.to, label: e.label})
   lay = route(layers, links)
+  # left to right, a line back sits first in each column it crosses, over the lines going on, so it
+  # meets its ends level with them instead of from below
+  loopy = map(good, e => e.back or (near[e.to] <= near[e.from] and levels(ids, [e.to], plain)[e.from] < 1000))
+  rows = backfirst(lay.rows, flatten(map(filter(range(0, len(good) - 1), k => loopy[k]), k => lay.via[k])), dir == right)
   byid = index(nodes, n => n.id)
-  project mermaid = "flowchart TD\n" + join(map(edges, e => "  " + e.from + " --> " + e.to), "\n")
-  stack gap=xl
-    each r in 0..(len(lay.rows) - 1)
-      flex gap=l justify=center align=stretch
-        each c in lay.rows[r] key=c.id
-          switch on=(c.kind)
-            case "node"
-              flex wrap=false
-                stack id=(c.id) pad=s fill=surface stroke=ink radius=card
-                  text (byid[c.id].label)
-            else
-              stack id=(c.id)
-  each k in 0..(len(links) - 1)
-    arrow from=(links[k].from) to=(links[k].to) via=(lay.via[k]) route=down
+
+  # the chosen node, by its place in nodes; -1 while none is
+  pick = steps (len(nodes)) = -1 "node"
+  chosen = if(pick >= 0 and pick < len(nodes), nodes[pick].id, "")
+  joins = map(good, e => {from: e.from, to: e.to})
+  cards = map(range(0, len(nodes) - 1), k => card(nodes[k], k, litnode(nodes[k].id, chosen, joins)))
+  lines = map(range(0, len(good) - 1), k => {from: good[k].from, to: good[k].to, via: lay.via[k], line: good[k].line,
+      lit: litline(good[k].from, good[k].to, chosen), head: good[k].arrow,
+      dim: not litline(good[k].from, good[k].to, chosen) and (chosen != "" or good[k].muted)})
+
+  project md = join(map(nodes, n => "- " + n.label + if(n.note != "", " (" + n.note + ")", "") + if(len(filter(good, e => e.from == n.id)) > 0,
+      " → " + join(map(filter(good, e => e.from == n.id), e => byid[e.to].label + if(e.label != "", " (" + e.label + ")", "")), "; "), "")), "\n")
+  project mermaid = ("flowchart " + if(dir == down, "TD", "LR") + "\n"
+    + join(map(nodes, n => "  " + n.id + "[\"" + n.label + "\"]"), "\n") + "\n"
+    + join(map(good, e => "  " + e.from + if(e.line == solid, if(e.arrow, " -->", " ---"), if(e.arrow, " -.->", " -.-")) + if(e.label != "", "|" + e.label + "|", "") + " " + e.to), "\n"))
+
+  frame kind=kind title=title status=(if(chosen == "", told("", ""), told(byid[chosen].label, if(byid[chosen].detail != "", byid[chosen].detail, byid[chosen].note))))
+    zoom
+      stack pad=l align=center
+        layers rows=rows cards=cards lines=lines groups=groups dir=dir hot=(flatten(map(filter(lines, l => l.lit), l => l.via))) faded=(flatten(map(filter(lines, l => l.dim and chosen != ""), l => l.via))) pick=pick

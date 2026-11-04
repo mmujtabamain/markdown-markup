@@ -16,14 +16,17 @@ fn fit(ps: list(point), w: num, h: num): list(point) = map(ps, p => (
     if(max(map(ps, q => q.y)) > min(map(ps, q => q.y)),
       -h + 2 h (p.y - min(map(ps, q => q.y)))/(max(map(ps, q => q.y)) - min(map(ps, q => q.y))), 0)))
 
-network@1 "A graph laid out by forces: edges act as springs and nodes repel, so clusters show; replay the layout settling."
+network@1 "A graph laid out by forces: edges act as springs and nodes repel, so clusters show; replay the layout settling, and choose a node to light it and its links."
   budget 20000000
   fields nodes edges
-  in nodes list({id: text, label: text}) "each node's id and what it shows"
+  in nodes list({id: text, label: text, kind: text = "", icon: text = "none", tone: text = "", note: text = "", detail: text = ""}) "each node's id and what it shows; a kind, icon, tone and note as graph's nodes have (no icon by default), and detail, said in the bar when it is chosen"
   in edges list(record link {from: text, to: text, label: text = ""}) "pairs of node ids, with an optional label"
   in directed bool = true "arrows (true) or plain lines (false)"
   in seed int = 1 "change it for a different starting layout"
   in size size = l
+  in kind text = "Network" "what kind of diagram it is, said small before the title"
+  in title text = "" "the title"
+  pick = steps (len(nodes)) = -1 "node"
   settle = slider 0..1 step=0.01 play=3s = 1 "layout"
   ids = map(nodes, n => n.id)
   n = len(nodes)
@@ -36,16 +39,37 @@ network@1 "A graph laid out by forces: edges act as springs and nodes repel, so 
   start = map(range(0, n - 1), i => (cos(2 pi i/n) + 0.2 rand(seed, i), sin(2 pi i/n) + 0.2 rand(seed, i + 1000)))
   frames = scan({p: start, t: 0.4}, 120, s => {p: relax(s.p, adj, k, s.t), t: 0.97 s.t})
   pos = fit(frames[round(settle (len(frames) - 1))].p, 1.22, 0.84)
+  chosen = if(pick >= 0 and pick < n, nodes[pick].id, "")
+  joins = map(good, e => {from: e.from, to: e.to})
+  cards = map(range(0, n - 1), j => card({id: nodes[j].id, label: nodes[j].label, kind: nodes[j].kind, icon: nodes[j].icon, tone: nodes[j].tone,
+      shape: "", note: nodes[j].note, group: ""}, j, litnode(nodes[j].id, chosen, joins)))
+  links = map(good, e => {from: e.from, to: e.to, label: e.label, lit: litline(e.from, e.to, chosen), dim: chosen != "" and not litline(e.from, e.to, chosen)})
   project mermaid = ("flowchart LR\n" + join(map(nodes, n => "  " + n.id + "[\"" + n.label + "\"]"), "\n") + "\n"
     + join(map(good, e => "  " + e.from + if(directed, " -->", " ---") + if(e.label != "", "|" + e.label + "|", "") + " " + e.to), "\n"))
-  canvas x=-1.5..1.5 y=-1..1 size=size label=("a network of " + n + " nodes and " + len(good) + " edges")
+  frame kind=kind title=title status=(if(chosen == "", told("", ""), told(nodes[pick].label, if(nodes[pick].detail != "", nodes[pick].detail, nodes[pick].note))))
+    fill actions
+      controls settle
+    zoom
+      netmap pos=pos cards=cards links=links ids=ids directed=directed size=size pick=pick
+
+part netmap@1 "A network's nodes where its layout puts them, with their lines: what network draws behind its view lock."
+  in pos list(point) "each node's place, in the order of ids"
+  in ids list(text)
+  in cards list({id: text, label: text, icon: text, tone: text, shape: text, note: text, group: text, k: int, lit: text}) "every node, looked up and lit"
+  in links list({from: text, to: text, label: text, lit: bool, dim: bool})
+  in directed bool = true
+  in size size = l
+  in pick ref int "the caller's chosen node, by place; -1 for none"
+  canvas x=-1.5..1.5 y=-1..1 size=size label=("a network of " + len(ids) + " nodes and " + len(links) + " links")
     layer if=(not directed)
-      each e in good key=(e.from + ">" + e.to)
-        line (pos[indexof(ids, e.from)]) (pos[indexof(ids, e.to)]) stroke=muted width=1.5
+      each e in links key=(e.from + ">" + e.to)
+        line (pos[indexof(ids, e.from)]) (pos[indexof(ids, e.to)]) stroke=(if(e.lit, info, muted)) width=(if(e.lit, 2.5, if(e.dim, 0.75, 1.5)))
     layer
-      each nd in nodes key=nd.id
+      each nd in cards key=nd.id
         place (pos[indexof(ids, nd.id)])
-          stack id=(nd.id) pad=s fill=surface stroke=ink radius=card
-            text nd.label size=small wrap=false
-  each e in good key=(e.from + ">" + e.to)
-    arrow from=(e.from) to=(e.to) label=(e.label) if=directed
+          gnode nd
+            @picked set pick=(if(pick == picked.k, -1, picked.k))
+  each e in links key=(e.from + ">" + e.to)
+    # an empty label would still draw its chip's background over the line
+    arrow from=(e.from) to=(e.to) label=(e.label) tone=(if(e.lit, info, muted)) bold=(e.lit) dim=(e.dim) if=(directed and e.label != "")
+    arrow from=(e.from) to=(e.to) tone=(if(e.lit, info, muted)) bold=(e.lit) dim=(e.dim) if=(directed and e.label == "")

@@ -1,7 +1,7 @@
 // The shell base widgets (spec 8): frame, pane, zoom and icon. A provider may pass its own button
 // (`Button`), so the frame's icon buttons and the zoom's lock are its own; everything else is here.
 
-import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
 import { color, size } from './style';
 import { Kids, Runs } from './nodes';
@@ -150,6 +150,45 @@ const OWN_DRAG = 'button, a, input, select, textarea, [role="slider"], .mkp-hand
  * double-click points at the lock for a second instead; unlocked, the wheel zooms about the pointer,
  * a drag pans, and + / − / reset sit beside the lock.
  */
+/**
+ * What it holds at its natural width, shrunk to fit when that is wider than the room it has (never
+ * enlarged), and as tall as it then is. A drawing wider than its frame is seen whole at rest; a zoom
+ * around it lets the reader look closer.
+ */
+export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNode; on?: boolean; gutter?: number }): ReactNode {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ s: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const o = outer.current;
+    const i = inner.current;
+    if (!on || !o || !i) return;
+    const go = (): void => {
+      // a gutter on the right, kept free for what sits over the view (a zoom's lock)
+      const room = o.clientWidth - gutter;
+      const want = i.offsetWidth;
+      const s = room > 0 && want > room + 0.5 ? room / want : 1;
+      const h = Math.round(i.offsetHeight * s * 10) / 10;
+      setFit((f) => (f && f.s === s && f.h === h ? f : { s, h }));
+    };
+    go();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(go);
+    ro.observe(o);
+    ro.observe(i);
+    return () => ro.disconnect();
+  }, [on, gutter]);
+  if (!on) return <>{children}</>;
+  const shrunk = !!fit && fit.s < 1;
+  return (
+    <div ref={outer} className="mkp-fit" data-shrunk={shrunk || undefined} style={shrunk ? { height: fit.h } : undefined}>
+      <div ref={inner} className="mkp-fit-inner" style={shrunk ? { transform: `scale(${fit.s})` } : undefined}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; Button?: ShellButton }): ReactNode {
   const box = useRef<HTMLDivElement>(null);
   const [locked, setLocked] = useState(true);
@@ -236,7 +275,9 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
       }}
     >
       <div className="mkp-zoom-content" style={moved ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
-        <Kids nodes={n.kids} />
+        <FitBox on={n.p.fit !== false} gutter={44}>
+          <Kids nodes={n.kids} />
+        </FitBox>
       </div>
       <div className="mkp-zoom-tools">
         {!locked ? (
@@ -279,7 +320,7 @@ export const SHELL_CSS = `
 .mkp-frame-bar { container-type: inline-size; }
 @container (max-width: 520px) {
   [data-control=steps] { flex-wrap: wrap !important; row-gap: var(--mkp-space-xs); }
-  [data-control=steps] > [role=status] { order: 10; flex: 1 0 100%; }
+  [data-control=steps] > [role=status] { order: 10; flex: 1 0 100% !important; }
   [data-control=steps] > [data-mkp=range] { flex: 1 1 4rem !important; width: auto !important; min-width: 3rem; }
 }
 .mkp-choice-label:empty { display: none; }
@@ -302,6 +343,8 @@ export const SHELL_CSS = `
 .mkp-zoom { position: relative; overflow: hidden; min-height: 0; }
 .mkp-zoom[data-nudged] { outline: 2px solid var(--mkp-color-accent); outline-offset: -2px; }
 .mkp-zoom-content { transform-origin: 0 0; }
+.mkp-fit { overflow: hidden; }
+.mkp-fit-inner { width: max-content; min-width: 100%; transform-origin: 0 0; }
 .mkp-zoom-tools { position: absolute; top: var(--mkp-space-s); right: var(--mkp-space-s); z-index: 2; display: flex; gap: 2px; padding: 2px; border-radius: var(--mkp-radius-card); background: color-mix(in srgb, var(--mkp-color-surface) 90%, transparent); border: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 30%, transparent)); }
 .mkp-zoom[data-nudged] .mkp-zoom-tools { border-color: var(--mkp-color-accent); }
 .mkp-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; width: 1.1em; height: 1.1em; flex: none; }

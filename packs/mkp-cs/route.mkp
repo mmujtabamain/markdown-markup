@@ -1,0 +1,76 @@
+# A copy of mkp-diagrams/route.mkp, for protocol: a pack shares functions only through a dependency,
+# and mkp-cs depends on core alone. Keep the two the same.
+#
+# Edge routing for layered diagrams, done here in the compute layer. The grid's rows alternate:
+# layer r is row 2r and the gap below it is row 2r + 1. An edge gets a cell in every row it
+# crosses: in a layer, a lane (an empty element its arrow runs through, via=) that sits between
+# the boxes like one more node, so the arrow passes beside them and not through them; in a gap
+# row, its label beside a lane, or just a lane when the row holds other labels. An edge back up
+# the layers runs through lanes too, and an edge within one layer detours through the gap below
+# it. Barycentre sweeps then order each row: nodes, lanes and labels together.
+#
+# A cell is {id: text, kind: text, row: int, label: text}, kind node, lane or label. (It is not a
+# named type: a bundle carries every pack's named types, so one here would be in every bundle.)
+
+# each node's layer
+fn layerof(layers: list(list(text))): dict(int) = fold(range(0, len(layers) - 1), {}, (d, r) =>
+    fold(layers[r], d, (d2, id) => put(d2, id, r)))
+
+# the rows an edge from row a to row b crosses, in order from a: down, back up, or, within one
+# layer, the gap row below it
+fn crossed(a: int, b: int): list(int) = if(a < b, range(a + 1, b - 1), if(a > b, reverse(range(b + 1, a - 1)), [a + 1]))
+
+# the gap rows in use: where a labelled edge puts its label (the first row it crosses) and where
+# an edge within a layer detours; the others stay out of the grid. An edge from a node to itself
+# is not routed: its arrow is a loop on the node.
+fn gaps(at: dict(int), links) = fold(filter(links, l => l.from != l.to), {}, (d, l) => if(l.label != "" or at[l.from] == at[l.to],
+    put(d, "" + (2 at[l.from] + if(at[l.to] < at[l.from], -1, 1)), true), d))
+
+# one edge's cells, from its source on
+fn hops(i: int, l, at: dict(int), used) = map(
+    filter(crossed(2 at[l.from], 2 at[l.to]), g => l.from != l.to and (mod(g, 2) == 0 or has(used, "" + g))),
+    g => {id: "~" + i + "~" + g, kind: if(l.label != "" and g == crossed(2 at[l.from], 2 at[l.to])[0], "label", "lane"),
+      row: g, label: l.label})
+fn allhops(links, at: dict(int), used) = map(range(0, len(links) - 1), i => hops(i, links[i], at, used))
+
+# the rows: each layer's nodes with the lanes that cross it, and each gap row in use
+fn grid(layers: list(list(text)), cells) = filter(flatten(map(range(0, len(layers) - 1), r => [
+    map(layers[r], id => {id: id, kind: "node", row: 2 r, label: ""}) + filter(cells, c => c.row == 2 r),
+    filter(cells, c => c.row == 2 r + 1)])), row => len(row) > 0)
+
+# what each cell is next to along the edges: the cells before and after it
+fn pairs(ks: list(text)) = flatten(map(range(0, len(ks) - 2), j => [{k: ks[j], n: ks[j + 1]}, {k: ks[j + 1], n: ks[j]}]))
+fn nbrs(links, hs) = group(flatten(map(range(0, len(links) - 1), i =>
+    pairs([links[i].from] + map(hs[i], c => c.id) + [links[i].to]))), p => p.k)
+
+# where each cell sits in its row, measured from the middle (rows are centred)
+fn spots(row): dict(num) = fold(range(0, len(row) - 1), {}, (d, j) => put(d, row[j].id, j - (len(row) - 1)/2))
+# a cell's barycentre: the mean place of its neighbours in the row ref, or its own place if none are there
+fn bary(c, own: dict(num), ref: dict(num), nb): num = if(len(filter(get(nb, c.id, []), p => has(ref, p.n))) > 0,
+    mean(map(filter(get(nb, c.id, []), p => has(ref, p.n)), p => ref[p.n])), own[c.id])
+fn sortrow(row, own: dict(num), ref: dict(num), nb) = sort(row, c => bary(c, own, ref, nb))
+# row r sorted against row q, the rows on either side as they are
+fn settle(rs, r: int, q: int, nb) = map(range(0, len(rs) - 1), j =>
+    if(j == r, sortrow(rs[r], spots(rs[r]), spots(rs[q]), nb), rs[j]))
+# four rounds of barycentre sweeps: each row against the one above it, top to bottom, then
+# against the one below it, bottom to top
+fn arrange(rows, nb) = iterate(rows, 4, rs =>
+    fold(reverse(range(0, len(rs) - 2)), fold(range(1, len(rs) - 1), rs, (a, r) => settle(a, r, r - 1, nb)), (a, r) => settle(a, r, r + 1, nb)))
+
+# room beside a node for the loop of a link to itself: a lane's width, or the link's label
+fn looped(row, links) = flatten(map(row, c => [c] + first(map(filter(links, l => l.from == c.id and l.to == c.id),
+    l => {id: "~loop~" + c.id, kind: if(l.label != "", "label", "lane"), row: c.row, label: l.label}), 1)))
+
+# how many lanes a row starts with
+fn leading(row): int = fold(row, {n: 0, on: true}, (s, c) => if(s.on and c.kind == "lane", {n: s.n + 1, on: true}, {n: s.n, on: false})).n
+# empty cells to balance a row's lanes, so a lane on one side doesn't push what's in the row off centre
+fn pads(row, side: text, n: int) = map(range(1, n), j => {id: "~pad~" + row[0].id + "~" + side + j, kind: "lane", row: row[0].row, label: ""})
+fn balanced(row) = pads(row, "<", leading(reverse(row)) - leading(row)) + row + pads(row, ">", leading(row) - leading(reverse(row)))
+
+fn routed(layers: list(list(text)), links, hs) = {rows: map(arrange(grid(layers, flatten(hs)), nbrs(links, hs)), r => balanced(looped(r, links))),
+    via: map(hs, h => map(h, c => c.id))}
+
+# layers: node ids, top row first; links: {from, to, label} between those ids. The rows to draw
+# (cells of kind node, lane or label) and each link's waypoints, in the order of links.
+fn route(layers: list(list(text)), links) = routed(layers, links,
+    allhops(links, layerof(layers), gaps(layerof(layers), links)))

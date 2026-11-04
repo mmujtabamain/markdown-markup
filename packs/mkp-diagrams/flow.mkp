@@ -1,8 +1,10 @@
-flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows from the start, joined by labelled arrows."
+flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows from the start, joined by labelled arrows. Choose a box to light it and its arrows."
   fields steps links
-  in steps list(record step {id: text, label: text, kind: choice(start|step|decision|io|end) = step}) "the boxes, by id"
-  in links list(record link {from: text, to: text, label: text = ""}) "arrows between ids, with an optional label such as yes or no"
+  in steps list(record step {id: text, label: text, kind: choice(start|step|decision|io|end) = step, icon: text = "", tone: text = "", note: text = "", detail: text = ""}) "the boxes, by id; a kind gives each its icon, tone and shape, and icon, tone (info, ok, warn, bad, accent, neutral) and note change them; detail is said in the bar when it is chosen"
+  in links list(record link {from: text, to: text, label: text = "", line: choice(solid|dashed|dotted) = solid}) "arrows between ids, with an optional label such as yes or no, and a dashed or dotted line"
   in dir choice(down|right) = down "which way the chart runs"
+  in kind text = "Flowchart" "what kind of chart it is, said small before the title"
+  in title text = "" "the title"
   ids = map(steps, s => s.id)
   good = filter(links, l => indexof(ids, l.from) >= 0 and indexof(ids, l.to) >= 0)
   marked = map(filter(steps, s => s.kind == start), s => s.id)
@@ -12,7 +14,7 @@ flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows f
   lv0 = levels(ids, starts, plain)
   # a link to the same row or an earlier one is a loop back only if its target leads round to its
   # source; any other link runs down the chart, so its target goes below it
-  fn loops(l: {from: text, to: text, label: text}): bool = lv0[l.to] <= lv0[l.from] and levels(ids, [l.to], plain)[l.from] < 1000
+  fn loops(l): bool = lv0[l.to] <= lv0[l.from] and levels(ids, [l.to], plain)[l.from] < 1000
   onward = filter(good, l => not loops(l))
   # rows by the longest path along the links that run down, from the start; anything unreachable
   # goes in rows after the rest
@@ -26,6 +28,16 @@ flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows f
   # lanes for links that cross rows or run back up, and labels in rows of their own (route.mkp)
   lay = route(layers, good)
   byid = index(steps, s => s.id)
+  # left to right, a loop back sits first in each column it crosses (nodes.mkp)
+  rows = backfirst(lay.rows, flatten(map(filter(range(0, len(good) - 1), k => loops(good[k])), k => lay.via[k])), dir == right)
+
+  # the chosen box, by its place in steps; -1 while none is
+  pick = steps (len(steps)) = -1 "step"
+  chosen = if(pick >= 0 and pick < len(steps), steps[pick].id, "")
+  cards = map(range(0, len(steps) - 1), k => card({id: steps[k].id, label: steps[k].label, kind: if(steps[k].kind == step, "process", "" + steps[k].kind),
+      icon: steps[k].icon, tone: steps[k].tone, shape: "", note: steps[k].note, group: ""}, k, litnode(steps[k].id, chosen, plain)))
+  lines = map(range(0, len(good) - 1), k => {from: good[k].from, to: good[k].to, via: lay.via[k], line: good[k].line,
+      lit: litline(good[k].from, good[k].to, chosen), head: true, dim: chosen != "" and not litline(good[k].from, good[k].to, chosen)})
   fn shape(s: {id: text, label: text, kind: text}): text = if(s.kind == "start" or s.kind == "end", "([\"" + s.label + "\"])",
       if(s.kind == "decision", "{\"" + s.label + "\"}", if(s.kind == "io", "[/\"" + s.label + "\"/]", "[\"" + s.label + "\"]")))
   # in text, each box with where its links go (the labels sit in the layout, so they are said here)
@@ -34,67 +46,7 @@ flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows f
   project mermaid = ("flowchart " + if(dir == down, "TD", "LR") + "\n"
     + join(map(steps, s => "  " + s.id + shape({id: s.id, label: s.label, kind: "" + s.kind})), "\n") + "\n"
     + join(map(good, l => "  " + l.from + " -->" + if(l.label != "", "|" + l.label + "|", "") + " " + l.to), "\n"))
-  switch on=dir
-    case down
-      stack gap=xl align=center
-        each r in 0..(len(lay.rows) - 1)
-          flex gap=l justify=center align=stretch
-            each c in lay.rows[r] key=c.id
-              switch on=(c.kind)
-                case "node"
-                  flex align=center wrap=false
-                    switch on=(byid[c.id].kind)
-                      case start
-                        stack id=(c.id) pad=s stroke=ok radius=pill
-                          text (byid[c.id].label) align=center
-                      case end
-                        stack id=(c.id) pad=s stroke=bad radius=pill
-                          text (byid[c.id].label) align=center
-                      case decision
-                        stack id=(c.id) pad=m stroke=warn
-                          text (byid[c.id].label) weight=medium align=center
-                      case io
-                        stack id=(c.id) pad=s stroke=info
-                          text (byid[c.id].label) align=center
-                      else
-                        stack id=(c.id) pad=s stroke=ink radius=card
-                          text (byid[c.id].label) align=center
-                # a label sits beside its link's lane, in a row between the boxes
-                case "label"
-                  flex gap=s align=stretch wrap=false
-                    stack id=(c.id)
-                    text c.label size=small tone=muted wrap=false
-                else
-                  stack id=(c.id)
-    else
-      flex gap=xl align=center wrap=false
-        each r in 0..(len(lay.rows) - 1)
-          stack gap=l align=stretch
-            each c in lay.rows[r] key=c.id
-              switch on=(c.kind)
-                case "node"
-                  stack align=center
-                    switch on=(byid[c.id].kind)
-                      case start
-                        stack id=(c.id) pad=s stroke=ok radius=pill
-                          text (byid[c.id].label) align=center
-                      case end
-                        stack id=(c.id) pad=s stroke=bad radius=pill
-                          text (byid[c.id].label) align=center
-                      case decision
-                        stack id=(c.id) pad=m stroke=warn
-                          text (byid[c.id].label) weight=medium align=center
-                      case io
-                        stack id=(c.id) pad=s stroke=info
-                          text (byid[c.id].label) align=center
-                      else
-                        stack id=(c.id) pad=s stroke=ink radius=card
-                          text (byid[c.id].label) align=center
-                case "label"
-                  stack gap=xs align=stretch
-                    text c.label size=small tone=muted align=center wrap=false
-                    stack id=(c.id)
-                else
-                  stack id=(c.id)
-  each k in 0..(len(good) - 1)
-    arrow from=(good[k].from) to=(good[k].to) via=(lay.via[k]) route=dir
+  frame kind=kind title=title status=(if(chosen == "", told("", ""), told(byid[chosen].label, if(byid[chosen].detail != "", byid[chosen].detail, byid[chosen].note))))
+    zoom
+      stack pad=l align=center
+        layers rows=rows cards=cards lines=lines dir=dir hot=(flatten(map(filter(lines, l => l.lit), l => l.via))) faded=(flatten(map(filter(lines, l => l.dim), l => l.via))) pick=pick
