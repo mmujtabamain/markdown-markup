@@ -9,6 +9,7 @@ query@1 "Step through a query's stages (from, where, group, select, order) with 
   in select list(text) = [] "the columns kept when not grouping; empty keeps all"
   in orderby text = "" "the column the result is sorted by"
   in desc bool = false "sort largest first"
+  in title text = "A query, stage by stage" "the header's title"
 
   cols = table.cols
   # from: every row, with an id it keeps through the stages
@@ -54,9 +55,20 @@ query@1 "Step through a query's stages (from, where, group, select, order) with 
       join(map(range(0, len(stages) - 1), k => "**" + (k + 1) + ". " + stages[k].sql + "** (" + stages[k].note + ")\n\n" +
         mdtable(stages[k].cols, mdrows(len(stages[k].cols), stages[k].rows, false))), "\n"))
 
-  stack gap=m
-    stack gap=xs pad=s stroke=muted radius=card
-      each k in 0..(len(stages) - 1)
-        text (if(k == pos, "▸ ", "◦ ") + "`" + stages[k].sql + "`") weight=(if(k == pos, bold, regular))
-    text ("Step " + (pos + 1) + " of " + len(stages) + ": " + stage.note + ".")
-    reltable stage.cols stage.rows
+  frame kind="Query" title=title status=("**" + stage.sql + "** — " + stage.note + ".")
+    flex align=stretch
+      pane title="Query" note=("stage " + (pos + 1) + " of " + len(stages)) grow basis=m
+        stack gap=xs pad=s
+          each k in 0..(len(stages) - 1)
+            press kind=plain id=("stage" + k) label=(stages[k].sql) selected=(k == pos)
+              stack if=(k == pos)
+                flex pad=s gap=m radius=card stroke=info tint=info align=baseline wrap=false
+                  text ("" + (k + 1)) font=mono size=small tone=info
+                  text (stages[k].sql) font=mono weight=bold literal=true align=start
+              stack if=(k != pos)
+                flex pad=s gap=m radius=card align=baseline wrap=false
+                  text ("" + (k + 1)) font=mono size=small tone=muted
+                  text (stages[k].sql) font=mono tone=(if(k < pos, ink, muted)) literal=true align=start
+              @click set pos=k
+      pane title="Rows" note=(stage.note) grow basis=m
+        reltable stage.cols stage.rows

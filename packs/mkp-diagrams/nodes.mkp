@@ -103,9 +103,10 @@ part layers@1 "A layered diagram's rows (or, left to right, its columns) of node
   laid = map(rows, r => blocks(r, gof))
   switch on=dir
     case down
+      # rows well apart, as a chart is read: a line between them is long enough to follow
       stack gap=xl align=center
         each r in 0..(len(laid) - 1)
-          flex gap=l justify=center align=stretch wrap=false
+          flex gap=l justify=center align=stretch wrap=false pad=m
             each b in laid[r] key=b.id
               switch on=(if(has(titles, b.group) or len(b.cells) > 1, "group", b.cells[0].kind))
                 # a group: a box with its title, under its nodes so lines from above reach them clear

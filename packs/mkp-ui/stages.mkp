@@ -1,0 +1,19 @@
+stages@1 "A process in stages, step by step: a row of stage chips (the ones done washed ok, the current one lit), stepped through or played from the bar, whose status says what the current stage does."
+  in title text = "Step by step" "the header's title"
+  in kind text = "Process" "what kind of thing it is, said small before the title"
+  in stages list(record stage {name: text, note: text = ""}) "the stages in order: a name, and what it does"
+  in done bool = true "wash the stages already passed"
+
+  n = len(stages)
+  pos = steps (max(1, n)) play=5s "stage"
+  name = at(map(stages, s => s.name), pos, "")
+  note = at(map(stages, s => s.note), pos, "")
+  project md = join(map(range(0, n - 1), k => "" + (k + 1) + ". **" + stages[k].name + "**" + if(stages[k].note == "", "", ": " + stages[k].note)), "\n") + "\n"
+
+  frame kind=kind title=title status=("**" + name + "**" + if(note == "", "", " — " + note))
+    flex gap=s pad=l align=stretch
+      each k in range(0, n - 1) key=k
+        press kind=plain id=("stage" + k) label=(stages[k].name) selected=(k == pos) grow
+          stack pad=m radius=card align=center stroke=(if(k == pos, info, if(done and k < pos, ok, muted))) tint=(if(k == pos, info, if(done and k < pos, ok, surface)))
+            text (stages[k].name) size=small align=center weight=(if(k == pos, bold, regular))
+          @click set pos=k

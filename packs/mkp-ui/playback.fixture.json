@@ -1,68 +1,78 @@
 {
-  "widget": "playback@1",
-  "cases": {
-    "normal": {
-      "summary": "Frame 1 of 6, played for two seconds.",
-      "props": {
-        "at": {
-          "state": 0
-        },
-        "last": 5
-      },
-      "play": [
-        {
-          "press": "play"
-        },
-        {
-          "wait": 2000
-        }
-      ]
+ "widget": "playback@1",
+ "cases": {
+  "normal": {
+   "summary": "Frame 1 of 6, played for two seconds.",
+   "props": {
+    "at": {
+     "state": 0
     },
-    "fast-loop": {
-      "summary": "A fast looping playback over 4 frames, stepped by hand first.",
-      "props": {
-        "at": {
-          "state": 0
-        },
-        "last": 3,
-        "pace": "fast",
-        "loop": true
-      },
-      "play": [
-        {
-          "press": "forward"
-        },
-        {
-          "press": "forward"
-        },
-        {
-          "press": "play_fast"
-        },
-        {
-          "wait": 3000
-        },
-        {
-          "press": "pause"
-        }
-      ]
+    "last": 5
+   },
+   "play": [
+    {
+     "press": "play"
     },
-    "end": {
-      "summary": "At the last frame: Play starts again from the first.",
-      "props": {
-        "at": {
-          "state": 4
-        },
-        "last": 4,
-        "pace": "slow"
-      },
-      "play": [
-        {
-          "press": "play_slow"
-        },
-        {
-          "wait": 1300
-        }
-      ]
+    {
+     "wait": 2000
     }
+   ]
+  },
+  "fast-loop": {
+   "summary": "A fast looping playback over 4 frames, stepped by hand first.",
+   "props": {
+    "at": {
+     "state": 0
+    },
+    "last": 3,
+    "pace": "fast",
+    "loop": true
+   },
+   "play": [
+    {
+     "press": "forward"
+    },
+    {
+     "press": "forward"
+    },
+    {
+     "press": "play_fast"
+    },
+    {
+     "wait": 3000
+    },
+    {
+     "press": "pause"
+    }
+   ]
+  },
+  "end": {
+   "summary": "At the last frame: Play starts again from the first.",
+   "props": {
+    "at": {
+     "state": 4
+    },
+    "last": 4,
+    "pace": "slow"
+   },
+   "play": [
+    {
+     "press": "play_slow"
+    },
+    {
+     "wait": 1300
+    }
+   ]
+  },
+  "status": {
+   "summary": "Frame 3 of 8 with what is happening now beside the buttons.",
+   "props": {
+    "at": {
+     "state": 2
+    },
+    "last": 7,
+    "status": "**Build** — bundle the app."
+   }
   }
+ }
 }

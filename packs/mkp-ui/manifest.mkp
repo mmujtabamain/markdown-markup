@@ -1,3 +1,3 @@
 pack mkp-ui@1 "Interface pieces over the base set: tabs, cards, callouts, values, steppers and more."
   requires core@1
-  provides tabs card callout value stepper button toggle slider select disclosure badge chip progress figure tooltip playback
+  provides tabs card callout value stepper stages board rail button toggle slider select disclosure badge chip progress figure tooltip playback

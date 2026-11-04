@@ -4,6 +4,7 @@ fn tf(b: bool): text = if(b, "T", "F")
 truth@1 "A truth table computed from variable names and boolean expressions, one row per assignment."
   in vars list(choice(p|q|r|s)) = [p, q] "the variables, in column order; each row gives them T or F"
   in cols list(record col {label: latex, f: expr(p: bool, q: bool, r: bool, s: bool): bool}) "the columns: a heading and an expression in p, q, r and s"
+  in title text = "Truth table" "the header's title"
 
   n = len(vars)
   size = fold(vars, 1, (a, v) => a * 2)
@@ -20,19 +21,11 @@ truth@1 "A truth table computed from variable names and boolean expressions, one
 
   # Markdown bolds the rows where the last column is true
   project md = mdtable(head, map(range(0, size - 1), k => if(final(k), map(rows[k], c => "**" + c + "**"), rows[k])))
-  stack gap=m
-    stack gap=xs
-      grid cols=(max(1, min(12, len(head)))) gap=s pad=s
-        each v in vars
-          text "$\val{v}$" weight=bold tone=muted
-        each c in cols
-          text "$\val{c.label}$" weight=bold tone=muted
-      reltable [] drawn
-    flex gap=s align=baseline
-      text ("Row " + (pos + 1) + ":") tone=muted
-      each v in vars
-        text "$\val{v}$ = \val{tf(val(pos, v))}," tone=muted
-      text "gives" tone=muted
-      each i in 0..(len(cols) - 1)
-        text "$\val{cols[i].label}$ = \val{tf(cols[i].f(val(pos, \"p\"), val(pos, \"q\"), val(pos, \"r\"), val(pos, \"s\")))}\val{if(i < len(cols) - 1, \",\", \".\")}" tone=muted
-    text ("The last column is true in " + count + " of " + size + " rows.") if=(len(cols) > 0)
+  labels = map(vars, v => "" + v) + map(cols, c => "" + c.label)
+  # the status: the row's assignment and what each column gives, as one formula
+  says = (join(map(vars, v => v + " = \\mathrm{" + tf(val(pos, v)) + "}"), ",\\ ") + if(len(cols) == 0, "", "\\quad\\text{gives}\\quad " +
+      join(map(range(0, len(cols) - 1), i => cols[i].label + " = \\mathrm{" + tf(cols[i].f(val(pos, "p"), val(pos, "q"), val(pos, "r"), val(pos, "s"))) + "}"), ",\\ ")))
+  frame kind="Truth table" title=title status=("**Row " + (pos + 1) + "** — $\val{says}$")
+    pane title=("" + size + " rows") note=(if(len(cols) == 0, "", "the last column is true in " + count + " of " + size))
+      reltable labels drawn bar=true pressable=true maths=true
+        @picked set pos=(picked.row)

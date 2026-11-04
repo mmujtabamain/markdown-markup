@@ -1,13 +1,17 @@
-part stepper@1 "Back and forward buttons over 0..last, bound to the caller's state."
+part stepper@1 "Back and forward over 0..last, bound to the caller's state: quiet chevrons either side of where it is (3/8), and start over when asked."
   fields at last
   in at ref int "the caller's position"
   in last int "the last position"
-  out moved "after either button moves"
-  flex gap=s align=center
-    press label="previous" disabled=(at <= 0)
+  in restart bool = false "a start-over button after the count"
+  out moved "after any button moves"
+  flex gap=xs align=center wrap=false
+    press label="previous" disabled=(at <= 0) emphasis=low
       text "‹"
       @click set at=max(at - 1, 0) emit moved
-    text "\val{at + 1} of \val{last + 1}" tone=muted
-    press label="next" disabled=(at >= last)
+    press label="next" disabled=(at >= last) emphasis=low
       text "›"
       @click set at=min(at + 1, last) emit moved
+    text "\val{at + 1}/\val{last + 1}" font=mono size=small tone=muted wrap=false
+    press id=restart label="start over" disabled=(at <= 0) emphasis=low if=restart
+      text "↺"
+      @click set at=0 emit moved

@@ -1,0 +1,178 @@
+{
+ "widget": "rail@1",
+ "cases": {
+  "shipping": {
+   "summary": "An order's shipping status: four stops passed or reached, the current one held at the hub, two ahead; the stops reached can be picked.",
+   "props": {
+    "kind": "Order",
+    "title": "#48213 · a pair of headphones",
+    "stops": [
+     {
+      "id": "ordered",
+      "marker": "Mon 09:12",
+      "label": "Ordered"
+     },
+     {
+      "id": "packed",
+      "marker": "Mon 16:40",
+      "label": "Packed"
+     },
+     {
+      "id": "shipped",
+      "marker": "Tue 07:05",
+      "label": "Left the warehouse"
+     },
+     {
+      "id": "hub",
+      "marker": "Tue 21:30",
+      "label": "At the regional hub",
+      "tone": "warn",
+      "hint": "Held for a customs check"
+     },
+     {
+      "id": "van",
+      "marker": "Thu",
+      "label": "Out for delivery"
+     },
+     {
+      "id": "delivered",
+      "marker": "—",
+      "label": "Delivered"
+     }
+    ],
+    "current": 3,
+    "reach": 3
+   },
+   "play": [
+    {
+     "press": "packed"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "press": "hub"
+    }
+   ]
+  },
+  "releases": {
+   "summary": "Eleven releases along a line, played one by one; one was rolled back.",
+   "props": {
+    "kind": "Releases",
+    "title": "Release history",
+    "stops": [
+     {
+      "id": "v0.1",
+      "marker": "v0.1",
+      "label": "First playground"
+     },
+     {
+      "id": "v0.2",
+      "marker": "v0.2",
+      "label": "Motion"
+     },
+     {
+      "id": "v0.3",
+      "marker": "v0.3",
+      "label": "Tabs drag"
+     },
+     {
+      "id": "v0.4",
+      "marker": "v0.4",
+      "label": "Press feedback"
+     },
+     {
+      "id": "v0.5",
+      "marker": "v0.5",
+      "label": "Focus rings"
+     },
+     {
+      "id": "v0.6",
+      "marker": "v0.6",
+      "label": "Notifications",
+      "tone": "bad",
+      "hint": "Rolled back: toasts stacked under the header"
+     },
+     {
+      "id": "v0.7",
+      "marker": "v0.7",
+      "label": "Badges"
+     },
+     {
+      "id": "v0.8",
+      "marker": "v0.8",
+      "label": "Lesson renderer"
+     },
+     {
+      "id": "v0.9",
+      "marker": "v0.9",
+      "label": "Fixtures"
+     },
+     {
+      "id": "v0.10",
+      "marker": "v0.10",
+      "label": "Shot tool"
+     },
+     {
+      "id": "v0.11",
+      "marker": "v0.11",
+      "label": "Widgets reimagined"
+     }
+    ],
+    "play": true,
+    "lead": "marker",
+    "window": 7
+   },
+   "play": [
+    {
+     "press": "pos.play"
+    },
+    {
+     "wait": 5000
+    }
+   ]
+  },
+  "onboarding": {
+   "summary": "Getting started, down the left: two steps done, one skipped, the current one in a pane beside it, and the last not reached.",
+   "props": {
+    "kind": "Setup",
+    "title": "Getting started",
+    "stops": [
+     {
+      "id": "s0",
+      "label": "Create your account",
+      "sub": "Email confirmed"
+     },
+     {
+      "id": "s1",
+      "label": "Connect a calendar",
+      "sub": "Google, 2 calendars"
+     },
+     {
+      "id": "s2",
+      "label": "Invite your team",
+      "sub": "Skipped for now",
+      "tone": "warn"
+     },
+     {
+      "id": "s3",
+      "label": "Book a first meeting",
+      "sub": "Pick a slot to finish"
+     },
+     {
+      "id": "s4",
+      "label": "Done"
+     }
+    ],
+    "current": 3,
+    "reach": 3,
+    "vertical": true
+   },
+   "play": [
+    {
+     "press": "s1"
+    }
+   ]
+  }
+ }
+}

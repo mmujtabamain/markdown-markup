@@ -1,0 +1,177 @@
+{
+ "widget": "board@1",
+ "cases": {
+  "bug-triage": {
+   "summary": "Bugs this sprint on a triage board with limits: selecting a card moves it on, and a full column refuses it.",
+   "props": {
+    "kind": "Triage",
+    "title": "Bugs this sprint",
+    "columns": [
+     {
+      "id": "new",
+      "label": "New"
+     },
+     {
+      "id": "triaged",
+      "label": "Triaged",
+      "limit": 3
+     },
+     {
+      "id": "fixing",
+      "label": "Fixing",
+      "limit": 2
+     },
+     {
+      "id": "done",
+      "label": "Fixed"
+     }
+    ],
+    "cards": [
+     {
+      "id": "BUG-212",
+      "column": "new",
+      "title": "Crash on empty search",
+      "code": "BUG-212"
+     },
+     {
+      "id": "BUG-215",
+      "column": "new",
+      "title": "Dark mode: unreadable chips",
+      "code": "BUG-215"
+     },
+     {
+      "id": "BUG-198",
+      "column": "triaged",
+      "title": "Slow export over 10k rows",
+      "code": "BUG-198"
+     },
+     {
+      "id": "BUG-201",
+      "column": "triaged",
+      "title": "Timezone off by one in reports",
+      "code": "BUG-201"
+     },
+     {
+      "id": "BUG-190",
+      "column": "fixing",
+      "title": "Login loop on Safari",
+      "code": "BUG-190"
+     },
+     {
+      "id": "BUG-188",
+      "column": "fixing",
+      "title": "Duplicate emails",
+      "code": "BUG-188"
+     },
+     {
+      "id": "BUG-170",
+      "column": "done",
+      "title": "Typo in invoice footer",
+      "code": "BUG-170"
+     }
+    ]
+   },
+   "play": [
+    {
+     "press": "BUG-212"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "press": "BUG-212"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  "hiring": {
+   "summary": "A hiring pipeline for a frontend engineer, from applied to hired, with limits on the later stages.",
+   "props": {
+    "kind": "Hiring",
+    "title": "Frontend engineer",
+    "columns": [
+     {
+      "id": "applied",
+      "label": "Applied"
+     },
+     {
+      "id": "screen",
+      "label": "Phone screen",
+      "limit": 4
+     },
+     {
+      "id": "onsite",
+      "label": "On-site",
+      "limit": 2
+     },
+     {
+      "id": "offer",
+      "label": "Offer",
+      "limit": 1
+     },
+     {
+      "id": "hired",
+      "label": "Hired"
+     }
+    ],
+    "cards": [
+     {
+      "id": "Ana P.",
+      "column": "applied",
+      "title": "Ana P.",
+      "code": "#301"
+     },
+     {
+      "id": "Bo L.",
+      "column": "applied",
+      "title": "Bo L.",
+      "code": "#302"
+     },
+     {
+      "id": "Chidi O.",
+      "column": "applied",
+      "title": "Chidi O.",
+      "code": "#303"
+     },
+     {
+      "id": "Dana K.",
+      "column": "screen",
+      "title": "Dana K.",
+      "code": "#304"
+     },
+     {
+      "id": "Eli R.",
+      "column": "screen",
+      "title": "Eli R.",
+      "code": "#305"
+     },
+     {
+      "id": "Fatima S.",
+      "column": "onsite",
+      "title": "Fatima S.",
+      "code": "#306"
+     },
+     {
+      "id": "Gus T.",
+      "column": "offer",
+      "title": "Gus T.",
+      "code": "#307"
+     }
+    ]
+   },
+   "play": [
+    {
+     "press": "Gus T."
+    },
+    {
+     "wait": 300
+    },
+    {
+     "press": "Fatima S."
+    }
+   ]
+  }
+ }
+}

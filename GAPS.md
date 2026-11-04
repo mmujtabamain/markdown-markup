@@ -450,3 +450,40 @@ rule of the spec, not a defect), *in progress*.
 146. **MKP press: no hover.** *Open*, minor.
 147. **MKP zoom: a drawing's own width widened the column it sat in**, so a fitted zoom never shrank and
      its lock sat off to the right. *Fixed:* the fit is `contain: inline-size`.
+
+### Views parity: data grid, board, rail and stepper (mkp-data, mkp-ui)
+
+148. **MKP grid: columns are equal shares only.** `grid cols=n` is `repeat(n, 1fr)` with at most 12, so a
+     table can't size its columns to their content, and twelfths are coarse, worst on a phone. *Worked
+     around:* columns are weighted by their longest cell (mono ×1.3) and the 12 shares split by largest
+     remainder (`gridshares`); cells use `span=`, and a column's `width:` overrides. *Open.*
+149. **MKP: a box has no least width, so it can't scroll sideways.** A table narrower than its content
+     squeezes its cells, and unwrapped values run over each other. *Worked around:* a blank line of
+     figure spaces (U+2007) in an unwrapped flex sets a least width, so the pane scrolls (datagrid and
+     board trays). It costs one blank line. (142 is the same.) *Open.*
+150. **MKP: an element can't be kept in view.** Study Pad's grid and rail scroll themselves to keep the
+     current row or stop visible. *Worked around:* `window=` shows N rows or stops around the current
+     one, with the edge ones faded. *Open.*
+151. **MKP: text can't truncate to one line with an ellipsis.** `wrap=false` overflows its box, and
+     `slice` only takes lists. Board titles wrap onto two reserved lines. *Open.*
+152. **MKP (@mkp/shadcn): `press kind=plain` is a bare `<button>`.** Its text came out centred, and a
+     plain press stretched by its row centred its content vertically. *Fixed* (89): `.mkp-plain` is a
+     top-aligned column that keeps its content's alignment.
+153. **MKP runtime: a part reused by `each key=` keeps the binding from its first render.** `setupInst`
+     memoises a part's inputs with the caller env from when the instance was created. When a keyed item
+     moves to another position (a query stage that sorts), its input is recomputed with the old index.
+     It showed as `mkp.index` in `query/filter-project` (FROM → ORDER BY). *Worked around:* `reltable`
+     keys rows by `id + "@" + k`. *Open:* a reused instance's input memos should use its current
+     caller env.
+154. **MKP: no one-sided rules or line widths.** A column rule is `stack pad=xs tint=ink` (4px against
+     Study Pad's 2px); a rail line is an empty `stack stroke=`. *Worked around.*
+155. **MKP: a YAML record can't hold a colour, and a pack function can't name a colour token.** Tones in
+     records are choices or text, and each definition carries its own tone-to-colour function.
+     *Worked around.* (117 and 138 are the same.)
+156. **MKP: `play=` is a fixed total duration.** It can't be per step, so the pace changes with the
+     number of rows (16 jobs at 500ms each needs `play=8s`). *Open*, minor.
+157. **MKP: a latex value in `$\val{…}$` fails.** In a text template, a latex input drew nothing, not
+     even the rest of the text; in an expression string it gave `mkp.unknown-name`. *Worked around:*
+     `truth` turns its labels into text and builds its status as one TeX string. *Open.*
+158. **MKP: no purple ("thm") tone.** Linked rows, the FK chip and the sort key use info, so a linked row
+     looks like a current one. *Open*, minor.

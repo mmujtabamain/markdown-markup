@@ -1,0 +1,81 @@
+rail@1 "Stops along a line: a timeline, a journey, a shipping status. The stops passed are filled and joined in ink, the current one is lit in its tone, the rest wait hollow; across, each has a time above and a label below; down, a detail pane beside it shows the current stop."
+  in title text = "Rail" "the header's title"
+  in kind text = "Timeline" "what kind of thing it is, said small before the title"
+  in stops list(record stop {id: text, label: text, marker: text = "", sub: text = "", tone: choice(plain|info|ok|warn|bad) = plain, hint: text = ""}) "the stops in order: an id, a label, a marker above it (a time, a version), a second line, a tone for its dot (an outcome, a warning) and a remark for the bar"
+  in current int = 0 "the stop it starts at, from 0"
+  in reach int = -1 "the last stop that can be picked (-1: every stop); later ones wait"
+  in vertical bool = false "down the left, with the current stop in a pane beside it, instead of across"
+  in play bool = false "a playback bar that steps along the stops"
+  in lead choice(label|marker) = label "what the bar's status leads with, in bold"
+  in window int 0..50 = 0 "across, how many stops show at once, kept around the current one (0: all)"
+
+  n = len(stops)
+  pos = steps (max(1, n)) play=8s = (max(0, min(n - 1, current))) "stop"
+  fn pickable(k: int): bool = reach < 0 or k <= reach
+  fn passed(k: int): bool = k < pos
+  # a stop's dot: its own tone, else lit in info when current, filled when passed, hollow ahead
+  fn hue(k: int): color = if(stops[k].tone == ok, ok, if(stops[k].tone == warn, warn, if(stops[k].tone == bad, bad, if(stops[k].tone == info, info,
+      if(k == pos, info, if(passed(k), ink, muted))))))
+  fn ring(k: int): bool = k == pos or stops[k].tone != plain
+  fn solid(k: int): bool = k <= pos or stops[k].tone != plain
+
+  first = if(window > 0 and not vertical, max(0, min(n - window, pos - 2)), 0)
+  last = if(window > 0 and not vertical, min(n - 1, first + window - 1), n - 1)
+  shown = range(first, last)
+  nlabel = at(map(stops, s => s.label), pos, "")
+  nmarker = at(map(stops, s => s.marker), pos, "")
+  nsub = at(map(stops, s => s.sub), pos, "")
+  nhint = at(map(stops, s => s.hint), pos, "")
+  status = if(n == 0 or vertical, "", if(lead == marker and nmarker != "", "**" + nmarker + "** — " + nlabel,
+      "**" + nlabel + "**" + if(nmarker == "", "", " · " + nmarker)) + if(nhint == "", "", " — " + nhint))
+
+  project md = join(map(range(0, n - 1), k => "" + (k + 1) + ". " + if(k == pos, "**" + stops[k].label + "**", stops[k].label) +
+      if(stops[k].marker == "", "", " (" + stops[k].marker + ")") + if(stops[k].sub == "", "", ": " + stops[k].sub) +
+      if(stops[k].hint == "", "", " — " + stops[k].hint) + if(k < pos, " ✓", if(k == pos, " ← now", ""))), "\n") + "\n"
+
+  frame kind=kind title=title status=status
+    # across: marker, dot on the line, label
+    flex pad=m align=start wrap=false if=(not vertical)
+      each k in shown key=stops[k].id
+        press kind=plain id=(stops[k].id) label=(stops[k].label) selected=(k == pos) disabled=(not pickable(k)) grow
+          stack dim=(window > 0 and ((k == first and first > 0) or (k == last and last < n - 1)))
+            stack pad=xs
+              text (stops[k].marker) font=mono size=small tone=(if(k == pos, info, muted)) weight=(if(k == pos, bold, regular)) align=center wrap=false lines=1
+            flex align=center wrap=false
+              # the line runs from the first dot to the last; the part passed is ink
+              stack grow stroke=(if(k <= pos, ink, muted)) if=(k > 0)
+              stack grow if=(k == 0)
+              stack pad=xs radius=pill tint=(if(ring(k), hue(k), surface))
+                stack pad=xs radius=pill fill=(hue(k))
+                  stack pad=xs radius=pill fill=(if(solid(k), hue(k), surface))
+              stack grow stroke=(if(k < pos, ink, muted)) if=(k < n - 1)
+              stack grow if=(k == n - 1)
+            stack pad=xs
+              text (stops[k].label) size=small tone=(if(k <= pos, ink, muted)) weight=(if(k == pos, bold, regular)) align=center lines=2
+              text (stops[k].sub) size=small tone=muted align=center if=(stops[k].sub != "")
+          @click set pos=k
+    # down: the rail on the left, the current stop beside it
+    flex align=stretch if=vertical
+      pane basis=s
+        stack pad=s tint=muted
+          each k in shown key=stops[k].id
+            press kind=plain id=(stops[k].id) label=(stops[k].label) selected=(k == pos) disabled=(not pickable(k))
+              flex gap=m pad=xs align=stretch wrap=false
+                stack align=center
+                  stack pad=xs radius=pill tint=(if(ring(k), hue(k), muted))
+                    stack pad=xs radius=pill fill=(hue(k))
+                      stack pad=xs radius=pill fill=(if(solid(k), hue(k), surface))
+                  stack grow stroke=(if(k < pos, ink, muted)) if=(k < n - 1)
+                stack grow
+                  text (stops[k].label) weight=(if(k == pos, bold, regular)) tone=(if(k <= pos, ink, muted)) align=start
+                  text (stops[k].sub) size=small tone=muted align=start lines=1
+              @click set pos=k
+      pane grow basis=m
+        stack gap=xs pad=l
+          text nlabel weight=bold
+          text nsub tone=muted
+          text nhint size=small tone=muted if=(nhint != "")
+    fill bar
+      switch on=play
+        case true
+          controls pos
