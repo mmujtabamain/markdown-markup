@@ -41,3 +41,24 @@ describe('mkp parser', () => {
     expect(show('0.5i')).toBe('(0.5 · i)');
   });
 });
+
+describe('Markdown blocks', () => {
+  it('a multi-line paragraph in a quote or an alert loses its "> " markers', async () => {
+    const { markdownToNodes } = await import('../src/markdown');
+    const [alert] = markdownToNodes('> [!NOTE]\n> A note: background\n> worth knowing.\n', 1, []);
+    expect(alert.props?.alert).toEqual({ lit: 'note' });
+    expect(alert.children?.[0].props?.text).toEqual({ text: 'A note: background\nworth knowing.' });
+    const [quote] = markdownToNodes('> one line\n> and the next\n', 1, []);
+    expect(quote.children?.[0].props?.text).toEqual({ text: 'one line\nand the next' });
+    const [nested] = markdownToNodes('> > deep\n> > deeper\n', 1, []);
+    expect(nested.children?.[0].children?.[0].props?.text).toEqual({ text: 'deep\ndeeper' });
+  });
+});
+
+describe('footnotes', () => {
+  it('a reference is a footnote run though its definition is elsewhere in the document', async () => {
+    const { inlineRuns } = await import('../src/markdown');
+    expect(inlineRuns('Maths, with a footnote[^engine].')).toEqual([{ t: 'text', v: 'Maths, with a footnote' }, { t: 'fnref', label: 'engine' }, { t: 'text', v: '.' }]);
+    expect(inlineRuns('Not one: `[^x]` in code.')).toEqual([{ t: 'text', v: 'Not one: ' }, { t: 'code', v: '[^x]' }, { t: 'text', v: ' in code.' }]);
+  });
+});

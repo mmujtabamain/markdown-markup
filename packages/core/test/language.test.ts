@@ -217,6 +217,15 @@ describe('the host interface (15.1–15.3)', () => {
     expect(got).toEqual([{ t: 1.5 }]);
     expect(build(src.replace('signal picked', 'signal error'), '').errors).toContain('mkp.reserved');
   });
+
+  it('refuses a widget named like a built-in node, which a document would read as the built-in', () => {
+    for (const name of ['controls', 'each', 'slot', 'arrow']) {
+      const { errors, all } = build(`${name}@1 "w"\n  text "x"\n`, '');
+      expect(errors, name).toContain('mkp.reserved');
+      expect(all.join('\n')).toMatch(/built-in node name/);
+    }
+    expect(build('panel@1 "w"\n  text "x"\n', '').errors).toEqual([]);
+  });
 });
 
 describe('document state (6.23) and profiles (16)', () => {

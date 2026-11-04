@@ -642,7 +642,9 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const ra = rects.current.get(a.from);
       const rb = rects.current.get(a.to);
       if (!ra || !rb || entries.current.get(a.from)?.hidden || entries.current.get(a.to)?.hidden) continue;
-      const pth = arrowPath(ra, rb, a.curve);
+      // waypoints not measured yet, or hidden, are passed by
+      const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
+      const pth = arrowPath(ra, rb, a.curve, 3, 7, via);
       if (pth) out.push({ key: a.key, d: pth.d, head: pth.head.map((q) => q.join(',')).join(' '), label: a.label ? pth.label : undefined, runs: a.label });
     }
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
@@ -654,7 +656,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
   const measured = useRef(new Set<string>());
   const measure = useRef(() => {
     const want = new Set<string>();
-    for (const a of arrowsRef.current ?? []) want.add(a.from).add(a.to);
+    for (const a of arrowsRef.current ?? []) for (const k of [a.from, a.to, ...(a.via ?? [])]) want.add(k);
     const root = container.current as Measurable | null;
     for (const k of want) {
       const e = entries.current.get(k);

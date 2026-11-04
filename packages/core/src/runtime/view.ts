@@ -22,6 +22,8 @@ export interface VArrow {
   to: string;
   label?: VRun[];
   curve?: boolean;
+  /** the keys of the elements the path runs through, in order (via=, 6.10) */
+  via?: string[];
 }
 
 export type VShape =

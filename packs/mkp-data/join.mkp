@@ -32,9 +32,9 @@ join@1 "Two relations and their join on a key: step through the left rows and se
   stack gap=m
     text ("`" + sql + "`")
     flex gap=xl align=start
-      stack grow
+      stack grow basis=m
         reltable left.cols lrows title=lname
-      stack grow
+      stack grow basis=m
         reltable right.cols rrows title=rname
     text (on + " = " + lkey(pos) + if(len(hits) == 0, " matches no row of " + rname + if(kind == leftouter, ", so the row is kept with NULLs.", ", so it adds nothing."),
         " matches " + len(hits) + " row" + if(len(hits) == 1, "", "s") + " of " + rname + ".")) tone=muted

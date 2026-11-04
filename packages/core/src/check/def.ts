@@ -42,7 +42,6 @@ export interface Sig {
   requires: string[];
 }
 
-const BUILTIN_NODES = new Set(['each', 'switch', 'slot', 'fill', 'controls', 'arrow', 'case', 'else']);
 const META_KEYS = new Set(['id', 'if', 'basis', 'span']);
 const META_FLAGS = new Set(['hidden', 'grow']);
 const EVENT_ONLY_STATE = new Set(['change', 'end']);
@@ -999,11 +998,12 @@ export class DefChecker {
       } else if (!a.key && a.value.v === 'expr' && a.value.e.k === 'id' && a.value.e.name === 'curve') out.curve = true;
       else if (!a.key && a.value.v === 'expr' && a.value.e.k !== 'id') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'label') out.label = this.value(a.value, T.text, scope, a.p);
+      else if (a.key === 'via') out.via = this.value(a.value, T.list(T.text), scope, a.p);
       else if (a.key === 'if') {
         const meta: IRMeta = {};
         this.meta(a, meta, scope);
         out.meta = meta;
-      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label" and curve', 'mkp.unknown-prop');
+      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids) and curve', 'mkp.unknown-prop');
     }
     if (!out.from || !out.to) this.fail(n.p, 'arrow needs from=id and to=id');
     return out;
@@ -1142,17 +1142,6 @@ function literalOf(a: A): unknown {
 
 function rt0(t: Type, env: TypeEnv): string {
   return resolve(t, env).t;
-}
-
-function srcOf(e: Ex): string {
-  switch (e.k) {
-    case 'num':
-      return String(e.v);
-    case 'id':
-      return e.name;
-    default:
-      return '';
-  }
 }
 
 export function pos(p: Pos): IRPos {

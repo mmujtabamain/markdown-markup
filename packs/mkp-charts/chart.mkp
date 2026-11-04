@@ -85,11 +85,11 @@ chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks,
         each si in colour(0) key=si
           path (area(si)) closed fill=accent stroke=none
         each si in colour(1) key=si
-          path (area(si)) closed fill=warn stroke=none
+          path (area(si)) closed fill=info stroke=none
         each si in colour(2) key=si
-          path (area(si)) closed fill=ok stroke=none
+          path (area(si)) closed fill=warn stroke=none
         each si in colour(3) key=si
-          path (area(si)) closed fill=bad stroke=none
+          path (area(si)) closed fill=ok stroke=none
       # the marks, one block per palette colour
       layer
         each si in colour(0) key=si
@@ -99,32 +99,32 @@ chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks,
             line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=accent width=1.5 if=(kind == stem)
             circle (P(all[si].data[j])) dotr fill=accent if=(showdots)
         each si in colour(1) key=si
+          path (line(si)) stroke=info width=2 if=(kind == line or kind == area)
+          each j in 0..(len(all[si].data) - 1)
+            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=info stroke=none if=(kind == bar)
+            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=info width=1.5 if=(kind == stem)
+            circle (P(all[si].data[j])) dotr fill=info if=(showdots)
+        each si in colour(2) key=si
           path (line(si)) stroke=warn width=2 if=(kind == line or kind == area)
           each j in 0..(len(all[si].data) - 1)
             rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=warn stroke=none if=(kind == bar)
             line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=warn width=1.5 if=(kind == stem)
             circle (P(all[si].data[j])) dotr fill=warn if=(showdots)
-        each si in colour(2) key=si
+        each si in colour(3) key=si
           path (line(si)) stroke=ok width=2 if=(kind == line or kind == area)
           each j in 0..(len(all[si].data) - 1)
             rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=ok stroke=none if=(kind == bar)
             line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=ok width=1.5 if=(kind == stem)
             circle (P(all[si].data[j])) dotr fill=ok if=(showdots)
-        each si in colour(3) key=si
-          path (line(si)) stroke=bad width=2 if=(kind == line or kind == area)
-          each j in 0..(len(all[si].data) - 1)
-            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=bad stroke=none if=(kind == bar)
-            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=bad width=1.5 if=(kind == stem)
-            circle (P(all[si].data[j])) dotr fill=bad if=(showdots)
-    text xlabel tone=muted size=small align=center if=(xlabel != "")
+    text xlabel tone=muted size=small if=(xlabel != "")
     legend if=(ns > 1)
       each si in 0..(ns - 1)
         switch on=(mod(si, 4))
           case 0
             item (all[si].name) accent
           case 1
-            item (all[si].name) warn
+            item (all[si].name) info
           case 2
-            item (all[si].name) ok
+            item (all[si].name) warn
           else
-            item (all[si].name) bad
+            item (all[si].name) ok

@@ -139,7 +139,7 @@ export function expand(b: IRBundle): IRBundle {
       case 'slot':
         return [{ ...base, value: expr(n.value!, ctx) }];
       case 'arrow':
-        return [{ ...base, from: n.from ? val(n.from, ctx) : n.from, to: n.to ? val(n.to, ctx) : n.to }];
+        return [{ ...base, from: n.from ? val(n.from, ctx) : n.from, to: n.to ? val(n.to, ctx) : n.to, ...(n.via ? { via: val(n.via, ctx) } : {}), ...(n.label ? { label: val(n.label, ctx) } : {}) }];
       case 'controls':
         return [base];
     }

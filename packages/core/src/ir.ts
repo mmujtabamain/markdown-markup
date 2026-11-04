@@ -125,6 +125,8 @@ export interface IRNode {
   to?: IRVal;
   label?: IRVal;
   curve?: boolean;
+  /** arrow: the ids of the elements the path runs through, in order (a list(text) value) */
+  via?: IRVal;
   /** expanded IR: a definition instance */
   inst?: IRInstance;
   /** gfx fallback carried with the node (8.1) */

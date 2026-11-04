@@ -148,9 +148,31 @@ mono`. No pixel values anywhere: sizes come from tokens and canvas ranges.
 
 ### Relations: arrow
 
-`arrow from=a to=b ["label"] [curve]` joins two elements by their outlines; ids can be computed:
-`arrow from=(node.id) to=(k.id)`. Arrows find ids in their own instance and in instances nested in
-it, which is how a recursive tree joins parent to child.
+`arrow from=a to=b ["label"] [curve] [via=(ids)]` joins two elements by their outlines; ids can be
+computed: `arrow from=(node.id) to=(k.id)`. Arrows find ids in their own instance and in instances
+nested in it, which is how a recursive tree joins parent to child.
+
+`via=(ids)` routes an arrow through other elements, in order, so it goes round what is between its
+ends instead of straight through it. The path runs along each via element's longer side (top to
+bottom through a tall one, side to side through a wide one) and through the centre of an empty
+one, with rounded corners. The usual via element is a **lane**: an empty `stack id=…` placed in
+the layout like one more box, which an `align=stretch` row stretches to the row's height, so the
+arrow passes the row between its boxes (each box sits in a `flex align=center` there, so it keeps
+its own height). A layered diagram gives an edge a lane in every row it crosses
+(`mkp-diagrams/route.mkp` does this, labels included):
+
+```text
+flex gap=l justify=center align=stretch
+  each c in row key=c.id
+    flex align=center wrap=false if=(c.kind == "node")
+      stack id=(c.id) pad=s stroke=ink radius=card
+        text c.label
+    stack id=(c.id) if=(c.kind == "lane")
+arrow from=(e.from) to=(e.to) via=(e.lanes)
+```
+
+Put a label that must not overlap anything in the layout too (beside a lane in a row of its own)
+rather than on the arrow: an arrow's own label sits halfway along the path, wherever that is.
 
 ### Repetition and conditions
 
