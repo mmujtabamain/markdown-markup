@@ -502,3 +502,10 @@ rule of the spec, not a defect), *in progress*.
      and shows more of the y range. The same lack keeps graphs from turning top-down on a phone (and a
      rail from scrolling its current stop into view). *Open:* a value a widget can read for the width
      it has, or a canvas that keeps a least height by widening its shorter range.
+
+### Study Pad lessons in MKP
+
+161. **MKP: a widget whose exclusive branches share an id had no Markdown text.** A snapshot (the
+     Markdown target) draws every branch whose condition reads state, so `quiz.choice`, `predict` and
+     `quiz.find-error`, which give an option the same id in each branch, threw `mkp.duplicate-id` and
+     came out as their summary alone. *Fixed:* a snapshot allows a repeated id.

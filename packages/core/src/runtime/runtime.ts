@@ -689,7 +689,8 @@ export class Runtime {
     if (n.pos) v.src = [inst.def.file ?? inst.def.id, n.pos[0], n.pos[1]];
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
-      if (inst.ids.has(id)) throw new EvalError('mkp.duplicate-id', `the id "${id}" appears twice in ${inst.label()}`);
+      // a snapshot draws every branch whose condition reads state, so exclusive branches may share an id
+      if (inst.ids.has(id) && !this.opts.snapshot) throw new EvalError('mkp.duplicate-id', `the id "${id}" appears twice in ${inst.label()}`);
       inst.ids.set(id, v.key);
       v.id = id;
       if (n.meta?.hidden) v.hidden = !inst.revealed.get(id);
