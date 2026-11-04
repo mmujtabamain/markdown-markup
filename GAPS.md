@@ -488,7 +488,9 @@ rule of the spec, not a defect), *in progress*.
      even the rest of the text; in an expression string it gave `mkp.unknown-name`. *Worked around:*
      `truth` turns its labels into text and builds its status as one TeX string. *Open.*
 158. **MKP: no purple ("thm") tone.** Linked rows, the FK chip and the sort key use info, so a linked row
-     looks like a current one. *Open*, minor.
+     looks like a current one. *Worked around:* the FK chip and the sort key are `accent`, which Study
+     Pad maps to its violet (and its soft tone, in dark too). *Open*, minor: a linked row is still
+     info, like a current one.
 159. **MKP: a grid's columns are shared out of 12, by an estimate of their text.** `grid` and `span`
      stop at 12, and a pack can't measure text, so the data grid shares widths by counting characters
      (monospaced heavier, small lighter). A sparse grid on a wide pane gave its id gutter a quarter of
