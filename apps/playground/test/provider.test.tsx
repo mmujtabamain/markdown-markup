@@ -146,3 +146,36 @@ describe('overlays no pack uses yet', () => {
     expect(ui.getByText('inside')).toBeTruthy();
   });
 });
+
+describe('a choice of the widget’s state', () => {
+  const enc = new TextEncoder();
+  function doc(inHeader: boolean) {
+    const view = inHeader
+      ? '  frame kind="Report" title="t"\n    text "stage"\n    fill actions\n      controls pct\n'
+      : '  frame kind="Report" title="t"\n    text "stage"\n';
+    const files = new Map<string, Uint8Array>([
+      ['manifest.mkp', enc.encode('pack t@1 "test"\n  requires core@1\n  provides w\n')],
+      ['w.mkp', enc.encode(`w@1 "w"\n  pct = choice(p50|p95) "percentile"\n${view}`)],
+    ]);
+    const c = compile({ packs: [{ label: 't', files }] });
+    return render(<MkpDocument bundle={c.document('```w\nsummary: s\n```\n', 'doc.mkp.md')!} components={components} tokens={shadcnTokens} />);
+  }
+
+  it('is its name and a ToggleGroup of its options in the bar', () => {
+    const ui = doc(false);
+    const group = ui.getByRole('radiogroup', { name: 'percentile' });
+    expect(group.closest('.mkp-frame-bar, [data-slot=widget-controls]')).toBeTruthy();
+    expect(group.querySelector('.mkp-choice-label')?.textContent).toBe('percentile');
+    const items = within(group).getAllByRole('radio');
+    expect(items.map((i) => i.getAttribute('data-slot'))).toEqual(['toggle-group-item', 'toggle-group-item']);
+    fireEvent.click(items[1]);
+    expect(within(ui.getByRole('radiogroup', { name: 'percentile' })).getAllByRole('radio')[1].getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('sits in the header without its name showing when placed in the frame’s actions', () => {
+    const ui = doc(true);
+    const group = ui.getByRole('radiogroup', { name: 'percentile' });
+    expect(group.closest('.mkp-frame-actions')).toBeTruthy();
+    expect(group.closest('.mkp-frame-bar')).toBeNull();
+  });
+});

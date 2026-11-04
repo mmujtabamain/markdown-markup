@@ -268,6 +268,8 @@ export const SHELL_CSS = `
 .mkp-frame-kind { font-family: var(--mkp-font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mkp-color-muted); }
 .mkp-frame-title { min-width: 0; flex: 1 1 auto; font-weight: 600; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mkp-frame-actions, .mkp-frame-tools { display: flex; align-items: center; gap: var(--mkp-space-xs); flex: none; }
+.mkp-frame-actions .mkp-choice-label { display: none; }
+.mkp-choice-label:empty { display: none; }
 .mkp-frame-stage { position: relative; min-height: 0; overflow: auto; }
 .mkp-frame-stage[data-fixed] { resize: vertical; }
 .mkp-frame[data-full] .mkp-frame-stage { flex: 1 1 auto; }

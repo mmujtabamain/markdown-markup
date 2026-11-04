@@ -239,17 +239,31 @@ function flex({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
       </kit.Tabs>
     );
   }
-  if (kids.length > 1 && every(n, 'option')) {
-    const now = chosen(kids);
+  const options = (opts: VNode[], at: Record<string, unknown>, st: CSSProperties | undefined): ReactNode => {
+    const now = chosen(opts);
     return (
       // Radix empties the value when the chosen item is pressed again: that is still a press of it
-      <kit.ToggleGroup {...attrs} type="single" variant="outline" size="sm" value={now} onValueChange={(key: string) => dispatch(key || now, 'click')} style={style}>
-        {kids.map((k) => (
+      <kit.ToggleGroup {...at} type="single" variant="outline" size="sm" value={now} onValueChange={(key: string) => dispatch(key || now, 'click')} style={st}>
+        {opts.map((k) => (
           <kit.ToggleGroupItem key={k.key} {...nodeAttrs(k)} value={k.key} disabled={!!k.p.disabled} aria-label={words(k.p.label)}>
             <Kids nodes={k.kids} />
           </kit.ToggleGroupItem>
         ))}
       </kit.ToggleGroup>
+    );
+  };
+  if (kids.length > 1 && every(n, 'option')) return options(kids, attrs, style);
+  // a choice of the widget's state: its name, then its options as one group (in a frame's header,
+  // the options alone)
+  const picks = kids.filter((k) => k.t === 'press');
+  if (n.p.role === 'radiogroup' && picks.length > 1 && picks.every((k) => k.p.kind === 'option')) {
+    return (
+      <div {...attrs} role="radiogroup" aria-label={n.p.label as string | undefined} data-control="choice" style={{ ...flexStyle(n), ...style }}>
+        <span className="mkp-choice-label">
+          <Kids nodes={kids.filter((k) => k.t !== 'press')} />
+        </span>
+        {options(picks, {}, undefined)}
+      </div>
     );
   }
   return (
@@ -379,10 +393,11 @@ function list({ n, attrs }: HostProps, kit: Kit): ReactNode {
 function frame({ n, attrs, style }: HostProps, kit: Kit, Button: (b: ShellButtonProps) => ReactNode): ReactNode {
   if (!kit.Frame) return <Frame n={n} attrs={attrs} style={style} Button={Button} />;
   const slot = (k: string): ReactNode => (n.slots?.[k]?.length ? <Kids nodes={n.slots[k]} /> : undefined);
+  const actions = n.slots?.actions?.length ? <span className="mkp-frame-actions"><Kids nodes={n.slots.actions} /></span> : undefined;
   const tone = n.p.tone && n.p.tone !== 'none' ? (String(n.p.tone) as FrameProps['tone']) : undefined;
   return (
     <kit.Frame {...attrs} id={n.key} kind={String(n.p.kind ?? '')} title={<Runs runs={n.p.title as VRun[]} />} height={String(n.p.height ?? 'none')} tone={tone}
-      actions={slot('actions')} controls={slot('bar')} about={slot('about')} details={slot('details')} style={style}>
+      actions={actions} controls={slot('bar')} about={slot('about')} details={slot('details')} style={style}>
       <Kids nodes={n.kids} />
     </kit.Frame>
   );
