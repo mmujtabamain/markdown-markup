@@ -10,4 +10,10 @@
     "play": [ { "set": { "entry": "271.05" } }, { "press": "check_ok" }, { "wait": 100 } ] },
   "not-a-number": { "summary": "Something typed that is not a number yet, and checked.",
     "props": { "question": "How many sides has a hexagon?", "answer": 6, "caption": "Sides" },
-    "play": [ { "set": { "entry": "six" } }, { "press": "check_unread" }, { "wait": 100 } ] } } }
+    "play": [ { "set": { "entry": "six" } }, { "press": "check_unread" }, { "wait": 100 } ] },
+  "exam": { "summary": "In an exam a wrong answer is saved with no verdict, hint or solution, and the field stays open to change it.",
+    "props": { "question": "What is $1/2$ as a decimal?", "answer": 0.5, "exam": true, "wrongs": [ { "value": 2, "why": "That is $2/1$." } ], "hints": [ { "text": "Divide one by two." } ], "solutions": [ { "text": "$1/2 = 0.5$" } ] },
+    "play": [ { "set": { "entry": "2" } }, { "press": "check_wrong" }, { "wait": 100 } ] },
+  "exam-ended": { "summary": "The exam's host ends it: the answer saved last is marked, with the reason for that wrong answer and the solution.",
+    "props": { "question": "What is $1/2$ as a decimal?", "answer": 0.5, "exam": true, "wrongs": [ { "value": 2, "why": "That is $2/1$." } ], "hints": [ { "text": "Divide one by two." } ], "solutions": [ { "text": "$1/2 = 0.5$" } ] },
+    "play": [ { "set": { "entry": "2" } }, { "press": "check_wrong" }, { "set": { "ended": true } }, { "wait": 100 } ] } } }

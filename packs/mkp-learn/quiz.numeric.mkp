@@ -11,7 +11,8 @@ quiz.numeric@1 "A question with a numeric answer: a field whose own line says ho
   in hints list(record hint {text: text})
   in solutions list(record solution {text: text})
   in next slot "the caller's own buttons, after the question's in its bar (a set's Next)"
-  in exam bool = false "an exam: each answer is kept and signalled, but no verdict, reason, hint or solution shows, and the reader may change it, until the caller sets exam back to false"
+  in exam bool = false "an exam: each answer is kept and signalled, but no verdict, reason, hint or solution shows, and the reader may change it, until the caller sets exam back to false or the host sets ended"
+  host ended bool = false "a host's exam is over (its own Submit, or a time limit): the answer saved last is marked, as when the caller sets exam back to false"
   out correct
   out wrong
   signal answered {correct: bool, value: num} "sent on every check"
@@ -19,6 +20,8 @@ quiz.numeric@1 "A question with a numeric answer: a field whose own line says ho
   var tries int = 0
   var result choice(none|pass|fail|unread) = none
   var calm color = none
+  # an exam goes on until its caller or its host ends it
+  testing = exam and not ended
   got = parse(entry, [])()
   readable = entry != "" and abs(got) >= 0
   right = readable and abs(got - answer) <= tolerance
@@ -29,13 +32,13 @@ quiz.numeric@1 "A question with a numeric answer: a field whose own line says ho
   say = if(result == pass, "**Correct.** " + read + ".", if(result == fail, "**Not quite.** " + if(known.why != "", known.why, if(len(hints) > 0, "Try a hint.", "Check your working.")),
       if(result == unread, "That is not a number yet.", "Type your answer, then press Check.")))
   exam_say = if(result == pass or result == fail, "**Saved:** " + read + ". You can change it until you submit.", if(result == unread, "That is not a number yet.", "Type your answer, then press Save."))
-  mood = if(exam and result != unread, calm, if(result == none, calm, if(result == pass, ok, if(result == fail, bad, info))))
+  mood = if(testing and result != unread, calm, if(result == none, calm, if(result == pass, ok, if(result == fail, bad, info))))
   project md = (question + if(help == "", "", " *(" + help + ")*") + "\n\n:::details \"Answer\"\n" + format(answer, find(range(0, 6), d => abs(round(answer * 10^d) - answer * 10^d) < 0.000001, 6))
       + if(unit == "", "", " " + unit) + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
   frame kind=label title=title tone=mood
     fill actions
-      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0 and not exam)
-      quiz.answer items=(map(solutions, s => s.text)) if=(len(solutions) > 0 and not exam)
+      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0 and not testing)
+      quiz.answer items=(map(solutions, s => s.text)) if=(len(solutions) > 0 and not testing)
     stack pad=l gap=m
       stack gap=xs
         text question weight=medium size=large
@@ -52,21 +55,21 @@ quiz.numeric@1 "A question with a numeric answer: a field whose own line says ho
       # the line says what to do or how it went; on a narrow screen the buttons wrap under it
       flex gap=s align=center justify=between grow
         flex gap=s align=baseline wrap=false grow basis=s
-          icon name=check tone=ok size=small if=(result == pass and not exam)
-          icon name=cross tone=bad size=small if=(result == fail and not exam)
-          text (if(exam, exam_say, say)) tone=(if(result == none, muted, ink))
+          icon name=check tone=ok size=small if=(result == pass and not testing)
+          icon name=cross tone=bad size=small if=(result == fail and not testing)
+          text (if(testing, exam_say, say)) tone=(if(result == none, muted, ink))
         flex gap=s align=center
-          quiz.answer items=(map(solutions, s => s.text)) plain=true spoil=false if=(result == fail and len(solutions) > 0 and not exam)
+          quiz.answer items=(map(solutions, s => s.text)) plain=true spoil=false if=(result == fail and len(solutions) > 0 and not testing)
           press id=check_ok emphasis=high if=(right)
             icon name=check size=small
-            text (if(exam, "Save", "Check"))
+            text (if(testing, "Save", "Check"))
             @click set tries=(tries + 1) result=pass send answered correct=true value=got emit correct
           press id=check_wrong emphasis=high disabled=(entry == "") if=(not right and (readable or entry == ""))
             icon name=check size=small
-            text (if(exam, "Save", "Check"))
+            text (if(testing, "Save", "Check"))
             @click set tries=(tries + 1) result=fail send answered correct=false value=got emit wrong
           press id=check_unread emphasis=high if=(entry != "" and not readable)
             icon name=check size=small
-            text (if(exam, "Save", "Check"))
+            text (if(testing, "Save", "Check"))
             @click set result=unread
           slot next

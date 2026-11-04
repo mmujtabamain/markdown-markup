@@ -555,8 +555,11 @@ rule of the spec, not a defect), *in progress*.
      nothing reads the time. Study Pad's Workbook exam had an optional time limit; `quiz.set exam=true`
      (no verdicts, reasons, hints or solutions until Submit, the last saved answer counting) leaves the
      timer to the host, which can only show it beside the set, not end the set when it runs out.
-     *Open:* a `clock` control (seconds since a state change, paused when hidden), or an input a host
-     may change without rebuilding the runtime.
+     *Partly fixed:* a host input is that input. `quiz.choice`, `quiz.numeric` and `quiz.expression`
+     take `host ended`: a host drawing questions in exam mode (Study Pad's Workbook, one question per
+     lesson block, with its own Submit and time limit) sets it with `widget(block).host("ended", true)`
+     and each marks the answer saved last, as when a caller sets `exam` back to false. *Open:* a
+     `clock` control (seconds since a state change, paused when hidden), for a timer inside a widget.
 170. **MKP core loaded its 2.7 MB maths engine with the package.** `maths.ts` imported the vendored
      MathJax and Speech Rule Engine at the top, so a page drawing a lesson whose maths was rendered at
      build fetched it anyway (Study Pad's lesson chunk was 3.6 MB, 1.07 MB gzipped). *Fixed:* the

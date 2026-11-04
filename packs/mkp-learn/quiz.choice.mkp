@@ -8,7 +8,8 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
   in hints list(record hint {text: text})
   in solutions list(record solution {text: text}) "the worked solution; empty: the right options and why"
   in next slot "the caller's own buttons, after the question's in its bar (a set's Next)"
-  in exam bool = false "an exam: each answer is kept and signalled, but no verdict, reason, hint or solution shows, and the reader may change it, until the caller sets exam back to false"
+  in exam bool = false "an exam: each answer is kept and signalled, but no verdict, reason, hint or solution shows, and the reader may change it, until the caller sets exam back to false or the host sets ended"
+  host ended bool = false "a host's exam is over (its own Submit, or a time limit): the answer saved last is marked, as when the caller sets exam back to false"
   out correct
   out wrong
   signal answered {correct: bool, picked: list(int)} "sent on every check"
@@ -16,13 +17,15 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
   var result choice(none|pass|fail) = none
   var peek int = -1
   var calm color = none
+  # an exam goes on until its caller or its host ends it
+  testing = exam and not ended
   n = len(options)
   rights = filter(range(0, n - 1), k => options[k].right)
   hits = len(filter(picked, k => options[k].right))
   misses = len(picked) - hits
   right = len(picked) == len(rights) and hits == len(rights)
   # in an exam a pick never locks: the reader may change it until the exam ends
-  locked = result != none and not exam
+  locked = result != none and not testing
   good = result == pass
   fn chosen(k: int): bool = indexof(picked, k) >= 0
   fn letter(k: int): text = at(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"], k, "")
@@ -32,7 +35,7 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
   seen = if(peek >= 0 and peek < n, options[max(peek, 0)], {text: "", right: false, why: ""})
   tally = if(right, "That is exactly the right set.", "You picked " + hits + " of " + len(rights) + " right option" + if(len(rights) == 1, "", "s")
       + if(misses == 0, "", " and " + misses + " that " + if(misses == 1, "is", "are") + " not right") + ".")
-  say = if(exam, if(result == none, if(multiple, "Tick every option that applies, then save.", "Pick one answer."), "**Saved.** You can change it until you submit."),
+  say = if(testing, if(result == none, if(multiple, "Tick every option that applies, then save.", "Pick one answer."), "**Saved.** You can change it until you submit."),
       if(not locked, if(multiple, "Pick every option that applies, then check.", "Pick one answer."),
       if(multiple and peek >= 0, if(seen.right, "**Belongs.** ", "**Does not belong.** ") + seen.why,
       if(multiple, if(good, "**Correct.** ", "**Not quite.** ") + tally + " Press a marked option to read why.",
@@ -45,8 +48,8 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
       + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
   frame kind=label title=heading tone=mood
     fill actions
-      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0 and not exam)
-      quiz.answer items=sol if=(not exam)
+      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0 and not testing)
+      quiz.answer items=sol if=(not testing)
     stack pad=l gap=m
       stack gap=xs
         text question weight=medium size=large
@@ -65,7 +68,7 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
               text options[k].text
             press id=("option" + (k + 1)) mark=(letter(k)) kind=check selected=(chosen(k)) tone=(verdict(k)) if=multiple
               text options[k].text
-              @click set picked=(if(locked, picked, if(chosen(k), filter(picked, j => j != k), sort(picked + [k], j => j)))) peek=(if(locked and chosen(k), k, -1)) result=(if(exam, none, result))
+              @click set picked=(if(locked, picked, if(chosen(k), filter(picked, j => j != k), sort(picked + [k], j => j)))) peek=(if(locked and chosen(k), k, -1)) result=(if(testing, none, result))
     fill bar
       # the line says what to do or how it went; on a narrow screen the buttons wrap under it
       flex gap=s align=center justify=between grow
@@ -81,10 +84,10 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
             @click set picked=[] result=none peek=-1
           press id=check_ok emphasis=high disabled=(len(picked) == 0) if=(multiple and not locked and right)
             icon name=check size=small
-            text (if(exam, "Save", "Check"))
+            text (if(testing, "Save", "Check"))
             @click set result=pass peek=-1 send answered correct=true picked=picked emit correct
           press id=check emphasis=high disabled=(len(picked) == 0) if=(multiple and not locked and not right)
             icon name=check size=small
-            text (if(exam, "Save", "Check"))
+            text (if(testing, "Save", "Check"))
             @click set result=fail peek=-1 send answered correct=false picked=picked emit wrong
           slot next
