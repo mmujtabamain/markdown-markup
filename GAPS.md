@@ -524,3 +524,18 @@ rule of the spec, not a defect), *in progress*.
      `quiz.choice` cover the second in part. New lessons do without them. *Open:* an annotated
      formula in mkp-math (parts named in the source, as `\htmlClass` or a list of terms), and a map
      if a course needs one.
+164. **MKP: two blocks may have the same anchor.** `#id` twice in one document, or two headings whose
+     titles slug to the same id, compile clean, so links, workbook ids and progress keyed by the
+     anchor point at the first and silently lose the second. Study Pad's workbook falls back to the
+     block's index for the second one. *Open:* `mkp.duplicate-anchor` as an error, counting the ids
+     headings take from their titles.
+165. **MKP: an item of a YAML list has no line of its own.** Options and steps written as a list all
+     carry the line of the list's key, so a review flag on one option can only point at the list.
+     Neither `{cite=…}` attributes nor front-matter fields have a line in the bundle; Study Pad's
+     report finds them by scanning the source. *Open:* a position per list item and per attribute
+     (the front matter's keys too), kept in the IR beside `pos`.
+166. **MKP: the Markdown target can't leave answers out.** It prints `**Answer:**` and the answer
+     inline with nothing marking where it ends, so a search index or a summary built from it shows
+     the answers. Study Pad walks the bundle instead, leaving out what a definition marks as an
+     answer by input name. *Open:* a `--no-answers` snapshot, with each widget saying which inputs
+     are answers (an `answer` flag on `in`), which also lets a host find them without knowing names.
