@@ -147,6 +147,28 @@ Style props take **token names only**: colours `surface ink muted accent info ok
 `xs s m l xl` (pad, gap), sizes `s m l fill`, radius `card`, shadow `raised`, fonts `body heading
 mono`. No pixel values anywhere: sizes come from tokens and canvas ranges.
 
+### A widget's shell: frame, pane, zoom, icon
+
+A widget draws in a `frame`: what kind of thing it is and its title on top, its stage, and its
+controls in the frame's bar, which the runtime puts there for you. `status=` is one line in the bar
+saying what is happening now. `fill actions` puts the widget's own switches right of the title, and
+`fill about` and `fill details` are drawers (assumptions; everything at once).
+
+```text
+frame kind="Trace" title=title status=(now.note)
+  flex align=stretch
+    pane title="Code" grow basis=m
+      code src line=(now.line)
+    pane title="Variables" grow basis=m
+      …
+      fill footer
+        text "output"
+```
+
+`pane` is a titled column whose body scrolls on its own; `zoom` puts what it holds behind a view
+lock; `icon name=…` is a symbol from the provider's own set. `dim` and `blur` fade a box back or blur
+it until it is revealed, `caps` makes a caption, and `emphasis` on a press says how much it stands out.
+
 ### Relations: arrow
 
 `arrow from=a to=b ["label"] [curve] [via=(ids)] [route=down|right]` joins two elements by their

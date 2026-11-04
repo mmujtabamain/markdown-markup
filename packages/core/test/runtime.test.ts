@@ -44,9 +44,34 @@ describe('runtime: trace', () => {
     expect(find(rt.view(), (n) => n.t === 'grid').map((n) => n.p.tint)).toEqual(expect.arrayContaining(['warn', 'info']));
   });
 
-  it("puts Play between a stepper's arrows, with the count after them", () => {
+  it("puts Play between a stepper's arrows, then the track, the count and start over", () => {
     const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
-    expect(find(rt.view(), (n) => n.t === 'press').map((n) => n.p.label)).toEqual(['previous: step', 'play step', 'next: step']);
+    const v = rt.view();
+    expect(find(v, (n) => n.t === 'press').map((n) => n.p.label)).toEqual(['previous: step', 'play step', 'next: step', 'start over: step']);
+    const steps = find(v, (n) => n.p.control === 'steps')[0];
+    const track = steps.kids!.some((k) => k.t === 'range');
+    // the frame's status line goes after next
+    expect(steps.kids!.map((k) => (k.p.role === 'status' ? 'status' : k.t))).toEqual(track ? ['press', 'press', 'press', 'status', 'range', 'text', 'press'] : ['press', 'press', 'press', 'status', 'text', 'press']);
+  });
+
+  it('draws in a frame, its bar in the frame', () => {
+    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
+    const v = rt.view();
+    expect(find(v, (n) => n.t === 'bar')).toEqual([]);
+    const frame = find(v, (n) => n.t === 'frame')[0];
+    expect(frame.p.kind).toBe('Trace · python');
+    expect(frame.slots!.bar[0].p.control).toBe('steps');
+    expect(find(v, (n) => n.t === 'pane').length).toBe(2);
+  });
+
+  it('starts over from where it is', () => {
+    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
+    const at = (): unknown => find(rt.view(), (n) => n.t === 'text' && n.key.endsWith('.at'))[0].p.runs;
+    expect(rt.press('pos.next')).toBe(true);
+    expect(rt.press('pos.next')).toBe(true);
+    expect(JSON.stringify(at())).toContain('"3/');
+    expect(rt.press('pos.reset')).toBe(true);
+    expect(JSON.stringify(at())).toContain('"1/');
   });
 });
 

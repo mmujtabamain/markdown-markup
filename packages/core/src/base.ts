@@ -2,7 +2,7 @@
 // default tokens (spec 7). Every provider implements these; the compiler checks uses against them.
 
 export const CORE_MKP = String.raw`pack core@1 "The base set every provider implements, and the default tokens."
-  provides stack flex grid text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote rgb
+  provides stack flex grid text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote frame pane zoom icon rgb
 
 type rgb = {r: num, g: num, b: num}
 
@@ -15,6 +15,8 @@ extern stack@1 "Children one below another."
   in stroke color = none "border"
   in radius radius = none "corner radius"
   in shadow shadow = none
+  in dim bool = false "faded back, while something else is in focus"
+  in blur bool = false "blurred past reading, until it is revealed"
   in body slot
 
 extern flex@1 "Children in a row that wraps or scrolls."
@@ -28,6 +30,8 @@ extern flex@1 "Children in a row that wraps or scrolls."
   in stroke color = none
   in radius radius = none
   in shadow shadow = none
+  in dim bool = false "faded back, while something else is in focus"
+  in blur bool = false "blurred past reading, until it is revealed"
   in body slot
 
 extern grid@1 "Children in equal columns."
@@ -40,6 +44,8 @@ extern grid@1 "Children in equal columns."
   in stroke color = none
   in radius radius = none
   in shadow shadow = none
+  in dim bool = false "faded back, while something else is in focus"
+  in blur bool = false "blurred past reading, until it is revealed"
   in body slot
 
 extern text@1 "A styled run of inline Markdown with inline maths."
@@ -53,6 +59,7 @@ extern text@1 "A styled run of inline Markdown with inline maths."
   in wrap bool = true
   in lines int 0..24 = 0 "height kept for this many lines, so a shorter text moves nothing below it"
   in literal bool = false "show the value as it is, not read as inline Markdown"
+  in caps bool = false "in spaced capitals: a caption or a label over a column"
 
 extern image@1 "An asset from the pack or the document's folder."
   fields src alt
@@ -66,6 +73,7 @@ extern press@1 "Anything clickable and focusable: a button, a tab, an option amo
   in disabled bool = false
   in label text = "" "accessible name when the content has no text"
   in tone color = none
+  in emphasis choice(low|normal|high) = normal "how much it stands out: low for one of a row of quiet buttons, high for the one to press"
   in body slot
   out click
 
@@ -167,6 +175,37 @@ extern footnote@1 "A footnote's text."
   fields label
   in label text
   in body slot
+
+extern frame@1 "A widget's shell: what kind of thing it is and its title above a stage, and a bar of controls along the bottom. Nothing the reader does changes its size: what doesn't fit goes in its drawers or full screen."
+  fields kind title
+  in kind text = "" "what kind of thing it is, said small before the title"
+  in title text = ""
+  in height size = none "the stage's height at rest (the reader can drag it); none: as tall as its content"
+  in status text = "" "one line in the bar: what is happening now"
+  in tone color = none "tints the bar: how an answer went (ok, bad) or a note (info)"
+  in body slot
+  in actions slot "right of the title: the widget's own switches"
+  in bar slot "the bar: what is placed here, after the widget's own controls"
+  in about slot "a drawer: assumptions, and how to read it"
+  in details slot "a drawer: everything at once, such as the full table"
+
+extern pane@1 "A titled column of a stage: its title stays put while its body scrolls on its own. Panes side by side are divided by a rule."
+  fields title
+  in title text = ""
+  in note text = "" "right of the title: a count or a remark"
+  in body slot
+  in footer slot
+
+extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scrolling the page past it is never caught by it. It starts locked; a try to zoom or pan then points at the lock."
+  in max num = 4 "how far it zooms in"
+  in body slot
+
+extern icon@1 "A symbol from a fixed set, drawn in the provider's own icon style."
+  fields name
+  in name choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|trash|copy|download|upload|expand|lightbulb|book)
+  in tone color = none "its colour; none: the text's"
+  in size choice(small|normal|large) = normal
+  in label text = "" "what it means, when it stands for words"
 
 tokens core@1 "Default tokens: every required name (spec 7)."
   color surface "#ffffff" dark="#15171a"

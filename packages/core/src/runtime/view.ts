@@ -56,6 +56,8 @@ export interface VNode {
   kids?: VNode[];
   /** overlay: the body shown when open */
   body?: VNode[];
+  /** frame and pane: their other slots, by name (actions, bar, about, details; footer) */
+  slots?: Record<string, VNode[]>;
   hidden?: boolean;
   layout?: { grow?: boolean; basis?: string; span?: number };
   /** events the renderer should report: click, change, submit, open, close, drag */
@@ -71,6 +73,7 @@ export function walk(nodes: VNode[], f: (n: VNode) => void): void {
     f(n);
     if (n.kids) walk(n.kids, f);
     if (n.body) walk(n.body, f);
+    for (const s of Object.values(n.slots ?? {})) walk(s, f);
     for (const l of n.layers ?? []) for (const s of l.shapes) if (s.t === 'place') walk(s.kids, f);
   }
 }

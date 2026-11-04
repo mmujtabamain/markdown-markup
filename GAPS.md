@@ -217,7 +217,8 @@ rule of the spec, not a defect), *in progress*.
 57. **MKP: there is no icon widget.** The packs write symbols as text (`text "▶"`, `"‹"`, `"↑"`), so
     a provider can only recognise them by their glyph to draw its own icons. *Worked around:*
     `@mkp/shadcn` maps the eight glyphs the packs use to lucide icons. An `icon` base widget with a
-    fixed set of names would say what is meant. *Open.*
+    fixed set of names would say what is meant. *Fixed:* `icon@1` (SN 108), drawn by the provider's
+    own icon set (lucide in `@mkp/shadcn`).
 58. **Provider: MKP drew its own controls.** Found by Mujtaba: "that package has defined buttons,
     tabs, checkboxes etc, i though mkp was suppoesd to route it there, not makes its own". The first
     provider was a stylesheet copying the ui package's look over MKP's own elements. *Fixed:* a
@@ -255,9 +256,12 @@ rule of the spec, not a defect), *in progress*.
 68. **MKP: `trace` can't jump to a line.** Study Pad's listing lets a reader press or drag to a line.
     `code` has no event for it, so the listing is read-only here. *Open.*
 69. **MKP: the bar's own status is fixed.** `steps` says "step 3 / 8", where Study Pad's says "Step 3 of 8
-    · line 3" with a reset button on the right, and its Play is the primary button. *Open*, minor.
+    · line 3" with a reset button on the right, and its Play is the primary button. *Fixed:* the steps
+    control is ‹ ▶ ›, the frame's status, a track from 7 steps, `3/8` and start over, with Play the
+    high-emphasis button (SN 108).
 70. **MKP: a header can't uppercase.** Study Pad's `TRACE · PYTHON` is CSS uppercase. MKP has no
-    `upper()` or text case, so the language keeps the case it was written in. *Open*, minor.
+    `upper()` or text case, so the language keeps the case it was written in. *Fixed:* `text caps=true`,
+    and a frame's kind and a pane's title are captions (SN 108).
 71. **MKP (mkp-diagrams): `graph` turned upside down on a cycle.** Its rows counted every link, so a link
     closing a cycle pushed the first node to the bottom. *Fixed:* such links no longer count for rows.
 72. **MKP: a lane moved its row off centre.** A lane beside a box took half its width and gap from the
@@ -266,3 +270,12 @@ rule of the spec, not a defect), *in progress*.
 73. **MKP: lanes in different rows don't line up.** Rows are centred on their own, so a long edge's lane
     moves from row to row and the line steps sideways between them (53 says the same of the bow).
     *Open:* it wants one grid for all the rows.
+74. **MKP: widgets had no shell.** Mujtaba, of the Views tab: "everything in the view tab for study pad
+    is miles ahead of your design, mkp is supposed to replaced that", "the locking beheviour and other
+    stuff included", and "in terms of design as well, the study pad one design is better". Each MKP
+    widget drew its own outlined box with a bar of loose buttons under it; Study Pad's views share one
+    frame (kind and title, full screen, About and Details drawers, a resizable stage, a tinted bar),
+    one playback bar, titled panes that scroll on their own, and a view lock over anything that zooms.
+    None of it could be said in the base set. *Fixed:* `frame`, `pane`, `zoom` and `icon` base widgets
+    (SN 108), which Study Pad's provider draws with WidgetFrame, Pane and ZoomPane. The widgets are
+    moved onto them one by one (board #7954).

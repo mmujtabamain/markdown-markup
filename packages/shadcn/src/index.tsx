@@ -4,9 +4,10 @@
 // component is controlled, and what it reports goes back as the base widget's own event.
 
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import * as L from 'lucide-react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, SkipBack, type LucideIcon } from 'lucide-react';
 import { walkView, type VNode, type VRun } from '@mkp/core';
-import { Canvas, color, flexRole, flexStyle, gridStyle, Kids, MathSpan, nodeAttrs, Runs, size, stackStyle, textStyle, type HostProps, type MkpComponents, type TokenMap } from '@mkp/react';
+import { Canvas, color, flexRole, flexStyle, Frame, gridStyle, Kids, MathSpan, nodeAttrs, Pane, Runs, size, stackStyle, textStyle, Zoom, type HostProps, type MkpComponents, type ShellButtonProps, type TokenMap } from '@mkp/react';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- kits differ in their exact props; these pass only what shadcn's take
 type C = ComponentType<any>;
@@ -71,6 +72,29 @@ export interface Kit {
   Quote: C;
   /** takes `label` */
   Footnote: C;
+  /** A widget's shell, when the kit has one of its own (else MKP's, with the kit's buttons). */
+  Frame?: ComponentType<FrameProps>;
+  /** A titled column whose body scrolls on its own. */
+  Pane?: ComponentType<{ title?: ReactNode; aside?: ReactNode; footer?: ReactNode; style?: CSSProperties; children?: ReactNode }>;
+  /** Zoom and pan behind a lock. */
+  Zoom?: ComponentType<{ max: number; style?: CSSProperties; children?: ReactNode }>;
+}
+
+/** What a kit's own frame gets: the frame's parts, drawn. */
+export interface FrameProps {
+  /** stable across renders: where a resized height is remembered */
+  id: string;
+  kind: string;
+  title: ReactNode;
+  /** the stage's resting height, a size token (s, m, l); none: as tall as its content */
+  height: string;
+  tone?: 'ok' | 'bad' | 'info' | 'warn';
+  actions?: ReactNode;
+  controls?: ReactNode;
+  about?: ReactNode;
+  details?: ReactNode;
+  style?: CSSProperties;
+  children?: ReactNode;
 }
 
 /** core@1's colours as shadcn's variables; `dark` repeats them, so the page's theme decides. */
@@ -88,6 +112,26 @@ export const shadcnTokens: TokenMap = {
     bad: shade('--destructive', '#dc2626'),
   },
   radius: { card: { value: 'var(--radius, 0.625rem)' }, pill: { value: 999 } },
+};
+
+/** icon@1's names in lucide. */
+const ICONS: Record<string, LucideIcon> = {
+  play: L.Play, pause: L.Pause, prev: L.ChevronLeft, next: L.ChevronRight, first: L.SkipBack, last: L.SkipForward, reset: L.RotateCcw,
+  check: L.Check, cross: L.X, plus: L.Plus, minus: L.Minus, up: L.ArrowUp, down: L.ArrowDown, left: L.ArrowLeft, right: L.ArrowRight,
+  ban: L.Ban, alert: L.TriangleAlert, info: L.Info, help: L.CircleHelp, lock: L.Lock, unlock: L.LockOpen, eye: L.Eye, edit: L.Pencil,
+  search: L.Search, user: L.UserRound, users: L.UsersRound, file: L.FileText, folder: L.Folder, database: L.Database, server: L.Server,
+  cloud: L.Cloud, mail: L.Mail, clock: L.Clock, calendar: L.Calendar, flag: L.Flag, target: L.Target, gauge: L.Gauge, layers: L.Layers,
+  branch: L.GitBranch, box: L.Package, square: L.Square, circle: L.Circle, dot: L.Dot, star: L.Star, bolt: L.Zap, link: L.Link, key: L.KeyRound,
+  shield: L.Shield, cart: L.ShoppingCart, chart: L.ChartColumn, code: L.Code, terminal: L.Terminal, bell: L.Bell, home: L.House,
+  settings: L.Settings, trash: L.Trash2, copy: L.Copy, download: L.Download, upload: L.Upload, expand: L.Maximize2, lightbulb: L.Lightbulb,
+  book: L.BookOpen,
+};
+const ICON_PX: Record<string, number> = { small: 13, normal: 16, large: 20 };
+
+/** The frame's and the zoom's own buttons, by what they say. */
+const SHELL_ICONS: Record<string, LucideIcon> = {
+  About: L.Info, Details: L.PanelRight, 'Full screen': L.Maximize2, 'Leave full screen': L.Minimize2, Close: L.X,
+  'Zoom in': L.Plus, 'Zoom out': L.Minus, 'Reset the view': L.RotateCcw, 'Unlock to zoom and pan': L.Lock, 'Lock the view': L.LockOpen,
 };
 
 const GLYPHS: Record<string, LucideIcon> = { '‹': ChevronLeft, '›': ChevronRight, '▶': Play, '⏸': Pause, '⏮': SkipBack, '↑': ArrowUp, '↓': ArrowDown, '↺': RotateCcw };
@@ -138,6 +182,14 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
       );
     case 'toggle': {
       const Icon = glyphOf(n);
+      if (p.emphasis === 'high') {
+        // play and pause: the one button to press, filled
+        return (
+          <kit.Button {...attrs} variant="default" size={Icon ? 'icon-sm' : 'sm'} aria-pressed={selected} disabled={disabled} aria-label={label} onClick={click} style={style}>
+            {Icon ? <Icon aria-hidden /> : <Kids nodes={n.kids} />}
+          </kit.Button>
+        );
+      }
       return (
         <kit.Toggle {...attrs} variant="outline" size="sm" pressed={selected} disabled={disabled} aria-label={label} onPressedChange={click} style={{ color: color(p.tone), ...style }}>
           {Icon ? <Icon aria-hidden /> : <Kids nodes={n.kids} />}
@@ -147,7 +199,7 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
     default: {
       const Icon = glyphOf(n);
       return (
-        <kit.Button {...attrs} variant="outline" size={Icon ? 'icon-sm' : 'sm'} disabled={disabled} aria-label={label} onClick={click} style={{ color: color(p.tone), ...style }}>
+        <kit.Button {...attrs} variant={p.emphasis === 'low' ? 'ghost' : p.emphasis === 'high' ? 'default' : 'outline'} size={Icon ? 'icon-sm' : 'sm'} disabled={disabled} aria-label={label} onClick={click} style={{ color: color(p.tone), ...style }}>
           {Icon ? <Icon aria-hidden /> : <Kids nodes={n.kids} />}
         </kit.Button>
       );
@@ -308,8 +360,41 @@ function list({ n, attrs }: HostProps, kit: Kit): ReactNode {
   );
 }
 
+function frame({ n, attrs, style }: HostProps, kit: Kit, Button: (b: ShellButtonProps) => ReactNode): ReactNode {
+  if (!kit.Frame) return <Frame n={n} attrs={attrs} style={style} Button={Button} />;
+  const slot = (k: string): ReactNode => (n.slots?.[k]?.length ? <Kids nodes={n.slots[k]} /> : undefined);
+  const tone = n.p.tone && n.p.tone !== 'none' ? (String(n.p.tone) as FrameProps['tone']) : undefined;
+  return (
+    <kit.Frame {...attrs} id={n.key} kind={String(n.p.kind ?? '')} title={<Runs runs={n.p.title as VRun[]} />} height={String(n.p.height ?? 'none')} tone={tone}
+      actions={slot('actions')} controls={slot('bar')} about={slot('about')} details={slot('details')} style={style}>
+      <Kids nodes={n.kids} />
+    </kit.Frame>
+  );
+}
+
+function pane({ n, attrs, style }: HostProps, kit: Kit): ReactNode {
+  if (!kit.Pane) return <Pane n={n} attrs={attrs} style={style} />;
+  const title = n.p.title as VRun[];
+  const note = n.p.note as VRun[];
+  return (
+    <kit.Pane {...attrs} title={title.length ? <Runs runs={title} /> : undefined} aside={note.length ? <Runs runs={note} /> : undefined}
+      footer={n.slots?.footer?.length ? <Kids nodes={n.slots.footer} /> : undefined} style={style}>
+      <Kids nodes={n.kids} />
+    </kit.Pane>
+  );
+}
+
 /** A provider's whole base set (spec 8), from its kit. */
 export function shadcnComponents(kit: Kit): MkpComponents {
+  // the frame's and the zoom's buttons: the kit's, quiet, with its icons
+  const ShellButton = ({ label, onClick, pressed, children }: ShellButtonProps): ReactNode => {
+    const Icon = SHELL_ICONS[label];
+    return (
+      <kit.Button variant="ghost" size="icon-sm" aria-label={label} title={label} aria-pressed={pressed} onClick={onClick}>
+        {Icon ? <Icon aria-hidden /> : children}
+      </kit.Button>
+    );
+  };
   return {
     stack: ({ n, attrs, style }) => (
       <div {...attrs} role={n.p.role as string | undefined} aria-label={n.p.label as string | undefined} style={{ ...stackStyle(n), ...style }}>
@@ -323,7 +408,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
       </div>
     ),
     text: ({ n, attrs, style }) => (
-      <div {...attrs} style={{ ...textStyle(n), ...style }}>
+      <div {...attrs} role={n.p.role as string | undefined} style={{ ...textStyle(n), ...style }}>
         <Runs runs={n.p.runs as VRun[]} />
       </div>
     ),
@@ -382,6 +467,26 @@ export function shadcnComponents(kit: Kit): MkpComponents {
     ),
     divider: ({ attrs }) => <kit.Separator {...attrs} />,
     table: (h) => table(h, kit),
+    frame: (h) => frame(h, kit, ShellButton),
+    pane: (h) => pane(h, kit),
+    zoom: ({ n, attrs, style }) =>
+      kit.Zoom ? (
+        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} style={style}>
+          <Kids nodes={n.kids} />
+        </kit.Zoom>
+      ) : (
+        <Zoom n={n} attrs={attrs} style={style} Button={ShellButton} />
+      ),
+    icon: ({ n, attrs, style }) => {
+      const Icon = ICONS[String(n.p.name)] ?? L.Dot;
+      const label = n.p.label ? String(n.p.label) : undefined;
+      const px = ICON_PX[String(n.p.size)] ?? 16;
+      return (
+        <span {...attrs} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true} style={{ display: 'inline-flex', flex: 'none', color: color(n.p.tone), ...style }}>
+          <Icon width={px} height={px} aria-hidden />
+        </span>
+      );
+    },
     footnote: ({ n, attrs }) => (
       <kit.Footnote {...attrs} id={`fn-${String(n.p.label)}`} label={String(n.p.label)}>
         <Kids nodes={n.kids} />

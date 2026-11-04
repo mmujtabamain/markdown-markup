@@ -23,6 +23,7 @@ import { arrowPaths, type ArrowEnds, type Rect, type VArrow, type VNode, type VR
 import { MeasureCtx, useCtx, type Measurable, type Registry } from './context';
 import { InkCtx, InlineImage, MathView, Runs, useInk, type MathLike } from './runs';
 import { Canvas } from './canvas';
+import { Frame, Icon, Pane, Zoom } from './shell';
 import type { Theme } from './theme';
 
 // ---------------------------------------------------------------------------------------------
@@ -84,6 +85,8 @@ function boxStyle(p: Record<string, unknown>, theme: Theme): ViewStyle {
     borderColor: stroke,
     borderRadius: theme.radius(p.radius),
     ...theme.shadow(p.shadow),
+    // faded back; blurred until revealed (no blur on native: nearly faded out)
+    ...(p.blur ? { opacity: 0.12 } : p.dim ? { opacity: 0.4 } : null),
   };
 }
 
@@ -144,6 +147,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
         fontWeight: p.weight === 'bold' ? '700' : p.weight === 'medium' ? '500' : f.fontWeight,
         textAlign: TEXT_ALIGN[String(p.align)] ?? undefined,
         minHeight: p.lines ? f.lineHeight * scale * Number(p.lines) : undefined,
+        ...(p.caps ? { textTransform: 'uppercase', letterSpacing: f.fontSize * scale * 0.06 } : null),
       };
       return (
         <Text style={st} numberOfLines={p.wrap === false ? 1 : undefined}>
@@ -165,6 +169,14 @@ export function Node({ n }: { n: VNode }): ReactNode {
       return <Overlay n={n} />;
     case 'canvas':
       return <Canvas n={n} />;
+    case 'frame':
+      return <Frame n={n} />;
+    case 'pane':
+      return <Pane n={n} />;
+    case 'zoom':
+      return <Zoom n={n} />;
+    case 'icon':
+      return <Icon n={n} />;
     case 'paragraph':
       return (
         <Text style={{ color: ink, fontFamily: body.fontFamily, fontSize: body.fontSize, lineHeight: body.lineHeight, marginVertical: body.fontSize * 0.5 }}>
@@ -419,15 +431,15 @@ function Press({ n }: { n: VNode }): ReactNode {
         paddingVertical: theme.space('xs'),
         paddingHorizontal: kind === 'switch' ? 0 : theme.space('m'),
         borderWidth: kind === 'switch' ? 0 : 1,
-        borderColor: selected ? accent : pressed ? accent : theme.mix(theme.color('muted'), surface, 0.45),
-        backgroundColor: kind === 'switch' ? undefined : selected && !mark ? accent : theme.mix(theme.color('muted'), surface, pressed ? 0.24 : 0.14),
+        borderColor: p.emphasis === 'low' && !pressed ? 'transparent' : p.emphasis === 'high' ? theme.color('ink') : selected ? accent : pressed ? accent : theme.mix(theme.color('muted'), surface, 0.45),
+        backgroundColor: kind === 'switch' ? undefined : p.emphasis === 'high' ? theme.color('ink') : selected && !mark ? accent : p.emphasis === 'low' && !pressed ? undefined : theme.mix(theme.color('muted'), surface, pressed ? 0.24 : 0.14),
         borderRadius: r,
         ...(kind === 'tab' ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : null),
         opacity: disabled ? 0.45 : 1,
       })}
     >
       {mark ? <PressMark kind={kind} on={selected} /> : null}
-      <InkCtx.Provider value={selected && !mark ? surface : tone}>
+      <InkCtx.Provider value={p.emphasis === 'high' || (selected && !mark) ? surface : tone}>
         <Kids nodes={n.kids} />
       </InkCtx.Provider>
     </Pressable>

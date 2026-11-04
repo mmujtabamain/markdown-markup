@@ -200,6 +200,9 @@ export class Inst {
 
 // ---------------------------------------------------------------------------------------------
 
+/** From this many steps, a steps control has a track to drag along them. */
+const STEPS_TRACK = 7;
+
 export class Runtime {
   readonly prog: Programme;
   readonly root: Inst;
@@ -743,7 +746,13 @@ export class Runtime {
       this.arrowQueue.delete(child);
       const kids = this.renderNodes(view, child.env, child, path);
       const bar = this.bar(child, path);
-      vnode.kids = bar ? [...kids, bar] : kids;
+      // a widget drawn in a frame has its bar in the frame's (6.8)
+      const frame = kids.length === 1 && kids[0].t === 'frame' ? kids[0] : undefined;
+      if (frame && bar) {
+        frame.slots = { ...frame.slots, bar: [...(bar.kids ?? []), ...(frame.slots?.bar ?? [])] };
+        this.placeStatus(frame);
+      }
+      vnode.kids = bar && !frame ? [...kids, bar] : kids;
       const arrows = this.resolveArrows(child);
       if (arrows.length) vnode.arrows = arrows;
       // events this use handles are run in the caller (emit)
@@ -966,6 +975,24 @@ export class Runtime {
       }
       case 'canvas':
         return this.canvas(n, env, inst, key);
+      case 'frame': {
+        const p = this.props(n, env, inst);
+        const slot = (nm: string): VNode[] => this.renderNodes(n.fills?.[nm] ?? [], env, inst, `${key}.${nm}`);
+        const v: VNode = {
+          t: 'frame',
+          key,
+          p: { kind: String(p.kind ?? ''), title: this.runs(String(p.title ?? '')), height: p.height ?? 'none', tone: p.tone ?? 'none' },
+          kids: kids(),
+          slots: { actions: slot('actions'), bar: slot('bar'), about: slot('about'), details: slot('details') },
+        };
+        if (p.status) v.p.status = this.runs(String(p.status));
+        this.placeStatus(v);
+        return v;
+      }
+      case 'pane': {
+        const p = this.props(n, env, inst);
+        return { t: 'pane', key, p: { title: this.runs(String(p.title ?? '')), note: this.runs(String(p.note ?? '')) }, kids: kids(), slots: { footer: this.renderNodes(n.fills?.footer ?? [], env, inst, `${key}.footer`) } };
+      }
       default:
         // a transitional extern a provider implements: pass its props through
         return { t: n.node, key, p: this.props(n, env, inst), kids: kids() };
@@ -1120,6 +1147,25 @@ export class Runtime {
   // -------------------------------------------------------------------------------------------
   // The control bar (6.6): built from base widgets
 
+  /** A frame's status line goes in its bar: after a steps control's buttons, or else first (6.8). */
+  private placeStatus(f: VNode): void {
+    const k = `${f.key}.status`;
+    const strip = (ns: VNode[]): VNode[] => ns.filter((x) => x.key !== k);
+    const bar = strip(f.slots?.bar ?? []).map((x) => (x.p.control === 'steps' ? { ...x, kids: strip(x.kids ?? []) } : x));
+    f.slots = { ...f.slots, bar };
+    const runs = f.p.status as VRun[] | undefined;
+    if (!runs?.length) return;
+    const status: VNode = { t: 'text', key: k, p: { runs, tone: 'ink', font: 'body', weight: 'regular', size: 'small', align: 'start', wrap: false, role: 'status' }, layout: { grow: true } };
+    const steps = bar.find((x) => x.p.control === 'steps');
+    if (!steps) {
+      bar.unshift(status);
+      return;
+    }
+    const kids = steps.kids!;
+    kids.splice(kids.findIndex((x) => x.key.endsWith('.next')) + 1, 0, status);
+    steps.layout = { ...steps.layout, grow: true };
+  }
+
   private bar(inst: Inst, path: string): VNode | null {
     const placed = new Set<string>();
     const findPlaced = (ns: IRNode[]): void => {
@@ -1189,18 +1235,25 @@ export class Runtime {
       case 'steps': {
         const n = this.valueOf(s.args.n, env, inst) as number;
         const at = value as number;
-        const kids: VNode[] = [
-          press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹')], () => this.setCell(inst, name, Math.max(0, at - 1)), { disabled: at <= 0 }),
-          text(`${key}.at`, `${label} ${at + 1} / ${n}`, 'muted'),
-          press(`${key}.next`, `${name}.next`, `next: ${label}`, [text(`${key}.next.t`, '›')], () => this.setCell(inst, name, Math.min(n - 1, at + 1)), { disabled: at >= n - 1 }),
-        ];
+        const go = (to: number): void => this.setCell(inst, name, Math.max(0, Math.min(n - 1, to)));
+        // back, play, next; a track once there are enough steps to need one; where it is; start over.
+        // Every part keeps its width, so nothing moves as it plays.
+        const kids: VNode[] = [press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹')], () => go(at - 1), { disabled: at <= 0, emphasis: 'low' })];
         if (s.play) {
           const playing = inst.playing.has(name);
-          // ‹ ▶ › and then where it is, so Play stays put as the count grows
-          kids.splice(1, 2, press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing }), kids[2], kids[1]);
+          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'high' }));
         }
+        kids.push(press(`${key}.next`, `${name}.next`, `next: ${label}`, [text(`${key}.next.t`, '›')], () => go(at + 1), { disabled: at >= n - 1, emphasis: 'low' }));
+        if (n >= STEPS_TRACK) {
+          kids.push({ t: 'range', key: `${key}.range`, p: { value: at, min: 0, max: n - 1, step: 1, label }, ev: ['change'] });
+          this.on(`${key}.range`, 'change', (payload) => go(Math.round(typeof payload === 'number' ? payload : ((payload as Record<string, V>)?.value as number))));
+        }
+        const count = text(`${key}.at`, `${at + 1}/${n}`, 'muted');
+        count.p.font = 'mono';
+        kids.push(count);
+        kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺')], () => go(0), { disabled: at <= 0, emphasis: 'low' }));
         inst.ids.set(name, key);
-        return { t: 'flex', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label }, kids };
+        return { t: 'flex', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'steps' }, kids };
       }
       default:
         return null;

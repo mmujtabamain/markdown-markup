@@ -155,6 +155,18 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
         return `*${escape(String(p.summary || p.name))}* (${escape(String(p.message))})`;
       case 'bar':
         return controls(n);
+      case 'frame': {
+        const title = inline(p.title as VRun[]);
+        const head = [p.kind ? `*${escape(String(p.kind))}*` : '', title ? `**${title}**` : ''].filter(Boolean).join(' ');
+        const bar = n.slots?.bar?.length ? controls({ ...n, kids: n.slots.bar }) : '';
+        return [head, ...blocks(n.kids), ...blocks(n.slots?.details), bar].filter(Boolean).join('\n\n');
+      }
+      case 'pane': {
+        const head = inline(p.title as VRun[]);
+        return [head ? `**${head}**` : '', ...blocks(n.kids), ...blocks(n.slots?.footer)].filter(Boolean).join('\n\n');
+      }
+      case 'icon':
+        return p.label ? escape(String(p.label)) : null;
       case 'stack':
       case 'grid':
         return blocks(n.kids).join('\n\n');

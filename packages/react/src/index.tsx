@@ -4,9 +4,11 @@ import { createContext, useContext, useEffect, useMemo, useState, useSyncExterna
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions, type VNode } from '@mkp/core';
 import { BASE_CSS, NEUTRAL_CSS, tokenCss, type TokenMap } from './style';
 import { Kids, RuntimeCtx, type MkpComponents } from './nodes';
+import { SHELL_CSS } from './shell';
 
 export { Node, Kids, Runs, MathSpan, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, stackStyle, flexStyle, flexRole, gridStyle, textStyle, type BaseWidget, type HostProps, type HostRoute, type MkpComponents } from './nodes';
 export { Canvas } from './canvas';
+export { Frame, Pane, Zoom, Icon, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
 export { tokenCss, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {
@@ -82,7 +84,7 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [rt]);
-  const css = useMemo(() => BASE_CSS + (props.components ? '' : NEUTRAL_CSS) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components]);
+  const css = useMemo(() => BASE_CSS + SHELL_CSS + (props.components ? '' : NEUTRAL_CSS) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components]);
   const ctx = useMemo(() => ({ rt, components: props.components }), [rt, props.components]);
   return (
     <RuntimeCtx.Provider value={ctx}>

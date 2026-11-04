@@ -463,3 +463,24 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     no longer pushes the row's boxes off centre. `graph` drops the links that close a cycle from its
     rows, as `flow` does. Study Pad's NodeGraph (ELK) has the first two and not the third; its
     LinkedCards has all three.
+
+108. **A widget's shell.** *Extension (8).* GAPS 74. *Decided:* four base widgets, so a provider draws
+    a widget's shell with its own components:
+    - `frame kind title [height] [status] [tone]`, slots `body` (the stage), `actions`, `bar`, `about`
+      and `details`. The provider gives it a header (kind as a caption, title, its actions, About and
+      Details buttons for drawers, full screen), a stage of one height that the reader may resize
+      (`height` a size token; none fits the content), and a bar. A widget whose view is one frame has
+      its controls in the frame's bar, not under it, and the frame's `status` goes in the bar after a
+      steps control's buttons (else first).
+    - `pane title [note]`, slots `body` and `footer`: a titled column whose body scrolls on its own;
+      panes side by side are divided by a rule.
+    - `zoom [max]`: zoom and pan behind a lock. It starts locked; locked, a try to zoom or pan points
+      at the lock instead; unlocked, the wheel zooms, a drag pans, and + / − / reset show.
+    - `icon name [tone] [size] [label]`, from a fixed set of 64 names (`core/src/icons.ts`, each with a
+      text symbol for a renderer without an icon set).
+    With them: `dim` and `blur` on stack, flex and grid (faded back; blurred until revealed), `caps` on
+    text, and `emphasis low|normal|high` on press. The steps control is now ‹ ▶ ›, the status, a track
+    from 7 steps, `n/N` and start over; back, next and start over are low, Play high. The neutral
+    renderers draw all four; `@mkp/shadcn` takes a kit's `Frame`, `Pane` and `Zoom` when it has them
+    and otherwise draws MKP's own with the kit's buttons, and its icons are lucide's.
+

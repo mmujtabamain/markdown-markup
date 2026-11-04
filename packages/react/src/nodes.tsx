@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef,
 import { arrowPaths, type ArrowEnds, type Runtime, type VArrow, type VNode, type VRun } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
+import { Frame, Icon, Pane, Zoom } from './shell';
 
 /** What a host's route gets: the node, what goes on its outer element, and how to report events. */
 export interface HostProps {
@@ -17,7 +18,7 @@ export interface HostProps {
 }
 
 /** The base set (core@1, spec 8): what every provider implements. */
-export const BASE_WIDGETS = ['stack', 'flex', 'grid', 'text', 'image', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote'] as const;
+export const BASE_WIDGETS = ['stack', 'flex', 'grid', 'text', 'image', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote', 'frame', 'pane', 'zoom', 'icon'] as const;
 export type BaseWidget = (typeof BASE_WIDGETS)[number];
 
 /** Draws one base widget. It is called as a plain function, so hooks go in what it returns. */
@@ -128,7 +129,16 @@ function boxStyle(p: Record<string, unknown>): CSSProperties {
 
 /** What goes on a node's outer element, so a provider's stylesheet, arrows and selectors find it. */
 export function nodeAttrs(n: VNode): Record<string, unknown> {
-  return { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined };
+  return {
+    'data-mkp': n.t,
+    'data-mkp-key': n.key,
+    'data-mkp-id': n.id,
+    'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined,
+    // a box faded back, or blurred until revealed (stack, flex, grid)
+    'data-dim': n.p.dim ? '' : undefined,
+    'data-blur': n.p.blur ? '' : undefined,
+    hidden: n.hidden || undefined,
+  };
 }
 
 export const flexRole = (n: VNode): string | undefined =>
@@ -150,6 +160,8 @@ export function textStyle(n: VNode): CSSProperties {
     textAlign: (n.p.align as CSSProperties['textAlign']) ?? undefined,
     whiteSpace: n.p.wrap === false ? 'nowrap' : undefined,
     minHeight: n.p.lines ? `${Number(n.p.lines)}lh` : undefined,
+    // a caption: spaced capitals
+    ...(n.p.caps ? { textTransform: 'uppercase', letterSpacing: '0.06em' } : {}),
   };
 }
 
@@ -203,7 +215,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
       );
     case 'text':
       return (
-        <div {...common} style={{ ...textStyle(n), ...lay }}>
+        <div {...common} role={p.role as string | undefined} style={{ ...textStyle(n), ...lay }}>
           <Runs runs={p.runs as VRun[]} />
         </div>
       );
@@ -218,7 +230,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
       else if (kind === 'toggle') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
-        <button {...common} {...aria} data-kind={kind} type="button" disabled={!!p.disabled} className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
+        <button {...common} {...aria} data-kind={kind} data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined} type="button" disabled={!!p.disabled} className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
           <Kids nodes={n.kids} />
         </button>
       );
@@ -345,6 +357,14 @@ export function Node({ n }: { n: VNode }): ReactNode {
           <sup>{String(p.label)}</sup> <Kids nodes={n.kids} />
         </div>
       );
+    case 'frame':
+      return <Frame n={n} attrs={common} style={lay} />;
+    case 'pane':
+      return <Pane n={n} attrs={common} style={lay} />;
+    case 'zoom':
+      return <Zoom n={n} attrs={common} style={lay} />;
+    case 'icon':
+      return <Icon n={n} attrs={common} style={lay} />;
     default:
       // a transitional extern this renderer does not implement: say so, accessibly
       return (

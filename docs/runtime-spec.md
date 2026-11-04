@@ -90,7 +90,8 @@ Walk the nodes with a scope:
   and reach by has two points, side by side. An arrow back up through via elements leaves or arrives
   by the side of a box its lane stands clear of. An arrow whose `from` and `to` are one element
   is a loop on its right side, or its left if the scope has no room, and its label sits beyond it.
-- a use: create or reuse the instance, render its view, then its **bar**: a row of base widgets for
+- a use: create or reuse the instance, render its view, then its **bar** (inside its frame's bar
+  when its view is one `frame`, with the frame's status after a steps control's buttons): a row of base widgets for
   each control not placed by `controls` (drag is never in the bar).
 - a base widget: evaluate props; text props become inline runs (text, strong, emphasis, code, links,
   maths); maths runs carry their SVG and speech.

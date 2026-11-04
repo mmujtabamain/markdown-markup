@@ -27,3 +27,4 @@ export { canonical } from './syntax/canon';
 export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
 export { indexLine, signatureText } from './catalog';
 export { checkDocument } from './check/doc';
+export { ICON_GLYPHS, ICON_NAMES } from './icons';

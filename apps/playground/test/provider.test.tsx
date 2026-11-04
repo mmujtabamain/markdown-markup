@@ -90,10 +90,14 @@ describe('controls drive the runtime', () => {
 
   it('a press that is one symbol is an icon, as a button and as a toggle', () => {
     const { ui } = fixture('mkp-cs', 'trace@1', 'sum-loop');
+    // play is the bar's one strong button, pressed or not
     const play = ui.getByRole('button', { name: 'play step' });
-    expect(play.getAttribute('data-slot')).toBe('toggle');
+    expect(play.getAttribute('data-slot')).toBe('button');
+    expect(play.getAttribute('aria-pressed')).toBe('false');
     expect(play.querySelector('svg')).toBeTruthy();
     expect(play.textContent).toBe('');
+    // the arrows and start over are quiet icon buttons
+    for (const name of ['previous: step', 'next: step', 'start over: step']) expect(ui.getByRole('button', { name }).querySelector('svg')).toBeTruthy();
   });
 
   it('a code block with a current line is a numbered listing with that line marked', () => {
