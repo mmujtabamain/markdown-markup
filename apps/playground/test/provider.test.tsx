@@ -88,6 +88,21 @@ describe('controls drive the runtime', () => {
     expect(['right', 'wrong']).toContain(rows()[0].getAttribute('data-state'));
   });
 
+  it('a press that is one symbol is an icon, as a button and as a toggle', () => {
+    const { ui } = fixture('mkp-cs', 'trace@1', 'sum-loop');
+    const play = ui.getByRole('button', { name: 'play step' });
+    expect(play.getAttribute('data-slot')).toBe('toggle');
+    expect(play.querySelector('svg')).toBeTruthy();
+    expect(play.textContent).toBe('');
+  });
+
+  it('a code block with a current line is a numbered listing with that line marked', () => {
+    const { ui } = fixture('mkp-cs', 'trace@1', 'sum-loop');
+    expect(ui.container.querySelector('[data-slot=code-block] [aria-current=step]')?.textContent).toBe('1total = 0');
+    fireEvent.click(ui.getByRole('button', { name: 'next: step' }));
+    expect(ui.container.querySelector('[data-slot=code-block] [aria-current=step]')?.textContent).toBe('2for i in range(1, 4):');
+  });
+
   it('progress is a Progress', () => {
     const { ui } = fixture('mkp-ui', 'progress@1', 'percent');
     expect(ui.getByRole('progressbar').getAttribute('data-slot')).toBe('progress');

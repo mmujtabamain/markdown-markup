@@ -1,12 +1,12 @@
 { "widget": "trace@1", "cases": {
   "sum-loop": { "summary": "A loop that adds 1 to 3 into a total, traced line by line.",
-    "props": { "lang": "python",
+    "props": { "lang": "python", "title": "Adding 1 to 3",
       "code": ["total = 0", "for i in range(1, 4):", "    total = total + i", "print(total)"],
       "vars": ["total", "i"],
       "run": [
         { "line": 1, "values": ["—", "—"] },
         { "line": 2, "values": ["0", "—"], "note": "the loop starts" },
-        { "line": 3, "values": ["0", "1"] },
+        { "line": 3, "values": ["0", "1"], "note": "`i` is 1, so `total` is about to grow", "watch": ["total"] },
         { "line": 2, "values": ["1", "1"] },
         { "line": 3, "values": ["1", "2"] },
         { "line": 2, "values": ["3", "2"] },

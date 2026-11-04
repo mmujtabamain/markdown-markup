@@ -2,12 +2,12 @@
 // The web renderer in jsdom: the section-18 document renders with the right roles, and the
 // controls drive the runtime.
 import { afterEach, describe, expect, it } from 'vitest';
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 afterEach(cleanup);
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { compile, Runtime } from '@mkp/core';
+import { compile, compileCase, fixtureCases, Runtime } from '@mkp/core';
 import { BASE_CSS, MkpDocument, NEUTRAL_CSS, MkpProvider, Node, useMkpView } from '../src/index';
 import { allPacks, ROOT } from '../../core/test/helpers';
 
@@ -63,6 +63,22 @@ describe('@mkp/react', () => {
     expect(spin.getAttribute('aria-pressed')).toBe('true');
     expect(container.querySelector('.mkp-error')).toBeNull();
   });
+  it("a trace marks the current line, and a variable's row keeps its height whatever it shows", () => {
+    const c = compile({ packs: allPacks() });
+    const fc = fixtureCases(c).find((k) => k.widget === 'trace@1' && k.name === 'sum-loop')!;
+    const bundle = compileCase(c, fc).bundle!;
+    const { container } = render(<MkpDocument bundle={bundle} />);
+    const marked = () => container.querySelector('.mkp-code-line[aria-current]')?.textContent;
+    expect(container.querySelectorAll('.mkp-code-line')).toHaveLength(4);
+    expect(marked()).toBe('total = 0');
+    fireEvent.click(screen.getByRole('button', { name: 'next: step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'next: step' }));
+    expect(marked()).toBe('    total = total + i');
+    const row = screen.getByText('changed').closest<HTMLElement>('[data-mkp=grid]')!;
+    expect(row.textContent).toContain('i');
+    expect(row.style.background).toContain('--mkp-tint-warn');
+  });
+
   it('lets a host lay the top-level blocks out itself, each in its own root', () => {
     const bundle = rootsBundle();
     function Host() {

@@ -79,7 +79,7 @@ function boxStyle(p: Record<string, unknown>, theme: Theme): ViewStyle {
   return {
     padding: theme.space(p.pad),
     gap: theme.space(p.gap),
-    backgroundColor: theme.color(p.fill),
+    backgroundColor: p.tint && p.tint !== 'none' ? theme.mix(theme.color(p.tint), theme.color('surface'), 0.12) : theme.color(p.fill),
     borderWidth: stroke ? 1 : undefined,
     borderColor: stroke,
     borderRadius: theme.radius(p.radius),
@@ -143,6 +143,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
         lineHeight: f.lineHeight * scale,
         fontWeight: p.weight === 'bold' ? '700' : p.weight === 'medium' ? '500' : f.fontWeight,
         textAlign: TEXT_ALIGN[String(p.align)] ?? undefined,
+        minHeight: p.lines ? f.lineHeight * scale * Number(p.lines) : undefined,
       };
       return (
         <Text style={st} numberOfLines={p.wrap === false ? 1 : undefined}>
@@ -188,6 +189,24 @@ export function Node({ n }: { n: VNode }): ReactNode {
       return <View accessibilityRole="none" style={{ height: 1, backgroundColor: theme.mix(theme.color('muted'), theme.color('surface'), 0.5), marginVertical: theme.space('l') }} />;
     case 'code': {
       const mono = theme.font('mono');
+      const type = { fontFamily: mono.fontFamily, fontSize: mono.fontSize, lineHeight: mono.lineHeight };
+      if (p.line) {
+        return (
+          <ScrollView horizontal style={{ backgroundColor: theme.mix(theme.color('muted'), theme.color('surface'), 0.08) }}>
+            <View accessibilityLabel={p.lang ? `${String(p.lang)} code` : 'code'} style={{ paddingVertical: theme.space('s') }}>
+              {String(p.src).split('\n').map((line, i) => {
+                const on = i + 1 === p.line;
+                return (
+                  <View key={i} accessibilityState={{ selected: on }} style={{ flexDirection: 'row', paddingHorizontal: theme.space('m'), backgroundColor: on ? theme.mix(theme.color('accent'), theme.color('surface'), 0.14) : undefined }}>
+                    <Text style={{ ...type, color: theme.color('muted'), width: mono.fontSize * 2 }}>{i + 1}</Text>
+                    <Text selectable style={{ ...type, color: ink, fontWeight: on ? '700' : undefined }}>{line}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        );
+      }
       return (
         <ScrollView horizontal style={{ backgroundColor: theme.mix(theme.color('muted'), theme.color('surface'), 0.12), borderRadius: theme.radius('card'), marginVertical: body.fontSize * 0.5 }} contentContainerStyle={{ padding: theme.space('m') }}>
           <Text selectable style={{ fontFamily: mono.fontFamily, fontSize: mono.fontSize, lineHeight: mono.lineHeight, color: ink }} accessibilityLabel={p.lang ? `${String(p.lang)} code` : 'code'}>

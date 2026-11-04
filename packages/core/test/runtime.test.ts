@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compile } from '../src/build';
+import { compileCase, fixtureCases } from '../src/fixtures';
 import { formatDiagnostic } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
@@ -19,6 +20,35 @@ function find(nodes: VNode[], f: (n: VNode) => boolean): VNode[] {
   walk(nodes, (n) => f(n) && out.push(n));
   return out;
 }
+
+describe('runtime: trace', () => {
+  const c = compile({ packs: allPacks() });
+  const fc = fixtureCases(c).find((k) => k.widget === 'trace@1' && k.name === 'sum-loop')!;
+  const texts = (rt: Runtime) => find(rt.view(), (n) => n.t === 'text').map((n) => (n.p.runs as { v?: string }[]).map((r) => r.v ?? '').join(''));
+
+  it('shows a value as it is, not as Markdown, and every variable has a row at every step', () => {
+    const run = [{ line: 1, values: ['2*3*4', '—'] }, { line: 2, values: ['2*3*4', '1'] }];
+    const rt = new Runtime(compileCase(c, { ...fc, props: { ...fc.props, run } }).bundle!, { now: () => 0 });
+    expect(texts(rt)).toContain('2*3*4');
+    expect(texts(rt)).toContain('total');
+    expect(texts(rt)).toContain('i');
+  });
+
+  it('passes the current line to the code, and marks what changed and what to watch', () => {
+    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
+    const code = () => find(rt.view(), (n) => n.t === 'code')[0];
+    expect(code().p.line).toBe(1);
+    rt.set({ pos: 2 });
+    expect(code().p.line).toBe(3);
+    expect(texts(rt)).toEqual(expect.arrayContaining(['changed', 'watch']));
+    expect(find(rt.view(), (n) => n.t === 'grid').map((n) => n.p.tint)).toEqual(expect.arrayContaining(['warn', 'info']));
+  });
+
+  it("puts Play between a stepper's arrows, with the count after them", () => {
+    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
+    expect(find(rt.view(), (n) => n.t === 'press').map((n) => n.p.label)).toEqual(['previous: step', 'play step', 'next: step']);
+  });
+});
 
 describe('runtime: roots of unity', () => {
   it('renders the widget with its bar, tabs, canvas and quiz', () => {

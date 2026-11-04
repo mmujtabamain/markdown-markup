@@ -854,7 +854,7 @@ export class Runtime {
         return { t: 'divider', key, p: {} };
       case 'code': {
         const p = this.props(n, env, inst);
-        return { t: 'code', key, p: { src: p.src, lang: p.lang ?? '' } };
+        return { t: 'code', key, p: { src: p.src, lang: p.lang ?? '', line: p.line ?? 0 } };
       }
       case 'math': {
         const p = this.props(n, env, inst);
@@ -905,7 +905,7 @@ export class Runtime {
       case 'text': {
         const p = this.props(n, env, inst);
         const value = String(p.value ?? '');
-        const v: VNode = { t: 'text', key, p: { ...p, runs: this.runs(value) } };
+        const v: VNode = { t: 'text', key, p: { ...p, runs: p.literal ? [{ t: 'text', v: value }] : this.runs(value) } };
         delete v.p.value;
         return v;
       }
@@ -1195,7 +1195,8 @@ export class Runtime {
         ];
         if (s.play) {
           const playing = inst.playing.has(name);
-          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing }));
+          // ‹ ▶ › and then where it is, so Play stays put as the count grows
+          kids.splice(1, 2, press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing }), kids[2], kids[1]);
         }
         inst.ids.set(name, key);
         return { t: 'flex', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label }, kids };

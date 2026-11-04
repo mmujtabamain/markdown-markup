@@ -11,6 +11,7 @@ extern stack@1 "Children one below another."
   in gap space = none "space between children"
   in align choice(start|center|end|stretch|baseline) = stretch "cross-axis alignment"
   in fill color = none "background"
+  in tint color = none "a wash of this colour behind it: a state, not a surface"
   in stroke color = none "border"
   in radius radius = none "corner radius"
   in shadow shadow = none
@@ -23,6 +24,7 @@ extern flex@1 "Children in a row that wraps or scrolls."
   in justify choice(start|center|end|between|around) = start
   in wrap bool = true
   in fill color = none
+  in tint color = none
   in stroke color = none
   in radius radius = none
   in shadow shadow = none
@@ -34,6 +36,7 @@ extern grid@1 "Children in equal columns."
   in gap space = none
   in align choice(start|center|end|stretch|baseline) = stretch
   in fill color = none
+  in tint color = none
   in stroke color = none
   in radius radius = none
   in shadow shadow = none
@@ -48,6 +51,8 @@ extern text@1 "A styled run of inline Markdown with inline maths."
   in size choice(small|normal|large) = normal
   in align choice(start|center|end) = start
   in wrap bool = true
+  in lines int 0..24 = 0 "height kept for this many lines, so a shorter text moves nothing below it"
+  in literal bool = false "show the value as it is, not read as inline Markdown"
 
 extern image@1 "An asset from the pack or the document's folder."
   fields src alt
@@ -144,6 +149,7 @@ extern code@1 "A code block."
   fields src lang
   in src text
   in lang text = ""
+  in line int = 0 "the current line, from 1: the lines are numbered and this one is marked"
 
 extern math@1 "A display formula."
   fields tex

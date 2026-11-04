@@ -1,23 +1,18 @@
-# Text has no slicing, so leading spaces are counted by comparison: s starts with k spaces exactly when
-# k spaces <= s < (k - 1 spaces) + "!", since a space sorts before every other printable character.
-fn spaces(k: int): text = join(map(range(1, k), x => " "), "")
-fn lead(s: text): int = fold(range(1, 24), 0, (n, k) => if(n == k - 1 and s >= spaces(k) and s < spaces(k - 1) + "!", k, n))
-# a line of code as inline code that keeps its indentation: Markdown collapses the leading spaces to one,
-# so all but one become no-break spaces in front
-fn indented(s: text): text = "`" + join(map(range(1, lead(s) - 1), x => " "), "") + s + "`"
-
-trace@1 "A program trace: the code with the current line marked, the variables at each step, and the output so far."
+trace@1 "A program trace: the code beside the state at each step, the note, every variable and the output so far."
   in code list(text) "the program, one line each"
-  in lang text = "" "the language, for the Markdown code block"
-  in vars list(text) "the variables shown, in order"
-  in run list(record snap {line: int, values: list(text), output: text = "", note: text = ""}) "one record per step: the line about to run (from 1), each variable's value then, what that line printed, a note"
+  in lang text = "" "the language, in the header and the Markdown code block"
+  in title text = "Step through it" "the header's title"
+  in vars list(text) "the variables shown, in order; their rows never come or go, so nothing moves as it plays"
+  in run list(record snap {line: int, values: list(text), output: text = "", note: text = "", watch: list(text) = []}) "one record per step: the line about to run (from 1), each variable's value (— while unset), what it printed, a note, and the variables to point out"
 
-  pos = steps (len(run)) "step"
+  pos = steps (len(run)) play=1600ms "step"
   now = run[pos]
   before = if(pos == 0, now, run[pos - 1])
-  lines = map(range(0, len(code) - 1), i => {id: "l" + i, n: i + 1, src: code[i], on: i + 1 == now.line})
-  fn changed(k) = pos > 0 and at(now.values, k, "") != at(before.values, k, "")
-  table = map(range(0, len(vars) - 1), k => {id: vars[k], name: vars[k], value: at(now.values, k, "—"), on: changed(k)})
+  fn changed(k) = at(now.values, k, "—") != "—" and (pos == 0 or at(now.values, k, "—") != at(before.values, k, "—"))
+  fn watched(k) = len(filter(now.watch, w => w == vars[k])) > 0
+  fn wash(k: int): color = if(changed(k), warn, if(watched(k), info, surface))
+  fn tone(k: int): color = if(changed(k), warn, if(watched(k), info, ink))
+  table = map(range(0, len(vars) - 1), k => {id: vars[k], k: k, value: at(now.values, k, "—"), mark: if(changed(k), "changed", if(watched(k), "watch", ""))})
   printed = filter(map(first(run, pos + 1), s => s.output), o => o != "")
 
   project md = ("```" + lang + "\n" + join(code, "\n") + "\n```\n\n| step | line | " + join(vars, " | ") + " | output |\n|" +
@@ -25,30 +20,35 @@ trace@1 "A program trace: the code with the current line marked, the variables a
       join(map(range(0, len(run) - 1), k => "| " + (k + 1) + " | " + run[k].line + " | " +
         join(map(range(0, len(vars) - 1), v => at(run[k].values, v, "")), " | ") + " | " + run[k].output + " |"), "\n") + "\n")
 
-  flex gap=l align=start
-    stack gap=none pad=s stroke=muted radius=card grow basis=m
-      each l in lines key=l.id
-        stack id=(l.id)
-          flex gap=s align=center pad=xs wrap=false stroke=accent radius=card if=(l.on)
-            text ("" + l.n) tone=accent font=mono weight=bold
-            text (indented(l.src)) weight=bold
-          flex gap=s align=center pad=xs wrap=false if=(not l.on)
-            text ("" + l.n) tone=muted font=mono
-            text (indented(l.src))
-    stack gap=s
-      grid cols=2 gap=s pad=s
-        text "variable" weight=bold tone=muted
-        text "value" weight=bold tone=muted
-      each v in table key=v.id
-        stack id=(v.id)
-          grid cols=2 gap=s pad=s stroke=accent radius=card if=(v.on)
-            text ("`" + v.name + "`")
-            text v.value weight=bold
-          grid cols=2 gap=s pad=s if=(not v.on)
-            text ("`" + v.name + "`")
-            text v.value
-      stack gap=xs if=(len(printed) > 0)
-        text "output" weight=bold tone=muted
-        each o in 0..(len(printed) - 1)
-          text ("`" + printed[o] + "`")
-  text ("Step " + (pos + 1) + " of " + len(run) + ", line " + now.line + if(now.note == "", ".", ": " + now.note))
+  stack stroke=muted radius=card
+    flex gap=m align=center pad=m
+      text ("TRACE" + if(lang == "", "", " · " + lang)) font=mono size=small tone=muted
+      text title weight=bold
+    divider
+    flex align=stretch
+      stack grow basis=m
+        code (join(code, "\n")) line=(now.line) grow
+      stack grow basis=m
+        stack pad=m
+          text (if(now.note == "", "Line " + now.line + ".", now.note)) lines=3
+        divider
+        grid cols=3 gap=s pad=m tint=muted
+          text "VARIABLE" font=mono size=small tone=muted
+          text "VALUE" font=mono size=small tone=muted
+        divider
+        each v in table key=v.id
+          stack
+            grid cols=3 gap=s pad=m align=center tint=(wash(v.k))
+              text (v.id) font=mono literal=true
+              text (v.value) font=mono literal=true tone=(tone(v.k)) weight=(if(v.mark == "changed", bold, regular))
+              flex justify=end
+                # always there, so a row is as tall with a mark as without
+                flex pad=s stroke=(wash(v.k)) radius=pill
+                  text (v.mark) size=small tone=(tone(v.k)) lines=1
+            divider
+        grid cols=3 gap=s pad=m align=center
+          text "output" font=mono tone=muted
+          text (if(len(printed) == 0, "—", join(printed, " "))) font=mono literal=true span=2
+    divider
+    stack pad=s
+      controls pos

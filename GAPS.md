@@ -242,6 +242,18 @@ rule of the spec, not a defect), *in progress*.
     Markdown, so a line of code can't be shown literally, and `trace` wraps each line in backticks.
     A host that gives inline code a background (Study Pad does, and it is right in prose) then shows
     a listing of separate chips of different widths. A literal mode on `text`, or a code block with
-    one marked line, would fix it. *Open.*
+    one marked line, would fix it. *Fixed:* Mujtaba asked for Study Pad's own trace design, so `trace`
+    is that now, and both of those went in: `code line=` is a listing with a marked line, and
+    `text literal=true` shows a string as it is. A provider gives the listing to its own component.
 66. **MKP: a canvas label can sit on the axis.** `orbit`'s $f(z)$ starts on the real axis, which runs
     through it, because a label has no background and no way to avoid a line. Like 23. *Open*, minor.
+67. **MKP: `none` can't be written in an expression.** `fill=none` is fine, but `if(x, warn, none)` is
+    `mkp.unknown-name`, and worse, the node is dropped from the definition, so a fixture case whose
+    own compile is clean draws nothing there (only the pack build reports it). `trace` uses
+    `surface` for "no wash". `quiz.choice` hit the same thing with `ink`. *Open.*
+68. **MKP: `trace` can't jump to a line.** Study Pad's listing lets a reader press or drag to a line.
+    `code` has no event for it, so the listing is read-only here. *Open.*
+69. **MKP: the bar's own status is fixed.** `steps` says "step 3 / 8", where Study Pad's says "Step 3 of 8
+    · line 3" with a reset button on the right, and its Play is the primary button. *Open*, minor.
+70. **MKP: a header can't uppercase.** Study Pad's `TRACE · PYTHON` is CSS uppercase. MKP has no
+    `upper()` or text case, so the language keeps the case it was written in. *Open*, minor.

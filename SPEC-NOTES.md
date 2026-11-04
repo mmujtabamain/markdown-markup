@@ -433,3 +433,20 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     answer, so a provider can mark the row right or wrong. Adding to core@1 changes its digest in
     every lock. Nothing outside this repo is locked to it but Study Pad's fixture lesson, which is
     relocked.
+106. **`trace` is Study Pad's two-pane design.** *Extension (8), and a change to a pack's look.* Mujtaba
+    asked for it over the design I had drawn. It is a frame with a header and the bar inside, code on
+    the left, and on the right the note in a reserved box and a table of the variables whose rows
+    never come or go, so nothing moves as it plays. Panes wrap into a column under two `m` widths.
+    What it needed from the base set:
+    - `code line=N`: a numbered listing with line N marked. A listing is a thing hosts already have,
+      so it is the provider's to draw, and Study Pad's is its `CodeListing`. Drawing one from
+      `stack` and `text` was what made the chips in GAPS 65.
+    - `text literal=true`: the value as it is, not read as inline Markdown. A variable called `*p` or
+      a value of `2*3*4` must not turn into emphasis.
+    - `text lines=N`: height kept for N lines, for the note's box.
+    - `tint=` on `stack`, `flex` and `grid`: a wash of a colour, for a state. A provider can name its
+      own with `--mkp-tint-<name>`, as with `--mkp-stroke-<name>`; otherwise it is the colour at 12%
+      over the surface.
+    - A `steps` control with `play=` puts Play between ‹ and ›, and the count after them.
+    `run` gains `watch`, the variables to point out, and `trace` gains `title`.
+

@@ -61,7 +61,8 @@ export interface Kit {
   /** one answer among others: a full-width row with a tick or a dot */
   OptionRow: ComponentType<OptionRowProps>;
   Callout: ComponentType<{ alert: AlertKind; children?: ReactNode }>;
-  CodeBlock: ComponentType<{ language: string; code: string }>;
+  /** With a `line`, a numbered listing with that line marked. */
+  CodeBlock: ComponentType<{ language: string; code: string; line?: number; style?: CSSProperties }>;
   Paragraph: C;
   /** takes `level`, 1 to 6 */
   Heading: C;
@@ -135,12 +136,14 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
           <Kids nodes={n.kids} />
         </kit.OptionRow>
       );
-    case 'toggle':
+    case 'toggle': {
+      const Icon = glyphOf(n);
       return (
         <kit.Toggle {...attrs} variant="outline" size="sm" pressed={selected} disabled={disabled} aria-label={label} onPressedChange={click} style={{ color: color(p.tone), ...style }}>
-          <Kids nodes={n.kids} />
+          {Icon ? <Icon aria-hidden /> : <Kids nodes={n.kids} />}
         </kit.Toggle>
       );
+    }
     default: {
       const Icon = glyphOf(n);
       return (
@@ -371,7 +374,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
           <Kids nodes={n.kids} />
         </kit.Quote>
       ),
-    code: ({ n, attrs }) => <kit.CodeBlock {...attrs} language={String(n.p.lang || '')} code={String(n.p.src)} />,
+    code: ({ n, attrs, style }) => <kit.CodeBlock {...attrs} style={style} language={String(n.p.lang || '')} code={String(n.p.src)} line={Number(n.p.line) || 0} />,
     math: ({ n, attrs }) => (
       <div {...attrs}>
         <MathSpan m={n.p as { tex: string }} display />

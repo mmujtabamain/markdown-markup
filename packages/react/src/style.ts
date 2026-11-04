@@ -77,6 +77,10 @@ export const NEUTRAL_CSS = `
 .mkp-root p { margin: 0.5em 0; }
 .mkp-root ul, .mkp-root ol { margin: 0.5em 0; padding-left: 1.5em; } .mkp-root ul { list-style: disc; } .mkp-root ol { list-style: decimal; }
 .mkp-root code, .mkp-root pre { font-family: var(--mkp-font-mono), ui-monospace, monospace; font-size: var(--mkp-font-mono-size); }
+.mkp-root pre code:has(.mkp-code-line) { counter-reset: mkp-line; }
+.mkp-code-line { display: block; position: relative; padding-left: 4ch; counter-increment: mkp-line; }
+.mkp-code-line::before { content: counter(mkp-line); position: absolute; left: 0; width: 3ch; text-align: right; color: var(--mkp-color-muted); }
+.mkp-code-line[aria-current] { background: color-mix(in srgb, var(--mkp-color-accent) 14%, transparent); font-weight: 700; }
 .mkp-root pre { background: color-mix(in srgb, var(--mkp-color-muted) 12%, transparent); padding: var(--mkp-space-m); border-radius: var(--mkp-radius-card); overflow-x: auto; }
 .mkp-root a { color: var(--mkp-color-accent); }
 .mkp-root hr { border: 0; border-top: 1px solid color-mix(in srgb, var(--mkp-color-muted) 50%, transparent); margin: var(--mkp-space-l) 0; }

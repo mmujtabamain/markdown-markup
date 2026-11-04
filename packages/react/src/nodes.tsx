@@ -110,11 +110,15 @@ export function layoutStyle(n: VNode): CSSProperties {
   return s;
 }
 
+/** A wash of a colour: --mkp-tint-<name> if the provider has one, else that colour thinned. */
+const tint = (name: unknown): string | undefined =>
+  name && name !== 'none' ? `var(--mkp-tint-${String(name)}, color-mix(in srgb, ${color(name)} 12%, var(--mkp-color-surface)))` : undefined;
+
 function boxStyle(p: Record<string, unknown>): CSSProperties {
   return {
     padding: space(p.pad),
     gap: space(p.gap),
-    background: color(p.fill),
+    background: tint(p.tint) ?? color(p.fill),
     // a box's outline: --mkp-stroke-<name> if the provider sets one (lines lighter than text), else the colour
     border: p.stroke && p.stroke !== 'none' ? `1px solid var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})` : undefined,
     borderRadius: radius(p.radius),
@@ -145,6 +149,7 @@ export function textStyle(n: VNode): CSSProperties {
     fontSize: n.p.size === 'small' ? '0.875em' : n.p.size === 'large' ? '1.25em' : undefined,
     textAlign: (n.p.align as CSSProperties['textAlign']) ?? undefined,
     whiteSpace: n.p.wrap === false ? 'nowrap' : undefined,
+    minHeight: n.p.lines ? `${Number(n.p.lines)}lh` : undefined,
   };
 }
 
@@ -267,8 +272,14 @@ export function Node({ n }: { n: VNode }): ReactNode {
       return <hr {...common} />;
     case 'code':
       return (
-        <pre {...common}>
-          <code data-lang={String(p.lang || '') || undefined}>{String(p.src)}</code>
+        <pre {...common} style={lay}>
+          <code data-lang={String(p.lang || '') || undefined}>
+            {p.line
+              ? String(p.src).split('\n').map((line, i) => (
+                  <span key={i} className="mkp-code-line" aria-current={i + 1 === p.line ? 'step' : undefined}>{line || ' '}</span>
+                ))
+              : String(p.src)}
+          </code>
         </pre>
       );
     case 'math':
