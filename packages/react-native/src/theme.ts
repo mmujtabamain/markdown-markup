@@ -28,8 +28,6 @@ export interface Theme {
   radius(name: unknown): number | undefined;
   font(name: unknown): FontToken;
   shadow(name: unknown): ViewStyle | undefined;
-  /** motion tokens in milliseconds */
-  motion(name: string): number;
   /** a colour mixed with another, like CSS color-mix (a fraction of `a`) */
   mix(a: string | undefined, b: string | undefined, fraction: number): string | undefined;
 }
@@ -142,7 +140,6 @@ export function makeTheme(sets: IRTokenSet[], overrides: TokenMap | undefined, s
         elevation: Math.max(1, Math.round(blur)),
       };
     },
-    motion: (name) => num(t.get('motion', name)?.value, name === 'quick' ? 180 : 300),
     mix: mixColors,
   };
 }

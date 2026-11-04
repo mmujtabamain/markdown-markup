@@ -24,7 +24,7 @@ function useWidth(ref: { current: HTMLElement | null }, max: number): number {
   return w;
 }
 
-export function Canvas({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
+export function Canvas({ n }: { n: VNode }): ReactNode {
   const p = n.p;
   const box = useRef<HTMLDivElement | null>(null);
   const sizeTok = String(p.size ?? 'm');
@@ -34,7 +34,7 @@ export function Canvas({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTM
   const y = (p.y as number[]) ?? [-1, 1];
   const aspect = Number(p.aspect) > 0 ? Number(p.aspect) : (x[1] - x[0]) / (y[1] - y[0]) || 1;
   const H = Math.round(W / aspect);
-  if (Number(p.dims) === 3) return <Canvas3D n={n} cls={cls} reg={reg} W={W} H={H} box={box} />;
+  if (Number(p.dims) === 3) return <Canvas3D n={n} W={W} H={H} box={box} />;
   const X = (v: number): number => ((v - x[0]) / (x[1] - x[0])) * W;
   const Y = (v: number): number => H - ((v - y[0]) / (y[1] - y[0])) * H;
   const unit = W / (x[1] - x[0]);
@@ -48,12 +48,11 @@ export function Canvas({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTM
     <div
       ref={(el) => {
         box.current = el;
-        reg?.(el);
       }}
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       hidden={n.hidden || undefined}
-      className={['mkp-canvas', cls].filter(Boolean).join(' ')}
+      className="mkp-canvas"
       style={{ width: W, height: H }}
       role="img"
       aria-label={String(p.label || 'figure')}
@@ -258,7 +257,7 @@ function buildProgram(gl: WebGLRenderingContext, frag: string): WebGLProgram | n
 }
 
 /** dims=3: a mesh z = f(x, y) seen through a camera the reader can turn (drag or arrow keys). */
-function Canvas3D({ n, cls, reg, W, H, box }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void; W: number; H: number; box: { current: HTMLDivElement | null } }): ReactNode {
+function Canvas3D({ n, W, H, box }: { n: VNode; W: number; H: number; box: { current: HTMLDivElement | null } }): ReactNode {
   const p = n.p;
   const view = (p.view as number[]) ?? [35, 25];
   const [cam, setCam] = useState<[number, number]>([view[0], view[1]]);
@@ -300,10 +299,9 @@ function Canvas3D({ n, cls, reg, W, H, box }: { n: VNode; cls?: string; reg?: (e
     <div
       ref={(e) => {
         box.current = e;
-        reg?.(e);
       }}
       data-mkp-key={n.key}
-      className={['mkp-canvas', cls].filter(Boolean).join(' ')}
+      className="mkp-canvas"
       style={{ width: W, height: H }}
       role="img"
       tabIndex={0}

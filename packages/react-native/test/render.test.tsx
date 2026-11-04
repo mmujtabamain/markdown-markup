@@ -24,7 +24,7 @@ import {
   type VRun,
   type VShape,
 } from '@mkp/core';
-import { capabilities, keyedChange, MkpDocument, setSkia } from '../src';
+import { capabilities, MkpDocument, setSkia } from '../src';
 import { allPacks, ROOT } from './packs';
 
 const H = { includeHiddenElements: true } as const;
@@ -361,13 +361,13 @@ describe('interactions', () => {
     }
   });
 
-  it('keyed children enter and leave with motion on, and settle', async () => {
+  it('swaps keyed children on a press, with nothing left behind', async () => {
     const hit = firstCase((v) => {
       let tabs = 0;
       walkView(v, (n) => n.t === 'press' && n.p.kind === 'tab' && tabs++);
       return tabs >= 2;
     });
-    const rt = await mount(hit!.bundle, { hosts: hit!.fc.hosts, reducedMotion: false });
+    const rt = await mount(hit!.bundle, { hosts: hit!.fc.hosts });
     const tabs = screen.getAllByRole('tab');
     await fireEvent.press(tabs[tabs.findIndex((t) => !t.props.accessibilityState?.selected)]);
     await waitFor(() => check(rt), { timeout: 2000 });
@@ -394,15 +394,5 @@ describe('play', () => {
     await act(async () => {
       await screen.unmount();
     });
-  });
-});
-
-describe('keyedChange', () => {
-  const n = (key: string, kids?: VNode[]): VNode => ({ t: 'stack', key, p: {}, kids });
-  it('sees moves, entries and exits, not prop changes', () => {
-    const a = [n('r', [n('a'), n('b')])];
-    expect(keyedChange(a, [n('r', [n('b'), n('a')])])).toBe(true);
-    expect(keyedChange(a, [n('r', [n('a')])])).toBe(true);
-    expect(keyedChange(a, [{ ...n('r', [n('a'), n('b')]), p: { pad: 'm' } }])).toBe(false);
   });
 });

@@ -3,7 +3,6 @@
 
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import {
-  Animated,
   Modal,
   PanResponder,
   Pressable,
@@ -27,45 +26,10 @@ import { Canvas } from './canvas';
 import type { Theme } from './theme';
 
 // ---------------------------------------------------------------------------------------------
-// Keyed children with enter, move and leave animation (6.11). Moves are animated by
-// LayoutAnimation, configured by the document before a re-render that reorders keys; entering
-// children fade in and removed children linger briefly while they fade out.
-
-interface Leaving {
-  node: VNode;
-  index: number;
-  until: number;
-}
+// Children keyed by identity. Nothing animates: a change to the view is drawn as it is.
 
 export function Kids({ nodes, cell }: { nodes: VNode[] | undefined; cell?: (n: VNode) => ViewStyle | undefined }): ReactNode {
-  const { reducedMotion, theme } = useCtx();
-  const list = nodes ?? [];
-  const prevKeys = useRef<Set<string> | null>(null);
-  const prevNodes = useRef<VNode[]>([]);
-  const [leaving, setLeaving] = useState<Leaving[]>([]);
-  const curKeys = new Set(list.map((n) => n.key));
-  const mounted = prevKeys.current !== null;
-  const quick = theme.motion('quick');
-
-  useLayoutEffect(() => {
-    const before = prevNodes.current;
-    const hadKeys = prevKeys.current;
-    prevKeys.current = curKeys;
-    prevNodes.current = list;
-    if (reducedMotion || !hadKeys) return undefined;
-    const gone = before.map((n, i) => ({ n, i })).filter(({ n }) => !curKeys.has(n.key));
-    if (!gone.length) return undefined;
-    const until = Date.now() + quick;
-    setLeaving((l) => [...l.filter((x) => !curKeys.has(x.node.key)), ...gone.map(({ n, i }) => ({ node: n, index: i, until }))]);
-    const t = setTimeout(() => setLeaving((l) => l.filter((x) => x.until > Date.now())), quick + 20);
-    return () => clearTimeout(t);
-  });
-
-  const rendered: { n: VNode; leaving: boolean }[] = list.map((n) => ({ n, leaving: false }));
-  for (const l of leaving) if (!curKeys.has(l.node.key)) rendered.splice(Math.min(l.index, rendered.length), 0, { n: l.node, leaving: true });
-  return rendered.map(({ n, leaving: isLeaving }) => (
-    <Slot key={n.key} n={n} entering={mounted && !prevKeys.current!.has(n.key) && !reducedMotion} leaving={isLeaving} extra={cell?.(n)} />
-  ));
+  return (nodes ?? []).map((n) => <Slot key={n.key} n={n} extra={cell?.(n)} />);
 }
 
 function layoutStyle(n: VNode, theme: Theme): ViewStyle {
@@ -76,24 +40,11 @@ function layoutStyle(n: VNode, theme: Theme): ViewStyle {
   };
 }
 
-/** One keyed child: its own animated wrapper, which also reports its layout to scopes measuring arrows. */
-function Slot({ n, entering, leaving, extra }: { n: VNode; entering: boolean; leaving: boolean; extra?: ViewStyle }): ReactNode {
+/** One keyed child: a wrapper that also reports its layout to scopes measuring arrows. */
+function Slot({ n, extra }: { n: VNode; extra?: ViewStyle }): ReactNode {
   const { theme } = useCtx();
   const regs = useContext(MeasureCtx);
   const host = useRef<ComponentRef<typeof View>>(null);
-  const opacity = useRef(new Animated.Value(entering ? 0 : 1)).current;
-  useEffect(() => {
-    if (!entering) return undefined;
-    const a = Animated.timing(opacity, { toValue: 1, duration: theme.motion('settle'), useNativeDriver: true });
-    a.start();
-    return () => a.stop();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!leaving) return undefined;
-    const a = Animated.timing(opacity, { toValue: 0, duration: theme.motion('quick'), useNativeDriver: true });
-    a.start();
-    return () => a.stop();
-  }, [leaving]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     for (const r of regs) r.register(n.key, host.current as Measurable | null, !!n.hidden);
     return () => {
@@ -102,18 +53,17 @@ function Slot({ n, entering, leaving, extra }: { n: VNode; entering: boolean; le
   }, [regs, n.key, n.hidden]);
   const onLayout = regs.length ? (e: LayoutChangeEvent) => regs.forEach((r) => r.layout(n.key, e.nativeEvent.layout)) : undefined;
   return (
-    <Animated.View
+    <View
       ref={host}
       testID={n.key}
       nativeID={n.id}
       onLayout={onLayout}
-      pointerEvents={leaving ? 'none' : 'auto'}
-      accessibilityElementsHidden={leaving || n.hidden}
-      importantForAccessibility={leaving || n.hidden ? 'no-hide-descendants' : 'auto'}
-      style={[layoutStyle(n, theme), extra, { opacity }, n.hidden ? { display: 'none' } : null]}
+      accessibilityElementsHidden={n.hidden}
+      importantForAccessibility={n.hidden ? 'no-hide-descendants' : 'auto'}
+      style={[layoutStyle(n, theme), extra, n.hidden ? { display: 'none' } : null]}
     >
       <Node n={n} />
-    </Animated.View>
+    </View>
   );
 }
 
@@ -707,13 +657,8 @@ function Scope({ n }: { n: VNode }): ReactNode {
   );
   const chain = useMemo(() => (arrows?.length ? [...parents, registry] : parents), [parents, registry, !!arrows?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // keyed moves animate for the settle time: measure again a little after that
-  const { theme } = useCtx();
   useEffect(() => {
-    if (!arrows?.length) return undefined;
-    measure();
-    const t = setTimeout(measure, theme.motion('settle') + 50);
-    return () => clearTimeout(t);
+    if (arrows?.length) measure();
   });
   useEffect(
     () => () => {

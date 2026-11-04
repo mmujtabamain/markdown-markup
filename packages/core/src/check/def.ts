@@ -941,7 +941,7 @@ export class DefChecker {
         keyed = true;
       } else this.fail(extra.p, 'each takes only key=expr after its list');
     }
-    if (!keyed) this.diags.warn('mkp.each-unkeyed', `each over a list without key= uses the index as identity, so items can't glide when the list changes; add key=… with a unique value of ${name}`, n.p, [...this.path]);
+    if (!keyed) this.diags.warn('mkp.each-unkeyed', `each over a list without key= uses the index as identity, so items lose their state when the list changes; add key=… with a unique value of ${name}`, n.p, [...this.path]);
     if (n.events.length) this.fail(n.events[0].p, 'each has no events');
     const items = this.nodes(n.children, ctx, sc, depth + 1);
     this.placeChildren(out, items);

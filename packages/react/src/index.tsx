@@ -81,7 +81,7 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     return () => cancelAnimationFrame(raf);
   }, [rt]);
   const css = useMemo(() => BASE_CSS + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens]);
-  const ctx = useMemo(() => ({ rt, reducedMotion }), [rt, reducedMotion]);
+  const ctx = useMemo(() => ({ rt }), [rt]);
   return (
     <RuntimeCtx.Provider value={ctx}>
       <ViewCtx.Provider value={tree}>
@@ -94,9 +94,8 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
 
 function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme']; className?: string }): ReactNode {
   const tree = useMkpView();
-  const reducedMotion = useContext(RuntimeCtx)!.reducedMotion;
   return (
-    <div className={['mkp-root', className].filter(Boolean).join(' ')} data-theme={theme && theme !== 'auto' ? theme : undefined} data-reduced-motion={reducedMotion || undefined}>
+    <div className={['mkp-root', className].filter(Boolean).join(' ')} data-theme={theme && theme !== 'auto' ? theme : undefined}>
       <Kids nodes={tree} />
     </div>
   );

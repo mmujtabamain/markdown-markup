@@ -1,4 +1,4 @@
-// What every node reads: the runtime it reports events to, the resolved tokens, reduced motion,
+// What every node reads: the runtime it reports events to, the resolved tokens,
 // and the measurement registries of the scopes above it (for arrows, spec 6.10).
 
 import { createContext, useContext } from 'react';
@@ -9,7 +9,6 @@ import type { Theme } from './theme';
 export interface Ctx {
   rt: Runtime;
   theme: Theme;
-  reducedMotion: boolean;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);

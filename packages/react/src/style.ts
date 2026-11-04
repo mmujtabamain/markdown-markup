@@ -33,9 +33,6 @@ export function tokenCss(sets: IRTokenSet[], overrides?: TokenMap, scope = '.mkp
       case 'shadow':
         light.push(`--mkp-shadow-${name}: 0 ${px(v.y ?? 1)} ${px(v.blur ?? 2)} ${v.color ?? '#0000001f'};`);
         break;
-      case 'motion':
-        light.push(`--mkp-motion-${name}: ${typeof value === 'number' ? `${value}ms` : value};`);
-        break;
     }
   }
   return `${scope} { ${light.join(' ')} }
@@ -79,20 +76,13 @@ export const BASE_CSS = `
 .mkp-math-display { display: block; text-align: center; margin: 0.6em 0; overflow-x: auto; }
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
 .mkp-canvas > svg { display: block; overflow: hidden; }
-.mkp-canvas > svg circle { transition: cx var(--mkp-motion-quick, 180ms) linear, cy var(--mkp-motion-quick, 180ms) linear, r var(--mkp-motion-quick, 180ms) ease; }
-.mkp-overlay-label, .mkp-place { transition: left var(--mkp-motion-quick, 180ms) linear, top var(--mkp-motion-quick, 180ms) linear; }
 .mkp-overlay-label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; font-size: 0.95em; }
 .mkp-place { position: absolute; transform: translate(-50%, -50%); }
 .mkp-handle { cursor: grab; } .mkp-handle:focus { outline: none; } .mkp-handle:focus-visible circle { stroke: var(--mkp-color-accent); stroke-width: 3; }
 .mkp-arrows { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .mkp-scope { position: relative; }
-.mkp-enter { animation: mkp-enter var(--mkp-motion-settle, 300ms) ease both; }
-@keyframes mkp-enter { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
-.mkp-leaving { opacity: 0; transition: opacity var(--mkp-motion-quick, 180ms) ease; pointer-events: none; }
 .mkp-dialog { position: fixed; inset: 0; display: grid; place-items: center; background: #0006; z-index: 1000; }
 .mkp-dialog > div, .mkp-popover { background: var(--mkp-color-surface); color: var(--mkp-color-ink); border: 1px solid color-mix(in srgb, var(--mkp-color-muted) 45%, transparent); border-radius: var(--mkp-radius-card); box-shadow: var(--mkp-shadow-raised); padding: var(--mkp-space-l); max-width: min(90vw, 480px); }
 .mkp-popover { position: absolute; z-index: 100; top: calc(100% + 4px); left: 0; min-width: 160px; }
 .mkp-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .mkp-enter { animation: none; } .mkp-leaving, .mkp-canvas > svg circle, .mkp-overlay-label, .mkp-place { transition: none; } }
-.mkp-root[data-reduced-motion] .mkp-canvas > svg circle, .mkp-root[data-reduced-motion] .mkp-overlay-label, .mkp-root[data-reduced-motion] .mkp-place { transition: none; }
 `;

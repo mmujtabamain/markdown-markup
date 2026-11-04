@@ -347,7 +347,7 @@ function tokenLines(t: IRTokenSet): string[] {
     const entries = Object.entries(names);
     const simple = entries.every(([, e]) => Object.keys(e).length === 1 && 'value' in e && typeof e.value !== 'string');
     if (simple && kind !== 'color' && kind !== 'font' && kind !== 'shadow') {
-      out.push(`  ${kind} ${entries.map(([n, e]) => `${n}=${kind === 'motion' ? msSrc(e.value as number) : v(e.value)}`).join(' ')}`);
+      out.push(`  ${kind} ${entries.map(([n, e]) => `${n}=${v(e.value)}`).join(' ')}`);
       continue;
     }
     for (const [n, e] of entries) {

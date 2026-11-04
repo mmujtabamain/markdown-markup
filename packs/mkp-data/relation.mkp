@@ -1,6 +1,6 @@
 # Relations shared by the pack: a relation is named columns and rows of text cells.
 type rel = {name: text = "", cols: list(text), rows: list(list(text))}
-# one drawn row: an id so it glides between steps, its cells, and how it is marked
+# one drawn row: an id so it keeps its identity between steps, its cells, and how it is marked
 type rrow = {id: text, cells: list(text), mark: choice(plain|on|off|head) = plain}
 
 # a cell of a row by column name, or "" when the relation has no such column
@@ -39,7 +39,7 @@ fn opsym(op: text): text = if(op == "eq", "=", if(op == "ne", "<>", if(op == "lt
 # a value as SQL writes it: numbers bare, text quoted
 fn sqlval(v: text): text = if(number(v) == number(v), v, "'" + v + "'")
 
-part reltable@1 "A relation drawn as a table: keyed rows glide between steps, marked rows are outlined."
+part reltable@1 "A relation drawn as a table: keyed rows keep their identity between steps, marked rows are outlined."
   fields cols rows
   in cols list(text) "the column names"
   in rows list(rrow) "the rows, each with an id"

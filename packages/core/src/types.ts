@@ -3,7 +3,7 @@
 import { MkpError, Pos } from './diag';
 import { PosMap, Tok, tokenize } from './syntax/lexer';
 
-export const TOKEN_KINDS = ['color', 'font', 'space', 'size', 'radius', 'shadow', 'motion'] as const;
+export const TOKEN_KINDS = ['color', 'font', 'space', 'size', 'radius', 'shadow'] as const;
 export type TokenKind = (typeof TOKEN_KINDS)[number];
 
 export type Field = [string, Type];

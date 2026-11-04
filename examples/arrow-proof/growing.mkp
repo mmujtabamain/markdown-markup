@@ -1,5 +1,5 @@
-# The tidy tree of 18.2, fed by reader state: each step adds nodes, keyed items glide to their new
-# places, and the arrows are measured again as they move.
+# The tidy tree of 18.2, fed by reader state: each step adds nodes, keyed items take their new
+# places, and the arrows are measured again.
 fn leaf(id: text, label: text): tnode = {id: id, label: label, kids: []}
 
 growing@1 "A tree that grows a level at a time while its arrows follow the moving nodes."

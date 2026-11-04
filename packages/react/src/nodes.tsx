@@ -8,7 +8,6 @@ import { Canvas } from './canvas';
 
 export interface Ctx {
   rt: Runtime;
-  reducedMotion: boolean;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);
@@ -67,86 +66,10 @@ export function MathSpan({ m, display }: { m: { tex: string; svg?: string; speec
 }
 
 // ---------------------------------------------------------------------------------------------
-// Keyed children with enter, move (FLIP) and leave animation (6.11)
 
-interface Leaving {
-  node: VNode;
-  index: number;
-  until: number;
-}
-
+/** Children keyed by identity. Nothing animates: a change to the view is drawn as it is. */
 export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
-  const { reducedMotion } = useCtx();
-  const list = nodes ?? [];
-  const els = useRef(new Map<string, HTMLElement>());
-  const rects = useRef(new Map<string, DOMRect>());
-  const prevKeys = useRef<Set<string> | null>(null);
-  const prevNodes = useRef<VNode[]>([]);
-  const [leaving, setLeaving] = useState<Leaving[]>([]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-  const curKeys = new Set(list.map((n) => n.key));
-  const mounted = prevKeys.current !== null;
-
-  // removed children linger briefly so they can fade out
-  useLayoutEffect(() => {
-    if (reducedMotion || !prevKeys.current) return;
-    const gone = prevNodes.current.map((n, i) => ({ n, i })).filter(({ n }) => !curKeys.has(n.key));
-    if (gone.length) {
-      const until = Date.now() + 200;
-      setLeaving((l) => [...l.filter((x) => !curKeys.has(x.node.key)), ...gone.map(({ n, i }) => ({ node: n, index: i, until }))]);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        setLeaving((l) => l.filter((x) => x.until > Date.now()));
-      }, 220);
-    }
-  });
-
-  // FLIP: children that moved glide from their old place
-  useLayoutEffect(() => {
-    if (!reducedMotion) {
-      for (const [k, el] of els.current) {
-        const before = rects.current.get(k);
-        if (!before || !el.isConnected) continue;
-        const after = relRect(el);
-        const dx = before.left - after.left;
-        const dy = before.top - after.top;
-        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-          el.style.transition = 'none';
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
-          requestAnimationFrame(() => {
-            el.style.transition = 'transform var(--mkp-motion-settle, 300ms) ease';
-            el.style.transform = '';
-          });
-        }
-      }
-    }
-    const next = new Map<string, DOMRect>();
-    for (const [k, el] of els.current) if (el.isConnected) next.set(k, relRect(el));
-    rects.current = next;
-    prevKeys.current = curKeys;
-    prevNodes.current = list;
-  });
-
-  const rendered: { n: VNode; leaving: boolean }[] = list.map((n) => ({ n, leaving: false }));
-  for (const l of leaving) if (!curKeys.has(l.node.key)) rendered.splice(Math.min(l.index, rendered.length), 0, { n: l.node, leaving: true });
-  return rendered.map(({ n, leaving: isLeaving }) => (
-    <Slot key={n.key} n={n} entering={mounted && !prevKeys.current!.has(n.key) && !reducedMotion} leaving={isLeaving} reg={(el) => (el ? els.current.set(n.key, el) : els.current.delete(n.key))} />
-  ));
-}
-
-/** A rectangle relative to the parent element (moves of the parent itself are not the child's). */
-function relRect(el: HTMLElement): DOMRect {
-  const r = el.getBoundingClientRect();
-  const p = el.parentElement?.getBoundingClientRect();
-  return p ? new DOMRect(r.left - p.left, r.top - p.top, r.width, r.height) : r;
-}
-
-function Slot({ n, entering, leaving, reg }: { n: VNode; entering: boolean; leaving: boolean; reg: (el: HTMLElement | null) => void }): ReactNode {
-  return <Node n={n} cls={leaving ? 'mkp-leaving' : entering ? 'mkp-enter' : undefined} reg={reg} />;
+  return (nodes ?? []).map((n) => <Node key={n.key} n={n} />);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -179,25 +102,25 @@ const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', e
 const JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around' };
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
 
-export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
+export function Node({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
   // data-mkp names the base widget, so a provider's stylesheet can say what it styles
-  const common = { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined, className: cls, ref: reg } as const;
+  const common = { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined } as const;
   const lay = layoutStyle(n);
   switch (n.t) {
     case 'scope':
-      return <Scope n={n} cls={cls} reg={reg} />;
+      return <Scope n={n} />;
     case 'error':
       return (
-        <div {...common} className={['mkp-error', cls].filter(Boolean).join(' ')} role="alert">
+        <div {...common} className="mkp-error" role="alert">
           <div>{String(p.summary || p.name)}</div>
           <small>{String(p.message)}</small>
         </div>
       );
     case 'bar':
       return (
-        <div {...common} className={['mkp-bar', cls].filter(Boolean).join(' ')} role="toolbar" aria-label="controls">
+        <div {...common} className="mkp-bar" role="toolbar" aria-label="controls">
           <Kids nodes={n.kids} />
         </div>
       );
@@ -246,7 +169,7 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
       else if (kind === 'toggle') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
-        <button {...common} {...aria} data-kind={kind} type="button" disabled={!!p.disabled} className={['mkp-press', kind === 'tab' ? 'mkp-tab' : '', cls].filter(Boolean).join(' ')} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
+        <button {...common} {...aria} data-kind={kind} type="button" disabled={!!p.disabled} className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
           <Kids nodes={n.kids} />
         </button>
       );
@@ -255,7 +178,7 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
       return (
         <input
           {...common}
-          className={['mkp-range', cls].filter(Boolean).join(' ')}
+          className="mkp-range"
           type="range"
           min={Number(p.min)}
           max={Number(p.max)}
@@ -269,11 +192,11 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
         />
       );
     case 'field':
-      return <Field n={n} cls={cls} reg={reg} />;
+      return <Field n={n} />;
     case 'overlay':
-      return <Overlay n={n} cls={cls} reg={reg} />;
+      return <Overlay n={n} />;
     case 'canvas':
-      return <Canvas n={n} cls={cls} reg={reg} />;
+      return <Canvas n={n} />;
     case 'paragraph':
       return (
         <p {...common}>
@@ -369,16 +292,15 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
   }
 }
 
-function Field({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
+function Field({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
   return (
     <input
-      ref={reg}
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       hidden={n.hidden || undefined}
-      className={['mkp-field', cls].filter(Boolean).join(' ')}
+      className="mkp-field"
       type="text"
       inputMode={p.kind === 'number' ? 'decimal' : undefined}
       value={String(p.value ?? '')}
@@ -393,7 +315,7 @@ function Field({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement
   );
 }
 
-function Overlay({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
+function Overlay({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
   const mode = String(p.mode ?? 'popover');
@@ -447,7 +369,7 @@ function Overlay({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLEleme
   ) : null;
   const hover = mode === 'tooltip' ? { onMouseEnter: () => rt.dispatch(n.key, 'open'), onMouseLeave: () => rt.dispatch(n.key, 'close'), onFocus: () => rt.dispatch(n.key, 'open'), onBlur: () => rt.dispatch(n.key, 'close') } : {};
   return (
-    <span ref={reg} data-mkp="overlay" data-mode={mode} data-mkp-key={n.key} data-mkp-id={n.id} hidden={n.hidden || undefined} className={cls} style={{ position: 'relative', display: 'inline-block', ...layoutStyle(n) }}>
+    <span data-mkp="overlay" data-mode={mode} data-mkp-key={n.key} data-mkp-id={n.id} hidden={n.hidden || undefined} style={{ position: 'relative', display: 'inline-block', ...layoutStyle(n) }}>
       <button ref={anchor} type="button" className="mkp-press" aria-expanded={open} aria-haspopup={mode === 'tooltip' ? undefined : 'dialog'} aria-label={p.label ? String(p.label) : undefined} onClick={() => rt.dispatch(n.key, open ? 'close' : 'open')} {...hover}>
         <Kids nodes={n.kids} />
       </button>
@@ -459,36 +381,35 @@ function Overlay({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLEleme
 // ---------------------------------------------------------------------------------------------
 // Scopes: a definition instance, with its arrows drawn over it
 
-function Scope({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
+function Scope({ n }: { n: VNode }): ReactNode {
   const box = useRef<HTMLDivElement | null>(null);
+  const measure = useRef<() => void>(() => undefined);
+  // here, not in Arrows: a parent's ref is only attached once its children's layout effects have run
+  useLayoutEffect(() => measure.current());
   const label = n.p.summary ? String(n.p.summary) : undefined;
   return (
     <div
-      ref={(el) => {
-        box.current = el;
-        reg?.(el);
-      }}
+      ref={box}
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       data-mkp-def={String(n.p.def)}
       hidden={n.hidden || undefined}
-      className={['mkp-scope', cls].filter(Boolean).join(' ')}
+      className="mkp-scope"
       role={label ? 'group' : undefined}
       aria-label={label}
       id={(n.p.anchor as string) ?? undefined}
       style={layoutStyle(n)}
     >
       <Kids nodes={n.kids} />
-      {n.arrows?.length ? <Arrows arrows={n.arrows} box={box} /> : null}
+      {n.arrows?.length ? <Arrows arrows={n.arrows} box={box} measure={measure} /> : null}
     </div>
   );
 }
 
-/** Measures the arrow ends after layout and redraws while anything moves (6.10). */
-function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElement | null } }): ReactNode {
+/** Draws the arrows, measuring their ends after layout (run by Scope) and whenever a size changes (6.10). */
+function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HTMLDivElement | null }; measure: { current: () => void } }): ReactNode {
   const [paths, setPaths] = useState<{ key: string; d: string; head: string; label?: [number, number]; runs?: VRun[] }[]>([]);
   const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
-  const measure = useRef<() => void>(() => undefined);
   measure.current = () => {
     const root = box.current;
     if (!root) return;
@@ -520,18 +441,6 @@ function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElem
     stats.max = Math.max(stats.max, dt);
     stats.arrows = Math.max(stats.arrows, out.length);
   };
-  useLayoutEffect(() => {
-    measure.current();
-    // follow keyed moves: redraw on frames for a little longer than the move animation
-    let raf = 0;
-    const until = performance.now() + 450;
-    const loop = (): void => {
-      measure.current();
-      if (performance.now() < until) raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  });
   useEffect(() => {
     const root = box.current;
     if (!root || typeof ResizeObserver === 'undefined') return;
@@ -539,7 +448,7 @@ function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElem
     ro.observe(root);
     for (const el of root.querySelectorAll('[data-mkp-key]')) ro.observe(el);
     return () => ro.disconnect();
-  }, [sig, box]);
+  }, [sig, box, measure]);
   return (
     <svg className="mkp-arrows" aria-hidden="true">
       {paths.map((p) => (

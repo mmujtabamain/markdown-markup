@@ -2,7 +2,7 @@
 // The web renderer's arrows: it measures each arrow's waypoints (via=) along with its ends and
 // draws the path through them. jsdom does no layout, so the elements' boxes are given here.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { compile, type PackSource } from '@mkp/core';
 import { MkpDocument } from '../src/index';
 
@@ -46,12 +46,8 @@ afterAll(() => {
 });
 
 describe('@mkp/react arrows', () => {
-  it('draws an arrow through its waypoints, and a plain one straight', async () => {
-    const { container } = render(<MkpDocument bundle={bundle()} reducedMotion />);
-    // the scope's own ref is attached after its children's layout effects: the next frame measures
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 80));
-    });
+  it('draws an arrow through its waypoints, and a plain one straight, in the first commit', () => {
+    const { container } = render(<MkpDocument bundle={bundle()} />);
     const ds = [...container.querySelectorAll('svg.mkp-arrows path')].map((p) => p.getAttribute('d') ?? '');
     expect(ds.length).toBe(2);
     const routed = ds.find((d) => d.includes('Q'))!;

@@ -8,4 +8,3 @@ tokens acme@1 "Acme brand"
   size s=160 m=320 l=480
   radius card=10 pill=999
   shadow raised y=1 blur=2 color="#0000001f"
-  motion settle=300ms quick=180ms

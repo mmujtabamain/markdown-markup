@@ -8,7 +8,7 @@ afterEach(cleanup);
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compile, Runtime } from '@mkp/core';
-import { MkpDocument, MkpProvider, Node, useMkpView } from '../src/index';
+import { BASE_CSS, MkpDocument, MkpProvider, Node, useMkpView } from '../src/index';
 import { allPacks, ROOT } from '../../core/test/helpers';
 
 function rootsBundle() {
@@ -17,6 +17,17 @@ function rootsBundle() {
 }
 
 describe('@mkp/react', () => {
+  it('draws a change at once: a press leaves no old copy behind, and nothing transitions', () => {
+    expect(BASE_CSS).not.toMatch(/transition|animation|@keyframes/);
+    const { container, getAllByRole } = render(<MkpDocument bundle={rootsBundle()} />);
+    const before = container.innerHTML;
+    fireEvent.click(getAllByRole('tab')[1]);
+    expect(container.innerHTML).not.toBe(before);
+    expect(getAllByRole('tab')[1].getAttribute('aria-selected')).toBe('true');
+    expect(container.querySelector('.mkp-leaving, .mkp-enter')).toBeNull();
+    expect(new Set([...container.querySelectorAll('[data-mkp-key]')].map((e) => e.getAttribute('data-mkp-key'))).size).toBe(container.querySelectorAll('[data-mkp-key]').length);
+  });
+
   it('renders the 18.5 document with roles a screen reader can use', () => {
     const { container, getAllByRole, getByRole } = render(<MkpDocument bundle={rootsBundle()} reducedMotion />);
     expect(container.querySelector('.mkp-error')).toBeNull();

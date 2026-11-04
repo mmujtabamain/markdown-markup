@@ -176,7 +176,7 @@ rather than on the arrow: an arrow's own label sits halfway along the path, wher
 
 ### Repetition and conditions
 
-- `each x in list key=x.id` — always give `key=` for lists, so items keep identity and glide.
+- `each x in list key=x.id` — always give `key=` for lists, so items keep their identity and state.
 - `if=(expr)` shows an element while true (it fades; its state resets when it returns).
 - `switch on=expr` / `case v` / `else`.
 - `hidden` + `reveal id` keeps state while hidden.

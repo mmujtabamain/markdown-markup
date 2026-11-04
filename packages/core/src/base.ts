@@ -170,7 +170,6 @@ tokens core@1 "Default tokens: every required name (spec 7)."
   size s=160 m=320 l=480
   radius card=8 pill=999
   shadow raised y=1 blur=3 color="#0000001f"
-  motion settle=300ms quick=180ms
 `;
 
 /** Required token names per kind (spec 7). */
@@ -181,7 +180,6 @@ export const REQUIRED_TOKENS: Record<string, string[]> = {
   size: ['s', 'm', 'l'],
   radius: ['card'],
   shadow: ['raised'],
-  motion: ['settle', 'quick'],
 };
 
 /** Base widgets whose use needs gfx@1, and the shapes that do. */

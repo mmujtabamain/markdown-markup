@@ -1,7 +1,7 @@
 # one item of a structure: an id that follows the value between steps, its label, its place and whether it is marked
 type sitem = {id: text, label: text, i: int, on: bool}
 
-# a state's items with ids: the value, plus "#n" for its n-th repeat, so equal values stay apart and moved values glide
+# a state's items with ids: the value, plus "#n" for its n-th repeat, so equal values stay apart and each keeps its identity
 fn itemsof(items: list(text), marked: list(int)): list(sitem) = map(range(0, len(items) - 1), i =>
     {id: items[i] + "#" + len(filter(range(0, i), j => j < i and items[j] == items[i])), label: items[i], i: i, on: indexof(marked, i) >= 0})
 

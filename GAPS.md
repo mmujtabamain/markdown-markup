@@ -192,7 +192,8 @@ rule of the spec, not a defect), *in progress*.
     doesn't. *Open:* check mode should recompile and compare.
 49. **MKP: `pnpm conformance --generate` rewrites every case.** There's no per-pack option. *Open.*
 50. **MKP: web arrows appear one frame late.** The first measure pass runs before the scope's ref is
-    attached, so tests have to wait a frame. *Open.*
+    attached, so tests have to wait a frame. *Fixed:* the scope runs the measure in its own layout
+    effect, so arrows are there at first paint (SN 102).
 51. **MKP: web arrow labels have no background** (the native ones do). So a label can't sit across
     its line; in network-deps, "exprs" and "scales" sit on their own line. *Open.*
 52. **MKP: a back link between adjacent rows is a tight bend.** The `curve` bend is 0.25 of the
@@ -207,3 +208,8 @@ rule of the spec, not a defect), *in progress*.
     `each` still read the variable the unrolling removed, so the expanded IR drew the wrong label. The
     subagent flagged it as unverified. I checked it: a test fails without the fix. *Fixed:* `label`
     is substituted too, with a test in `core/test/arrow.test.ts`.
+56. **MKP: keyed animation made the page jump.** Found by Mujtaba: "the ui jumps arond etc on each
+    click". A leaving child stayed in the layout for 200ms beside its replacement, so a question
+    briefly held two Check buttons and rows grew and shrank. Fading content in and out doesn't suit a
+    page that lays itself out from state. *Fixed:* every animation is gone from both renderers, and
+    the `motion` tokens from core@1 (SN 102). `play` stays.

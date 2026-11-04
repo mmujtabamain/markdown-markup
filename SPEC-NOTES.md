@@ -397,3 +397,13 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     inputs and `each` variables in `from`, `to` and `via`, but not `label`. So in `ir-expanded`, a
     label inside an unrolled `each` still read the variable the unrolling removed. It is substituted
     like the others now, with a test.
+102. **No animation (a deviation from 6.11).** *Deviation, at Mujtaba's request.* A renderer drew
+    keyed changes with enter, move and leave animation, and it made the page jump on each click: a
+    leaving child stayed in the layout for 200ms beside its replacement, so a row of controls grew
+    and shrank. All of it is gone from both renderers: `Kids` is a plain keyed list, the `motion`
+    token kind and its two names are gone from core@1 (a pack that sets one is refused), and shapes no
+    longer transition. `each key=` stays, because identity still decides whose state survives a
+    change. A provider's own components may animate themselves. `play` stays: a reader starts it,
+    and it is content moving, not the interface. Reduced motion still makes it move in jumps. Web
+    arrows lost the frame loop that followed moves, so they are measured in the scope's layout effect
+    and drawn before the first paint (gap 50).
