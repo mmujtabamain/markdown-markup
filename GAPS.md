@@ -335,12 +335,13 @@ rule of the spec, not a defect), *in progress*.
 94. **MKP canvas labels: `anchor=center` draws as ne.** `anchorOffset` tests `includes('e')` and
     `includes('n')`, and "center" contains both, so every centred canvas label sat up and to the right.
     *Fixed* in both renderers.
-95. **MKP code marks: one mark per line.** Both providers draw only a line's first mark, so a line can't
-    have a tone and a toned part. *Worked around:* the line's mark goes first, and the part's mark after.
+95. **MKP code marks: one mark per line.** Both providers drew only a line's first mark, so a line couldn't
+    have a tone and a toned part. *Fixed:* the playground's and Study Pad's listings draw every mark on
+    a line (a tone for the line, each toned part, the last note).
 96. **MKP code: a listing's lines can't be pressed.** Study Pad moves the current line on a press or a
     pointer drag; `code` has no events (68 says the same of trace). *Open.*
-97. **MKP playground CodeBlock: marks without a current line draw a bordered box with margins.** In
-    `apps/playground/src/components/ui/code-block.tsx`. *Open.*
+97. **MKP playground CodeBlock: marks without a current line drew a bordered box with margins.** In
+    `apps/playground/src/components/ui/code-block.tsx`. *Fixed:* a listing with marks fills its pane.
 98. **MKP layout: no fixed column width.** *Worked around:* times are padded with no-break spaces in the
     mono font.
 99. **MKP grid: twelve columns at most.** *Worked around:* six participants at most; tree levels wider

@@ -56,7 +56,8 @@ rail@1 "Stops along a line: a timeline, a journey, a shipping status. The stops 
           @click set pos=k
     # down: the rail on the left, the current stop beside it
     flex align=stretch if=vertical
-      pane basis=s
+      # wide enough for a stop's label on one line, lit or not
+      pane basis=m
         stack pad=s tint=muted
           each k in shown key=stops[k].id
             press kind=plain id=(stops[k].id) label=(stops[k].label) selected=(k == pos) disabled=(not pickable(k))
