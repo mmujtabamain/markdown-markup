@@ -2,8 +2,6 @@
 // gives SVG; the Speech Rule Engine gives spoken text. Static formulas are pre-rendered at build;
 // formulas with \val{} render at runtime.
 
-// @ts-expect-error: the generated engine bundle has no type declarations
-import engineJs from '../vendor/maths-engine.js';
 import type { Diagnostics } from './diag';
 import type { IRBundle, IRMaths } from './ir';
 import { inlineMaths } from './markdown';
@@ -28,7 +26,18 @@ interface Engine {
   sre: { setupEngine(o: Record<string, unknown>): Promise<void>; engineReady(): Promise<void>; toSpeech(mml: string): string };
   locales: Record<string, string>;
 }
-const engine = engineJs as Engine;
+// The engine (2.7 MB) loads with the first MathsEngine.create(), not with @mkp/core: a page that only
+// shows pre-rendered maths, or a host that imports core for its types and runtime, never fetches it.
+// Every use goes through an instance, and an instance exists only after the load.
+let engine: Engine;
+let loading: Promise<void> | null = null;
+function load(): Promise<void> {
+  // @ts-expect-error: the generated engine bundle has no type declarations
+  loading ??= import('../vendor/maths-engine.js').then((m: { default?: Engine } & Engine) => {
+    engine = m.default ?? m;
+  });
+  return loading;
+}
 
 let speechReady: Promise<void> | null = null;
 
@@ -54,6 +63,7 @@ export class MathsEngine implements MathsRenderer {
 
   /** An engine; with speech, it waits for the speech rules to load once. */
   static async create(opts: { speech?: boolean; macros?: Record<string, string> } = {}): Promise<MathsEngine> {
+    await load();
     const m = new MathsEngine(opts.macros ?? {});
     if (opts.speech !== false) {
       speechReady ??= engine.sre

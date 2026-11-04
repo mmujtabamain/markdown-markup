@@ -529,6 +529,8 @@ rule of the spec, not a defect), *in progress*.
      anchor point at the first and silently lose the second. Study Pad's workbook falls back to the
      block's index for the second one. *Open:* `mkp.duplicate-anchor` as an error, counting the ids
      headings take from their titles.
+     *Fixed:* `mkp.duplicate-anchor` is an error at the second block, containers included. Ids a
+     host derives from heading titles are the host's to check.
 165. **MKP: an item of a YAML list has no line of its own.** Options and steps written as a list all
      carry the line of the list's key, so a review flag on one option can only point at the list.
      Neither `{cite=…}` attributes nor front-matter fields have a line in the bundle; Study Pad's
@@ -543,7 +545,20 @@ rule of the spec, not a defect), *in progress*.
      to stdout and exits before a piped stdout drains, so a caller reading the bundle from a pipe gets
      65,536 bytes of it. Study Pad's backend and CLI pass `--out`. *Open:* end with `process.exitCode`
      (or wait for the write's callback) instead of `process.exit()`.
+     *Fixed:* the CLI exits once stdout and stderr have drained (a pipe got 128 KiB of a 322 KiB
+     bundle before).
 168. **MKP CLI: `mkp show` says more than a definition does.** It marks some inputs "(required)" that
      have defaults or may be left out, and prints a widget's examples as JSON where a document writes
      YAML, so an agent copying them writes the wrong syntax. *Open:* required only for an `in` with no
      default, and examples printed as the fence body they would be.
+169. **MKP: no clock.** A widget can't count time down (or up): `play=` steps a fixed sequence, and
+     nothing reads the time. Study Pad's Workbook exam had an optional time limit; `quiz.set exam=true`
+     (no verdicts, reasons, hints or solutions until Submit, the last saved answer counting) leaves the
+     timer to the host, which can only show it beside the set, not end the set when it runs out.
+     *Open:* a `clock` control (seconds since a state change, paused when hidden), or an input a host
+     may change without rebuilding the runtime.
+170. **MKP core loaded its 2.7 MB maths engine with the package.** `maths.ts` imported the vendored
+     MathJax and Speech Rule Engine at the top, so a page drawing a lesson whose maths was rendered at
+     build fetched it anyway (Study Pad's lesson chunk was 3.6 MB, 1.07 MB gzipped). *Fixed:* the
+     first `MathsEngine.create()` loads it; React Native's Jest setup turns that `import()` into a
+     deferred `require` (Metro handles it itself).
