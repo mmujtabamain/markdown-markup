@@ -17,7 +17,7 @@ const src = `w@1 "w"
     stack id=b
       text "b"
   arrow from=a to=b via=["m"]
-  arrow from=b to=a
+  arrow from=b to=a label="back"
 `;
 
 function bundle() {
@@ -55,5 +55,11 @@ describe('@mkp/react arrows', () => {
     expect(routed.indexOf('Q100.0,60.0')).toBeGreaterThan(0);
     expect(routed.indexOf('Q100.0,140.0')).toBeGreaterThan(routed.indexOf('Q100.0,60.0'));
     expect(ds.filter((d) => !d.includes('Q'))).toHaveLength(1);
+  });
+
+  it("puts a label on the surface colour, so its own line doesn't strike it through", () => {
+    const { container } = render(<MkpDocument bundle={bundle()} />);
+    const label = [...container.querySelectorAll<HTMLElement>('svg.mkp-arrows foreignObject span')].find((s) => s.textContent === 'back')!;
+    expect(label.style.background).toBe('var(--mkp-color-surface)');
   });
 });

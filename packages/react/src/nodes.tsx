@@ -510,7 +510,7 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
           {p.label && p.runs ? (
             <foreignObject x={p.label[0] - 60} y={p.label[1] - 12} width={120} height={24}>
               <div style={{ textAlign: 'center', fontSize: '0.8em', color: 'var(--mkp-color-muted)' }}>
-                <Runs runs={p.runs} />
+                <span style={{ background: 'var(--mkp-color-surface)', padding: '0 3px' }}><Runs runs={p.runs} /></span>
               </div>
             </foreignObject>
           ) : null}

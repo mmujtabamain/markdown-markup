@@ -235,3 +235,13 @@ rule of the spec, not a defect), *in progress*.
     after the scope's own cleanup, and each asked for another measure. Jest then failed the run with
     every test passed, because the frame fired after teardown, and only on a clean checkout: a later
     test used to hide it. *Fixed:* a scope that has gone asks for no frame, with a test.
+64. **MKP (web renderer): an arrow's label was struck through by its own arrow.** In a `force` network,
+    `scales` and `exprs` sat on the line with nothing behind them. React Native already put the
+    surface colour behind them. *Fixed:* the web does too, with a test.
+65. **MKP (mkp-cs): `trace` draws each line of code as inline code.** `text` reads its string as inline
+    Markdown, so a line of code can't be shown literally, and `trace` wraps each line in backticks.
+    A host that gives inline code a background (Study Pad does, and it is right in prose) then shows
+    a listing of separate chips of different widths. A literal mode on `text`, or a code block with
+    one marked line, would fix it. *Open.*
+66. **MKP: a canvas label can sit on the axis.** `orbit`'s $f(z)$ starts on the real axis, which runs
+    through it, because a label has no background and no way to avoid a line. Like 23. *Open*, minor.
