@@ -5,6 +5,7 @@ quiz.set@1 "A set of questions one at a time, with a running score: each questio
   in exam bool = false "an exam: no verdicts, reasons, hints or solutions until Submit, which may be pressed at any time; the last saved answer to each question counts, and one left unanswered is wrong"
   out finished {correct: int, total: int}
   signal score {correct: int, total: int} "sent when the reader finishes"
+  signal saved {item: int, correct: bool} "sent each time a question's answer is checked, or saved in an exam: its index and whether it is right"
   var at int = 0
   var firsts dict(bool) = {}
   # an exam's answers: the last one saved for each question
@@ -29,24 +30,24 @@ quiz.set@1 "A set of questions one at a time, with a running score: each questio
               each o in items[k].options key=o.text
                 option o.text right=(o.right) why=(o.why)
               solution (items[k].solution) if=(items[k].solution != "")
-              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true))
-              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false))
+              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true)) send saved item=k correct=true
+              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false)) send saved item=k correct=false
               # the set's own buttons, in the question's bar
               quiz.setbar at=at last=(n - 1) tried=tried right=right done=done exam=exam
                 @finish set done=true send score correct=right total=n emit finished correct=right total=n
           case numeric
             quiz.numeric label=where question=(items[k].question) answer=(parse(items[k].answer, [])()) exam=(exam and not done)
               solution (items[k].solution) if=(items[k].solution != "")
-              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true))
-              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false))
+              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true)) send saved item=k correct=true
+              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false)) send saved item=k correct=false
               # the set's own buttons, in the question's bar
               quiz.setbar at=at last=(n - 1) tried=tried right=right done=done exam=exam
                 @finish set done=true send score correct=right total=n emit finished correct=right total=n
           else
             quiz.expression label=where question=(items[k].question) answer=(items[k].answer) vars=(items[k].vars) exam=(exam and not done)
               solution (items[k].solution) if=(items[k].solution != "")
-              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true))
-              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false))
+              @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true))) lasts=(put(lasts, key(k), true)) send saved item=k correct=true
+              @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false))) lasts=(put(lasts, key(k), false)) send saved item=k correct=false
               # the set's own buttons, in the question's bar
               quiz.setbar at=at last=(n - 1) tried=tried right=right done=done exam=exam
                 @finish set done=true send score correct=right total=n emit finished correct=right total=n
