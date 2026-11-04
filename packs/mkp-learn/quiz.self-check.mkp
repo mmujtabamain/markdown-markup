@@ -17,7 +17,7 @@ quiz.self-check@1 "A question to answer in your head or on paper: the model answ
   project md = question + "\n\n:::details \"Answer\"\n" + answer + "\n:::\n"
   frame kind=label title=title tone=mood
     stack pad=l gap=m
-      text question weight=medium
+      text question weight=medium size=large
       # always there at its size: blurred until revealed, so revealing moves nothing
       stack gap=xs pad=m stroke=muted radius=card fill=surface blur=(not open)
         text "Model answer" font=mono size=small tone=muted caps=true

@@ -44,7 +44,7 @@ quiz.order@1 "Build an order: the items wait in a shuffled pool, the reader adds
       quiz.answer items=sol word="order"
     stack pad=l gap=m
       stack gap=xs
-        text question weight=medium
+        text question weight=medium size=large
         text help size=small tone=muted if=(help != "")
       flex gap=m align=stretch
         stack gap=s pad=s radius=card tint=muted grow basis=s

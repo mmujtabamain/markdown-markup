@@ -35,7 +35,7 @@ quiz.expression@1 "A question answered with an expression, checked for equivalen
       quiz.answer items=sol
     stack pad=l gap=m
       stack gap=xs
-        text question weight=medium
+        text question weight=medium size=large
         text help size=small tone=muted if=(help != "")
       stack gap=xs
         text caption font=mono size=small tone=muted caps=true if=(caption != "")

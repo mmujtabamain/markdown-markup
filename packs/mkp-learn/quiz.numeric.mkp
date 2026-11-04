@@ -36,7 +36,7 @@ quiz.numeric@1 "A question with a numeric answer: a field whose own line says ho
       quiz.answer items=(map(solutions, s => s.text)) if=(len(solutions) > 0)
     stack pad=l gap=m
       stack gap=xs
-        text question weight=medium
+        text question weight=medium size=large
         text help size=small tone=muted if=(help != "")
       stack gap=xs
         text caption font=mono size=small tone=muted caps=true if=(caption != "")

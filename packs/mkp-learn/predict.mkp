@@ -57,7 +57,7 @@ predict@1 "Predict before you see: what waits for the answer sits blurred at its
             icon name=edit tone=info size=small if=(mode == write or mode == try)
             icon name=eye tone=info size=small if=(mode == recall)
             text caption font=mono size=small tone=info caps=true
-          text question weight=medium
+          text question weight=medium size=large
         stack gap=s if=chooses
           each k in 0..(n - 1)
             stack dim=(done and not options[k].right and picked != k)

@@ -29,7 +29,7 @@ quiz.find-error@1 "A worked solution with a mistake in it: the reader picks the 
       quiz.answer items=sol word="answer"
     stack pad=l gap=m
       stack gap=xs
-        text question weight=medium
+        text question weight=medium size=large
         text help size=small tone=muted if=(help != "")
       stack gap=s
         each k in 0..(n - 1)

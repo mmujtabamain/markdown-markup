@@ -46,7 +46,7 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
       quiz.answer items=sol
     stack pad=l gap=m
       stack gap=xs
-        text question weight=medium
+        text question weight=medium size=large
         text help size=small tone=muted if=(help != "")
       stack gap=s
         each k in 0..(n - 1)
