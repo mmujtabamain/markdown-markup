@@ -1,25 +1,34 @@
-annotated-source@1 "Source code with numbered notes on its lines; picking a note shows the line it is about."
+annotated-source@1 "Source code beside numbered notes on its lines: the current note's line is lit in the listing, and the notes can be played in turn or picked."
   in code list(text) "the source, one line per item"
-  in lang text = "" "the language, for highlighting and the Markdown code block"
+  in lang text = "" "the language, in the header and the Markdown code block"
   in notes list(record note {line: int, text: text}) "notes on lines, counted from 1"
-  in numbers bool = true "number the lines in the code block"
-  var sel int = -1
+  in numbers bool = true "number the lines in the Markdown code block"
+  in title text = "Read it line by line" "the header's title"
+  sel = steps (max(len(notes), 1)) play=2s "note"
   n = len(code)
   width = len("" + n)
-  # a line with its number in a fixed-width gutter
+  # a line with its number in a fixed-width gutter, for the Markdown
   fn numbered(l: int): text = join(map(range(1, width - len("" + (l + 1))), k => " "), "") + (l + 1) + "  " + code[l]
   shown = if(numbers, map(range(0, n - 1), l => numbered(l)), code)
-  project md = ("```" + lang + "\n" + join(code, "\n") + "\n```\n\n"
+  has = len(notes) > 0
+  cur = if(has, notes[sel].line, 0)
+  # every noted line says which note it has at its end
+  fn mark(k: int): {line: int, tone: color, note: text, from: int, to: int} = {line: notes[k].line, tone: ink, note: "note " + (k + 1), from: 0, to: 0}
+  marks = map(range(0, len(notes) - 1), k => mark(k))
+  project md = ("```" + lang + "\n" + join(shown, "\n") + "\n```\n\n"
       + join(map(range(0, len(notes) - 1), k => "" + (k + 1) + ". **Line " + notes[k].line + ":** " + notes[k].text), "\n") + "\n")
-  stack gap=m
-    code (join(shown, "\n")) lang
-    stack gap=xs
-      each k in 0..(len(notes) - 1)
-        press kind=option selected=(sel == k)
-          flex gap=s align=baseline wrap=false
-            text ("" + (k + 1) + ".") weight=bold
-            text ("line " + notes[k].line + ":") wrap=false
-            text notes[k].text
-          @click set sel=(if(sel == k, -1, k))
-        stack pad=xs if=(sel == k)
-          code (at(shown, notes[k].line - 1, "")) lang
+  frame kind=("Source" + if(lang == "", "", " · " + lang)) title=title status=(if(has, "**Line " + cur + "** — " + notes[sel].text, ""))
+    flex align=stretch
+      pane title="Code" grow basis=m
+        code (join(code, "\n")) line=(cur) marks=(marks)
+      pane title="Notes" note=("" + len(notes) + if(len(notes) == 1, " note", " notes")) grow basis=m
+        stack gap=s pad=m
+          each k in 0..(len(notes) - 1)
+            press kind=plain selected=(sel == k) label=("note " + (k + 1) + ", line " + notes[k].line)
+              @click set sel=k
+              flex gap=m align=start wrap=false pad=m radius=card stroke=(if(sel == k, info, muted)) tint=(if(sel == k, info, surface))
+                text ("" + (k + 1)) font=mono weight=bold tone=(if(sel == k, info, muted))
+                stack gap=xs grow
+                  text ("line " + notes[k].line) font=mono size=small tone=muted caps=true align=start
+                  text (notes[k].text) align=start
+          text "No notes." tone=muted if=(not has)

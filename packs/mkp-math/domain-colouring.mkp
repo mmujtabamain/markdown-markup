@@ -2,25 +2,43 @@ domain-colouring@1 "A complex function coloured over the plane: hue is the argum
   requires gfx@1
   fields f
   in f expr(z: complex): complex = ((z^2 - 1)/(z^2 + 1)) "the function, in z"
-  in r num = 2 "the view is −r..r each way"
+  in title text = "f(z) coloured over the plane" "the frame's title"
+  in r num = 2 "the view is −r..r up and down, and wider across"
   in bands bool = true "shade bands where |f(z)| doubles, so the modulus reads as contours"
   in step num = 1 "axis tick spacing"
-  p = drag x=(-r)..(r) y=(-r)..(r) = (0.5, 0.5) "z"
+  # the plane (plane.mkp): equal units, widened to this aspect
+  asp = 1.8
+  p = drag x=(-r asp)..(r asp) y=(-r)..(r) = (0.5, 0.5) "z"
   zp = p.x + p.y i
   wp = f(zp)
   # lightness: zeros go black and poles white; the bands brighten through each doubling of |f(z)|
   fn light(m: num): num = (0.08 + 0.84 atan2(m, 1)/(pi/2)) if(bands, 0.82 + 0.18 mod(ln(max(m, 0.0000001))/ln(2), 1), 1)
-  canvas x=(-r)..(r) y=(-r)..(r) size=m label="Domain colouring of f: hue shows the argument of f(z), lightness its modulus"
-    layer
-      pixels (hsl(arg(f(x + y i))/(2 pi), 0.9, light(abs(f(x + y i)))))
-    layer opacity=0.6
-      line (-r, 0) (r, 0) stroke=surface
-      line (0, -r) (0, r) stroke=surface
-      each g in marks(-r, r, step)
-        line (g, -r/50) (g, r/50) stroke=surface
-        line (-r/50, g) (r/50, g) stroke=surface
-    layer
-      handle p
-      label (zp + r/30 + r/30 i) "$z$" anchor=ne
-  text "$f(\val{zp}) = \val{wp}$: $\lvert f(z) \rvert = \val{abs(wp)}$, $\arg f(z) = \val{arg(wp)}$."
-  text "Red is argument $0$, then yellow, green, cyan and blue as it turns; black is a zero and white a pole." tone=muted
+  # the axes are drawn in the surface colour over the hues, their numbers in chips
+  px = 2 r asp/720
+  py = 2 r asp/720
+  frame kind="Domain colouring" title=title status="$f(\val{zp}) = \val{wp}$ · $\lvert f(z) \rvert = \val{num(abs(wp), 2)}$ · $\arg f(z) = \val{num(arg(wp), 2)}$"
+    zoom
+      canvas x=(-r asp)..(r asp) y=(-r)..(r) aspect=asp size=fill label="Domain colouring of f: hue shows the argument of f(z), lightness its modulus"
+        layer
+          pixels (hsl(arg(f(x + y i))/(2 pi), 0.9, light(abs(f(x + y i)))))
+        layer opacity=0.7
+          line (-r asp, 0) (r asp, 0) stroke=surface
+          line (0, -r) (0, r) stroke=surface
+          each g in numbered(-r asp, r asp, step, 0, true) key=g
+            line (g, -3 py) (g, 3 py) stroke=surface
+          each g in numbered(-r, r, step, 0, true) key=g
+            line (-3 px, g) (3 px, g) stroke=surface
+        layer opacity=0.2
+          circle p (10 px) fill=surface
+        layer
+          circle p (10 px) stroke=surface width=1.5
+          handle p tone=ink
+        layer
+          each g in numbered(-r asp, r asp, step, 0, true) key=g
+            label (g, -6 py) (tick(g, step, false)) tone=ink anchor=s chip
+          each g in numbered(-r, r, step, 0, true) key=g
+            label (-6 px, g) (tick(g, step, true)) tone=ink anchor=w chip
+          label (zp + 12 px + 12 py i) "$z$" tone=ink anchor=ne chip
+    fill about
+      text "Each point $z$ is coloured by $f(z)$: its hue is the argument of $f(z)$ (red is $0$, then yellow, green, cyan and blue as it turns) and its lightness the modulus. A zero is black, with every hue once round it for a simple zero; a pole is white."
+      text "With bands on, the shading steps up each time $\lvert f(z) \rvert$ doubles, so the modulus reads as contours." if=bands

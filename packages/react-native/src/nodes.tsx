@@ -83,6 +83,7 @@ function boxStyle(p: Record<string, unknown>, theme: Theme): ViewStyle {
     backgroundColor: p.tint && p.tint !== 'none' ? theme.mix(theme.color(p.tint), theme.color('surface'), 0.12) : theme.color(p.fill),
     borderWidth: stroke ? 1 : undefined,
     borderColor: stroke,
+    borderStyle: stroke && (p.line === 'dashed' || p.line === 'dotted') ? p.line : undefined,
     borderRadius: theme.radius(p.radius),
     ...theme.shadow(p.shadow),
     // faded back; blurred until revealed (no blur on native: nearly faded out)
@@ -647,7 +648,7 @@ interface Drawn {
   label?: [number, number];
   align?: 'start' | 'end';
   runs?: VRun[];
-  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
   tone?: string;
   line?: string;
   dim?: boolean;
@@ -784,7 +785,7 @@ function Arrows({ paths }: { paths: Drawn[] }): ReactNode {
               <Path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
               {p.head ? <Polygon points={p.head} fill={ink} /> : null}
               {(p.marks ?? []).map((m, i) => (
-                <Path key={i} d={m.d} stroke={ink} strokeWidth={width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? theme.color('surface') : 'none'} />
+                <Path key={i} d={m.d} stroke={(m.tone ? theme.color(m.tone) : undefined) ?? ink} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? theme.color('surface') : 'none'} strokeLinecap="round" />
               ))}
             </G>
           );

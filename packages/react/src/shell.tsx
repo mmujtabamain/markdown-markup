@@ -269,6 +269,12 @@ export const SHELL_CSS = `
 .mkp-frame-title { min-width: 0; flex: 1 1 auto; font-weight: 600; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mkp-frame-actions, .mkp-frame-tools { display: flex; align-items: center; gap: var(--mkp-space-xs); flex: none; }
 .mkp-frame-actions .mkp-choice-label { display: none; }
+/* A press drawn as its own content (a card, a node): no button look, and its content keeps its own alignment. */
+.mkp-plain { display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 0; margin: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; border-radius: var(--mkp-radius-card); }
+.mkp-plain:disabled { cursor: default; }
+.mkp-plain:focus-visible { outline: 2px solid var(--mkp-color-info); outline-offset: 2px; }
+/* A bar's parts may shrink: a long status gives up width before the count and start over are pushed out. */
+.mkp-frame-bar > *, [data-control=steps] > [role=status] { min-width: 0; }
 /* A narrow bar puts the status under the steps' buttons, a line of its own, instead of squeezing the track. */
 .mkp-frame-bar { container-type: inline-size; }
 @container (max-width: 520px) {

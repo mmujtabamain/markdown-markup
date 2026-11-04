@@ -1,17 +1,17 @@
 type pt = {x: num, y: num}
 
-chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks, grid lines and a legend."
+chart@1 "A bar, line, dot, area or stem chart of one or more series in a frame, with a light grid, numbered axes and their names, and a key in the bar."
   fields kind
   in kind choice(bar|line|dot|area|stem) = line "how each point is drawn"
   in data list(pt) = [] "one series of points"
-  in name text = "" "the name of that series (for the legend and the table)"
+  in name text = "" "the name of that series (for the key and the table)"
   in series list(record series {name: text, data: list(pt)}) "more series, each in the next colour"
-  in title text = "" "shown in bold above the chart"
+  in title text = "" "the frame's title; empty: what is plotted against what"
   in xlabel text = "" "what x measures"
   in ylabel text = "" "what y measures"
   in cats list(text) = [] "names for x = 0, 1, 2 …, shown instead of numbers"
   in zero bool = true "keep 0 on the y axis"
-  in size size = m
+  in size size = m "how tall the plot is for its width: s short, m, l tall"
 
   all = (if(len(data) > 0, [{name: name, data: data}], [])
     + map(series, s => {name: s.name, data: s.data}))
@@ -40,21 +40,36 @@ chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks,
   xt = if(len(cats) > 0 or (kind == bar and len(ux) <= 16), ux, ticks(xlo, xhi, nicestep(max(xhi - xlo, 1)/5)))
   fn xtext(v: num): text = if(len(cats) > 0, at(cats, round(v), ""), short(v))
 
-  # the plot area inside a 100 × 62 canvas, leaving room for tick labels
-  fn X(v: num): num = 13 + 84 (v - x0)/(x1 - x0)
-  fn Y(v: num): num = 8 + 50 (v - y0)/(y1 - y0)
-  fn P(p: pt): point = (X(p.x), Y(p.y))
-  dotr = if(kind == dot, 1.3, 0.9)
+  # the view: the plot area x0..x1 by y0..y1, with room left of it for the y numbers, under it for
+  # the x ones and the x axis's name, and over it for the y axis's name
+  asp = if(size == s, 3, if(size == l, 1.7, 2.2))
+  pw = x1 - x0
+  ph = y1 - y0
+  # the x axis's name gets a margin of its own past the plot's right end (some 8 a letter)
+  fname = if(xlabel == "", 0, (8 len(xlabel) + 12)/720)
+  vx0 = x0 - 0.1 pw
+  vx1 = vx0 + 1.115 pw/(1 - fname)
+  vy0 = y0 - 0.17 ph
+  vy1 = y1 + 0.11 ph
+  # a pixel, about, each way (a lesson column is some 720 wide)
+  px = (vx1 - vx0)/720
+  py = (vy1 - vy0) asp/720
+
+  # the colour of the k-th series: blue, orange, green, red, then round again (accent is the host's
+  # own ink in some hosts, so a series never takes it)
+  fn chtone(k: int): color = if(mod(k, 4) == 0, info, if(mod(k, 4) == 1, warn, if(mod(k, 4) == 2, ok, bad)))
   showdots = kind == dot or kind == stem or (kind == line and len(pts) <= 30 ns)
   # bars: each series takes a slice of the band
   bw = 0.8 band/ns
-  fn bar0(si: int, p: pt): point = (X(p.x - 0.4 band + si bw) + 0.3, Y(base))
-  fn bar1(si: int, p: pt): point = (X(p.x - 0.4 band + (si + 1) bw) - 0.3, Y(p.y))
-  fn line(si: int): list(point) = map(sort(all[si].data, p => p.x), p => P(p))
-  fn area(si: int): list(point) = ([(X(first(sort(all[si].data, p => p.x), 1)[0].x), Y(base))]
-    + line(si) + [(X(last(sort(all[si].data, p => p.x), 1)[0].x), Y(base))])
-  fn colour(c: int): list(int) = filter(range(0, ns - 1), si => mod(si, 4) == c)
-  what = (if(title != "", title, "chart") + ": a " + kind + " chart of "
+  fn bar0(si: int, p: pt): point = (p.x - 0.4 band + si bw + 1.5 px, base)
+  fn bar1(si: int, p: pt): point = (p.x - 0.4 band + (si + 1) bw - 1.5 px, p.y)
+  fn line(si: int): list(point) = map(sort(all[si].data, p => p.x), p => (p.x, p.y))
+  fn area(si: int): list(point) = ([(first(sort(all[si].data, p => p.x), 1)[0].x, base)]
+    + line(si) + [(last(sort(all[si].data, p => p.x), 1)[0].x, base)])
+  auto = (join(map(filter(all, s => s.name != ""), s => s.name), " and ") + if(len(filter(all, s => s.name != "")) == 0, ylabel, "")
+    + if(xlabel != "" and (ylabel != "" or len(filter(all, s => s.name != "")) > 0), " by " + xlabel, ""))
+  heading = if(title != "", title, auto)
+  what = (if(heading != "", heading, "chart") + ": a " + kind + " chart of "
     + join(map(all, s => if(s.name != "", s.name, "the data")), ", "))
 
   project md = (if(title != "", "**" + title + "**\n\n", "")
@@ -64,67 +79,50 @@ chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks,
     + join(map(ux, x => "| " + xtext(x) + " | " + join(map(all, s =>
         join(map(filter(s.data, p => p.x == x), p => "" + p.y), ", ")), " | ") + " |"), "\n"))
 
-  stack gap=s
-    text title weight=bold if=(title != "")
-    text ylabel tone=muted size=small if=(ylabel != "")
-    canvas x=0..100 y=0..62 size=size label=what
-      # grid lines and the baseline
-      layer opacity=0.35
-        each t in yt key=t
-          line (13, Y(t)) (97, Y(t)) stroke=muted
-      layer
-        line (13, 8) (97, 8) stroke=muted
-        line (13, Y(base)) (97, Y(base)) stroke=ink if=(base > y0)
-        each t in xt key=t
-          line (X(t), 8) (X(t), 6.8) stroke=muted
-          label (X(t), 6.5) (xtext(t)) tone=muted anchor=s
-        each t in yt key=t
-          label (11.5, Y(t)) (short(t)) tone=muted anchor=w
-      # area fills under their lines
-      layer opacity=0.2 if=(kind == area)
-        each si in colour(0) key=si
-          path (area(si)) closed fill=accent stroke=none
-        each si in colour(1) key=si
-          path (area(si)) closed fill=info stroke=none
-        each si in colour(2) key=si
-          path (area(si)) closed fill=warn stroke=none
-        each si in colour(3) key=si
-          path (area(si)) closed fill=ok stroke=none
-      # the marks, one block per palette colour
-      layer
-        each si in colour(0) key=si
-          path (line(si)) stroke=accent width=2 if=(kind == line or kind == area)
-          each j in 0..(len(all[si].data) - 1)
-            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=accent stroke=none if=(kind == bar)
-            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=accent width=1.5 if=(kind == stem)
-            circle (P(all[si].data[j])) dotr fill=accent if=(showdots)
-        each si in colour(1) key=si
-          path (line(si)) stroke=info width=2 if=(kind == line or kind == area)
-          each j in 0..(len(all[si].data) - 1)
-            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=info stroke=none if=(kind == bar)
-            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=info width=1.5 if=(kind == stem)
-            circle (P(all[si].data[j])) dotr fill=info if=(showdots)
-        each si in colour(2) key=si
-          path (line(si)) stroke=warn width=2 if=(kind == line or kind == area)
-          each j in 0..(len(all[si].data) - 1)
-            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=warn stroke=none if=(kind == bar)
-            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=warn width=1.5 if=(kind == stem)
-            circle (P(all[si].data[j])) dotr fill=warn if=(showdots)
-        each si in colour(3) key=si
-          path (line(si)) stroke=ok width=2 if=(kind == line or kind == area)
-          each j in 0..(len(all[si].data) - 1)
-            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=ok stroke=none if=(kind == bar)
-            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=ok width=1.5 if=(kind == stem)
-            circle (P(all[si].data[j])) dotr fill=ok if=(showdots)
-    text xlabel tone=muted size=small if=(xlabel != "")
-    legend if=(ns > 1)
-      each si in 0..(ns - 1)
-        switch on=(mod(si, 4))
-          case 0
-            item (all[si].name) accent
-          case 1
-            item (all[si].name) info
-          case 2
-            item (all[si].name) warn
-          else
-            item (all[si].name) ok
+  frame kind="Chart" title=heading
+    zoom
+      canvas x=(vx0)..(vx1) y=(vy0)..(vy1) aspect=asp size=fill label=what
+        # a light grid: across at each y tick, and up at each x tick unless the marks are bars
+        layer opacity=0.16
+          each t in yt key=t
+            line (x0, t) (x1, t) stroke=muted
+          each t in xt key=t
+            line (t, y0) (t, y1) stroke=muted if=(kind != bar)
+        # area fills under their lines
+        layer opacity=0.16 if=(kind == area)
+          each si in 0..(ns - 1) key=si
+            path (area(si)) closed fill=(chtone(si)) stroke=none
+        # the axes along the bottom and left, the zero line when 0 is inside, tick marks
+        layer
+          line (x0, y0) (x1, y0) stroke=muted
+          line (x0, y0) (x0, y1) stroke=muted
+          line (x0, base) (x1, base) stroke=muted width=1.5 if=(base > y0)
+          each t in xt key=t
+            line (t, y0 - 3 py) (t, y0 + 3 py) stroke=muted
+          each t in yt key=t
+            line (x0 - 3 px, t) (x0 + 3 px, t) stroke=muted
+        # the marks
+        layer
+          each si in 0..(ns - 1) key=si
+            path (line(si)) stroke=(chtone(si)) width=2.2 if=(kind == line or kind == area)
+            each j in 0..(len(all[si].data) - 1)
+              rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=(chtone(si)) stroke=none if=(kind == bar)
+              line (all[si].data[j].x, base) (all[si].data[j].x, all[si].data[j].y) stroke=(chtone(si)) width=2 if=(kind == stem)
+              place (all[si].data[j].x, all[si].data[j].y) if=(showdots and kind == dot)
+                stack pad=s radius=pill fill=(chtone(si)) stroke=surface
+              place (all[si].data[j].x, all[si].data[j].y) if=(showdots and kind != dot)
+                stack pad=xs radius=pill fill=(chtone(si)) stroke=surface
+        # numbers and names, over everything
+        layer
+          each t in xt key=t
+            label (t, y0 - 5 py) "$\val{t}$" tone=muted anchor=s if=(len(cats) == 0 and abs(t) < 10000)
+            label (t, y0 - 5 py) (xtext(t)) tone=muted anchor=s if=(len(cats) > 0 or abs(t) >= 10000)
+          each t in yt key=t
+            label (x0 - 6 px, t) "$\val{t}$" tone=muted anchor=w if=(abs(t) < 10000)
+            label (x0 - 6 px, t) (short(t)) tone=muted anchor=w if=(abs(t) >= 10000)
+          label (vx1 - 4 px, y0 - 5 py) xlabel tone=muted anchor=sw if=(xlabel != "")
+          label (x0 + 8 px, vy1 - 3 py) ylabel tone=muted anchor=se if=(ylabel != "")
+    fill bar
+      legend if=(ns > 1)
+        each si in 0..(ns - 1)
+          item (all[si].name) tone=(chtone(si))

@@ -121,7 +121,7 @@ function boxStyle(p: Record<string, unknown>): CSSProperties {
     gap: space(p.gap),
     background: tint(p.tint) ?? color(p.fill),
     // a box's outline: --mkp-stroke-<name> if the provider sets one (lines lighter than text), else the colour
-    border: p.stroke && p.stroke !== 'none' ? `1px solid var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})` : undefined,
+    border: p.stroke && p.stroke !== 'none' ? `1px ${p.line === 'dashed' || p.line === 'dotted' ? p.line : 'solid'} var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})` : undefined,
     borderRadius: radius(p.radius),
     boxShadow: shadow(p.shadow),
   };
@@ -524,7 +524,7 @@ interface Drawn {
   key: string;
   d: string;
   head: string;
-  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
   label?: [number, number];
   align?: 'start' | 'end';
   runs?: VRun[];
@@ -594,7 +594,7 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
           <path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
           {p.head ? <polygon points={p.head} fill={ink} /> : null}
           {(p.marks ?? []).map((m, i) => (
-            <path key={i} d={m.d} stroke={ink} strokeWidth={width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" />
+            <path key={i} d={m.d} stroke={m.tone ? `var(--mkp-color-${m.tone})` : ink} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" strokeLinecap="round" />
           ))}
           {p.label && p.runs ? (
             <foreignObject x={p.label[0] - (p.align === 'start' ? 0 : p.align === 'end' ? 120 : 60)} y={p.label[1] - 12} width={120} height={24}>

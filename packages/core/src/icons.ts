@@ -57,6 +57,7 @@ export const ICON_GLYPHS: Record<string, string> = {
   bell: '♪',
   home: '⌂',
   settings: '⚙',
+  sliders: '☰',
   trash: '⌫',
   copy: '⧉',
   download: '⤓',

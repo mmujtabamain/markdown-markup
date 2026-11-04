@@ -231,3 +231,35 @@ describe('an arrow’s look and a code block’s marks', () => {
     expect(find(new Runtime(b!).view())!.p.marks).toEqual([{ line: 2, tone: 'ok', note: 'added', from: 0, to: 0 }]);
   });
 });
+
+describe('a box’s line and a frame’s status lines', () => {
+  const all = (ns: VNode[]): VNode[] => ns.flatMap((n) => [n, ...all([...(n.kids ?? []), ...Object.values(n.slots ?? {}).flat()])]);
+
+  it('takes a dashed or dotted border, and a cross at an arrow’s end', () => {
+    const { b, errors } = build(`w@1 "w"
+  stack id=a stroke=muted dashed
+    text "a"
+  flex id=b stroke=info line=dotted
+    text "b"
+  arrow from=a to=b head=cross
+`);
+    expect(errors).toEqual([]);
+    const v = all(new Runtime(b!).view());
+    expect(v.find((n) => n.t === 'stack' && n.id === 'a')!.p.line).toBe('dashed');
+    expect(v.find((n) => n.t === 'flex' && n.id === 'b')!.p.line).toBe('dotted');
+    expect((scopeWithArrows(new Runtime(b!).view())!.arrows as VArrow[])[0].head).toBe('cross');
+  });
+
+  it('keeps room for up to three lines of status, which then wraps', () => {
+    const view = (lines: string): VNode[] => {
+      const { b, errors } = build(`w@1 "w"\n  n = steps 3 "step"\n  frame kind="Quiz" title="t" status="**Not quite.** A longer reason." ${lines}\n    text "stage"\n`);
+      expect(errors).toEqual([]);
+      return all(new Runtime(b!).view());
+    };
+    const status = (ns: VNode[]) => ns.find((n) => n.p.role === 'status')!;
+    expect(status(view('')).p).toMatchObject({ wrap: false });
+    expect(status(view('')).p.lines).toBeUndefined();
+    expect(status(view('statuslines=2')).p).toMatchObject({ wrap: true, lines: 2 });
+    expect(status(view('statuslines=9')).p.lines).toBe(3);
+  });
+});

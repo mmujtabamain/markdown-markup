@@ -20,7 +20,7 @@ trace@1 "A program trace: the code beside the state at each step, the note, ever
       join(map(range(0, len(run) - 1), k => "| " + (k + 1) + " | " + run[k].line + " | " +
         join(map(range(0, len(vars) - 1), v => at(run[k].values, v, "")), " | ") + " | " + run[k].output + " |"), "\n") + "\n")
 
-  frame kind=("Trace" + if(lang == "", "", " · " + lang)) title=title status=(if(now.note == "", "Line " + now.line + ".", now.note))
+  frame kind=("Trace" + if(lang == "", "", " · " + lang)) title=title status=("**Line " + now.line + "**" + if(now.note == "", "", " — " + now.note))
     flex align=stretch
       pane title="Code" grow basis=m
         code (join(code, "\n")) line=(now.line) grow

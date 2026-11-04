@@ -176,3 +176,16 @@ describe('the marks at an arrow end', () => {
     expect(p!.marks).toBeUndefined();
   });
 });
+
+describe('a cross at an arrow’s end', () => {
+  const f = { a: box(0, 0), b: box(0, 100) };
+
+  it('marks a message that never arrives: the shaft stops at the cross, drawn in the bad tone', () => {
+    const [p] = arrowPaths([{ from: 'a', to: 'b', a: f.a, b: f.b, route: 'down', head: 'cross' }]);
+    expect(p!.head).toEqual([]);
+    expect(p!.marks).toEqual([expect.objectContaining({ fill: 'none', tone: 'bad' })]);
+    expect(p!.marks![0].d.match(/M/g)).toHaveLength(2);
+    // a head's length short of the tip, where the cross is centred
+    expect(p!.d.endsWith('L30.0,90.0')).toBe(true);
+  });
+});

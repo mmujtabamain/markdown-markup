@@ -13,6 +13,7 @@ extern stack@1 "Children one below another."
   in fill color = none "background"
   in tint color = none "a wash of this colour behind it: a state, not a surface"
   in stroke color = none "border"
+  in line choice(solid|dashed|dotted) = solid "the border's line"
   in radius radius = none "corner radius"
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
@@ -28,6 +29,7 @@ extern flex@1 "Children in a row that wraps or scrolls."
   in fill color = none
   in tint color = none
   in stroke color = none
+  in line choice(solid|dashed|dotted) = solid "the border's line"
   in radius radius = none
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
@@ -42,6 +44,7 @@ extern grid@1 "Children in equal columns."
   in fill color = none
   in tint color = none
   in stroke color = none
+  in line choice(solid|dashed|dotted) = solid "the border's line"
   in radius radius = none
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
@@ -183,6 +186,7 @@ extern frame@1 "A widget's shell: what kind of thing it is and its title above a
   in title text = ""
   in height size = none "the stage's height at rest (the reader can drag it); none: as tall as its content"
   in status text = "" "one line in the bar: what is happening now"
+  in statuslines int = 1 "how many lines the status keeps room for (1 to 3): a verdict with its reason"
   in tone color = none "tints the bar: how an answer went (ok, bad) or a note (info)"
   in body slot
   in actions slot "right of the title: the widget's own switches"
@@ -203,7 +207,7 @@ extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scroll
 
 extern icon@1 "A symbol from a fixed set, drawn in the provider's own icon style."
   fields name
-  in name choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|trash|copy|download|upload|expand|lightbulb|book)
+  in name choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|sliders|trash|copy|download|upload|expand|lightbulb|book)
   in tone color = none "its colour; none: the text's"
   in size choice(small|normal|large) = normal
   in label text = "" "what it means, when it stands for words"

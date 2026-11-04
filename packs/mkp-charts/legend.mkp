@@ -1,23 +1,9 @@
-legend@1 "A key: a colour swatch and a name for each series."
-  in items list(record item {name: text, tone: color = accent}) "one item per series"
-  in title text = "" "shown before the items"
+legend@1 "A key: a colour dot and a name for each series."
+  in items list(record item {name: text, tone: color = info}) "one item per series"
+  in title text = "" "said before the items, as a small caption"
   flex gap=m align=center
-    text title tone=muted size=small if=(title != "")
+    text title font=mono size=small tone=muted caps=true wrap=false if=(title != "")
     each it in items
-      flex gap=xs align=center
-        switch on=(it.tone)
-          case accent
-            stack pad=s fill=accent radius=card
-          case warn
-            stack pad=s fill=warn radius=card
-          case ok
-            stack pad=s fill=ok radius=card
-          case bad
-            stack pad=s fill=bad radius=card
-          case info
-            stack pad=s fill=info radius=card
-          case ink
-            stack pad=s fill=ink radius=card
-          else
-            stack pad=s fill=muted radius=card
-        text it.name size=small
+      flex gap=s align=center wrap=false
+        stack pad=s radius=pill fill=(it.tone)
+        text it.name size=small wrap=false

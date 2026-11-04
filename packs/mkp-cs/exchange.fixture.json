@@ -6,6 +6,15 @@
       { "text": "ACK ack=301", "note": "Both sides now know both numbers: the connection is open." },
       { "text": "data seq=101" } ] },
     "play": [{ "set": { "pos": 1 } }, { "wait": 300 }, { "set": { "pos": 3 } }] },
+  "tcp-lost": { "summary": "A TCP handshake whose SYN-ACK is lost: the client's timer fires and it sends the SYN again.",
+    "props": { "a": "Client", "b": "Server", "title": "A handshake that loses its SYN-ACK", "unit": "ms", "messages": [
+      { "text": "SYN seq=100", "time": "0", "note": "The client opens: its first sequence number is 100." },
+      { "dir": "reply", "text": "SYN-ACK seq=300 ack=101", "lost": true, "time": "40", "note": "The reply is dropped on the way back." },
+      { "dir": "event", "text": "Retransmit timer fires", "time": "1000", "note": "No SYN-ACK within one second." },
+      { "text": "SYN seq=100 (again)", "time": "1000", "note": "Same sequence number: it is the same request." },
+      { "dir": "reply", "text": "SYN-ACK seq=300 ack=101", "time": "1040", "note": "This time it arrives." },
+      { "text": "ACK ack=301", "time": "1080", "note": "Both sides are ESTABLISHED." } ] },
+    "play": [{ "press": "pos.play" }, { "wait": 6000 }] },
   "dns": { "summary": "A resolver asking a name server for an address.",
     "props": { "a": "resolver", "b": "name server", "messages": [
       { "text": "query: example.org A?" }, { "dir": "reply", "text": "answer: 93.184.215.14" } ] },

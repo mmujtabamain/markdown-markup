@@ -13,23 +13,30 @@ fn gmeet(a1: point, b1: point, a2: point, b2: point): point = gadd(a1, gscale(gs
 fn gcross(u: point, v: point): num = u.x v.y - u.y v.x
 fn gnz(v: num): num = if(abs(v) < 0.000000001, 0.000000001, v)
 fn gscale(v: point, s: num): point = (s v.x, s v.y)
-# clipping a line p + t v to the square −r..r (the canvas doesn't clip): the range of t on each axis, then both
+# clipping a line p + t v to the box −rx..rx by −ry..ry (so a line stops at the view's edge): the range of t on each axis, then both
 fn glo(p: num, v: num, r: num): num = if(abs(v) < 0.000000001, -1000000000, min((-r - p)/v, (r - p)/v))
 fn ghi(p: num, v: num, r: num): num = if(abs(v) < 0.000000001, 1000000000, max((-r - p)/v, (r - p)/v))
-fn gend(o: gobj, r: num, s: num): point = gadd(o.a, gscale(gsub(o.b, o.a), if(gt0(o, r) > gt1(o, r), 0, if(s < 0, gt0(o, r), gt1(o, r)))))
-fn gt0(o: gobj, r: num): num = max(glo(o.a.x, o.b.x - o.a.x, r), glo(o.a.y, o.b.y - o.a.y, r))
-fn gt1(o: gobj, r: num): num = min(ghi(o.a.x, o.b.x - o.a.x, r), ghi(o.a.y, o.b.y - o.a.y, r))
+fn gend(o: gobj, rx: num, ry: num, s: num): point = gadd(o.a, gscale(gsub(o.b, o.a), if(gt0(o, rx, ry) > gt1(o, rx, ry), 0, if(s < 0, gt0(o, rx, ry), gt1(o, rx, ry)))))
+fn gt0(o: gobj, rx: num, ry: num): num = max(glo(o.a.x, o.b.x - o.a.x, rx), glo(o.a.y, o.b.y - o.a.y, ry))
+fn gt1(o: gobj, rx: num, ry: num): num = min(ghi(o.a.x, o.b.x - o.a.x, rx), ghi(o.a.y, o.b.y - o.a.y, ry))
 construction@1 "A ruler-and-compass construction over points A, B and C that you drag; every step follows."
   in steps list(record step {op: choice(segment|line|circle|midpoint|bisector|perpendicular|parallel|angle|meet|foot), args: list(text), name: text = ""}) "the steps, in order; args name points or earlier steps"
   in a point = (-1.5, -1) "where A starts"
   in b point = (1.5, -1) "where B starts"
   in c point = (0.3, 1.4) "where C starts"
   in free int 2..3 = 3 "how many free points: A and B, or A, B and C"
-  in r num = 2.5 "the view is −r..r each way"
-  in caption text = "" "what the construction shows"
-  A = drag x=(-r)..(r) y=(-r)..(r) = a "A"
-  B = drag x=(-r)..(r) y=(-r)..(r) = b "B"
-  C = drag x=(-r)..(r) y=(-r)..(r) = c "C"
+  in r num = 2.5 "the view is −r..r up and down, and as wide again as the frame needs"
+  in caption text = "" "what the construction shows, in the bar"
+  in title text = "A construction" "the frame's title"
+  # the view: −r..r up and down, widened for the frame
+  asp = 1.8
+  rx = r asp
+  px = 2 rx/720
+  py = 2 r asp/720
+  gridstep = nice(2 rx, 9)
+  A = drag x=(-rx)..(rx) y=(-r)..(r) = a "A"
+  B = drag x=(-rx)..(rx) y=(-r)..(r) = b "B"
+  C = drag x=(-rx)..(rx) y=(-r)..(r) = c "C"
   start = if(free == 3, put(put(put({}, "A", gpt(A)), "B", gpt(B)), "C", gpt(C)), put(put({}, "A", gpt(A)), "B", gpt(B)))
   # one construction step from the objects so far
   fn gstep(op, o: list(gobj)): gobj = if(op == segment, {kind: seg, a: o[0].a, b: o[1].a, r: 0},
@@ -45,21 +52,44 @@ construction@1 "A ruler-and-compass construction over points A, B and C that you
   fn nm(k: int): text = if(steps[k].name == "", "#" + format(k + 1, 0), steps[k].name)
   objs = fold(range(0, len(steps) - 1), start, (d, k) => put(d, nm(k), gstep(steps[k].op, map(steps[k].args, n => get(d, n, gpt((0, 0)))))))
   fn ob(k: int): gobj = get(objs, nm(k), gpt((0, 0)))
-  canvas x=(-r)..(r) y=(-r)..(r) size=m label=(if(caption == "", "A construction over points you can drag", caption))
-    layer
-      each k in 0..(len(steps) - 1)
-        line (gend(ob(k), r, -1)) (gend(ob(k), r, 1)) stroke=muted if=(ob(k).kind == ln)
-        line (ob(k).a) (ob(k).b) stroke=ink if=(ob(k).kind == seg)
-        circle (ob(k).a) (ob(k).r) stroke=muted if=(ob(k).kind == circ)
-    layer
-      each k in 0..(len(steps) - 1)
-        circle (ob(k).a) 0.06 fill=info if=(ob(k).kind == pt)
-        label (gadd(ob(k).a, (0.08, 0.08))) (steps[k].name) tone=info anchor=ne if=(ob(k).kind == pt and steps[k].name != "")
-    layer
-      handle A
-      handle B
-      handle C if=(free == 3)
-      label (gadd(A, (-0.1, -0.1))) "$A$" anchor=sw
-      label (gadd(B, (0.1, -0.1))) "$B$" anchor=se
-      label (gadd(C, (0, 0.12))) "$C$" anchor=n if=(free == 3)
-  text caption if=(caption != "")
+  said = if(caption != "", caption, if(free == 3, "Drag $A$, $B$ or $C$: every step follows.", "Drag $A$ or $B$: every step follows."))
+  fn told(k: int): text = "" + (k + 1) + ". " + steps[k].op + " of " + join(steps[k].args, ", ") + if(steps[k].name == "", "", ": " + steps[k].name)
+
+  frame kind="Construction" title=title status=said
+    zoom
+      canvas x=(-rx)..(rx) y=(-r)..(r) aspect=asp size=fill label=(if(caption == "", "A construction over points you can drag", caption))
+        layer opacity=0.16
+          each g in ticks(-rx, rx, gridstep) key=g
+            line (g, -r) (g, r) stroke=muted
+          each g in ticks(-r, r, gridstep) key=g
+            line (-rx, g) (rx, g) stroke=muted
+        layer
+          each k in 0..(len(steps) - 1)
+            line (gend(ob(k), rx, r, -1)) (gend(ob(k), rx, r, 1)) stroke=muted if=(ob(k).kind == ln)
+            line (ob(k).a) (ob(k).b) stroke=ink width=1.5 if=(ob(k).kind == seg)
+            circle (ob(k).a) (ob(k).r) stroke=info width=1.5 if=(ob(k).kind == circ)
+          each k in 0..(len(steps) - 1)
+            place (ob(k).a) if=(ob(k).kind == pt)
+              stack pad=s radius=pill fill=warn stroke=surface
+        # the free points, with a ring each
+        layer opacity=0.2
+          circle A (9 px) fill=info
+          circle B (9 px) fill=info
+          circle C (9 px) fill=info if=(free == 3)
+        layer
+          circle A (9 px) stroke=info width=1.5
+          circle B (9 px) stroke=info width=1.5
+          circle C (9 px) stroke=info width=1.5 if=(free == 3)
+          handle A tone=info
+          handle B tone=info
+          handle C tone=info if=(free == 3)
+        layer
+          each k in 0..(len(steps) - 1)
+            label (gadd(ob(k).a, (8 px, 8 py))) (steps[k].name) tone=warn anchor=ne chip if=(ob(k).kind == pt and steps[k].name != "")
+          label (gadd(A, (-10 px, -10 py))) "$A$" tone=info anchor=sw chip
+          label (gadd(B, (10 px, -10 py))) "$B$" tone=info anchor=se chip
+          label (gadd(C, (0, 12 py))) "$C$" tone=info anchor=n chip if=(free == 3)
+    fill details
+      stack gap=xs
+        each k in 0..(len(steps) - 1)
+          text (told(k))

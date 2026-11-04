@@ -130,6 +130,7 @@ function shape(s: VShape, g: Geo): ReactNode {
 }
 
 function anchorOffset(a: string): [string, string] {
+  if (a === 'center') return ['-50%', '-50%'];
   const h = a.includes('e') ? '0%' : a.includes('w') ? '-100%' : '-50%';
   const v = a.includes('n') ? '-100%' : a.includes('s') ? '0%' : '-50%';
   return [h, v];

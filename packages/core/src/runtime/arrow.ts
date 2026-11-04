@@ -18,12 +18,12 @@ export interface ArrowPath {
   /** which side of `label` its text runs to, when it isn't centred there (a self-loop's) */
   align?: 'start' | 'end';
   /** the marks at its ends other than a plain head: path data, and how it is filled */
-  marks?: { d: string; fill: 'solid' | 'none' | 'hollow' }[];
+  marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
 }
 
 /** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
  *  crow's foot (many), or nothing. */
-export type ArrowEnd = 'arrow' | 'hollow' | 'one' | 'many' | 'none';
+export type ArrowEnd = 'arrow' | 'hollow' | 'one' | 'many' | 'cross' | 'none';
 
 /** Where the ray from a rectangle's centre towards (tx, ty) leaves the rectangle, plus a gap. */
 function exit(r: Rect, tx: number, ty: number, gap: number): [number, number] {
@@ -182,7 +182,7 @@ export interface ArrowEnds {
 const r1 = (n: number): string => n.toFixed(1);
 
 /** The mark of one kind at P, the line arriving along u (a unit vector pointing into the element). */
-function mark(kind: ArrowEnd, P: Pt, u: Pt): { d: string; fill: 'solid' | 'none' | 'hollow' } | null {
+function mark(kind: ArrowEnd, P: Pt, u: Pt): { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string } | null {
   const v: Pt = [-u[1], u[0]];
   const at = (along: number, across: number): string => `${r1(P[0] - u[0] * along + v[0] * across)},${r1(P[1] - u[1] * along + v[1] * across)}`;
   switch (kind) {
@@ -194,6 +194,9 @@ function mark(kind: ArrowEnd, P: Pt, u: Pt): { d: string; fill: 'solid' | 'none'
       return { d: `M${at(5, 5)} L${at(5, -5)}`, fill: 'none' };
     case 'many':
       return { d: `M${at(11, 0)} L${at(0, 5)} M${at(11, 0)} L${at(0, 0)} M${at(11, 0)} L${at(0, -5)}`, fill: 'none' };
+    case 'cross':
+      // centred where the shaft stops, a head's length short of the element: it never got there
+      return { d: `M${at(2.5, 4.5)} L${at(11.5, -4.5)} M${at(2.5, -4.5)} L${at(11.5, 4.5)}`, fill: 'none', tone: 'bad' };
     default:
       return null;
   }
@@ -214,8 +217,8 @@ function withEnds(p: ArrowPath, head: ArrowEnd, tail: ArrowEnd): ArrowPath {
   const start: Pt = [nums[0], nums[1]];
   const next: Pt = [nums[2], nums[3]];
   const marks = [head === 'arrow' ? null : mark(head, tip, unit(back, tip)), mark(tail, start, unit(next, start))].filter((m): m is NonNullable<typeof m> => !!m);
-  // a mark that isn't a head lets the shaft run on to the element
-  const d = head === 'arrow' ? p.d : `${p.d} L${r1(tip[0])},${r1(tip[1])}`;
+  // a mark that isn't a head lets the shaft run on to the element; a cross stops it short
+  const d = head === 'arrow' || head === 'cross' ? p.d : `${p.d} L${r1(tip[0])},${r1(tip[1])}`;
   return { ...p, d, head: head === 'arrow' ? p.head : [], marks };
 }
 

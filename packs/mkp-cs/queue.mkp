@@ -1,7 +1,8 @@
-queue@1 "A queue to drive: Enqueue adds the next item at the back, Dequeue serves the one at the front."
+queue@1 "A queue to drive: Enqueue adds the next item at the back, Dequeue serves the one at the front; the front is lit, the last ones served stay faint beside it."
   in start list(text) = [] "the items already waiting, front first"
   in incoming list(text) = ["A", "B", "C", "D", "E", "F", "G", "H"] "what each Enqueue adds, in turn (it starts over when it runs out)"
   in capacity int 0..50 = 0 "the most the queue holds; 0 means no limit"
+  in title text = "First in, first out" "the header's title"
   out changed "after every enqueue or dequeue"
   var added int = 0 "how many Enqueue added"
   var served int = 0 "how many Dequeue served"
@@ -12,33 +13,44 @@ queue@1 "A queue to drive: Enqueue adds the next item at the back, Dequeue serve
   items = map(range(served, total - 1), n => {id: "q" + n, label: label(n), n: n})
   size = total - served
   full = capacity > 0 and size >= capacity
-  gone = map(range(max(0, served - 4), served - 1), n => {id: "q" + n, label: label(n)})
+  gone = map(range(max(0, served - 3), served - 1), n => {id: "q" + n, label: label(n), n: n})
+  # with a capacity, its free places are drawn too, so the row keeps its length
+  free = if(capacity > 0, map(range(1, capacity - size), k => {id: "free" + k}), [])
+  status = (if(size == 0, "**Empty**", "**" + label(served) + "** is at the front") +
+      if(served > 0, " · served " + label(served - 1), "") + " · " + size + if(size == 1, " item", " items") +
+      if(capacity > 0, " of " + capacity, "") + if(full, ": full", ""))
 
   project md = ("Queue, front first: " + if(len(start) == 0, "empty", join(map(start, x => "`" + x + "`"), ", ")) +
       ". Enqueue adds " + join(map(first(incoming, 4), x => "`" + x + "`"), ", ") + if(len(incoming) > 4, ", …", "") +
       if(capacity > 0, "; it holds at most " + capacity, "") + ".\n")
 
-  stack gap=m
-    flex gap=s align=center
-      press id=enq disabled=(full or len(incoming) == 0)
+  frame kind="Queue" title=title status=status
+    fill bar
+      press id=enq emphasis=high disabled=(full or len(incoming) == 0)
         text ("Enqueue " + label(total))
         @click set added=(added + 1) emit changed
       press id=deq disabled=(size == 0)
         text "Dequeue"
         @click set served=(served + 1) emit changed
-      press id=clear label="start over" disabled=(added == 0 and served == 0)
+      press id=clear label="start over" emphasis=low disabled=(added == 0 and served == 0)
         text "↺"
         @click set added=0 served=0
-    flex gap=xs align=center
-      text "front →" tone=muted
-      each it in items key=it.id
-        stack pad=m stroke=accent radius=card if=(it.n == served)
-          text it.label weight=bold
-        stack pad=m stroke=muted radius=card if=(it.n != served)
-          text it.label
-      text "← back" tone=muted
-    text ("" + size + if(size == 1, " item", " items") + if(capacity > 0, " of " + capacity, "") + if(full, ": full.", "."))
-    flex gap=s align=center if=(served > 0)
-      text "served:" tone=muted
-      each g in gone key=g.id
-        text g.label tone=muted
+    stack gap=m pad=l
+      flex gap=s align=center
+        text "front" font=mono size=small tone=muted caps=true
+        each it in items key=it.id
+          stack pad=m radius=card stroke=(if(it.n == served, info, muted)) tint=(if(it.n == served, info, surface))
+            text (it.label) weight=(if(it.n == served, bold, regular)) tone=(if(it.n == served, info, ink)) align=center
+            text ("#" + (it.n + 1)) font=mono size=small tone=muted align=center
+        each f in free key=f.id
+          stack pad=m radius=card stroke=muted dim=true
+            text "" lines=1
+            text "free" font=mono size=small tone=muted align=center
+        stack pad=m radius=card stroke=muted dim=true if=(size == 0 and capacity == 0)
+          text "empty" tone=muted align=center lines=1
+          text "" font=mono size=small lines=1
+        text "back" font=mono size=small tone=muted caps=true
+      # the last ones served, faint and struck, on a line of their own so the queue never moves for them
+      flex gap=s align=baseline
+        text "served" font=mono size=small tone=muted caps=true
+        text (if(served == 0, "—", join(map(gone, g => "~~" + g.label + "~~"), "  "))) tone=muted lines=1

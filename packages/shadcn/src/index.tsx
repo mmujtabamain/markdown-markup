@@ -132,7 +132,7 @@ const ICONS: Record<string, LucideIcon> = {
   cloud: L.Cloud, mail: L.Mail, clock: L.Clock, calendar: L.Calendar, flag: L.Flag, target: L.Target, gauge: L.Gauge, layers: L.Layers,
   branch: L.GitBranch, box: L.Package, square: L.Square, circle: L.Circle, dot: L.Dot, star: L.Star, bolt: L.Zap, link: L.Link, key: L.KeyRound,
   shield: L.Shield, cart: L.ShoppingCart, chart: L.ChartColumn, code: L.Code, terminal: L.Terminal, bell: L.Bell, home: L.House,
-  settings: L.Settings, trash: L.Trash2, copy: L.Copy, download: L.Download, upload: L.Upload, expand: L.Maximize2, lightbulb: L.Lightbulb,
+  settings: L.Settings, sliders: L.SlidersHorizontal, trash: L.Trash2, copy: L.Copy, download: L.Download, upload: L.Upload, expand: L.Maximize2, lightbulb: L.Lightbulb,
   book: L.BookOpen,
 };
 const ICON_PX: Record<string, number> = { small: 13, normal: 16, large: 20 };
@@ -148,6 +148,8 @@ const GLYPHS: Record<string, LucideIcon> = { '‹': ChevronLeft, '›': ChevronR
 /** A press whose whole content is one symbol is an icon button. MKP has no icon widget (GAPS 57). */
 function glyphOf(n: VNode): LucideIcon | undefined {
   const kid = n.kids?.length === 1 ? n.kids[0] : undefined;
+  // a press that is one icon is an icon button, like one that is one symbol
+  if (kid?.t === 'icon') return ICONS[String(kid.p.name)];
   const runs = kid?.t === 'text' ? (kid.p.runs as VRun[]) : undefined;
   return runs?.length === 1 && runs[0].t === 'text' ? GLYPHS[runs[0].v] : undefined;
 }

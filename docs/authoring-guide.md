@@ -167,7 +167,9 @@ frame kind="Trace" title=title status=(now.note)
 
 `pane` is a titled column whose body scrolls on its own; `zoom` puts what it holds behind a view
 lock; `icon name=…` is a symbol from the provider's own set. `dim` and `blur` fade a box back or blur
-it until it is revealed, `caps` makes a caption, and `emphasis` on a press says how much it stands out.
+it until it is revealed, `line=dashed|dotted` draws a box's border so, `caps` makes a caption, and
+`emphasis` on a press says how much it stands out. A frame's `statuslines=2` (up to 3) keeps room for
+a status that wraps, such as a verdict and its reason.
 
 ### Relations: arrow
 
@@ -179,6 +181,10 @@ arrow from an element to itself is a loop on its side.
 `route=down` (rows) or `route=right` (columns) draws only level and upright runs, the way a
 diagram's lines are usually drawn. Arrows that leave one element leave on one trunk and arrows that
 reach one arrive as one line; other arrows keep off each other's runs.
+
+An arrow's look: `tone=`, `line=solid|dashed|dotted`, `bold=` and `dim=`, and what sits at each end,
+`head=` and `tail=`: `arrow`, `hollow` (a kind of), `one` and `many` (a bar and a crow's foot),
+`cross` (it never arrived: the line stops short of the element, the cross in the bad tone) or `none`.
 
 `via=(ids)` routes an arrow through other elements, in order, so it goes round what is between its
 ends instead of straight through it. The path runs along each via element's longer side (top to

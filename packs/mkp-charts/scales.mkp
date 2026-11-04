@@ -15,3 +15,7 @@ fn short(v: num): text = if(abs(v) >= 1000000, "" + v/1000000 + "M",
 # distinct values, sorted
 fn distinct(xs: list(num)): list(num) = sort(
     fold(xs, [], (acc, v) => if(indexof(acc, v) >= 0, acc, acc + [v])), v => v)
+
+# a value clamped into lo..hi
+fn chclamp(v: num, lo: num, hi: num): num = min(max(v, lo), hi)
+

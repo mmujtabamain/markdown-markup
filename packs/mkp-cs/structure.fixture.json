@@ -27,5 +27,7 @@
       { "items": ["2", "1", "3", "7", "4"], "note": "1 is less than its parent 4: swap.", "marked": [1] },
       { "items": ["1", "2", "3", "7", "4"], "note": "1 is less than 2: swap; it is the root.", "marked": [0] } ] },
     "play": [{ "set": { "pos": 2 } }] },
+  "deep": { "summary": "A search tree five levels deep, drawn on a canvas behind a view lock.",
+    "props": { "kind": "tree", "title": "Sixteen keys", "states": [ { "items": ["8", "4", "12", "2", "6", "10", "14", "1", "3", "5", "7", "9", "11", "13", "15", "0"], "note": "0 is the deepest key.", "marked": [15] } ] } },
   "gaps": { "summary": "A binary search tree with gaps in level order.",
     "props": { "kind": "tree", "states": [ { "items": ["8", "3", "10", "1", "6", "", "14"] } ] } } } }

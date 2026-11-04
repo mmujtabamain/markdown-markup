@@ -279,3 +279,103 @@ rule of the spec, not a defect), *in progress*.
     None of it could be said in the base set. *Fixed:* `frame`, `pane`, `zoom` and `icon` base widgets
     (SN 108), which Study Pad's provider draws with WidgetFrame, Pane and ZoomPane. The widgets are
     moved onto them one by one (board #7954).
+
+### Views parity: questions and predict (mkp-learn)
+
+75. **MKP: a frame's status is one line, and the only part of the bar announced.** A verdict with its
+    reason needs up to three lines, as Study Pad gives it; `status=` is cut off with an ellipsis.
+    *Worked around:* each quiz draws its own wrapping line in `fill bar`, which loses `role=status`.
+    *Fixed in the base:* `frame statuslines=1..3` (SN 110); the quizzes keep their own line, with its icon.
+76. **MKP: an overlay's anchor is always an outline button.** The header's hint and book buttons are
+    outline; Study Pad's are ghost. *Open.*
+77. **MKP: an answer row has no letter.** Study Pad's rows show A, B, C in the mark until picked;
+    `press kind=radio|check` has no place for one, and a letter in the content gives two marks. *Open.*
+78. **MKP: no dashed outline.** Study Pad's drop area and gate box are dashed; `stroke=` is solid only.
+    *Worked around:* a solid outline. *Fixed:* `line=dashed|dotted` on stack, flex and grid (SN 110).
+79. **MKP: a box can't sit over another.** Study Pad's predict card floats over the blurred chart, and a
+    set is as tall as its tallest question. *Worked around:* the card sits beside the content; the set
+    takes each question's own height, so stepping can resize it.
+80. **MKP: no multi-line field.** *Worked around:* write mode uses a one-line field.
+81. **MKP: Enter in a field can't check the answer.** There are no conditional actions, and which event
+    fires (correct or wrong) depends on the answer, so only the Check press pair can emit it. *Open.*
+82. **MKP: no text functions.** A comma decimal mark can't be read, a word can't be compared ignoring
+    case, and a typed expression can't be typeset as it is read back. `slice` and `indexof` on text are
+    dropped silently, with only an "undefined name" error where they are used. *Worked around:* the
+    help text, cloze `also`, and a "can it be read" line.
+83. **MKP: a derived value can shadow a token or an option name, silently.** A derived `bad` made
+    `if(x, ok, bad)` a type error. A derived `start` made `text … align=start` fail with "expected one of
+    start, center, end, found start", and the text was dropped from the view. *Open.*
+84. **MKP (@mkp/shadcn): a press whose only content is an `icon` is a text-sized button.** Only the eight
+    text glyphs became icon buttons, so the order list's ↑ ↓ − squeezed the step text. *Fixed* (SN 110).
+85. **MKP: no drag to reorder.** *Worked around:* ↑ and ↓ presses.
+86. **MKP: a field can't be marked right or wrong.** *Worked around:* the verdict in the bar, and a tick
+    or cross beside each blank.
+87. **MKP: a play step can't set a nested part's state.** A fixture's `set entries` checks the cloze, but
+    the fields show empty. *Open*, minor.
+88. **MKP: a fixture's slot can hold Markdown only.** A widget block there shows as code, and a code
+    fence breaks the round-trip test. *Worked around:* LaTeX `\rule` bars for the chart, and inline code
+    for the requests.
+89. **MKP (@mkp/shadcn): a plain press centres its text.** `press kind=plain` is a `<button>`, so its
+    content inherited centred text. *Fixed:* `.mkp-plain` keeps its content's alignment (SN 110).
+
+### Views parity: sequences and code (mkp-diagrams, mkp-cs)
+
+90. **MKP arrows: no cross mark for a lost message.** Study Pad ends a lost message in a red ×. Arrow ends
+    were only arrow, hollow, one, many or none, and a "×" text either makes its row taller or sits above
+    the line. *Fixed:* `head=cross`, drawn in the bad tone (SN 110); sequence and exchange use it.
+91. **MKP frame bar: a long status pushes the count and start over out of the bar.** The steps group is
+    `flex: 1 1 0` with no `min-width: 0`, so its nowrap status keeps its full width and the track, n/N
+    and ↺ are cut off at the frame's edge. *Fixed* (SN 110).
+92. **MKP arrows: a frame in full screen leaves its arrows behind.** The arrows' SVG belongs to the scope,
+    outside the fixed frame, so a full-screen sequence shows no lines. Every widget with arrows in a
+    frame. *Open.*
+93. **MKP arrows: measured on resize, not on scroll.** A widget with arrows can't use `height=` with a
+    scrolling stage, so sequence fits its content and can't keep the current row in view. *Open.*
+94. **MKP canvas labels: `anchor=center` draws as ne.** `anchorOffset` tests `includes('e')` and
+    `includes('n')`, and "center" contains both, so every centred canvas label sat up and to the right.
+    *Fixed* in both renderers.
+95. **MKP code marks: one mark per line.** Both providers draw only a line's first mark, so a line can't
+    have a tone and a toned part. *Worked around:* the line's mark goes first, and the part's mark after.
+96. **MKP code: a listing's lines can't be pressed.** Study Pad moves the current line on a press or a
+    pointer drag; `code` has no events (68 says the same of trace). *Open.*
+97. **MKP playground CodeBlock: marks without a current line draw a bordered box with margins.** In
+    `apps/playground/src/components/ui/code-block.tsx`. *Open.*
+98. **MKP layout: no fixed column width.** *Worked around:* times are padded with no-break spaces in the
+    mono font.
+99. **MKP grid: twelve columns at most.** *Worked around:* six participants at most; tree levels wider
+    than 8 are drawn in groups of 8.
+100. **MKP arrows: drawn over the content.** *Worked around:* lifelines are `dim=true`.
+101. **MKP expressions: a colour token in a record literal needs a typed `fn`**, and `flatten` refuses
+     lists of record-kind lists. *Worked around.*
+102. **RN test: closed drawers were checked.** The render test expected an element for every node,
+     including a frame's About and Details slots, which are only drawn while open. *Fixed in the test:*
+     keys under `.about/` and `.details/` are skipped. (The plots agent found the same.)
+
+### Views parity: plots (mkp-math, mkp-charts)
+
+103. **MKP: a string literal can't hold a lone `$`.** `"$" + name + "$"` pairs the dollars across
+     literals into one maths span. *Worked around:* `"$\val{…}$"` templates. *Open.*
+104. **MKP: a plot can't fill a fixed-height stage.** A canvas's height comes from its width and aspect,
+     so plots are short on phones (same root as 18). *Open.*
+105. **MKP: an expression input's variable names are fixed by its type.** plane's parameters are θ, v, g
+     in the bar but `a`–`d` in formulas. *Worked around:* positional parameters, documented. *Open.*
+106. **MKP: canvas labels have no size and no halo.** Tick maths is about 15 px against 13, and lines
+     cross the numbers. *Open.*
+107. **MKP: canvas labels aren't kept inside the canvas or clear of each other.** *Worked around:*
+     positions clamped in data units. *Open.*
+108. **MKP: canvas shapes have no opacity of their own.** *Worked around:* the heat map is 12 stacked
+     band layers. *Open.*
+109. **MKP: a canvas has no pixel unit.** Rings, offsets and margins are sized for a column about 720 px
+     wide. *Open.*
+110. **MKP: a widget's own names shadow a label's anchor options.** *Worked around:* renamed (`n` to
+     `count`, `s` to `turn`, `w` to `fz`). (83 is the same trap.)
+111. **MKP: `at(xs, -1, d)` returns the last item, not `d`.** This broke the heat-map runs. *Worked
+     around.* *Open:* document it, or return the default.
+112. **MKP: an `each` takes at most 200 items.** *Worked around:* split per row or column.
+113. **MKP: `line … arrow` draws an 8 px head at any length.** *Worked around:* line plus path head.
+114. **MKP (web renderer): a 3D canvas ignores a changed `view`.** surface's turn slider moves the value
+     but not the drawing; this was there before. *Open.*
+115. **MKP: a fixture play step can't open an overlay.** *Open*, minor.
+116. **MKP: no sliders icon.** *Fixed:* `icon name=sliders` (SN 110).
+117. **MKP: a pack-level `fn` can't name a colour token.** *Worked around:* one tone function per widget.
+118. **MKP: tick density can't follow the width.** *Open.*

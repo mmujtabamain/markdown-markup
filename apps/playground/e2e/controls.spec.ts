@@ -35,7 +35,7 @@ test('a tooltip is a Tooltip: hovering shows it, and leaving hides it', async ({
 });
 
 test('nothing moves on a click: the answer rows and the Check button stay put', async ({ page }) => {
-  await open(page, 'case:mkp-learn/quiz.choice@1/single');
+  await open(page, 'case:mkp-learn/quiz.choice@1/multiple');
   const row = page.locator('.pg-stage [data-slot=option-row]').first();
   await row.waitFor();
   const check = page.locator('.pg-stage button', { hasText: 'Check' });

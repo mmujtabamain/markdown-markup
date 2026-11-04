@@ -140,7 +140,7 @@ function arrowHead(a: number[], b: number[]): string {
  */
 function useAnchored(anchor: string): [{ w: number; h: number } | null, (w: number, h: number) => void, (sz: { w: number; h: number }) => [number, number]] {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const off = (sz: { w: number; h: number }): [number, number] => [anchor.includes('e') ? 0 : anchor.includes('w') ? -sz.w : -sz.w / 2, anchor.includes('n') ? -sz.h : anchor.includes('s') ? 0 : -sz.h / 2];
+  const off = (sz: { w: number; h: number }): [number, number] => anchor === 'center' ? [-sz.w / 2, -sz.h / 2] : [anchor.includes('e') ? 0 : anchor.includes('w') ? -sz.w : -sz.w / 2, anchor.includes('n') ? -sz.h : anchor.includes('s') ? 0 : -sz.h / 2];
   return [size, (w, h) => setSize((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h })), off];
 }
 

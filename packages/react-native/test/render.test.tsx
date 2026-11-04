@@ -75,6 +75,8 @@ function check(rt: Runtime): number {
   expect(screen.queryAllByRole('alert', H)).toEqual([]);
   let count = 0;
   walkView(view, (n: VNode) => {
+    // a frame's drawers (About, Details) are drawn only while they are open
+    if (/\.(about|details)\//.test(n.key)) return;
     count++;
     const el = screen.getByTestId(n.key, H);
     const p = n.p;
@@ -321,7 +323,7 @@ describe('interactions', () => {
   });
 
   it('a trace marks its current line, and keeps a row for every variable', async () => {
-    const hit = firstCase((v) => !!find(v, (n) => n.t === 'code' && !!n.p.line));
+    const hit = firstCase((v) => !!find(v, (n) => n.t === 'scope' && n.p.name === 'trace') && !!find(v, (n) => n.t === 'code' && !!n.p.line));
     await mount(hit!.bundle, { hosts: hit!.fc.hosts });
     const marked = all(screen.root!, (e) => e.props.accessibilityState?.selected === true);
     expect(marked).toHaveLength(1);

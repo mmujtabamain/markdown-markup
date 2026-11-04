@@ -1,4 +1,4 @@
 { "widget": "orbit@1", "cases": {
-  "square": { "summary": "z and z squared going round.", "props": { "f": "z^2" }, "play": [{ "press": "s.play" }, { "wait": 1500 }] },
+  "square": { "summary": "z and z squared going round.", "props": { "f": "z^2" }, "play": [{ "press": "turn.play" }, { "wait": 1500 }] },
   "cube": { "summary": "z and z cubed.", "props": { "f": "z^3" } },
   "shifted": { "summary": "z and z plus a half.", "props": { "f": "z + 0.5" } } } }

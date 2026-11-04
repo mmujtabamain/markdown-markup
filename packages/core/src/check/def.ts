@@ -46,8 +46,8 @@ export interface Sig {
 const ARROW_LOOK: Record<string, Type> = {
   tone: { t: 'token', kind: 'color' },
   line: { t: 'choice', opts: ['solid', 'dashed', 'dotted'] },
-  head: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'none'] },
-  tail: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'none'] },
+  head: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'cross', 'none'] },
+  tail: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'cross', 'none'] },
   dim: T.bool,
   bold: T.bool,
 };

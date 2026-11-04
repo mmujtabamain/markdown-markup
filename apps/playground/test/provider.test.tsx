@@ -78,14 +78,37 @@ describe('controls drive the runtime', () => {
   });
 
   it('answers are option rows, marked right or wrong once checked', () => {
-    const { ui } = fixture('mkp-learn', 'quiz.choice@1', 'single');
-    const rows = () => ui.getAllByRole('radio');
+    const { ui } = fixture('mkp-learn', 'quiz.choice@1', 'multiple');
+    const rows = () => ui.getAllByRole('checkbox');
     expect(rows()[0].getAttribute('data-slot')).toBe('option-row');
     fireEvent.click(rows()[0]);
     expect(rows()[0].getAttribute('aria-checked')).toBe('true');
     expect(rows()[0].getAttribute('data-state')).toBe('chosen');
     fireEvent.click(ui.getByRole('button', { name: 'Check' }));
     expect(['right', 'wrong']).toContain(rows()[0].getAttribute('data-state'));
+  });
+
+  it('one pick is checked as soon as it is made, and the bar says how it went', () => {
+    const { ui } = fixture('mkp-learn', 'quiz.choice@1', 'single');
+    const rows = () => ui.getAllByRole('radio');
+    expect(ui.queryByRole('button', { name: 'Check' })).toBeNull();
+    fireEvent.click(rows()[0]);
+    expect(rows()[0].getAttribute('aria-checked')).toBe('true');
+    expect(rows()[0].getAttribute('data-state')).toBe('wrong');
+    expect(ui.container.querySelector('.mkp-frame')?.getAttribute('data-tone')).toBe('bad');
+    fireEvent.click(ui.getByRole('button', { name: 'Try again' }));
+    expect(rows()[0].getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(rows()[1]);
+    expect(rows()[1].getAttribute('data-state')).toBe('right');
+    expect(ui.container.querySelector('.mkp-frame')?.getAttribute('data-tone')).toBe('ok');
+  });
+
+  it('predict: what waits is blurred until the reader answers', () => {
+    const { ui } = fixture('mkp-learn', 'predict@1', 'recall');
+    const veiled = () => ui.container.querySelector('[data-blur]');
+    expect(veiled()?.textContent).toContain('Too Many Requests');
+    fireEvent.click(ui.getByRole('button', { name: 'Reveal' }));
+    expect(veiled()).toBeNull();
   });
 
   it('a press that is one symbol is an icon, as a button and as a toggle', () => {

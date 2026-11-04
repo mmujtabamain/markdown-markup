@@ -1,58 +1,253 @@
-# The plane every maths widget draws on: a grid at a step, two axes, numbered ticks.
-# Canvas layers can't come from a part, so the widgets share these functions and draw
-# the same grid; `plane` is the part for drawing points and segments on one.
+# The plane every maths widget draws on, in one look: a light grid, axes with tick marks, the ticks
+# numbered small in the maths face, the axes' names at their ends, labels as chips, all of it in a
+# frame whose stage zooms behind a lock. Canvas layers can't come from a part, so each widget draws
+# the same few layers with these functions. `plane` itself is the widget for drawing on one.
 
 # multiples of step from lo to hi
-fn ticks(lo: num, hi: num, step: num): list(num) = map(range(ceil(lo/step - 0.000001), floor(hi/step + 0.000001)), k => k step)
+fn ticks(lo: num, hi: num, step: num): list(num) = map(range(ceil(lo/step - 0.000001), floor(hi/step + 0.000001)), k => round(k step 1000000)/1000000)
 # ticks without the origin, for numbering the axes
 fn marks(lo: num, hi: num, step: num): list(num) = filter(ticks(lo, hi, step), v => abs(v) > step/1000 and v > lo + (hi - lo)/20 and v < hi - (hi - lo)/20)
 # a value clamped into lo..hi (axes stay inside the view when it doesn't hold the origin)
 fn clamp(v: num, lo: num, hi: num): num = min(max(v, lo), hi)
+# a step near span/n: 1, 2 or 5 times a power of ten
+fn nice(span: num, n: num): num = 10^floor(log(span/n)) if(span/n/10^floor(log(span/n)) < 1.5, 1,
+    if(span/n/10^floor(log(span/n)) < 3, 2, if(span/n/10^floor(log(span/n)) < 7, 5, 10)))
+# the decimal places a tick at this step needs
+fn places(step: num): int = max(0, 0 - floor(log(step) + 0.000000001))
+# a number for reading: d places at most, no trailing zeros, a true minus
+fn num(v: num, d: int): text = if(v < 0, "−", "") + (round(abs(v) 10^d)/10^d)
+# a tick's number, in maths; on the imaginary axis 2 is 2i and 1 is i
+fn tick(v: num, step: num, im: bool): text = if(not im, "$\val{format(v, places(step))}$",
+    if(abs(v - 1) < step/1000, "$i$", if(abs(v + 1) < step/1000, "$-i$", "$\val{format(v, places(step))}i$")))
+# the ticks to number along an axis: clear of its ends, and not where the other axis crosses it
+fn numbered(lo: num, hi: num, step: num, cross: num, crossed: bool): list(num) = filter(ticks(lo, hi, step),
+    v => v > lo + (hi - lo)/70 and v < hi - (hi - lo)/70 and not (crossed and abs(v - cross) < step/1000))
+# the part of a grid cell where f < 0: its corners counter-clockwise from bottom-left, values v0..v3
+fn below0(p0: point, p1: point, p2: point, p3: point, v0: num, v1: num, v2: num, v3: num): list(point) = (
+    if(v0 < 0, [p0], []) + edge(p0, p1, v0, v1, 0) + if(v1 < 0, [p1], []) + edge(p1, p2, v1, v2, 0) +
+    if(v2 < 0, [p2], []) + edge(p2, p3, v2, v3, 0) + if(v3 < 0, [p3], []) + edge(p3, p0, v3, v0, 0))
+# runs of a row's cells at k or above, as first and last index
+fn runs(r: list(num), k: num): list({a: int, b: int}) = zip(
+    filter(range(0, len(r) - 1), i => r[i] >= k and (i == 0 or r[i - 1] < k)),
+    filter(range(0, len(r) - 1), i => r[i] >= k and (i == len(r) - 1 or r[i + 1] < k)))
 
-part plane@1 "A labelled real or complex plane (grid, axes, numbered ticks) with points and segments on it."
+plane@1 "A coordinate plane in a frame: a light grid, numbered axes and their names, and on it functions, curves, points, segments, shaded regions and heat, with up to four parameters in the bar that every expression can use."
+  in title text = "" "the frame's title"
+  in caption text = "Plane" "what kind of figure it is, said small before the title (Plot, Fit, Simulation, Coverage)"
   in xmin num = -2 "left edge"
   in xmax num = 2 "right edge"
   in ymin num = -2 "bottom edge"
   in ymax num = 2 "top edge"
   in kind choice(real|complex) = real "complex names the axes Re and Im and marks the imaginary ticks with i"
-  in step num = 1 "grid spacing"
+  in step num = 0 "grid spacing; 0 picks one, about nine lines across"
   in numbers bool = true "number the ticks"
-  in size size = m
+  in xlabel text = "" "the x axis's name, words or maths; empty: x (Re on the complex plane)"
+  in ylabel text = "" "the y axis's name; empty: y (Im)"
+  in aspect num = 0 "width over height; 0 takes the ranges' own, kept between 1.6 and 2.8"
+  in equal bool = true "one unit as long on both axes: the shorter way is widened about its middle to fill the aspect"
+  in size size = m "kept for older documents: the plane fills its frame"
   in label text = "" "what the plane shows, for screen readers"
-  in dots list(record dot {at: point, name: text = "", tone: choice(accent|ink|info|ok|warn|bad) = accent}) "points to mark"
-  in segments list(record segment {a: point, b: point, arrow: bool = false}) "segments between points"
-  ax = clamp(0, ymin, ymax)
-  ay = clamp(0, xmin, xmax)
-  tx = (xmax - xmin)/40
-  ty = (ymax - ymin)/40
-  canvas x=(xmin)..(xmax) y=(ymin)..(ymax) size=size label=(if(label == "", if(kind == complex, "The complex plane", "The plane"), label))
-    layer opacity=0.35
-      each g in ticks(xmin, xmax, step)
-        line (g, ymin) (g, ymax) stroke=muted width=0.5
-      each g in ticks(ymin, ymax, step)
-        line (xmin, g) (xmax, g) stroke=muted width=0.5
-    layer
-      line (xmin, ax) (xmax, ax) stroke=muted arrow
-      line (ay, ymin) (ay, ymax) stroke=muted arrow
-      label (xmax, ax + ty/2) "$x$" tone=muted anchor=nw if=(kind == real)
-      label (ay + tx/2, ymax) "$y$" tone=muted anchor=se if=(kind == real)
-      label (xmax, ax + ty/2) "$\operatorname{Re}$" tone=muted anchor=nw if=(kind == complex)
-      label (ay + tx/2, ymax) "$\operatorname{Im}$" tone=muted anchor=se if=(kind == complex)
-      each g in marks(xmin, xmax, step)
-        label (g, ax - ty/2) "$\val{g}$" tone=muted anchor=s if=numbers
-      each g in marks(ymin, ymax, step)
-        label (ay - tx/2, g) "$\val{g}$" tone=muted anchor=w if=(numbers and kind == real)
-        label (ay - tx/2, g) "$\val{g}i$" tone=muted anchor=w if=(numbers and kind == complex and abs(g) != 1)
-        label (ay - tx/2, g) "$i$" tone=muted anchor=w if=(numbers and kind == complex and g == 1)
-        label (ay - tx/2, g) "$-i$" tone=muted anchor=w if=(numbers and kind == complex and g == -1)
-    layer
-      each s in segments
-        line s.a s.b stroke=ink arrow=(s.arrow)
-      each d in dots
-        circle d.at (0.7 tx) fill=accent if=(d.tone == accent)
-        circle d.at (0.7 tx) fill=ink if=(d.tone == ink)
-        circle d.at (0.7 tx) fill=info if=(d.tone == info)
-        circle d.at (0.7 tx) fill=ok if=(d.tone == ok)
-        circle d.at (0.7 tx) fill=warn if=(d.tone == warn)
-        circle d.at (0.7 tx) fill=bad if=(d.tone == bad)
-        label (d.at.x + tx/2, d.at.y + ty/2) d.name anchor=ne if=(d.name != "")
+  in params list(record pparam {name: text, label: text = "", min: num, max: num, step: num = 0, value: num}) = [] "up to four knobs, called a, b, c and d in the expressions below, in this order; the name is maths (\\theta); one or two sit in the bar, three or four in a Parameters popover"
+  in functions list(record pfunction {f: expr(x, a, b, c, d), label: text = "", tone: color = info, dash: bool = false}) = [] "y = f(x) across the view"
+  in curves list(record pcurve {f: expr(t, a, b, c, d): point, from: expr(a, b, c, d) = 0, to: expr(a, b, c, d) = 1, label: text = "", tone: color = info, dash: bool = false}) = [] "parametric curves, t running from from to to"
+  in points list(record ppoint {at: expr(a, b, c, d): point, label: text = "", tone: color = warn, anchor: choice(n|s|e|w|ne|nw|se|sw) = ne}) = [] "points that follow the parameters, each named in a chip beside it"
+  in dots list(record dot {at: point, name: text = "", tone: color = accent, anchor: choice(n|s|e|w|ne|nw|se|sw) = ne}) = [] "fixed points to mark"
+  in segments list(record segment {a: point, b: point, arrow: bool = false, tone: color = ink, dash: bool = false}) = [] "segments between fixed points"
+  in regions list(record pregion {f: expr(x, y, a, b, c, d), label: text = "", at: point = (-1000000000, 0), tone: color = warn, dash: bool = true}) = [] "shaded where f(x, y) < 0 and outlined, the label at at (else in the middle)"
+  in heats list(record pheat {f: expr(x, y, a, b, c, d), lo: num = 0, hi: num = 0, tone: color = info}) = [] "f(x, y) as shading: faint at lo, strong at hi (both 0: the lowest and highest values in view)"
+  in cells int 8..96 = 48 "cells along the longer side, for regions and heat"
+  in status list(record ppart {text: text = "", f: expr(a, b, c, d) = nan, digits: int 0..6 = 1, after: text = ""}) = [] "the bar's line, in parts joined by a dot: each a text, the value of f (when given) and a text after it"
+  budget 20000000
+
+  # the parameters: one var each, so a slider anywhere sets it
+  np = min(len(params), 4)
+  ps = map(range(0, 3), k => at(params, k, {name: "", label: "", min: 0, max: 1, step: 0, value: 0}))
+  fn pk(k: int): {name: text, label: text, min: num, max: num, step: num, value: num} = ps[k]
+  var a num = pk(0).value
+  var b num = pk(1).value
+  var c num = pk(2).value
+  var d num = pk(3).value
+  vals = [a, b, c, d]
+  fn ptitle(k: int): text = "\val{pk(k).label} $\val{pk(k).name}$"
+  fn pplain(k: int): text = if(pk(k).label == "", pk(k).name, pk(k).label)
+  fn pshown(k: int): text = num(vals[k], if(pk(k).step > 0, places(pk(k).step), 2))
+  changed = len(filter(range(0, np - 1), k => vals[k] != pk(k).value))
+
+  # the view: the ranges, widened to the aspect when units are equal
+  xs = xmax - xmin
+  ys = ymax - ymin
+  asp = if(aspect > 0, aspect, clamp(xs/ys, 1.6, 2.8))
+  wider = xs/ys < asp
+  vx0 = if(equal and wider, (xmin + xmax)/2 - ys asp/2, xmin)
+  vx1 = if(equal and wider, (xmin + xmax)/2 + ys asp/2, xmax)
+  vy0 = if(equal and not wider, (ymin + ymax)/2 - xs/asp/2, ymin)
+  vy1 = if(equal and not wider, (ymin + ymax)/2 + xs/asp/2, ymax)
+  # a pixel, about, each way (a lesson column is some 720 wide)
+  px = (vx1 - vx0)/720
+  py = (vy1 - vy0) asp/720
+  xstep = if(step > 0, step, nice(vx1 - vx0, 9))
+  ystep = if(step > 0, step, if(equal, xstep, nice(vy1 - vy0, max(3, round(12/asp)))))
+  # the axes: through 0, else along the bottom and left edges
+  hasx = vy0 <= 0 and vy1 >= 0
+  hasy = vx0 <= 0 and vx1 >= 0
+  axy = if(hasx, 0, vy0)
+  axx = if(hasy, 0, vx0)
+  below = axy - vy0 > 20 py
+  right = axx - vx0 < 34 px
+  # the y axis's name at its top, left of the axis when there is room
+  yleft = axx - vx0 > 110 px
+  xname = if(xlabel != "", xlabel, if(kind == complex, "$\operatorname{Re}$", "$x$"))
+  yname = if(ylabel != "", ylabel, if(kind == complex, "$\operatorname{Im}$", "$y$"))
+
+  # regions and heat share one grid of cells
+  cd = max(vx1 - vx0, vy1 - vy0)/cells
+  cnx = ceil((vx1 - vx0)/cd - 0.000001)
+  cny = ceil((vy1 - vy0)/cd - 0.000001)
+  # heat: each cell's band, from 0 (faint) to 11 (strong), drawn as layers of bands at or above
+  hb = 12
+  hv = map(heats, h => map(range(0, cny - 1), j => map(range(0, cnx - 1), i => h.f(vx0 + (i + 0.5) cd, vy0 + (j + 0.5) cd, a, b, c, d))))
+  hr = map(range(0, len(heats) - 1), k => if(heats[k].lo == 0 and heats[k].hi == 0,
+      {lo: min(map(hv[k], r => min(r))), hi: max(map(hv[k], r => max(r)))}, {lo: heats[k].lo, hi: heats[k].hi}))
+  hbands = map(range(0, len(heats) - 1), k => map(hv[k], r => map(r, v => if(v == v,
+      clamp(floor(hb (v - hr[k].lo)/max(hr[k].hi - hr[k].lo, 0.000000001)), 0, hb - 1), -1))))
+  # band k shows at 5% + 70% of the way to the tone; each layer adds what takes the one below to it
+  fn shade(k: int): num = 0.05 + 0.7 (k + 0.5)/hb
+  fn alpha(k: int): num = if(k == 0, shade(0), 1 - (1 - shade(k))/(1 - shade(k - 1)))
+  # regions: values at the cells' corners; inside cells as runs, cells on the edge as pieces
+  rv = map(regions, g => map(range(0, cny), j => map(range(0, cnx), i => g.f(vx0 + i cd, vy0 + j cd, a, b, c, d))))
+  fn rin(q: int, j: int, i: int): int = if(rv[q][j][i] < 0 and rv[q][j][i + 1] < 0 and rv[q][j + 1][i + 1] < 0 and rv[q][j + 1][i] < 0, 1,
+      if(rv[q][j][i] >= 0 and rv[q][j][i + 1] >= 0 and rv[q][j + 1][i + 1] >= 0 and rv[q][j + 1][i] >= 0, 0, -1))
+  rflags = map(range(0, len(regions) - 1), q => map(range(0, cny - 1), j => map(range(0, cnx - 1), i => rin(q, j, i))))
+  fn corner(i: int, j: int): point = (vx0 + i cd, vy0 + j cd)
+  # the cells on the edge, row by row (an each takes at most 200 items)
+  redge = map(range(0, len(regions) - 1), q => map(range(0, cny - 1), j => map(filter(range(0, cnx - 1), i => rflags[q][j][i] == -1),
+      i => {i: i, j: j, v0: rv[q][j][i], v1: rv[q][j][i + 1], v2: rv[q][j + 1][i + 1], v3: rv[q][j + 1][i]})))
+  rinside = map(range(0, len(regions) - 1), q => flatten(map(range(0, cny - 1), j => map(filter(range(0, cnx - 1), i => rflags[q][j][i] != 0), i => (vx0 + (i + 0.5) cd, vy0 + (j + 0.5) cd)))))
+  fn rlabel(q: int): point = if(regions[q].at.x > -100000000, regions[q].at,
+      (mean(map(rinside[q], p => p.x)), mean(map(rinside[q], p => p.y))))
+
+  # labels sit a few pixels off what they name
+  fn off(p: point, an: text): point = (p.x + if(an == "e" or an == "ne" or an == "se", 6 px, if(an == "w" or an == "nw" or an == "sw", -6 px, 0)),
+      p.y + if(an == "n" or an == "ne" or an == "nw", 6 py, if(an == "s" or an == "se" or an == "sw", -6 py, 0)))
+  fn inview(p: point): point = (clamp(p.x, vx0 + 2 px, vx1 - 30 px), clamp(p.y, vy0 + 4 py, vy1 - 20 py))
+  fn fspot(k: int): point = inview((vx0 + 0.85 (vx1 - vx0), functions[k].f(vx0 + 0.85 (vx1 - vx0), a, b, c, d)))
+  fn cspot(k: int): point = inview(curves[k].f(curves[k].from(a, b, c, d) + 0.85 (curves[k].to(a, b, c, d) - curves[k].from(a, b, c, d)), a, b, c, d))
+  fn said(s): text = s.text + if(s.f(a, b, c, d) == s.f(a, b, c, d), num(s.f(a, b, c, d), s.digits), "") + s.after
+  line = join(map(status, s => said(s)), " · ")
+  what = if(label != "", label, if(title != "", title, if(kind == complex, "The complex plane", "The plane")))
+  fn row(name: text, p: point): text = "| " + name + " | " + num(p.x, 2) + " | " + num(p.y, 2) + " |"
+  project md = (if(title != "", "**" + title + "**", "") + if(label != "", if(title != "", "\n\n", "") + "*" + label + "*", "")
+    + if(np > 0, "\n\n" + join(map(range(0, np - 1), k => "- " + ptitle(k) + ": " + pshown(k) + " (from " + num(pk(k).min, 2) + " to " + num(pk(k).max, 2) + ")"), "\n"), "")
+    + if(line != "", "\n\n" + line, "")
+    + if(len(dots) + len(points) > 0, "\n\n| point | x | y |\n|---|---:|---:|\n"
+      + join(map(dots, p => row(p.name, p.at)) + map(points, p => row(p.label, p.at(a, b, c, d))), "\n"), ""))
+
+  frame kind=caption title=title status=line
+    zoom
+      canvas x=(vx0)..(vx1) y=(vy0)..(vy1) aspect=asp size=fill label=what
+        # heat, then regions' fills, under the grid
+        each h in 0..(len(heats) - 1)
+          each k in 0..(hb - 1)
+            layer opacity=(alpha(k))
+              each j in 0..(cny - 1)
+                each r in runs(hbands[h][j], k)
+                  rect (vx0 + r.a cd, vy0 + j cd - py) (vx0 + (r.b + 1) cd, vy0 + (j + 1) cd) fill=(heats[h].tone) stroke=none
+        each q in 0..(len(regions) - 1)
+          layer opacity=0.16
+            each j in 0..(cny - 1)
+              each r in runs(rflags[q][j], 1)
+                rect (vx0 + r.a cd, vy0 + j cd - py) (vx0 + (r.b + 1) cd, vy0 + (j + 1) cd) fill=(regions[q].tone) stroke=none
+            each j in 0..(cny - 1)
+              each e in redge[q][j]
+                path (below0(corner(e.i, e.j), corner(e.i + 1, e.j), corner(e.i + 1, e.j + 1), corner(e.i, e.j + 1), e.v0, e.v1, e.v2, e.v3)) closed fill=(regions[q].tone) stroke=none
+        layer opacity=0.16
+          each g in ticks(vx0, vx1, xstep) key=g
+            line (g, vy0) (g, vy1) stroke=muted
+          each g in ticks(vy0, vy1, ystep) key=g
+            line (vx0, g) (vx1, g) stroke=muted
+        layer
+          line (vx0, axy) (vx1, axy) stroke=muted if=hasx
+          line (axx, vy0) (axx, vy1) stroke=muted if=hasy
+          each g in numbered(vx0, vx1, xstep, axx, hasy) key=g
+            line (g, axy - 3 py) (g, axy + 3 py) stroke=muted
+          each g in numbered(vy0, vy1, ystep, axy, hasx) key=g
+            line (axx - 3 px, g) (axx + 3 px, g) stroke=muted
+        # what is drawn on the plane
+        layer
+          each q in 0..(len(regions) - 1)
+            each j in 0..(cny - 1)
+              each e in redge[q][j]
+                each s in cell(corner(e.i, e.j), corner(e.i + 1, e.j), corner(e.i + 1, e.j + 1), corner(e.i, e.j + 1), e.v0, e.v1, e.v2, e.v3, 0)
+                  line s.a s.b stroke=(regions[q].tone) width=1.6 dash=(regions[q].dash)
+          each s in segments
+            line s.a s.b stroke=(s.tone) width=1.5 dash=(s.dash) arrow=(s.arrow)
+          each k in 0..(len(functions) - 1)
+            curve ((t, functions[k].f(t, a, b, c, d))) t=(vx0)..(vx1) n=400 stroke=(functions[k].tone) width=2.2 dash=(functions[k].dash)
+          each k in 0..(len(curves) - 1)
+            curve (curves[k].f(t, a, b, c, d)) t=(curves[k].from(a, b, c, d))..(curves[k].to(a, b, c, d)) n=400 stroke=(curves[k].tone) width=2.2 dash=(curves[k].dash)
+          each p in dots
+            place (p.at)
+              stack pad=s radius=pill fill=(p.tone) stroke=surface
+          each p in points
+            place (p.at(a, b, c, d))
+              stack pad=s radius=pill fill=(p.tone) stroke=surface
+        # numbers, names and chips, over everything
+        layer if=numbers
+          each g in numbered(vx0, vx1, xstep, axx, hasy) key=g
+            label (g, axy - 5 py) (tick(g, xstep, false)) tone=muted anchor=s if=below
+            label (g, axy + 4 py) (tick(g, xstep, false)) tone=muted anchor=n if=(not below)
+          each g in numbered(vy0, vy1, ystep, axy, hasx) key=g
+            label (axx - 6 px, g) (tick(g, ystep, kind == complex)) tone=muted anchor=w if=(not right)
+            label (axx + 6 px, g) (tick(g, ystep, kind == complex)) tone=muted anchor=e if=right
+          label (axx - 5 px, axy - 5 py) "$0$" tone=muted anchor=sw if=(hasx and hasy and below and not right)
+        layer
+          label (vx1 - 6 px, axy + if(below, 5, 26) py) xname tone=muted anchor=nw
+          label (axx + if(yleft, -8, if(right, 24, 8)) px, vy1 - 4 py) yname tone=muted anchor=(if(yleft, sw, se))
+          each q in 0..(len(regions) - 1)
+            label (clamp(rlabel(q).x, vx0 + 48 px, vx1 - 48 px), clamp(rlabel(q).y, vy0 + 12 py, vy1 - 12 py)) (regions[q].label) tone=(regions[q].tone) chip if=(regions[q].label != "")
+          each k in 0..(len(functions) - 1)
+            label (off(fspot(k), "ne")) (functions[k].label) tone=(functions[k].tone) anchor=ne chip if=(functions[k].label != "")
+          each k in 0..(len(curves) - 1)
+            label (off(cspot(k), "ne")) (curves[k].label) tone=(curves[k].tone) anchor=ne chip if=(curves[k].label != "")
+          each p in dots
+            label (off(p.at, "" + p.anchor)) (p.name) tone=(p.tone) anchor=(p.anchor) chip if=(p.name != "")
+          each p in points
+            label (off(p.at(a, b, c, d), "" + p.anchor)) (p.label) tone=(p.tone) anchor=(p.anchor) chip if=(p.label != "")
+    fill bar
+      # one or two parameters: sliders with their values
+      flex gap=m align=center justify=end if=(np >= 1 and np <= 2)
+        flex gap=s align=center justify=end
+          text (ptitle(0)) size=small tone=muted wrap=false
+          range a (pk(0).min) (pk(0).max) step=(pk(0).step) label=(pplain(0))
+          text (pshown(0)) font=mono size=small tone=muted wrap=false
+        flex gap=s align=center justify=end if=(np == 2)
+          text (ptitle(1)) size=small tone=muted wrap=false
+          range b (pk(1).min) (pk(1).max) step=(pk(1).step) label=(pplain(1))
+          text (pshown(1)) font=mono size=small tone=muted wrap=false
+      # three or four: in a popover, with how many are changed and a reset
+      overlay id=params mode=popover label=("Parameters (" + np + ")") if=(np >= 3)
+        flex gap=s align=center wrap=false
+          icon name=settings size=small
+          text "Parameters" wrap=false
+          flex pad=xs radius=pill tint=info if=(changed > 0)
+            text ("" + changed) size=small tone=info
+        fill body
+          stack gap=m pad=s
+            each k in 0..(np - 1)
+              stack gap=xs
+                text (ptitle(k)) size=small wrap=false
+                flex gap=s align=center wrap=false
+                  switch on=k
+                    case 0
+                      range a (pk(0).min) (pk(0).max) step=(pk(0).step) label=(pplain(0))
+                    case 1
+                      range b (pk(1).min) (pk(1).max) step=(pk(1).step) label=(pplain(1))
+                    case 2
+                      range c (pk(2).min) (pk(2).max) step=(pk(2).step) label=(pplain(2))
+                    else
+                      range d (pk(3).min) (pk(3).max) step=(pk(3).step) label=(pplain(3))
+                  text (pshown(k)) font=mono size=small tone=muted wrap=false
+            flex justify=end if=(changed > 0)
+              press emphasis=low
+                text "Reset all"
+                @click reset a b c d
