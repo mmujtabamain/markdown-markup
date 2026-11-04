@@ -1,0 +1,4 @@
+pack mkp-charts@1 "Charts over the canvas: bar, line, dot, area and stem charts, axes and legends."
+  requires core@1
+  depends mkp-ui@1
+  provides chart axes legend pt

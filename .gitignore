@@ -1,0 +1,9 @@
+node_modules/
+dist/
+packages/core/vendor/
+apps/playground/test-results/
+apps/playground/playwright-report/
+*.tsbuildinfo
+.mkp-out/
+apps/playground/.shots/
+scripts/.hermes/

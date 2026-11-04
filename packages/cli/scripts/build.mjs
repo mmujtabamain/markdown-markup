@@ -1,0 +1,41 @@
+// Builds dist/mkp.cjs (one file, Node 20+), and with --sea the single executable dist/mkp
+// (Node's single-executable applications: the bundle injected into a copy of the node binary).
+import { build } from 'esbuild';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, chmodSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const pkg = resolve(here, '..');
+const dist = join(pkg, 'dist');
+mkdirSync(dist, { recursive: true });
+const t0 = Date.now();
+await build({
+  entryPoints: [join(pkg, 'src/bin.ts')],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node20',
+  outfile: join(dist, 'mkp.cjs'),
+  alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts') },
+  banner: { js: '#!/usr/bin/env node' },
+  legalComments: 'none',
+  logLevel: 'warning',
+});
+chmodSync(join(dist, 'mkp.cjs'), 0o755);
+console.log(`dist/mkp.cjs: ${(statSync(join(dist, 'mkp.cjs')).size / 1e6).toFixed(2)} MB in ${Date.now() - t0} ms`);
+
+if (process.argv.includes('--sea')) {
+  const cfg = join(dist, 'sea-config.json');
+  writeFileSync(cfg, JSON.stringify({ main: join(dist, 'mkp.cjs'), output: join(dist, 'sea-prep.blob'), disableExperimentalSEAWarning: true, useCodeCache: false }));
+  execFileSync(process.execPath, ['--experimental-sea-config', cfg], { stdio: 'inherit' });
+  const exe = join(dist, process.platform === 'win32' ? 'mkp.exe' : 'mkp');
+  copyFileSync(process.execPath, exe);
+  chmodSync(exe, 0o755);
+  const postject = join(pkg, 'node_modules/.bin/postject');
+  const args = [exe, 'NODE_SEA_BLOB', join(dist, 'sea-prep.blob'), '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'];
+  if (process.platform === 'darwin') args.push('--macho-segment-name', 'NODE_SEA');
+  execFileSync(postject, args, { stdio: 'inherit' });
+  console.log(`dist/mkp: ${(statSync(exe).size / 1e6).toFixed(1)} MB single executable`);
+}

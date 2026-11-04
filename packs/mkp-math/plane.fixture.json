@@ -1,0 +1,10 @@
+{ "widget": "plane@1", "cases": {
+  "real": { "summary": "The real plane from −3 to 3 with three marked points and a segment.",
+    "props": { "xmin": -3, "xmax": 3, "ymin": -2, "ymax": 2,
+      "dots": [ { "at": [1, 1], "name": "$A$" }, { "at": [-2, 1.5], "name": "$B$", "tone": "ok" }, { "at": [2, -1], "name": "$C$", "tone": "bad" } ],
+      "segments": [ { "a": [1, 1], "b": [2, -1], "arrow": true } ] } },
+  "complex": { "summary": "The complex plane with $1 + i$ and its conjugate.",
+    "props": { "kind": "complex", "dots": [ { "at": [1, 1], "name": "$1+i$" }, { "at": [1, -1], "name": "$1-i$", "tone": "info" } ] } },
+  "off-origin": { "summary": "A view from 1 to 6 that does not hold the origin, gridded by halves.",
+    "props": { "xmin": 1, "xmax": 6, "ymin": 1, "ymax": 4, "step": 0.5, "numbers": false } },
+  "bad-kind": { "props": { "kind": "polar" }, "expect": { "errors": ["mkp.enum"] } } } }

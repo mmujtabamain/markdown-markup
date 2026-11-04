@@ -1,0 +1,14 @@
+{ "widget": "construction@1", "cases": {
+  "circumcentre": { "summary": "The perpendicular bisectors of a triangle meet at its circumcentre $O$, the centre of the circle through $A$, $B$ and $C$.",
+    "props": { "caption": "The perpendicular bisectors meet at the circumcentre $O$; drag $A$, $B$ or $C$.",
+      "steps": [ { "op": "segment", "args": ["A", "B"] }, { "op": "segment", "args": ["B", "C"] }, { "op": "segment", "args": ["C", "A"] },
+        { "op": "bisector", "args": ["A", "B"], "name": "m" }, { "op": "bisector", "args": ["B", "C"], "name": "n" },
+        { "op": "meet", "args": ["m", "n"], "name": "$O$" }, { "op": "circle", "args": ["$O$", "A"] } ] },
+    "play": [ { "set": { "C": [-0.8, 1.6] } }, { "wait": 100 } ] },
+  "incentre": { "summary": "Two angle bisectors meet at the incentre $I$; its foot on $AB$ gives the inscribed circle.",
+    "props": { "steps": [ { "op": "segment", "args": ["A", "B"], "name": "ab" }, { "op": "segment", "args": ["B", "C"] }, { "op": "segment", "args": ["C", "A"] },
+        { "op": "angle", "args": ["B", "A", "C"], "name": "p" }, { "op": "angle", "args": ["A", "B", "C"], "name": "q" },
+        { "op": "meet", "args": ["p", "q"], "name": "$I$" }, { "op": "foot", "args": ["ab", "$I$"], "name": "$F$" }, { "op": "circle", "args": ["$I$", "$F$"] } ] } },
+  "midpoint": { "summary": "Two free points, their midpoint $M$ and the circle on $AB$ as diameter.",
+    "props": { "free": 2, "steps": [ { "op": "segment", "args": ["A", "B"] }, { "op": "midpoint", "args": ["A", "B"], "name": "$M$" }, { "op": "circle", "args": ["$M$", "A"] } ] } },
+  "bad-op": { "props": { "steps": [ { "op": "rotate", "args": ["A"] } ] }, "expect": { "errors": ["mkp.enum"] } } } }

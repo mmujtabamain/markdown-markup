@@ -1,0 +1,130 @@
+type pt = {x: num, y: num}
+
+chart@1 "A bar, line, dot, area or stem chart of one or more series, with ticks, grid lines and a legend."
+  fields kind
+  in kind choice(bar|line|dot|area|stem) = line "how each point is drawn"
+  in data list(pt) = [] "one series of points"
+  in name text = "" "the name of that series (for the legend and the table)"
+  in series list(record series {name: text, data: list(pt)}) "more series, each in the next colour"
+  in title text = "" "shown in bold above the chart"
+  in xlabel text = "" "what x measures"
+  in ylabel text = "" "what y measures"
+  in cats list(text) = [] "names for x = 0, 1, 2 …, shown instead of numbers"
+  in zero bool = true "keep 0 on the y axis"
+  in size size = m
+
+  all = (if(len(data) > 0, [{name: name, data: data}], [])
+    + map(series, s => {name: s.name, data: s.data}))
+  ns = len(all)
+  pts = flatten(map(all, s => s.data))
+  xs = map(pts, p => p.x)
+  ys = map(pts, p => p.y)
+  ux = distinct(xs)
+
+  # y: nice ticks around the data (and 0)
+  ylo = if(zero, min(min(ys), 0), min(ys))
+  yhi = if(zero, max(max(ys), 0), max(ys))
+  ystep = nicestep(if(yhi > ylo, (yhi - ylo)/4, max(abs(yhi), 1)))
+  y0 = min(floor(ylo/ystep) ystep, ylo - if(yhi > ylo, 0, ystep))
+  y1 = max(ceil(yhi/ystep) ystep, yhi + if(yhi > ylo, 0, ystep))
+  yt = ticks(y0, y1, ystep)
+  base = if(y0 <= 0 and y1 >= 0, 0, y0)
+
+  # x: bars get a band around each x; marks get a little room at the ends
+  xlo = min(xs)
+  xhi = max(xs)
+  band = if(len(ux) > 1, min(map(range(1, len(ux) - 1), k => ux[k] - ux[k - 1])), 1)
+  pad = if(kind == bar, band/2, if(kind == dot or kind == stem, max(band/2, (xhi - xlo)/25), if(xhi > xlo, 0, 1)))
+  x0 = xlo - pad
+  x1 = xhi + pad
+  xt = if(len(cats) > 0 or (kind == bar and len(ux) <= 16), ux, ticks(xlo, xhi, nicestep(max(xhi - xlo, 1)/5)))
+  fn xtext(v: num): text = if(len(cats) > 0, at(cats, round(v), ""), short(v))
+
+  # the plot area inside a 100 × 62 canvas, leaving room for tick labels
+  fn X(v: num): num = 13 + 84 (v - x0)/(x1 - x0)
+  fn Y(v: num): num = 8 + 50 (v - y0)/(y1 - y0)
+  fn P(p: pt): point = (X(p.x), Y(p.y))
+  dotr = if(kind == dot, 1.3, 0.9)
+  showdots = kind == dot or kind == stem or (kind == line and len(pts) <= 30 ns)
+  # bars: each series takes a slice of the band
+  bw = 0.8 band/ns
+  fn bar0(si: int, p: pt): point = (X(p.x - 0.4 band + si bw) + 0.3, Y(base))
+  fn bar1(si: int, p: pt): point = (X(p.x - 0.4 band + (si + 1) bw) - 0.3, Y(p.y))
+  fn line(si: int): list(point) = map(sort(all[si].data, p => p.x), p => P(p))
+  fn area(si: int): list(point) = ([(X(first(sort(all[si].data, p => p.x), 1)[0].x), Y(base))]
+    + line(si) + [(X(last(sort(all[si].data, p => p.x), 1)[0].x), Y(base))])
+  fn colour(c: int): list(int) = filter(range(0, ns - 1), si => mod(si, 4) == c)
+  what = (if(title != "", title, "chart") + ": a " + kind + " chart of "
+    + join(map(all, s => if(s.name != "", s.name, "the data")), ", "))
+
+  project md = (if(title != "", "**" + title + "**\n\n", "")
+    + "| " + if(xlabel != "", xlabel, "x") + " | "
+    + join(map(all, s => if(s.name != "", s.name, if(ylabel != "", ylabel, "y"))), " | ") + " |\n"
+    + "|---|" + join(map(all, s => "---:"), "|") + "|\n"
+    + join(map(ux, x => "| " + xtext(x) + " | " + join(map(all, s =>
+        join(map(filter(s.data, p => p.x == x), p => "" + p.y), ", ")), " | ") + " |"), "\n"))
+
+  stack gap=s
+    text title weight=bold if=(title != "")
+    text ylabel tone=muted size=small if=(ylabel != "")
+    canvas x=0..100 y=0..62 size=size label=what
+      # grid lines and the baseline
+      layer opacity=0.35
+        each t in yt key=t
+          line (13, Y(t)) (97, Y(t)) stroke=muted
+      layer
+        line (13, 8) (97, 8) stroke=muted
+        line (13, Y(base)) (97, Y(base)) stroke=ink if=(base > y0)
+        each t in xt key=t
+          line (X(t), 8) (X(t), 6.8) stroke=muted
+          label (X(t), 6.5) (xtext(t)) tone=muted anchor=s
+        each t in yt key=t
+          label (11.5, Y(t)) (short(t)) tone=muted anchor=w
+      # area fills under their lines
+      layer opacity=0.2 if=(kind == area)
+        each si in colour(0) key=si
+          path (area(si)) closed fill=accent stroke=none
+        each si in colour(1) key=si
+          path (area(si)) closed fill=warn stroke=none
+        each si in colour(2) key=si
+          path (area(si)) closed fill=ok stroke=none
+        each si in colour(3) key=si
+          path (area(si)) closed fill=bad stroke=none
+      # the marks, one block per palette colour
+      layer
+        each si in colour(0) key=si
+          path (line(si)) stroke=accent width=2 if=(kind == line or kind == area)
+          each j in 0..(len(all[si].data) - 1)
+            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=accent stroke=none if=(kind == bar)
+            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=accent width=1.5 if=(kind == stem)
+            circle (P(all[si].data[j])) dotr fill=accent if=(showdots)
+        each si in colour(1) key=si
+          path (line(si)) stroke=warn width=2 if=(kind == line or kind == area)
+          each j in 0..(len(all[si].data) - 1)
+            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=warn stroke=none if=(kind == bar)
+            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=warn width=1.5 if=(kind == stem)
+            circle (P(all[si].data[j])) dotr fill=warn if=(showdots)
+        each si in colour(2) key=si
+          path (line(si)) stroke=ok width=2 if=(kind == line or kind == area)
+          each j in 0..(len(all[si].data) - 1)
+            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=ok stroke=none if=(kind == bar)
+            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=ok width=1.5 if=(kind == stem)
+            circle (P(all[si].data[j])) dotr fill=ok if=(showdots)
+        each si in colour(3) key=si
+          path (line(si)) stroke=bad width=2 if=(kind == line or kind == area)
+          each j in 0..(len(all[si].data) - 1)
+            rect (bar0(si, all[si].data[j])) (bar1(si, all[si].data[j])) fill=bad stroke=none if=(kind == bar)
+            line (X(all[si].data[j].x), Y(base)) (P(all[si].data[j])) stroke=bad width=1.5 if=(kind == stem)
+            circle (P(all[si].data[j])) dotr fill=bad if=(showdots)
+    text xlabel tone=muted size=small align=center if=(xlabel != "")
+    legend if=(ns > 1)
+      each si in 0..(ns - 1)
+        switch on=(mod(si, 4))
+          case 0
+            item (all[si].name) accent
+          case 1
+            item (all[si].name) warn
+          case 2
+            item (all[si].name) ok
+          else
+            item (all[si].name) bad

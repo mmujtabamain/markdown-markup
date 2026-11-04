@@ -1,0 +1,38 @@
+# T or F for a truth value
+fn tf(b: bool): text = if(b, "T", "F")
+
+truth@1 "A truth table computed from variable names and boolean expressions, one row per assignment."
+  in vars list(choice(p|q|r|s)) = [p, q] "the variables, in column order; each row gives them T or F"
+  in cols list(record col {label: latex, f: expr(p: bool, q: bool, r: bool, s: bool): bool}) "the columns: a heading and an expression in p, q, r and s"
+
+  n = len(vars)
+  size = fold(vars, 1, (a, v) => a * 2)
+  # row k gives variable v the k-th bit, most significant first, so the table starts at all T
+  fn val(k, v) = indexof(vars, v) >= 0 and mod(floor(k / 2^(n - 1 - indexof(vars, v))), 2) == 0
+  fn row(k) = map(vars, v => tf(val(k, v))) + map(cols, c => tf(c.f(val(k, "p"), val(k, "q"), val(k, "r"), val(k, "s"))))
+  fn final(k) = len(cols) > 0 and cols[len(cols) - 1].f(val(k, "p"), val(k, "q"), val(k, "r"), val(k, "s"))
+  rows = map(range(0, size - 1), k => row(k))
+  head = map(vars, v => "\$" + v + "\$") + map(cols, c => "\$" + c.label + "\$")
+
+  pos = steps size "row"
+  drawn = map(range(0, size - 1), k => rrowof("t" + k, rows[k], k == pos))
+  count = len(filter(range(0, size - 1), k => final(k)))
+
+  # Markdown bolds the rows where the last column is true
+  project md = mdtable(head, map(range(0, size - 1), k => if(final(k), map(rows[k], c => "**" + c + "**"), rows[k])))
+  stack gap=m
+    stack gap=xs
+      grid cols=(max(1, min(12, len(head)))) gap=s pad=s
+        each v in vars
+          text "$\val{v}$" weight=bold tone=muted
+        each c in cols
+          text "$\val{c.label}$" weight=bold tone=muted
+      reltable [] drawn
+    flex gap=s align=baseline
+      text ("Row " + (pos + 1) + ":") tone=muted
+      each v in vars
+        text "$\val{v}$ = \val{tf(val(pos, v))}," tone=muted
+      text "gives" tone=muted
+      each i in 0..(len(cols) - 1)
+        text "$\val{cols[i].label}$ = \val{tf(cols[i].f(val(pos, \"p\"), val(pos, \"q\"), val(pos, \"r\"), val(pos, \"s\")))}\val{if(i < len(cols) - 1, \",\", \".\")}" tone=muted
+    text ("The last column is true in " + count + " of " + size + " rows.") if=(len(cols) > 0)

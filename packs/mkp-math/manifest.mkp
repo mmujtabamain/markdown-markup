@@ -1,0 +1,4 @@
+pack mkp-math@1 "Maths over the base set: the complex type, planes, maps, fields, contours, constructions, trajectories, and domain colouring and surfaces with gfx."
+  requires core@1 gfx@1
+  depends mkp-ui@1
+  provides complex i exp arg abs conj re im show orbit plane complex-map vector-field contour construction ode domain-colouring surface

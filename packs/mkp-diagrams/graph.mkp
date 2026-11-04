@@ -1,0 +1,29 @@
+type edge = {from: text, to: text}
+
+# longest-path layering: relax every edge once per node, so sources may come in any order
+fn ranks(nodes, edges) = iterate(
+    fold(nodes, {}, (d, n) => put(d, n.id, 0)),
+    len(nodes),
+    d => fold(edges, d, (d2, e) => put(d2, e.to, max(d2[e.to], d2[e.from] + 1))))
+
+# where a node sits within its layer, or -1
+fn position(ls, id) = fold(ls, -1, (p, l) => if(p >= 0, p, indexof(map(l, n => n.id), id)))
+
+graph@1 "Nodes in layers by their edges, laid out automatically."
+  in nodes list({id: text, label: text})
+  in edges list(edge)
+  rank = ranks(nodes, edges)
+  depth = max([0] + map(nodes, n => rank[n.id]))
+  layers = map(range(0, depth), r => filter(nodes, n => rank[n.id] == r))
+  # six barycentre passes: each node moves towards the mean position of itself and its parents
+  rows = iterate(layers, 6, ls => map(ls, l => sort(l, n =>
+      mean([position(ls, n.id)] + map(filter(edges, e => e.to == n.id), e => position(ls, e.from))))))
+  project mermaid = "flowchart TD\n" + join(map(edges, e => "  " + e.from + " --> " + e.to), "\n")
+  stack gap=xl
+    each r in 0..(len(rows) - 1)
+      flex gap=l justify=center
+        each n in rows[r] key=n.id
+          stack id=(n.id) pad=s fill=surface stroke=ink radius=card
+            text n.label
+  each e in edges key=(e.from + ">" + e.to)
+    arrow from=(e.from) to=(e.to)

@@ -1,0 +1,76 @@
+# Relations shared by the pack: a relation is named columns and rows of text cells.
+type rel = {name: text = "", cols: list(text), rows: list(list(text))}
+# one drawn row: an id so it glides between steps, its cells, and how it is marked
+type rrow = {id: text, cells: list(text), mark: choice(plain|on|off|head) = plain}
+
+# a cell of a row by column name, or "" when the relation has no such column
+fn cell(cols: list(text), cells: list(text), name: text): text = at(cells, indexof(cols, name), "")
+# a text cell read as a number (nan when it is not one)
+fn number(t: text): num = parse(t, [])()
+# a number shown whole when it is whole, else with two decimals
+fn shownum(x: num): text = if(x == round(x), format(x, 0), format(x, 2))
+# compares two cells: as numbers when both are numbers, else as text
+fn compare(a: text, op: text, b: text): bool = if(number(a) == number(a) and number(b) == number(b),
+    if(op == "eq", number(a) == number(b), if(op == "ne", number(a) != number(b), if(op == "lt", number(a) < number(b),
+      if(op == "le", number(a) <= number(b), if(op == "gt", number(a) > number(b), number(a) >= number(b)))))),
+    if(op == "eq", a == b, if(op == "ne", a != b, if(op == "lt", a < b, if(op == "le", a <= b, if(op == "gt", a > b, a >= b))))))
+# an aggregate {func, col, as} over rows of cells: count, sum, avg, min or max of a column
+fn aggvalues(cols, a, rs) = map(rs, r => number(cell(cols, r, a.col)))
+fn aggval(cols, a, rs) = if(a.func == "count", len(rs), if(a.func == "sum", sum(aggvalues(cols, a, rs)),
+    if(a.func == "avg", mean(aggvalues(cols, a, rs)), if(a.func == "min", min(aggvalues(cols, a, rs)), max(aggvalues(cols, a, rs))))))
+# an aggregate's column name in the result, and how SQL writes it
+fn agglabel(a) = if(a.as != "", a.as, a.func + "(" + if(a.col == "", "*", a.col) + ")")
+fn aggsql(a) = a.func + "(" + if(a.col == "", "*", a.col) + ")" + if(a.as != "", " AS " + a.as, "")
+# a GFM table
+fn mdtable(cols: list(text), rows: list(list(text))): text = ("| " + join(cols, " | ") + " |\n|" +
+    join(map(cols, c => " --- "), "|") + "|\n" + join(map(rows, r => "| " + join(r, " | ") + " |"), "\n") + "\n")
+# drawn rows as Markdown table rows: dropped rows left out, headings bold across, marked rows bold when asked
+fn mdrows(n: int, rows: list(rrow), bold: bool): list(list(text)) = map(filter(rows, r => r.mark != off),
+    r => if(r.mark == head, ["**" + r.cells[0] + "**"] + map(range(2, n), x => ""),
+      if(bold and r.mark == on, map(r.cells, c => "**" + c + "**"), r.cells)))
+# a drawn row, plain or marked
+fn rrowof(id: text, cells: list(text), hl: bool): rrow = {id: id, cells: cells, mark: if(hl, on, plain)}
+# a drawn row that is dropped (shown muted)
+fn rrowoff(id: text, cells: list(text)): rrow = {id: id, cells: cells, mark: off}
+# a heading row across the table
+fn rrowhead(id: text, label: text): rrow = {id: id, cells: [label], mark: head}
+# a comparison's symbol
+fn opsym(op: text): text = if(op == "eq", "=", if(op == "ne", "<>", if(op == "lt", "<", if(op == "le", "<=", if(op == "gt", ">", ">=")))))
+# a value as SQL writes it: numbers bare, text quoted
+fn sqlval(v: text): text = if(number(v) == number(v), v, "'" + v + "'")
+
+part reltable@1 "A relation drawn as a table: keyed rows glide between steps, marked rows are outlined."
+  fields cols rows
+  in cols list(text) "the column names"
+  in rows list(rrow) "the rows, each with an id"
+  in title text = "" "a caption above the table"
+  stack gap=xs
+    text title weight=bold if=(title != "")
+    grid cols=(max(1, min(12, len(cols)))) gap=s pad=s
+      each c in 0..(len(cols) - 1)
+        text cols[c] weight=bold tone=muted
+    each r in rows key=r.id
+      stack id=(r.id)
+        grid cols=(max(1, min(12, len(r.cells)))) gap=s pad=s stroke=accent radius=card if=(r.mark == on)
+          each c in 0..(len(r.cells) - 1)
+            text r.cells[c] weight=bold
+        grid cols=(max(1, min(12, len(r.cells)))) gap=s pad=s if=(r.mark == plain)
+          each c in 0..(len(r.cells) - 1)
+            text r.cells[c]
+        grid cols=(max(1, min(12, len(r.cells)))) gap=s pad=s if=(r.mark == off)
+          each c in 0..(len(r.cells) - 1)
+            text r.cells[c] tone=muted
+        stack pad=s if=(r.mark == head)
+          text r.cells[0] weight=bold tone=accent
+    text "No rows." tone=muted if=(len(rows) == 0)
+
+relation@1 "A relation: its columns and rows as a table, with some rows highlighted."
+  fields head rows
+  in head list(text) "the column names"
+  in rows list(list(text)) "the rows, one list of cells each"
+  in name text = "" "the relation's name, shown above it"
+  in marked list(int) = [] "rows to highlight, counted from 0"
+  drawn = map(range(0, len(rows) - 1), i => rrowof("r" + i, rows[i], indexof(marked, i) >= 0))
+  project md = if(name == "", "", "**" + name + "**\n\n") + mdtable(head,
+      map(range(0, len(rows) - 1), i => if(indexof(marked, i) >= 0, map(rows[i], c => "**" + c + "**"), rows[i])))
+  reltable head drawn title=name

@@ -1,0 +1,29 @@
+exchange@1 "Two parties exchanging messages over steps, such as a handshake: each step adds the next message."
+  in a text = "client" "the party on the left"
+  in b text = "server" "the party on the right"
+  in messages list(record msg {dir: choice(send|reply) = send, text: text, note: text = ""}) "the messages in order: send goes from a to b, reply from b to a"
+
+  pos = steps (len(messages)) "message"
+  shown = map(range(0, pos), k => {id: "m" + k, k: k, m: messages[k]})
+  cur = messages[pos]
+
+  project mermaid = ("sequenceDiagram\n  participant A as " + a + "\n  participant B as " + b + "\n" +
+      join(map(messages, m => "  " + if(m.dir == send, "A->>B: ", "B->>A: ") + m.text +
+        if(m.note == "", "", "\n  Note over A,B: " + m.note)), "\n"))
+
+  stack gap=s
+    flex justify=between
+      stack pad=s stroke=ink radius=card
+        text a weight=bold
+      stack pad=s stroke=ink radius=card
+        text b weight=bold
+    each s in shown key=s.id
+      stack gap=none
+        text s.m.text weight=(if(s.k == pos, bold, regular)) align=center
+        flex justify=between align=center
+          stack id=("a" + s.k) pad=xs stroke=muted radius=pill
+          stack id=("b" + s.k) pad=xs stroke=muted radius=pill
+    text cur.note align=center if=(cur.note != "")
+    text ("Message " + (pos + 1) + " of " + len(messages) + ": " + if(cur.dir == send, a + " to " + b, b + " to " + a) + ".") tone=muted
+  each s in shown key=s.id
+    arrow from=(if(s.m.dir == send, "a", "b") + s.k) to=(if(s.m.dir == send, "b", "a") + s.k)

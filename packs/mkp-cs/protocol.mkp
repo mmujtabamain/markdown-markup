@@ -1,0 +1,46 @@
+protocol@1 "A protocol's states and transitions: step through a run of events and watch the current state move."
+  in states list(text) "the states; the first is where a run starts (names without spaces read best in Mermaid)"
+  in moves list(record move {from: text, to: text, on: text}) "the transitions: from a state, on an event, to a state"
+  in run list(text) "the events of one run, in order"
+
+  start = states[0]
+  fn next(s, ev) = find(moves, m => m.from == s and m.on == ev, {from: s, to: s, on: ""}).to
+  fn known(s, ev) = len(filter(moves, m => m.from == s and m.on == ev)) > 0
+  # the state before each event, and after the last
+  path = fold(run, [start], (p, ev) => p + [next(p[len(p) - 1], ev)])
+  # each state's layer: its shortest distance from the start along the transitions
+  rank = iterate(put({}, start, 0), len(states), d => fold(moves, d, (d2, m) => if(has(d2, m.from) and get(d2, m.to, 1000) > d2[m.from] + 1,
+      put(d2, m.to, d2[m.from] + 1), d2)))
+  depth = max([0] + map(states, s => get(rank, s, 0)))
+  layers = map(range(0, depth), r => filter(states, s => get(rank, s, 0) == r))
+  fn back(m) = get(rank, m.to, 0) <= get(rank, m.from, 0)
+
+  pos = steps (len(run) + 1) "event"
+  here = path[pos]
+
+  project mermaid = ("stateDiagram-v2\n  " + "[" + "*] --> " + start + "\n" + join(map(moves, m => "  " + m.from + " --> " + m.to + " : " + m.on), "\n"))
+  project md = ("Run from " + start + ":\n\n" + join(map(range(0, len(run) - 1), k => "" + (k + 1) + ". " + run[k] + ": " +
+      path[k] + " → " + path[k + 1] + if(known(path[k], run[k]), "", " (no transition: it stays)")), "\n") + "\n")
+
+  stack gap=l
+    stack gap=xl
+      each r in 0..(len(layers) - 1)
+        flex gap=xl justify=center
+          each s in layers[r] key=s
+            stack id=("" + s)
+              stack pad=m stroke=accent radius=card if=(s == here)
+                text s weight=bold
+              stack pad=m stroke=muted radius=card if=(s != here)
+                text s tone=muted
+    flex gap=l justify=center
+      each m in moves key=(m.from + ">" + m.on)
+        text (m.from + " —" + m.on + "→ " + m.to) size=small tone=muted weight=(if(pos > 0 and m.from == path[pos - 1] and m.on == run[pos - 1], bold, regular))
+    stack gap=xs pad=s stroke=muted radius=card
+      text ("Start in " + start + ".") weight=(if(pos == 0, bold, regular))
+      each k in 0..(pos - 1)
+        text ("" + (k + 1) + ". **" + run[k] + "**: " + path[k] + " → " + path[k + 1] +
+            if(known(path[k], run[k]), "", " (no transition: it stays)")) weight=(if(k == pos - 1, bold, regular))
+      text ("Next: **" + run[pos] + "**") tone=muted if=(pos < len(run))
+  each m in moves key=(m.from + ">" + m.on)
+    arrow from=(m.from) to=(m.to) curve if=(back(m) and m.from != m.to)
+    arrow from=(m.from) to=(m.to) if=(not back(m))

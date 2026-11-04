@@ -1,0 +1,11 @@
+{ "widget": "quiz.choice@1", "cases": {
+  "single": { "summary": "Which number is prime? Pick one, with feedback on the pick.",
+    "props": { "question": "Which of these is prime?",
+      "options": [ { "text": "$21$", "why": "$21 = 3 \\times 7$." }, { "text": "$23$", "right": true, "why": "No prime up to $\\sqrt{23}$ divides it." }, { "text": "$27$", "why": "$27 = 3^3$." } ],
+      "hints": [ { "text": "Try dividing by $3$." } ], "solutions": [ { "text": "Only $23$ has no divisor other than $1$ and itself." } ] },
+    "play": [ { "set": { "picked": [0] } }, { "press": "check" }, { "wait": 100 } ] },
+  "multiple": { "summary": "Tick every even function: several answers are right.",
+    "props": { "question": "Which functions are even, $f(-x) = f(x)$?", "multiple": true,
+      "options": [ { "text": "$x^2$", "right": true }, { "text": "$\\cos x$", "right": true }, { "text": "$\\sin x$", "why": "$\\sin(-x) = -\\sin x$: it is odd." }, { "text": "$x^3 + 1$" } ] },
+    "play": [ { "set": { "picked": [0, 2] } }, { "wait": 100 } ] },
+  "no-question": { "props": { "options": [ { "text": "a" } ] }, "expect": { "errors": ["mkp.missing-input"] } } } }

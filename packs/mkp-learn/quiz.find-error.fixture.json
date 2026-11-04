@@ -1,0 +1,10 @@
+{ "widget": "quiz.find-error@1", "cases": {
+  "sign": { "summary": "Solving $3 - 2x = 7$ with a sign slip in step 2; the reader first picks a right step.",
+    "props": { "question": "Solve $3 - 2x = 7$.",
+      "lines": [ { "text": "$3 - 2x = 7$" }, { "text": "$-2x = 10$", "wrong": true, "why": "subtracting $3$ from $7$ gives $4$, not $10$", "fix": "$-2x = 4$" }, { "text": "$x = -5$" } ],
+      "hints": [ { "text": "Check each step by substituting back." } ] },
+    "play": [ { "set": { "picked": 0 } }, { "press": "check" }, { "set": { "picked": 1 } }, { "press": "check_ok" }, { "wait": 100 } ] },
+  "square": { "summary": "A wrong expansion: $(a + b)^2 = a^2 + b^2$.",
+    "props": { "question": "Expand $(a + b)^2 - a^2$.",
+      "lines": [ { "text": "$(a + b)^2 - a^2$" }, { "text": "$= a^2 + b^2 - a^2$", "wrong": true, "why": "the cross term $2ab$ is missing", "fix": "$= a^2 + 2ab + b^2 - a^2$" }, { "text": "$= b^2$" } ] } },
+  "no-question": { "props": { "lines": [] }, "expect": { "errors": ["mkp.missing-input"] } } } }

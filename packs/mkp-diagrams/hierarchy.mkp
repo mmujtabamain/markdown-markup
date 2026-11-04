@@ -1,0 +1,13 @@
+# the Mermaid lines for a tree, walked with a work list
+# (a recursive fn over the recursive tnode type overflows the checker)
+fn treelines(t: tnode): list(text) = iterate({todo: [t], out: []}, 2000, s => if(len(s.todo) == 0, s,
+    {todo: slice(s.todo, 1, len(s.todo)) + s.todo[0].kids,
+     out: s.out + ["  " + s.todo[0].id + "[\"" + s.todo[0].label + "\"]"]
+       + map(s.todo[0].kids, k => "  " + s.todo[0].id + " --> " + k.id)})).out
+
+hierarchy@1 "A tidy tree for documents: each node centred above its children, joined by arrows."
+  fields root
+  in root tnode "the root node, with kids nested inside"
+  project mermaid = "flowchart TD\n" + join(treelines(root), "\n")
+  flex justify=center
+    tree node=root

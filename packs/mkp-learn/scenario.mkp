@@ -1,0 +1,41 @@
+scenario@1 "A branching scenario: each scene offers choices that lead to other scenes, until an ending; the reader can step back or start again."
+  in title text = ""
+  in scenes list(record scene {id: text, text: text, ending: choice(none|good|bad|neutral) = none}) "the scenes; the first is the start, and a scene no link leaves is an ending"
+  in links list(record link {from: text, label: text, to: text, note: text = ""}) "the choices: from a scene, its label, the scene it leads to, and what the reader learns on the way"
+  signal ended {id: text, ending: text, steps: int} "sent when the reader reaches an ending"
+  var at text = ""
+  var trail list(text) = []
+  var note text = ""
+  ids = map(scenes, s => s.id)
+  cur = if(at == "", scenes[0].id, at)
+  fn find(id: text): int = max(indexof(ids, id), 0)
+  here = scenes[find(cur)]
+  picks = filter(links, x => x.from == cur)
+  fn ends(id: text): bool = len(filter(links, x => x.from == id)) == 0
+  fn kind(id: text): text = if(scenes[find(id)].ending == good, "good", if(scenes[find(id)].ending == bad, "bad", "neutral"))
+  project md = ((if(title == "", "", "**" + title + "**\n\n")) + join(map(scenes, s => "**" + s.id + ".** " + s.text
+      + join(map(filter(links, x => x.from == s.id), p => "\n- " + p.label + " → " + p.to), "")), "\n\n") + "\n")
+  stack gap=m pad=m stroke=muted radius=card
+    flex justify=between align=center gap=m
+      text title weight=bold if=(title != "")
+      text "Step \val{len(trail) + 1}" tone=muted size=small
+    text note tone=muted if=(note != "")
+    text here.text
+    stack gap=xs if=(len(picks) > 0)
+      each p in picks key=(p.to + p.label)
+        press kind=option if=(not ends(p.to))
+          text p.label
+          @click set trail=(trail + [cur]) at=p.to note=p.note
+        press kind=option if=(ends(p.to))
+          text p.label
+          @click set trail=(trail + [cur]) at=p.to note=p.note send ended id=p.to ending=(kind(p.to)) steps=(len(trail) + 1)
+    text "A good ending." tone=ok weight=bold if=(len(picks) == 0 and here.ending == good)
+    text "A bad ending." tone=bad weight=bold if=(len(picks) == 0 and here.ending == bad)
+    text "The end." tone=muted weight=bold if=(len(picks) == 0 and here.ending != good and here.ending != bad)
+    flex gap=s
+      press id=back if=(len(trail) > 0)
+        text "Back"
+        @click set at=(trail[len(trail) - 1]) trail=(slice(trail, 0, len(trail) - 1)) note=""
+      press id=restart if=(len(trail) > 0)
+        text "Start again"
+        @click set at="" trail=[] note=""

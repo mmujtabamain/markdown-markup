@@ -1,0 +1,51 @@
+
+# one Fruchterman–Reingold step: nodes push each other apart, edges pull their ends together,
+# a weak pull keeps loose parts near the centre, and no node moves further than temp
+fn push(ps: list(point), i: int, k: num): point = fold(range(0, len(ps) - 1), (0, 0), (acc, j) =>
+    if(j == i, acc, acc + (ps[i] - ps[j]) * (k^2 / max(dist(ps[i], ps[j])^2, 0.0001))))
+fn pull(ps: list(point), nb: list(int), i: int, k: num): point = fold(nb, (0, 0), (acc, j) =>
+    acc + (ps[i] - ps[j]) * (dist(ps[i], ps[j]) / k))
+fn cap(d: point, temp: num): point = d * (min(dist(d, (0, 0)), temp) / max(dist(d, (0, 0)), 0.000000001))
+fn relax(ps: list(point), adj: list(list(int)), k: num, temp: num): list(point) = map(range(0, len(ps) - 1), i =>
+    ps[i] + cap(push(ps, i, k) - pull(ps, adj[i], i, k) - ps[i] * 0.05, temp))
+
+# stretch a layout to fill [-w, w] × [-h, h]
+fn fit(ps: list(point), w: num, h: num): list(point) = map(ps, p => (
+    if(max(map(ps, q => q.x)) > min(map(ps, q => q.x)),
+      -w + 2 w (p.x - min(map(ps, q => q.x)))/(max(map(ps, q => q.x)) - min(map(ps, q => q.x))), 0),
+    if(max(map(ps, q => q.y)) > min(map(ps, q => q.y)),
+      -h + 2 h (p.y - min(map(ps, q => q.y)))/(max(map(ps, q => q.y)) - min(map(ps, q => q.y))), 0)))
+
+network@1 "A graph laid out by forces: edges act as springs and nodes repel, so clusters show; replay the layout settling."
+  budget 20000000
+  fields nodes edges
+  in nodes list({id: text, label: text}) "each node's id and what it shows"
+  in edges list(record link {from: text, to: text, label: text = ""}) "pairs of node ids, with an optional label"
+  in directed bool = true "arrows (true) or plain lines (false)"
+  in seed int = 1 "change it for a different starting layout"
+  in size size = l
+  settle = slider 0..1 step=0.01 play=3s = 1 "layout"
+  ids = map(nodes, n => n.id)
+  n = len(nodes)
+  # edges between two known, different nodes, as index pairs
+  good = filter(edges, e => indexof(ids, e.from) >= 0 and indexof(ids, e.to) >= 0 and e.from != e.to)
+  adj = map(range(0, n - 1), i => map(filter(good, e => e.from == ids[i] or e.to == ids[i]),
+    e => if(e.from == ids[i], indexof(ids, e.to), indexof(ids, e.from))))
+  k = 1.6/sqrt(max(n, 1))
+  # start on a circle with a little jitter, then 120 steps, each allowed to move a little less
+  start = map(range(0, n - 1), i => (cos(2 pi i/n) + 0.2 rand(seed, i), sin(2 pi i/n) + 0.2 rand(seed, i + 1000)))
+  frames = scan({p: start, t: 0.4}, 120, s => {p: relax(s.p, adj, k, s.t), t: 0.97 s.t})
+  pos = fit(frames[round(settle (len(frames) - 1))].p, 1.22, 0.84)
+  project mermaid = ("flowchart LR\n" + join(map(nodes, n => "  " + n.id + "[\"" + n.label + "\"]"), "\n") + "\n"
+    + join(map(good, e => "  " + e.from + if(directed, " -->", " ---") + if(e.label != "", "|" + e.label + "|", "") + " " + e.to), "\n"))
+  canvas x=-1.5..1.5 y=-1..1 size=size label=("a network of " + n + " nodes and " + len(good) + " edges")
+    layer if=(not directed)
+      each e in good key=(e.from + ">" + e.to)
+        line (pos[indexof(ids, e.from)]) (pos[indexof(ids, e.to)]) stroke=muted width=1.5
+    layer
+      each nd in nodes key=nd.id
+        place (pos[indexof(ids, nd.id)])
+          stack id=(nd.id) pad=s fill=surface stroke=ink radius=card
+            text nd.label size=small wrap=false
+  each e in good key=(e.from + ">" + e.to)
+    arrow from=(e.from) to=(e.to) label=(e.label) if=directed

@@ -1,0 +1,86 @@
+# one item of a structure: an id that follows the value between steps, its label, its place and whether it is marked
+type sitem = {id: text, label: text, i: int, on: bool}
+
+# a state's items with ids: the value, plus "#n" for its n-th repeat, so equal values stay apart and moved values glide
+fn itemsof(items: list(text), marked: list(int)): list(sitem) = map(range(0, len(items) - 1), i =>
+    {id: items[i] + "#" + len(filter(range(0, i), j => j < i and items[j] == items[i])), label: items[i], i: i, on: indexof(marked, i) >= 0})
+
+structure@1 "A data structure step by step (array, stack, queue, linked list or binary tree), its items gliding between steps."
+  in kind choice(array|stack|queue|linked|tree) = array "how the items are laid out"
+  in states list(record state {items: list(text), note: text = "", marked: list(int) = []}) "one state per step: the items (front, top or root first; a tree in level order with \"\" for a gap), a note, and the places to mark"
+
+  pos = steps (len(states)) "step"
+  st = states[pos]
+  items = itemsof(st.items, st.marked)
+  real = filter(items, it => it.label != "")
+  # a tree in level order: item i has children 2i+1 and 2i+2, at depth floor(log2(i+1))
+  fn depth(i) = floor(log(i + 1) / log(2) + 0.000001)
+  maxdepth = max([0] + map(real, it => depth(it.i)))
+  width = 2^maxdepth
+  fn tx(i) = (i + 1 - 2^depth(i) + 0.5) width / 2^depth(i)
+  fn ty(i) = -1.4 depth(i)
+  edges = filter(real, it => it.i > 0 and at(st.items, floor((it.i - 1) / 2), "") != "")
+  fn listmd(s) = join(map(s.items, x => "`" + x + "`"), if(kind == linked, " → ", ", "))
+
+  project md = join(map(range(0, len(states) - 1), k => "" + (k + 1) + ". " +
+      if(kind == tree, "level order: ", if(kind == stack, "top first: ", if(kind == queue, "front first: ", ""))) +
+      listmd(states[k]) + if(states[k].note == "", "", " (" + states[k].note + ")")), "\n") + "\n"
+
+  stack gap=m
+    switch on=kind
+      case array
+        grid cols=(max(1, min(12, len(items)))) gap=xs
+          each it in items key=it.id
+            stack id=(it.id)
+              stack pad=m align=center stroke=accent radius=card if=(it.on)
+                text it.label weight=bold align=center
+                text ("" + it.i) tone=muted size=small align=center
+              stack pad=m align=center stroke=muted radius=card if=(not it.on)
+                text it.label align=center
+                text ("" + it.i) tone=muted size=small align=center
+      case stack
+        flex gap=m align=start
+          stack gap=xs
+            each it in items key=it.id
+              stack id=(it.id)
+                stack pad=m align=center stroke=accent radius=card if=(it.on)
+                  text it.label weight=bold align=center
+                stack pad=m align=center stroke=muted radius=card if=(not it.on)
+                  text it.label align=center
+          text "← top" tone=muted if=(len(items) > 0)
+      case queue
+        stack gap=xs
+          flex gap=xs align=center
+            text "front →" tone=muted
+            each it in items key=it.id
+              stack id=(it.id)
+                stack pad=m stroke=accent radius=card if=(it.on)
+                  text it.label weight=bold
+                stack pad=m stroke=muted radius=card if=(not it.on)
+                  text it.label
+            text "← back" tone=muted
+      case linked
+        flex gap=xl align=center
+          text "head" tone=muted id=head
+          each it in items key=it.id
+            stack id=(it.id)
+              stack pad=m stroke=accent radius=card if=(it.on)
+                text it.label weight=bold
+              stack pad=m stroke=muted radius=card if=(not it.on)
+                text it.label
+          text "null" tone=muted id=tail
+      else
+        canvas x=-0.2..(width + 0.2) y=(-1.4 maxdepth - 0.6)..0.6 size=m label="a binary tree"
+          layer
+            each it in edges key=it.id
+              line (tx(it.i), ty(it.i)) (tx(floor((it.i - 1) / 2)), ty(floor((it.i - 1) / 2))) stroke=muted
+            each it in real key=it.id
+              circle (tx(it.i), ty(it.i)) 0.42 fill=surface stroke=accent width=3 if=(it.on)
+              circle (tx(it.i), ty(it.i)) 0.42 fill=surface stroke=ink if=(not it.on)
+              label (tx(it.i), ty(it.i) - 0.1) it.label
+    text "Empty." tone=muted if=(len(real) == 0)
+    text ("Step " + (pos + 1) + " of " + len(states) + if(st.note == "", ".", ": " + st.note))
+  each k in 0..(len(items) - 2)
+    arrow from=(items[k].id) to=(items[k + 1].id) if=(kind == linked)
+  arrow from=head to=(items[0].id) if=(kind == linked and len(items) > 0)
+  arrow from=(items[len(items) - 1].id) to=tail if=(kind == linked and len(items) > 0)

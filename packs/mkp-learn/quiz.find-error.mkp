@@ -1,0 +1,40 @@
+quiz.find-error@1 "A worked solution with a mistake in it: the reader picks the wrong step and sees why, and the fix."
+  in question text "the problem the solution sets out to solve"
+  in lines list(record line {text: text, wrong: bool = false, why: text = "", fix: text = ""}) "the steps; mark the wrong one, with why and the corrected step"
+  in hints list(record hint {text: text})
+  out correct
+  out wrong
+  signal answered {correct: bool, step: int} "sent on every check, with the picked step from 1"
+  var picked int = -1
+  var result choice(none|pass|fail) = none
+  var hinted int = 0
+  n = len(lines)
+  right = picked >= 0 and lines[picked].wrong
+  bad = filter(range(0, n - 1), k => lines[k].wrong)
+  fn explain(k: int): text = "Step " + (k + 1) + " is wrong" + if(lines[k].why == "", ".", ": " + lines[k].why + ".") + if(lines[k].fix == "", "", " It should read " + lines[k].fix + ".")
+  project md = (question + "\n\n" + join(map(range(0, n - 1), k => "" + (k + 1) + ". " + lines[k].text), "\n")
+      + "\n\n:::details \"Answer\"\n" + join(map(bad, k => explain(k)), "\n\n") + "\n:::\n")
+  stack gap=m pad=m stroke=muted radius=card
+    text question
+    text "One step is wrong. Which?" tone=muted size=small
+    stack gap=xs
+      each k in 0..(n - 1)
+        press kind=option selected=(picked == k)
+          flex gap=s align=baseline wrap=false
+            text ("" + (k + 1) + ".")
+            text lines[k].text
+          @click set picked=k result=none
+    flex gap=s align=center
+      press id=check_ok if=(right) disabled=(picked < 0)
+        text "Check"
+        @click set result=pass send answered correct=true step=(picked + 1) emit correct
+      press id=check if=(not right) disabled=(picked < 0)
+        text "Check"
+        @click set result=fail send answered correct=false step=(picked + 1) emit wrong
+      press if=(hinted < len(hints))
+        text "Hint"
+        @click set hinted=(hinted + 1)
+    text (explain(picked)) tone=ok if=(result == pass)
+    text ("Step \val{picked + 1} is fine" + if(picked >= 0 and lines[max(picked, 0)].why != "", ": " + lines[max(picked, 0)].why, ".") + " Look again.") tone=bad if=(result == fail)
+    each k in 0..(hinted - 1)
+      text hints[k].text tone=muted

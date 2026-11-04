@@ -1,0 +1,8 @@
+{ "widget": "vector-field@1", "cases": {
+  "rotation": { "summary": "The rotation field $F = (-y, x)$: arrows go round the origin, longer further out.",
+    "props": { "f": "(-y, x)" }, "play": [ { "set": { "p": [-1, 1] } }, { "wait": 100 } ] },
+  "saddle": { "summary": "The saddle $F = (x, -y)$ with every arrow the same length.",
+    "props": { "f": "(x, -y)", "scale": "unit", "n": 11 } },
+  "gradient": { "summary": "The gradient of $x^2 + y^2/2 - xy$ on a wider view, 16 arrows each way.",
+    "props": { "f": "(2x - y, y - x)", "xmin": -3, "xmax": 3, "ymin": -3, "ymax": 3, "n": 16 } },
+  "too-dense": { "props": { "n": 50 }, "expect": { "errors": ["mkp.input-range"] } } } }

@@ -1,0 +1,5 @@
+{ "widget": "quiz.gap@1", "cases": {
+  "blank": { "summary": "An empty blank, not yet checked.", "props": {} },
+  "checked-right": { "summary": "A blank marked right after a check.", "props": { "checked": true, "ok": true, "label": "the derivative" },
+    "play": [ { "set": { "entry": "2x" } } ] },
+  "checked-wrong": { "summary": "A blank marked wrong after a check.", "props": { "checked": true } } } }

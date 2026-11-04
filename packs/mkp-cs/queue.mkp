@@ -1,0 +1,44 @@
+queue@1 "A queue to drive: Enqueue adds the next item at the back, Dequeue serves the one at the front."
+  in start list(text) = [] "the items already waiting, front first"
+  in incoming list(text) = ["A", "B", "C", "D", "E", "F", "G", "H"] "what each Enqueue adds, in turn (it starts over when it runs out)"
+  in capacity int 0..50 = 0 "the most the queue holds; 0 means no limit"
+  out changed "after every enqueue or dequeue"
+  var added int = 0 "how many Enqueue added"
+  var served int = 0 "how many Dequeue served"
+
+  # every item ever in the queue, numbered: the start items, then the incoming ones in turn
+  fn label(n) = if(n < len(start), start[n], incoming[mod(n - len(start), max(1, len(incoming)))])
+  total = len(start) + added
+  items = map(range(served, total - 1), n => {id: "q" + n, label: label(n), n: n})
+  size = total - served
+  full = capacity > 0 and size >= capacity
+  gone = map(range(max(0, served - 4), served - 1), n => {id: "q" + n, label: label(n)})
+
+  project md = ("Queue, front first: " + if(len(start) == 0, "empty", join(map(start, x => "`" + x + "`"), ", ")) +
+      ". Enqueue adds " + join(map(first(incoming, 4), x => "`" + x + "`"), ", ") + if(len(incoming) > 4, ", …", "") +
+      if(capacity > 0, "; it holds at most " + capacity, "") + ".\n")
+
+  stack gap=m
+    flex gap=s align=center
+      press id=enq disabled=(full or len(incoming) == 0)
+        text ("Enqueue " + label(total))
+        @click set added=(added + 1) emit changed
+      press id=deq disabled=(size == 0)
+        text "Dequeue"
+        @click set served=(served + 1) emit changed
+      press id=clear label="start over" disabled=(added == 0 and served == 0)
+        text "↺"
+        @click set added=0 served=0
+    flex gap=xs align=center
+      text "front →" tone=muted
+      each it in items key=it.id
+        stack pad=m stroke=accent radius=card if=(it.n == served)
+          text it.label weight=bold
+        stack pad=m stroke=muted radius=card if=(it.n != served)
+          text it.label
+      text "← back" tone=muted
+    text ("" + size + if(size == 1, " item", " items") + if(capacity > 0, " of " + capacity, "") + if(full, ": full.", "."))
+    flex gap=s align=center if=(served > 0)
+      text "served:" tone=muted
+      each g in gone key=g.id
+        text g.label tone=muted

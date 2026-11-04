@@ -1,0 +1,34 @@
+quiz.self-check@1 "A question to answer in your head or on paper: reveal the model answer, then rate yourself."
+  in question text "the question"
+  in answer text "the model answer, with maths"
+  in prompt text = "Answer it yourself first, then compare." "the instruction under the question"
+  out correct
+  out wrong
+  signal answered {correct: bool, rating: text} "sent when the reader rates themselves: got it, partly or not yet"
+  var open bool = false
+  var rating choice(none|got|partly|missed) = none
+  project md = question + "\n\n:::details \"Answer\"\n" + answer + "\n:::\n"
+  stack gap=m pad=m stroke=muted radius=card
+    text question
+    text prompt tone=muted size=small if=(not open)
+    flex
+      press id=reveal if=(not open)
+        text "Show the answer"
+        @click set open=true
+    stack gap=m if=open
+      stack gap=s pad=m fill=surface stroke=muted radius=card
+        text answer
+      text "How did you do?" tone=muted
+      flex gap=s
+        press id=got kind=option selected=(rating == got)
+          text "Got it"
+          @click set rating=got send answered correct=true rating="got it" emit correct
+        press id=partly kind=option selected=(rating == partly)
+          text "Partly"
+          @click set rating=partly send answered correct=false rating="partly" emit wrong
+        press id=missed kind=option selected=(rating == missed)
+          text "Not yet"
+          @click set rating=missed send answered correct=false rating="not yet" emit wrong
+      text "Good." tone=ok if=(rating == got)
+      text "Compare your answer step by step with this one, and try it again later." tone=warn if=(rating == partly)
+      text "Work through the answer, then try the question again later." tone=bad if=(rating == missed)

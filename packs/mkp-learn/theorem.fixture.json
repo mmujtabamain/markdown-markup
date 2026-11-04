@@ -1,0 +1,9 @@
+{ "widget": "theorem@1", "cases": {
+  "pythagoras": { "summary": "Pythagoras' theorem with a proof by areas, open.",
+    "props": { "name": "Pythagoras", "statement": "In a right triangle with legs $a$, $b$ and hypotenuse $c$, $a^2 + b^2 = c^2$.",
+      "proof": "Four copies of the triangle inside a square of side $a + b$ leave a square of side $c$, so $(a + b)^2 = 4 \\cdot \\tfrac{1}{2}ab + c^2$, which gives $a^2 + b^2 = c^2$.", "open": true } },
+  "lemma": { "summary": "A lemma, with its proof closed.",
+    "props": { "kind": "lemma", "statement": "If $p$ is prime and $p \\mid ab$, then $p \\mid a$ or $p \\mid b$.", "proof": "If $p \\nmid a$ then $\\gcd(p, a) = 1$, so $px + ay = 1$ for some integers; multiply by $b$." } },
+  "definition": { "summary": "A definition with no proof.",
+    "props": { "kind": "definition", "name": "continuity", "statement": "$f$ is continuous at $a$ when $\\lim_{x \\to a} f(x) = f(a)$." } },
+  "no-statement": { "props": { "name": "x" }, "expect": { "errors": ["mkp.missing-input"] } } } }

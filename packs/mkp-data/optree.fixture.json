@@ -1,0 +1,12 @@
+{ "widget": "optree@1", "cases": {
+  "eng-names": { "summary": "The names of engineers with their department titles: a projection over a selection over a join.",
+    "props": { "root": { "id": "p", "op": "$\\pi_{name,\\,title}$", "note": "Keep the name and title columns.", "kids": [
+      { "id": "s", "op": "$\\sigma_{dept = \\text{'E'}}$", "note": "Keep the rows whose dept is E.", "kids": [
+        { "id": "j", "op": "$\\bowtie_{dept = code}$", "note": "Pair each staff row with its department row.", "kids": [
+          { "id": "a", "op": "staff", "note": "Read every staff row.", "kids": [] },
+          { "id": "b", "op": "depts", "note": "Read every department row.", "kids": [] } ] } ] } ] } },
+    "play": [{ "set": { "pos": 2 } }, { "wait": 300 }, { "set": { "pos": 4 } }] },
+  "union": { "summary": "A union of two selections over the same relation.",
+    "props": { "root": { "id": "u", "op": "$\\cup$", "kids": [
+      { "id": "s1", "op": "$\\sigma_{age < 20}$", "kids": [{ "id": "r1", "op": "people", "kids": [] }] },
+      { "id": "s2", "op": "$\\sigma_{age > 65}$", "kids": [{ "id": "r2", "op": "people", "kids": [] }] } ] } } } } }

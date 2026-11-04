@@ -1,0 +1,26 @@
+domain-colouring@1 "A complex function coloured over the plane: hue is the argument of f(z), lightness its modulus, with a point to drag."
+  requires gfx@1
+  fields f
+  in f expr(z: complex): complex = ((z^2 - 1)/(z^2 + 1)) "the function, in z"
+  in r num = 2 "the view is −r..r each way"
+  in bands bool = true "shade bands where |f(z)| doubles, so the modulus reads as contours"
+  in step num = 1 "axis tick spacing"
+  p = drag x=(-r)..(r) y=(-r)..(r) = (0.5, 0.5) "z"
+  zp = p.x + p.y i
+  wp = f(zp)
+  # lightness: zeros go black and poles white; the bands brighten through each doubling of |f(z)|
+  fn light(m: num): num = (0.08 + 0.84 atan2(m, 1)/(pi/2)) if(bands, 0.82 + 0.18 mod(ln(max(m, 0.0000001))/ln(2), 1), 1)
+  canvas x=(-r)..(r) y=(-r)..(r) size=m label="Domain colouring of f: hue shows the argument of f(z), lightness its modulus"
+    layer
+      pixels (hsl(arg(f(x + y i))/(2 pi), 0.9, light(abs(f(x + y i)))))
+    layer opacity=0.6
+      line (-r, 0) (r, 0) stroke=surface
+      line (0, -r) (0, r) stroke=surface
+      each g in marks(-r, r, step)
+        line (g, -r/50) (g, r/50) stroke=surface
+        line (-r/50, g) (r/50, g) stroke=surface
+    layer
+      handle p
+      label (zp + r/30 + r/30 i) "$z$" anchor=ne
+  text "$f(\val{zp}) = \val{wp}$: $\lvert f(z) \rvert = \val{abs(wp)}$, $\arg f(z) = \val{arg(wp)}$."
+  text "Red is argument $0$, then yellow, green, cyan and blue as it turns; black is a zero and white a pole." tone=muted

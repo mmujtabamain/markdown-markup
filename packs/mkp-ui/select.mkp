@@ -1,0 +1,27 @@
+part select@1 "Pick one of several options for the caller's text: a menu, or a row of buttons."
+  fields value
+  in value ref text "the caller's choice (an option's value)"
+  in options list(record option {value: text, label: text = ""}) "label defaults to the value"
+  in label text = "" "what is being chosen"
+  in inline bool = false "show every option as a button instead of a menu"
+  out changed {value: text} "after the reader picks"
+  fn name(o: {value: text, label: text}): text = if(o.label != "", o.label, o.value)
+  current = find(options, o => o.value == value, {value: value, label: ""})
+  project md = (if(label != "", "**" + label + ":** ", "") + join(map(options, o => if(o.value == value, "**" + name(o) + "**", name(o))), " / "))
+  flex gap=s align=center
+    text label tone=muted if=(label != "")
+    flex gap=xs if=inline
+      each o in options key=o.value
+        press kind=option selected=(o.value == value)
+          text name(o)
+          @click set value=(o.value) emit changed value=(o.value)
+    overlay id=menu label=(if(label != "", label, "choose")) if=(not inline)
+      flex gap=s align=center wrap=false
+        text name(current)
+        text "▾" tone=muted
+      fill body
+        stack gap=xs
+          each o in options key=o.value
+            press kind=option selected=(o.value == value)
+              text name(o)
+              @click set value=(o.value) close menu emit changed value=(o.value)

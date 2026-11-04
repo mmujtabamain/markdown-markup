@@ -1,0 +1,63 @@
+{
+  "widget": "hierarchy@1",
+  "cases": {
+    "org": {
+      "summary": "A small organisation chart.",
+      "props": {
+        "root": {
+          "id": "ceo",
+          "label": "Director",
+          "kids": [
+            {
+              "id": "eng",
+              "label": "Engineering",
+              "kids": [
+                {
+                  "id": "web",
+                  "label": "Web",
+                  "kids": []
+                },
+                {
+                  "id": "apps",
+                  "label": "Apps",
+                  "kids": []
+                }
+              ]
+            },
+            {
+              "id": "ops",
+              "label": "Operations",
+              "kids": []
+            },
+            {
+              "id": "sales",
+              "label": "Sales",
+              "kids": [
+                {
+                  "id": "na",
+                  "label": "Americas",
+                  "kids": []
+                },
+                {
+                  "id": "eu",
+                  "label": "Europe",
+                  "kids": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "leaf": {
+      "summary": "A single node.",
+      "props": {
+        "root": {
+          "id": "only",
+          "label": "alone",
+          "kids": []
+        }
+      }
+    }
+  }
+}

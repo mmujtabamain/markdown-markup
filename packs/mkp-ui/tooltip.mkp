@@ -1,0 +1,8 @@
+tooltip@1 "A term that shows a short explanation on hover or focus."
+  fields term tip
+  in term text "the word or phrase shown"
+  in tip text "the explanation, with maths if needed"
+  overlay mode=tooltip label=term
+    text term
+    fill body
+      text tip size=small

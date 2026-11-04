@@ -1,0 +1,58 @@
+# The plane every maths widget draws on: a grid at a step, two axes, numbered ticks.
+# Canvas layers can't come from a part, so the widgets share these functions and draw
+# the same grid; `plane` is the part for drawing points and segments on one.
+
+# multiples of step from lo to hi
+fn ticks(lo: num, hi: num, step: num): list(num) = map(range(ceil(lo/step - 0.000001), floor(hi/step + 0.000001)), k => k step)
+# ticks without the origin, for numbering the axes
+fn marks(lo: num, hi: num, step: num): list(num) = filter(ticks(lo, hi, step), v => abs(v) > step/1000 and v > lo + (hi - lo)/20 and v < hi - (hi - lo)/20)
+# a value clamped into lo..hi (axes stay inside the view when it doesn't hold the origin)
+fn clamp(v: num, lo: num, hi: num): num = min(max(v, lo), hi)
+
+part plane@1 "A labelled real or complex plane (grid, axes, numbered ticks) with points and segments on it."
+  in xmin num = -2 "left edge"
+  in xmax num = 2 "right edge"
+  in ymin num = -2 "bottom edge"
+  in ymax num = 2 "top edge"
+  in kind choice(real|complex) = real "complex names the axes Re and Im and marks the imaginary ticks with i"
+  in step num = 1 "grid spacing"
+  in numbers bool = true "number the ticks"
+  in size size = m
+  in label text = "" "what the plane shows, for screen readers"
+  in dots list(record dot {at: point, name: text = "", tone: choice(accent|ink|info|ok|warn|bad) = accent}) "points to mark"
+  in segments list(record segment {a: point, b: point, arrow: bool = false}) "segments between points"
+  ax = clamp(0, ymin, ymax)
+  ay = clamp(0, xmin, xmax)
+  tx = (xmax - xmin)/40
+  ty = (ymax - ymin)/40
+  canvas x=(xmin)..(xmax) y=(ymin)..(ymax) size=size label=(if(label == "", if(kind == complex, "The complex plane", "The plane"), label))
+    layer opacity=0.35
+      each g in ticks(xmin, xmax, step)
+        line (g, ymin) (g, ymax) stroke=muted width=0.5
+      each g in ticks(ymin, ymax, step)
+        line (xmin, g) (xmax, g) stroke=muted width=0.5
+    layer
+      line (xmin, ax) (xmax, ax) stroke=muted arrow
+      line (ay, ymin) (ay, ymax) stroke=muted arrow
+      label (xmax, ax + ty/2) "$x$" tone=muted anchor=nw if=(kind == real)
+      label (ay + tx/2, ymax) "$y$" tone=muted anchor=se if=(kind == real)
+      label (xmax, ax + ty/2) "$\operatorname{Re}$" tone=muted anchor=nw if=(kind == complex)
+      label (ay + tx/2, ymax) "$\operatorname{Im}$" tone=muted anchor=se if=(kind == complex)
+      each g in marks(xmin, xmax, step)
+        label (g, ax - ty/2) "$\val{g}$" tone=muted anchor=s if=numbers
+      each g in marks(ymin, ymax, step)
+        label (ay - tx/2, g) "$\val{g}$" tone=muted anchor=w if=(numbers and kind == real)
+        label (ay - tx/2, g) "$\val{g}i$" tone=muted anchor=w if=(numbers and kind == complex and abs(g) != 1)
+        label (ay - tx/2, g) "$i$" tone=muted anchor=w if=(numbers and kind == complex and g == 1)
+        label (ay - tx/2, g) "$-i$" tone=muted anchor=w if=(numbers and kind == complex and g == -1)
+    layer
+      each s in segments
+        line s.a s.b stroke=ink arrow=(s.arrow)
+      each d in dots
+        circle d.at (0.7 tx) fill=accent if=(d.tone == accent)
+        circle d.at (0.7 tx) fill=ink if=(d.tone == ink)
+        circle d.at (0.7 tx) fill=info if=(d.tone == info)
+        circle d.at (0.7 tx) fill=ok if=(d.tone == ok)
+        circle d.at (0.7 tx) fill=warn if=(d.tone == warn)
+        circle d.at (0.7 tx) fill=bad if=(d.tone == bad)
+        label (d.at.x + tx/2, d.at.y + ty/2) d.name anchor=ne if=(d.name != "")
