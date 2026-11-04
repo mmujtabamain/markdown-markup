@@ -323,8 +323,9 @@ describe('interactions', () => {
   it('a trace marks its current line, and keeps a row for every variable', async () => {
     const hit = firstCase((v) => !!find(v, (n) => n.t === 'code' && !!n.p.line));
     await mount(hit!.bundle, { hosts: hit!.fc.hosts });
-    const [marked] = screen.UNSAFE_getAllByProps({ accessibilityState: { selected: true } });
-    expect(within(marked).getByText('total = 0')).toBeTruthy();
+    const marked = all(screen.root!, (e) => e.props.accessibilityState?.selected === true);
+    expect(marked).toHaveLength(1);
+    expect(within(marked[0]).getByText('total = 0')).toBeTruthy();
     expect(screen.getByText('total')).toBeTruthy();
     expect(screen.getByText('output')).toBeTruthy();
   });
