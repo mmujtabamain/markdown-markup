@@ -1083,7 +1083,7 @@ export class Runtime {
           break;
         }
         case 'label':
-          s = { t: 'label', key: k, at: pt(p.at), runs: this.runs(String(p.text)), tone: String(p.tone), anchor: String(p.anchor) };
+          s = { t: 'label', key: k, at: pt(p.at), runs: this.runs(String(p.text)), tone: String(p.tone), anchor: String(p.anchor), ...(p.chip ? { chip: true } : {}) };
           break;
         case 'image':
           s = { t: 'image', key: k, src: String(p.src), at: pt(p.at), w: p.w as number, h: p.h as number, alt: String(p.alt) };

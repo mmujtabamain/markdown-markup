@@ -60,6 +60,7 @@ export const BASE_CSS = `
 .mkp-math-display { display: block; text-align: center; margin: 0.6em 0; overflow-x: auto; }
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
 .mkp-canvas > svg { display: block; overflow: hidden; }
+.mkp-overlay-label[data-chip] { padding: 1px 6px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 5px; background: var(--mkp-color-surface); font-size: 0.85em; font-weight: 550; }
 .mkp-overlay-label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; font-size: 0.95em; }
 .mkp-place { position: absolute; transform: translate(-50%, -50%); }
 .mkp-handle { cursor: grab; } .mkp-handle:focus { outline: none; } .mkp-handle:focus-visible circle { stroke: var(--mkp-color-accent); stroke-width: 3; }

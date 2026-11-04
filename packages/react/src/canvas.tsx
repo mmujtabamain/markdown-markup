@@ -104,7 +104,7 @@ function shape(s: VShape, g: Geo): ReactNode {
     case 'label': {
       const off = anchorOffset(s.anchor);
       g.html.push(
-        <div key={s.key} className="mkp-overlay-label" style={{ left: X(s.at[0]), top: Y(s.at[1]), color: color(s.tone), opacity: g.opacity, transform: `translate(${off[0]}, ${off[1]})` }}>
+        <div key={s.key} className="mkp-overlay-label" data-chip={s.chip ? '' : undefined} style={{ left: X(s.at[0]), top: Y(s.at[1]), color: color(s.tone), opacity: g.opacity, transform: `translate(${off[0]}, ${off[1]})` }}>
           <Runs runs={s.runs as VRun[]} />
         </div>,
       );

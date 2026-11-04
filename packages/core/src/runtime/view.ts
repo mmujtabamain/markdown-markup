@@ -40,7 +40,7 @@ export type VShape =
   | { t: 'line'; key: string; a: number[]; b: number[]; stroke: string; width: number; dash: boolean; arrow: boolean }
   | { t: 'circle'; key: string; c: number[]; r: number; fill: string; stroke: string; width: number }
   | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean }
-  | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string }
+  | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string; chip?: boolean }
   | { t: 'image'; key: string; src: string; at: number[]; w: number; h: number; alt: string }
   | { t: 'place'; key: string; at: number[]; kids: VNode[] }
   | { t: 'handle'; key: string; at: number[]; tone: string; label: string; x: number[]; y: number[] }

@@ -128,7 +128,7 @@ extern canvas@1 "A 2D coordinate space with layers drawn in the order written."
       circles: list(record circle {c: point, r: num, fill: color = none, stroke: color = none, width: num = 1}),
       paths: list(record path {pts: list(point), closed: bool = false, fill: color = none, stroke: color = ink, width: num = 1, dash: bool = false}),
       curves: list(record curve {f: expr(t): point, t: range = 0..1, n: int 2..2000 = 200, stroke: color = accent, width: num = 1.5, dash: bool = false}),
-      labels: list(record label {at: point, text: text, tone: color = ink, anchor: choice(center|n|s|e|w|ne|nw|se|sw) = center}),
+      labels: list(record label {at: point, text: text, tone: color = ink, anchor: choice(center|n|s|e|w|ne|nw|se|sw) = center, chip: bool = false}),
       images: list(record image {src: text, at: point, w: num, h: num = 0, alt: text = ""}),
       places: list(record place {at: point} slot),
       handles: list(record handle {p: ref point, tone: color = accent}),

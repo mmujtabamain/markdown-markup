@@ -155,9 +155,16 @@ function Label({ s, g }: { s: Extract<VShape, { t: 'label' }>; g: Geo }): ReactN
     <View
       pointerEvents="none"
       onLayout={(e) => setSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}
-      style={{ position: 'absolute', left: g.X(s.at[0]) + o[0], top: g.Y(s.at[1]) + o[1], opacity: size ? g.opacity : 0 }}
+      style={{
+        position: 'absolute',
+        left: g.X(s.at[0]) + o[0],
+        top: g.Y(s.at[1]) + o[1],
+        opacity: size ? g.opacity : 0,
+        // a chip: the label on the surface in a thin outline of its tone
+        ...(s.chip ? { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderRadius: 5, borderColor: g.theme.mix(tone ?? '#888', g.theme.color('surface') ?? '#fff', 0.35), backgroundColor: g.theme.color('surface') } : null),
+      }}
     >
-      <Text style={{ color: tone, fontFamily: f.fontFamily, fontSize: fs }} numberOfLines={1}>
+      <Text style={{ color: tone, fontFamily: f.fontFamily, fontSize: s.chip ? fs * 0.9 : fs, fontWeight: s.chip ? '600' : undefined }} numberOfLines={1}>
         <Runs runs={s.runs as VRun[]} fontSize={fs} />
       </Text>
     </View>

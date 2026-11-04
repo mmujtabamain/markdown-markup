@@ -28,7 +28,8 @@ if (!targets.length) {
 }
 const ms = (s) => (String(s).endsWith('ms') ? Number(String(s).slice(0, -2)) : String(s).endsWith('s') ? Number(String(s).slice(0, -1)) * 1000 : Number(s));
 
-const PORT = 5181;
+// MKP_SHOT_PORT lets two copies of the repo shoot at once
+const PORT = Number(process.env.MKP_SHOT_PORT) || 5181;
 async function up() {
   try {
     const r = await fetch(`http://localhost:${PORT}/`);
