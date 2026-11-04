@@ -13,7 +13,8 @@ export default defineConfig({
     },
   },
   server: { fs: { allow: [root] }, port: 5181, strictPort: true },
-  preview: { port: 5182, strictPort: true },
+  // the DevBench preview serves the built playground with `vite preview` behind its own host name
+  preview: { port: 5182, strictPort: true, allowedHosts: ['.preview.devbench.sh'] },
   build: { chunkSizeWarningLimit: 6000, target: 'es2022' },
   optimizeDeps: { esbuildOptions: { target: 'es2022' } },
 });
