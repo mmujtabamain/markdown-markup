@@ -269,6 +269,13 @@ export const SHELL_CSS = `
 .mkp-frame-title { min-width: 0; flex: 1 1 auto; font-weight: 600; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mkp-frame-actions, .mkp-frame-tools { display: flex; align-items: center; gap: var(--mkp-space-xs); flex: none; }
 .mkp-frame-actions .mkp-choice-label { display: none; }
+/* A narrow bar puts the status under the steps' buttons, a line of its own, instead of squeezing the track. */
+.mkp-frame-bar { container-type: inline-size; }
+@container (max-width: 520px) {
+  [data-control=steps] { flex-wrap: wrap !important; row-gap: var(--mkp-space-xs); }
+  [data-control=steps] > [role=status] { order: 10; flex: 1 0 100%; }
+  [data-control=steps] > [data-mkp=range] { flex: 1 1 4rem !important; width: auto !important; min-width: 3rem; }
+}
 .mkp-choice-label:empty { display: none; }
 .mkp-frame-stage { position: relative; min-height: 0; overflow: auto; }
 .mkp-frame-stage[data-fixed] { resize: vertical; }

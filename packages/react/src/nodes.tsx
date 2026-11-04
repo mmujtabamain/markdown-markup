@@ -137,6 +137,8 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     // a box faded back, or blurred until revealed (stack, flex, grid)
     'data-dim': n.p.dim ? '' : undefined,
     'data-blur': n.p.blur ? '' : undefined,
+    // a control the runtime made for a state (steps), so a bar can lay it out on a narrow screen
+    'data-control': n.p.control as string | undefined,
     hidden: n.hidden || undefined,
   };
 }
