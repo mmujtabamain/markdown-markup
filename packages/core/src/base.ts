@@ -77,6 +77,7 @@ extern press@1 "Anything clickable and focusable: a button, a tab, an option amo
   in label text = "" "accessible name when the content has no text"
   in tone color = none
   in emphasis choice(low|normal|high) = normal "how much it stands out: low for one of a row of quiet buttons, high for the one to press"
+  in mark text = "" "an answer row's letter (A, B, C), shown in its tick or dot until it is chosen"
   in body slot
   out click
 
@@ -110,6 +111,7 @@ extern field@1 "Text or number entry."
 extern overlay@1 "A popover, tooltip, dialog or menu anchored to its first slot. A menu's body holds press kind=option, and its anchor shows the current one."
   in mode choice(popover|tooltip|dialog|menu) = popover
   in label text = ""
+  in emphasis choice(low|normal|high) = normal "how much its anchor stands out: low for a quiet tool in a header"
   in anchor slot
   in body slot
   out open

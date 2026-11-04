@@ -15,6 +15,8 @@ type C = ComponentType<any>;
 export interface OptionRowProps {
   kind: 'radio' | 'check';
   selected: boolean;
+  /** the row's letter (A, B, C), shown in its mark until it is chosen */
+  mark?: string;
   verdict?: 'right' | 'wrong';
   disabled?: boolean;
   onClick(): void;
@@ -188,7 +190,7 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
     case 'radio':
     case 'check':
       return (
-        <kit.OptionRow {...attrs} kind={kind === 'check' ? 'check' : 'radio'} selected={selected} verdict={p.tone === 'ok' ? 'right' : p.tone === 'bad' ? 'wrong' : undefined} disabled={disabled} aria-label={label} onClick={click} style={style}>
+        <kit.OptionRow {...attrs} kind={kind === 'check' ? 'check' : 'radio'} selected={selected} mark={p.mark ? String(p.mark) : undefined} verdict={p.tone === 'ok' ? 'right' : p.tone === 'bad' ? 'wrong' : undefined} disabled={disabled} aria-label={label} onClick={click} style={style}>
           <Kids nodes={n.kids} />
         </kit.OptionRow>
       );
@@ -307,7 +309,7 @@ function overlay(h: HostProps, kit: Kit): ReactNode {
   const onOpenChange = (o: boolean): void => dispatch(n.key, o ? 'open' : 'close');
   const label = words(n.p.label);
   const trigger = (
-    <kit.Button {...attrs} variant="outline" size="sm" aria-label={label} style={style}>
+    <kit.Button {...attrs} variant={n.p.emphasis === 'low' ? 'ghost' : n.p.emphasis === 'high' ? 'default' : 'outline'} size="sm" aria-label={label} style={style}>
       <Kids nodes={n.kids} />
     </kit.Button>
   );

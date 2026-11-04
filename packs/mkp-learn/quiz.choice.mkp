@@ -23,6 +23,7 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
   locked = result != none
   good = result == pass
   fn chosen(k: int): bool = indexof(picked, k) >= 0
+  fn letter(k: int): text = at(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"], k, "")
   fn verdict(k: int): color = if(locked and chosen(k), if(options[k].right, ok, bad), ink)
   heading = if(title != "", title, if(multiple, "Select all that apply", "Pick one"))
   sol = if(len(solutions) > 0, map(solutions, s => s.text), map(filter(options, o => o.right), o => "**" + o.text + "**" + if(o.why == "", "", " — " + o.why)))
@@ -50,16 +51,16 @@ quiz.choice@1 "A question with options to pick: one right answer, checked as soo
       stack gap=s
         each k in 0..(n - 1)
           stack dim=(locked and not chosen(k))
-            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and options[k].right)
+            press id=("option" + (k + 1)) mark=(letter(k)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and options[k].right)
               text options[k].text
               @click set picked=[k] result=pass send answered correct=true picked=[k] emit correct
-            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and not options[k].right)
+            press id=("option" + (k + 1)) mark=(letter(k)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and not options[k].right)
               text options[k].text
               @click set picked=[k] result=fail send answered correct=false picked=[k] emit wrong
             # answered: the pick stands until Try again (a press that does nothing, so the row keeps its look)
-            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) tone=(verdict(k)) if=(not multiple and locked)
+            press id=("option" + (k + 1)) mark=(letter(k)) kind=radio selected=(chosen(k)) tone=(verdict(k)) if=(not multiple and locked)
               text options[k].text
-            press id=("option" + (k + 1)) kind=check selected=(chosen(k)) tone=(verdict(k)) if=multiple
+            press id=("option" + (k + 1)) mark=(letter(k)) kind=check selected=(chosen(k)) tone=(verdict(k)) if=multiple
               text options[k].text
               @click set picked=(if(locked, picked, if(chosen(k), filter(picked, j => j != k), sort(picked + [k], j => j)))) peek=(if(locked and chosen(k), k, -1))
     fill bar

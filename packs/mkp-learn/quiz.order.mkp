@@ -60,7 +60,8 @@ quiz.order@1 "Build an order: the items wait in a shuffled pool, the reader adds
                 icon name=plus tone=muted size=small
               @click set moved=(moved + [j]) result=none
           text "Everything is placed." size=small tone=muted if=(len(left) == 0)
-        stack gap=s pad=s radius=card stroke=muted grow basis=s
+        # the answer as built: a dashed area, as a place to put things
+        stack gap=s pad=s radius=card stroke=muted line=dashed grow basis=s
           flex justify=between align=center pad=xs
             text placed font=mono size=small tone=muted caps=true
             text ("" + len(moved)) font=mono size=small tone=muted

@@ -312,3 +312,21 @@ describe('a box’s line and a frame’s status lines', () => {
     expect(status(view('statuslines=9')).p.lines).toBe(3);
   });
 });
+
+describe('an answer row’s letter and a quiet overlay', () => {
+  it('passes a press’s mark and an overlay’s emphasis to the view', () => {
+    const { b, errors } = build(`w@1 "w"
+  press kind=radio mark="A"
+    text "first"
+  overlay emphasis=low label="hints"
+    text "?"
+    fill body
+      text "a hint"
+`);
+    expect(errors).toEqual([]);
+    const all = (ns: VNode[]): VNode[] => ns.flatMap((n) => [n, ...all(n.kids ?? [])]);
+    const v = all(new Runtime(b!).view());
+    expect(v.find((n) => n.t === 'press')!.p.mark).toBe('A');
+    expect(v.find((n) => n.t === 'overlay')!.p.emphasis).toBe('low');
+  });
+});

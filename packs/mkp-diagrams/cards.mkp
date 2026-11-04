@@ -119,8 +119,9 @@ part cardsview@1 "Cards in columns by their links, with lines between their rows
                 flex pad=m gap=s align=center wrap=false tint=(if(has(litrows, id + "." + r.id), info, if(byid[id].external, muted, surface)))
                   text (r.label) weight=medium wrap=false literal=true tone=(if(byid[id].external, muted, ink))
                   each b in r.badges key=b
-                    flex pad=xs stroke=(badgetone(b)) tint=(badgetone(b)) radius=pill
-                      text b font=mono size=small tone=(badgetone(b))
+                    # a soft chip in the key's tone: PK info, FK the accent
+                    flex pad=xs tint=(badgetone(b)) radius=card
+                      text b font=mono size=small weight=bold tone=(badgetone(b))
                   stack grow
                   text (r.meta) font=mono size=small tone=muted wrap=false literal=true if=(r.meta != "")
                 @click set pick=(if(pick == id + "." + r.id, "", id + "." + r.id))

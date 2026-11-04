@@ -32,8 +32,9 @@ part rowpanes@1 "Two relations in panes side by side, with a gutter of lines bet
                 text (at(lrel.rows[i], j, "")) font=(if(j == 0 and ids, mono, body)) literal=true align=start
             @click emit picked side="L" row=i
         divider
-    # the gutter the lines cross
+    # the gutter the lines cross: room for a line to turn and for its label
     stack pad=xl stroke=muted
+      stack pad=xl
     pane title=(if(rrel.name == "", "right", rrel.name)) note=(if(rightnote == "", rows(len(rrel.rows)), rightnote)) grow basis=m
       stack
         grid cols=(max(1, min(12, len(rrel.cols)))) gap=s pad=m tint=muted

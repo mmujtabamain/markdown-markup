@@ -498,7 +498,8 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     head's length short and a cross sits there, drawn in the `bad` tone (a message that never arrives).
     `stack`, `flex` and `grid` take `line=solid|dashed|dotted` for their border (a drop area, an outside
     system). A frame's `statuslines` (1 to 3) keeps room for that many lines of status, which then wraps.
-    The icon set gains `sliders`. In `@mkp/shadcn` a press whose one child is an `icon` is an icon
+    The icon set gains `sliders`. A press takes `mark`, an answer row's letter shown in its tick or dot
+    until it is chosen, and an overlay `emphasis`, how much its anchor stands out. In `@mkp/shadcn` a press whose one child is an `icon` is an icon
     button, a plain press keeps its content's alignment, and a frame's bar lets its parts shrink, so a
     long status gives up width before the count and start over are pushed out.
 

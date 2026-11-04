@@ -2,7 +2,7 @@ part quiz.hints@1 "Hints one at a time, in a popover over the page, so a hint ne
   in hints list(text) "the hints, in the order they are given"
   var shown int = 0
   n = len(hints)
-  overlay mode=popover label=("Hints, " + shown + " of " + n + " shown")
+  overlay mode=popover emphasis=low label=("Hints, " + shown + " of " + n + " shown")
     flex gap=xs align=center wrap=false
       icon name=lightbulb size=small
       text ("" + shown + "/" + n) font=mono size=small tone=muted
@@ -27,7 +27,7 @@ part quiz.answer@1 "The worked solution in a popover over the page, behind one m
   in plain bool = false "the anchor says Show the solution in words (in a bar); else it is a book icon (in a header)"
   in spoil bool = true "ask once more before showing it; false: show it at once (after a wrong answer)"
   var shown bool = false
-  overlay mode=popover label=("Show the " + word)
+  overlay mode=popover emphasis=(if(plain, normal, low)) label=("Show the " + word)
     icon name=book size=small if=(not plain)
     flex gap=s align=center wrap=false if=plain
       icon name=book size=small

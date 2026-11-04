@@ -287,11 +287,12 @@ rule of the spec, not a defect), *in progress*.
     *Worked around:* each quiz draws its own wrapping line in `fill bar`, which loses `role=status`.
     *Fixed in the base:* `frame statuslines=1..3` (SN 110); the quizzes keep their own line, with its icon.
 76. **MKP: an overlay's anchor is always an outline button.** The header's hint and book buttons are
-    outline; Study Pad's are ghost. *Open.*
+    outline; Study Pad's are ghost. *Fixed:* `overlay emphasis=low` (SN 110); the quiz tools use it.
 77. **MKP: an answer row has no letter.** Study Pad's rows show A, B, C in the mark until picked;
-    `press kind=radio|check` has no place for one, and a letter in the content gives two marks. *Open.*
+    `press kind=radio|check` had no place for one, and a letter in the content gives two marks.
+    *Fixed:* `press mark="A"` (SN 110), drawn by Study Pad's provider as its lettered tile.
 78. **MKP: no dashed outline.** Study Pad's drop area and gate box are dashed; `stroke=` is solid only.
-    *Worked around:* a solid outline. *Fixed:* `line=dashed|dotted` on stack, flex and grid (SN 110).
+    *Fixed:* `line=dashed|dotted` on stack, flex and grid (SN 110); both are dashed now.
 79. **MKP: a box can't sit over another.** Study Pad's predict card floats over the blurred chart, and a
     set is as tall as its tallest question. *Worked around:* the card sits beside the content; the set
     takes each question's own height, so stepping can resize it.

@@ -35,7 +35,7 @@ predict@1 "Predict before you see: what waits for the answer sits blurred at its
     # gate: what the reader already sees, then the question under it
     stack pad=l gap=m if=(mode == gate)
       slot body
-      stack gap=s pad=m radius=card stroke=info tint=info
+      stack gap=s pad=m radius=card stroke=info line=dashed tint=info
         flex gap=s align=baseline
           text caption font=mono size=small tone=info caps=true
           text question
