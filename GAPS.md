@@ -489,3 +489,14 @@ rule of the spec, not a defect), *in progress*.
      `truth` turns its labels into text and builds its status as one TeX string. *Open.*
 158. **MKP: no purple ("thm") tone.** Linked rows, the FK chip and the sort key use info, so a linked row
      looks like a current one. *Open*, minor.
+159. **MKP: a grid's columns are shared out of 12, by an estimate of their text.** `grid` and `span`
+     stop at 12, and a pack can't measure text, so the data grid shares widths by counting characters
+     (monospaced heavier, small lighter). A sparse grid on a wide pane gave its id gutter a quarter of
+     the width, and a note wrapped while the cells beside it had room. *Worked around:* the column
+     that takes the slack also takes the rounding's spare, and a column with a marked cell keeps room
+     for the glyph. *Open:* columns sized to what they hold, as a table's auto layout does.
+160. **MKP: nothing can follow the width it is drawn at.** A plot keeps its aspect, so on a phone the
+     projectile is 130px tall and its tick labels sit on the curve, where Views keeps a least height
+     and shows more of the y range. The same lack keeps graphs from turning top-down on a phone (and a
+     rail from scrolling its current stop into view). *Open:* a value a widget can read for the width
+     it has, or a canvas that keeps a least height by widening its shorter range.

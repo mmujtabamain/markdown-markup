@@ -45,7 +45,7 @@
       "xlabel": "x (m)", "ylabel": "y (m)", "cells": 72,
       "params": [ { "name": "\\mathrm{dBm}", "label": "Usable from", "min": -60, "max": -40, "step": 1, "value": -52 } ],
       "heats": [ { "f": "max(-30 - 22 log(1 + sqrt((x - 3)^2 + (y - 4)^2)), -30 - 22 log(1 + sqrt((x - 13)^2 + (y - 7)^2)))", "lo": -60, "hi": -30 } ],
-      "regions": [ { "f": "max(-30 - 22 log(1 + sqrt((x - 3)^2 + (y - 4)^2)), -30 - 22 log(1 + sqrt((x - 13)^2 + (y - 7)^2))) - a", "label": "weak", "at": [20.6, 1.2] } ],
+      "regions": [ { "f": "max(-30 - 22 log(1 + sqrt((x - 3)^2 + (y - 4)^2)), -30 - 22 log(1 + sqrt((x - 13)^2 + (y - 7)^2))) - a", "label": "weak", "at": [20.6, 1.2], "tone": "bad" } ],
       "dots": [ { "at": [3, 4], "name": "router 1", "tone": "ink" }, { "at": [13, 7], "name": "router 2", "tone": "ink" } ],
       "status": [ { "text": "Darker is stronger. The dashed outline is where it drops below ", "f": "a", "digits": 0, "after": " dBm." } ],
       "label": "Signal strength over the floor from two routers, and where it is too weak." } },

@@ -328,6 +328,9 @@ export const SHELL_CSS = `
   [data-control=steps] { flex-wrap: wrap !important; row-gap: var(--mkp-space-xs); }
   [data-control=steps] > [role=status] { order: 10; flex: 1 0 100% !important; }
   [data-control=steps] > [data-mkp=range] { flex: 1 1 4rem !important; width: auto !important; min-width: 3rem; }
+  /* a frame's own status says all of itself on a phone; a playback's keeps to one line, so the bar
+     doesn't jump while it plays */
+  .mkp-frame-bar > [role=status] { white-space: normal !important; }
 }
 .mkp-choice-label:empty { display: none; }
 .mkp-frame-stage { position: relative; min-height: 0; overflow: auto; }
@@ -337,6 +340,10 @@ export const SHELL_CSS = `
 .mkp-frame[data-tone] .mkp-frame-bar { background: var(--mkp-tint-bar, color-mix(in srgb, var(--mkp-frame-tone) 10%, var(--mkp-color-surface))); }
 .mkp-frame[data-tone=ok] { --mkp-frame-tone: var(--mkp-color-ok); } .mkp-frame[data-tone=bad] { --mkp-frame-tone: var(--mkp-color-bad); } .mkp-frame[data-tone=info] { --mkp-frame-tone: var(--mkp-color-info); } .mkp-frame[data-tone=warn] { --mkp-frame-tone: var(--mkp-color-warn); }
 .mkp-frame-bar [role=status] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* the bar wraps when its controls and a readable status don't fit on one line: the status takes the
+   first line, the controls the next */
+.mkp-frame-bar { flex-wrap: wrap; }
+.mkp-frame-bar > [role=status] { flex: 1 1 14rem !important; }
 .mkp-frame-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, 92%); z-index: 5; display: flex; flex-direction: column; background: var(--mkp-color-surface); border-left: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 35%, transparent)); box-shadow: -8px 0 24px #0000001a; }
 .mkp-frame-drawer-body { padding: var(--mkp-space-l); overflow: auto; }
 .mkp-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 0; }

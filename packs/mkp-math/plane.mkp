@@ -227,7 +227,7 @@ plane@1 "A coordinate plane in a frame: a light grid, numbered axes and their na
       # three or four: in a popover, with how many are changed and a reset
       overlay id=params mode=popover label=("Parameters (" + np + ")") if=(np >= 3)
         flex gap=s align=center wrap=false
-          icon name=settings size=small
+          icon name=sliders size=small
           text "Parameters" wrap=false
           flex pad=xs radius=pill tint=info if=(changed > 0)
             text ("" + changed) size=small tone=info

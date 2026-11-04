@@ -508,3 +508,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     (default true): at rest, what is wider than the view is shrunk to fit it, never enlarged, leaving
     the lock its own room; the reader zooms in from there. Arrows measure in their scope's own units,
     so a scale above them (a zoom, a fit) no longer throws them off their ends.
+
+112. **A frame's status reads at body size.** *Correction (6.8).* The status was set small, a size under
+    the rest of the bar and under the Views it replaces, where it is the line that says what is going
+    on. *Decided:* the status line is body text; the bar's counts and values stay small.

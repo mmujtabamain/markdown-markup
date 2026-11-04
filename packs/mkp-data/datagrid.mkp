@@ -31,19 +31,24 @@ datagrid@1 "Records under a header row: columns aligned and monospaced, rows and
   # much each column has to say (monospaced text is wider), with room for padding and glyphs
   auto = fold(cols, true, (a, c) => a and c.width == 0)
   fn longest(c: int): num = fold(rows, 0, (a, r) => max(a, len(at(r.cells, c, ""))))
-  fn chars(c: int): num = max(len(cols[c].label) * 1.1 + if(cols[c].badge == "", 0, len(cols[c].badge) + 6) + if(cols[c].lit, 2, 0),
-      longest(c) * if(cols[c].mono, 1.3, 1)) + 3
-  gchars = if(gutter, fold(rows, len(idhead), (a, r) => max(a, len(r.id))) * if(ids == keys, 1.05, 1.3) + if(len(marks) > 0, 2, 0) + 3, 0)
-  nchars = if(notes, min(28, fold(rows, 0, (a, r) => max(a, len(r.note)))) * 0.6 + 3, 0)
+  # a column with a marked cell keeps room for its glyph
+  fn chars(c: int): num = max(len(cols[c].label) * 1.1 + if(cols[c].badge == "", 0, len(cols[c].badge) + 4) + if(cols[c].lit, 2, 0),
+      longest(c) * if(cols[c].mono, 1.3, 1) + if(len(filter(cellmarks, m => m.col == cols[c].label and m.glyph != "")) > 0, 3, 0)) + 3
+  gchars = if(gutter, fold(rows, len(idhead), (a, r) => max(a, len(r.id))) * if(ids == keys, 1.15, 1.3) + if(len(marks) > 0, 3, 0) + 3, 0)
+  nchars = if(notes, min(28, fold(rows, 0, (a, r) => max(a, len(r.note)))) * 0.85 + 3, 0)
   # the columns' weights, then the gutter's and the notes' (0 when there are none), shared out of 12
   # a grid that has little to say still spans the pane: the slack goes to the notes, or else to the
   # last column of text that starts at the left
   needs = map(range(0, n - 1), c => chars(c)) + [gchars, nchars]
   texts = filter(range(0, n - 1), c => "" + cols[c].align == "start" and not cols[c].mono)
   filler = if(notes, n + 1, if(len(texts) > 0, last(texts), n - 1))
-  slack = max(0, 48 - fold(needs, 0, (a, w) => a + w))
+  slack = max(0, 60 - fold(needs, 0, (a, w) => a + w))
   weights = map(range(0, n + 1), i => needs[i] + if(i == filler, slack, 0))
-  shares = gridshares(weights)
+  # when there is slack, the column taking it takes what the rounding leaves too, so a gutter or a
+  # short column keeps the share it asked for
+  floors = map(range(0, n + 1), i => gridfloor(weights[i], gridwhole(weights)))
+  rest = fold(range(0, n + 1), 0, (a, i) => a + if(i == filler, 0, floors[i]))
+  shares = if(slack > 0, map(range(0, n + 1), i => if(i == filler, max(1, 12 - rest), floors[i])), gridshares(weights))
 
   asked = map(range(0, n - 1), c => if(auto, shares[c], if(cols[c].width == 0, 2, cols[c].width)))
   gasked = if(not gutter, 0, if(auto, shares[n], 2))

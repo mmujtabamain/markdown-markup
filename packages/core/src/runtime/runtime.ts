@@ -1164,7 +1164,7 @@ export class Runtime {
     if (!runs?.length) return;
     // one line that never wraps, or room kept for up to three, so the bar is as tall whatever it says
     const lines = Number(f.p.statuslines ?? 1);
-    const status: VNode = { t: 'text', key: k, p: { runs, tone: 'ink', font: 'body', weight: 'regular', size: 'small', align: 'start', wrap: lines > 1, role: 'status', ...(lines > 1 ? { lines } : {}) }, layout: { grow: true } };
+    const status: VNode = { t: 'text', key: k, p: { runs, tone: 'ink', font: 'body', weight: 'regular', size: 'body', align: 'start', wrap: lines > 1, role: 'status', ...(lines > 1 ? { lines } : {}) }, layout: { grow: true } };
     const steps = bar.find((x) => x.p.control === 'steps');
     if (!steps) {
       bar.unshift(status);
