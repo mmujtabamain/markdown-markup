@@ -1,0 +1,87 @@
+predict@1 "Predict before you see: what waits for the answer sits blurred at its own size beside a card that asks first. The reader picks an option (choice), picks one in a row under what they can already see (gate), writes an answer (write), or answers in their head (recall, try); then it is revealed, and the bar says how it went."
+  in mode choice(choice|gate|write|recall|try) = choice "how the reader commits: an option, an option under the content, a written answer, or one in their head"
+  in question text "what to predict"
+  in options list(record option {text: text, right: bool = false, why: text = ""}) "choice and gate: the options, the right one, and why each is right or wrong"
+  in explain text = "" "said after the answer, whatever it was"
+  in label text = "Predict" "the frame's caption: what the content is (Chart, Log, Retro)"
+  in title text = "" "the header's title"
+  in eyebrow text = "" "the caption over the question; empty: each mode's own (Predict first, Write it first, Before you look, Try it first)"
+  in instruction text = "" "what the bar says before the answer; empty: each mode's own"
+  in retry bool = true "may be asked again after answering"
+  in height size = none "the stage's height; none: as tall as its content"
+  in body slot "what waits for the answer"
+  out answered {correct: bool}
+  signal predicted {correct: bool, option: int, text: text} "sent when the reader answers (choice and gate: the option from 1, and whether it was right; write: what they wrote)"
+  var picked int = -1
+  var revealed bool = false
+  var entry text = ""
+  var calm color = none
+  chooses = mode == choice or mode == gate
+  done = if(chooses, picked >= 0, revealed)
+  n = len(options)
+  good = picked >= 0 and at(options, picked, {text: "", right: false, why: ""}).right
+  caption = if(eyebrow != "", eyebrow, if(mode == write, "Write it first", if(mode == recall, "Before you look", if(mode == try, "Try it first", "Predict first"))))
+  told = if(instruction != "", instruction, if(mode == write, "Write first: you will compare it with a model answer.", if(mode == recall, "Say it to yourself in one sentence.",
+      if(mode == try, "Work it out on paper, then reveal.", if(mode == gate, "Pick one answer.", "Pick one to see it.")))))
+  fn why(k: int): text = at(options, k, {text: "", right: false, why: ""}).why
+  say = if(not done, told, if(chooses, if(good, "**Yes.** ", "**Not quite.** ") + why(picked) + if(why(picked) == "" or explain == "", "", " ") + explain,
+      if(mode == write, "**You wrote:** " + entry + if(explain == "", "", " " + explain), if(explain == "", "Compare it with what you said.", explain))))
+  mood = if(not done or not chooses, calm, if(good, ok, bad))
+  fn verdict(k: int): color = if(not done, ink, if(options[k].right, ok, if(picked == k, bad, ink)))
+  project md = ("**" + caption + ":** " + question + if(chooses, "\n\n" + join(map(options, o => "- " + o.text), "\n"), "")
+      + "\n\n:::details \"Answer\"\n" + if(chooses, join(map(filter(options, o => o.right), o => o.text + if(o.why == "", "", ": " + o.why)), "\n\n") + "\n\n", "")
+      + if(explain == "", "", explain + "\n\n") + ":::\n")
+  frame kind=label title=title tone=mood height=height
+    # gate: what the reader already sees, then the question under it
+    stack pad=l gap=m if=(mode == gate)
+      slot body
+      stack gap=s pad=m radius=card stroke=info tint=info
+        flex gap=s align=baseline
+          text caption font=mono size=small tone=info caps=true
+          text question
+        flex gap=s wrap=false
+          each k in 0..(n - 1)
+            stack grow dim=(done and not options[k].right and picked != k)
+              press id=("option" + (k + 1)) kind=radio selected=(picked == k) if=(not done)
+                text options[k].text
+                @click set picked=k send predicted correct=(options[k].right) option=(k + 1) text="" emit answered correct=(options[k].right)
+              # answered: the pick stands until Ask me again
+              press id=("option" + (k + 1)) kind=radio selected=(picked == k) tone=(verdict(k)) if=done
+                text options[k].text
+    # the rest: the card that asks, beside what waits for it, blurred at its own size
+    flex gap=m align=stretch pad=l if=(mode != gate)
+      stack gap=m pad=m radius=card stroke=muted fill=surface shadow=raised basis=m
+        stack gap=xs
+          flex gap=s align=center
+            icon name=lightbulb tone=info size=small if=chooses
+            icon name=edit tone=info size=small if=(mode == write or mode == try)
+            icon name=eye tone=info size=small if=(mode == recall)
+            text caption font=mono size=small tone=info caps=true
+          text question weight=medium
+        stack gap=s if=chooses
+          each k in 0..(n - 1)
+            stack dim=(done and not options[k].right and picked != k)
+              press id=("option" + (k + 1)) kind=radio selected=(picked == k) if=(not done)
+                text options[k].text
+                @click set picked=k send predicted correct=(options[k].right) option=(k + 1) text="" emit answered correct=(options[k].right)
+              press id=("option" + (k + 1)) kind=radio selected=(picked == k) tone=(verdict(k)) if=done
+                text options[k].text
+        field entry label="Your answer" placeholder="Your answer, in a sentence or two" if=(mode == write)
+      stack gap=s grow basis=s blur=(not done)
+        slot body
+    fill bar
+      # the line says what to do or how it went; on a narrow screen the buttons wrap under it
+      flex gap=s align=center justify=between grow
+        flex gap=s align=baseline wrap=false grow basis=s
+          icon name=check tone=ok size=small if=(done and chooses and good)
+          icon name=cross tone=bad size=small if=(done and chooses and not good)
+          text say tone=(if(done, ink, muted))
+        flex gap=s align=center
+          press id=reveal emphasis=high disabled=(mode == write and entry == "") if=(not chooses and not done)
+            icon name=eye size=small
+            text "Reveal"
+            @click set revealed=true send predicted correct=true option=0 text=entry emit answered correct=true
+          press id=again label="Ask me again" if=(retry and done)
+            icon name=reset size=small
+            text "Ask me again"
+            @click set picked=-1 revealed=false entry=""

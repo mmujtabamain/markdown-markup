@@ -1,16 +1,25 @@
-theorem@1 "A theorem card: its kind and name, the statement, and the proof in a disclosure."
+theorem@1 "A theorem card: its kind and name in the header, the statement, and the proof under it, blurred until the reader asks for it (or open from the start), so showing it moves nothing."
   fields kind name
   in kind choice(theorem|lemma|proposition|corollary|definition|claim) = theorem
   in name text = "" "e.g. Pythagoras"
   in statement text "the statement, with maths"
   in proof text = "" "the proof; empty for none"
-  in open bool = false "start with the proof open"
+  in open bool = false "start with the proof shown"
+  var flipped bool = false
+  shown = if(flipped, not open, open)
   word = if(kind == theorem, "Theorem", if(kind == lemma, "Lemma", if(kind == proposition, "Proposition", if(kind == corollary, "Corollary", if(kind == definition, "Definition", "Claim")))))
   title = word + if(name == "", "", " (" + name + ")")
   project md = ("**" + title + ".** " + statement + if(proof == "", "", "\n\n:::details \"Proof\"\n" + proof + " ∎\n:::") + "\n")
-  stack gap=s pad=l stroke=muted radius=card fill=surface
-    text title weight=bold
-    text statement
-    disclosure "Proof" open=open if=(proof != "")
-      text proof
-      text "∎" tone=muted align=end
+  frame kind=word title=name status=(if(proof == "", "", if(shown, "", "Try to prove it before you look.")))
+    stack pad=l gap=m
+      text statement
+      stack gap=xs pad=m radius=card tint=muted blur=(not shown) if=(proof != "")
+        text "Proof" font=mono size=small tone=muted caps=true
+        text proof
+        text "∎" tone=muted align=end
+    fill bar
+      stack grow if=(proof != "" and shown)
+      press id=proof emphasis=(if(shown, low, normal)) if=(proof != "")
+        icon name=eye size=small
+        text (if(shown, "Hide the proof", "Show the proof"))
+        @click set flipped=(not flipped)

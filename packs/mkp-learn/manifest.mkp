@@ -1,4 +1,4 @@
 pack mkp-learn@1 "Learning pieces: quizzes (choice, numeric, expression, cloze, order, find-error, self-check, sets), worked steps, theorem cards, annotated source and scenarios."
   requires core@1
   depends mkp-ui@1
-  provides quiz.numeric quiz.choice quiz.expression quiz.cloze quiz.gap quiz.order quiz.find-error quiz.self-check quiz.set worked-steps theorem annotated-source scenario
+  provides quiz.hints quiz.answer quiz.numeric quiz.choice quiz.expression quiz.cloze quiz.gap quiz.order quiz.find-error quiz.self-check quiz.set quiz.setbar worked-steps theorem annotated-source scenario predict

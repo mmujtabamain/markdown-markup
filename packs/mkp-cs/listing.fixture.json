@@ -1,0 +1,20 @@
+{ "widget": "listing@1", "cases": {
+  "diff": { "summary": "A change to config.yaml: one line removed, one added with its new value marked, and a lint warning on the cache's TTL.",
+    "props": { "kind": "Review", "title": "config.yaml", "lang": "yaml", "heading": "changes in **config.yaml**", "note": "2 changed, 1 warning",
+      "code": ["server:", "  port: 8080", "-  workers: 2", "+  workers: 8", "  timeout: 30s", "cache:", "  ttl: 0"],
+      "marks": [
+        { "line": 3, "tone": "bad", "note": "removed" },
+        { "line": 4, "tone": "ok", "note": "added" },
+        { "line": 4, "tone": "ok", "from": 13, "to": 13 },
+        { "line": 7, "tone": "bad", "from": 8, "to": 8, "note": "lint: 0 disables the cache" } ] } },
+  "stepped": { "summary": "A failing checkout stepped through to the line that throws.",
+    "props": { "kind": "Debugger", "title": "Why checkout fails", "lang": "javascript",
+      "code": ["async function checkout(cart) {", "  const total = cart.items.reduce((s, i) => s + i.price, 0);", "  const user = await getUser(cart.userId);",
+        "  if (!user.address) throw new Error('no address');", "  return charge(user.card, total);", "}"],
+      "steps": [
+        { "line": 2, "note": "Sum the prices: total = 42.50." },
+        { "line": 3, "note": "Fetch the user (await)." },
+        { "line": 4, "note": "user.address is undefined: it throws.", "marks": [{ "line": 4, "tone": "bad", "from": 7, "to": 19, "note": "TypeError" }] } ] },
+    "play": [{ "press": "pos.play" }, { "wait": 3000 }] },
+  "line": { "summary": "A short loop with its second line current.",
+    "props": { "lang": "python", "title": "A running sum", "line": 2, "code": ["total = 0", "for x in xs:", "    total += x"] } } } }

@@ -1,0 +1,133 @@
+{
+ "widget": "predict@1",
+ "cases": {
+  "guess-before-the-chart": {
+   "summary": "Guess the p95 of checkout latency before the chart is shown; the reader picks about 300 ms and the chart is revealed.",
+   "props": {
+    "label": "Chart",
+    "title": "Checkout latency",
+    "question": "Guess the p95 before you see the chart: most requests take about 60 ms.",
+    "options": [
+     {
+      "text": "About 70 ms",
+      "why": "The median is near 60, but the tail is not."
+     },
+     {
+      "text": "About 300 ms",
+      "right": true
+     },
+     {
+      "text": "About 1 s",
+      "why": "Too high: only one request is slow."
+     }
+    ],
+    "explain": "p50 ≈ 63 ms, p95 ≈ 300 ms: one slow request in twelve is enough to pull the 95th percentile far above the median.",
+    "body": "$$\\rule{0.9em}{0.53em}\\,\\rule{0.9em}{0.60em}\\,\\rule{0.9em}{0.64em}\\,\\rule{0.9em}{0.69em}\\,\\rule{0.9em}{0.72em}\\,\\rule{0.9em}{0.76em}\\,\\rule{0.9em}{0.82em}\\,\\rule{0.9em}{0.88em}\\,\\rule{0.9em}{0.99em}\\,\\rule{0.9em}{1.19em}\\,\\rule{0.9em}{1.75em}\\,\\rule{0.9em}{5.12em}$$\n\nResponse times of the last twelve requests, in ms: 42, 48, 51, 55, 58, 61, 66, 70, 79, 95, 140, 410."
+   },
+   "play": [
+    {
+     "press": "option2"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "which-request-fails": {
+   "summary": "A gate under three requests: which one is rejected for a missing login? The reader picks the second.",
+   "props": {
+    "mode": "gate",
+    "label": "Log",
+    "title": "Three requests",
+    "question": "Which request is rejected for a missing login?",
+    "options": [
+     {
+      "text": "#1",
+      "why": "#1 was 200 · 41 ms."
+     },
+     {
+      "text": "#2",
+      "why": "#2 was 422 · 12 ms."
+     },
+     {
+      "text": "#3",
+      "right": true,
+      "why": "#3 was 401 · 3 ms."
+     }
+    ],
+    "explain": "401 means not authenticated; 422 is a request that was understood but not valid.",
+    "body": "1. `GET /api/orders?page=2`\n2. `POST /api/orders {\"qty\": -1}`\n3. `GET /api/orders/9` (no token)"
+   },
+   "play": [
+    {
+     "press": "option2"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "write-first": {
+   "summary": "A reflection: write what you would change in sprint planning, then compare it with the team's retro notes.",
+   "props": {
+    "mode": "write",
+    "label": "Retro",
+    "title": "Sprint planning",
+    "question": "What would you do differently in the next sprint's planning?",
+    "instruction": "Write first: then compare with what the team wrote.",
+    "body": "**The team's retro notes**\n\n- Size stories before committing to them.\n- Keep a day free for the unplanned.\n- Split anything bigger than three days."
+   },
+   "play": [
+    {
+     "set": {
+      "entry": "Plan less, and leave room for support work."
+     }
+    },
+    {
+     "press": "reveal"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "recall": {
+   "summary": "A flash card: say what HTTP 429 means before revealing it.",
+   "props": {
+    "mode": "recall",
+    "label": "Flash card",
+    "title": "HTTP status codes",
+    "question": "What does HTTP 429 mean?",
+    "body": "**Too Many Requests:** slow down and retry after the `Retry-After` header."
+   }
+  },
+  "try-first": {
+   "summary": "Factorise a quadratic on paper first, then reveal the factors.",
+   "props": {
+    "mode": "try",
+    "label": "Worked example",
+    "title": "Factorising",
+    "question": "Factorise $x^2 - 5x + 6$.",
+    "body": "$$x^2 - 5x + 6 = (x - 2)(x - 3)$$\n\nTwo numbers with product $6$ and sum $-5$: $-2$ and $-3$."
+   },
+   "play": [
+    {
+     "press": "reveal"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "no-question": {
+   "props": {
+    "options": []
+   },
+   "expect": {
+    "errors": [
+     "mkp.missing-input"
+    ]
+   }
+  }
+ }
+}

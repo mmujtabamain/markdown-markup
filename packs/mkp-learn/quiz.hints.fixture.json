@@ -1,0 +1,3 @@
+{ "widget": "quiz.hints@1", "cases": {
+  "two": { "summary": "Two hints behind a lightbulb, none shown yet.", "props": { "hints": ["Users first: stop the damage before you explain it.", "Blame is not a step."] } },
+  "one-shown": { "summary": "The first of two hints shown.", "props": { "hints": ["Multiply: euros times the rate.", "The rate is dollars per euro."] }, "play": [ { "set": { "shown": 1 } } ] } } }

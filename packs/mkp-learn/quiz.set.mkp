@@ -1,5 +1,5 @@
-quiz.set@1 "A set of questions one at a time, with a running score; the first try at each counts, and finishing sends the score."
-  in title text = "" "shown above the set"
+quiz.set@1 "A set of questions one at a time, with a running score: each question is the set's own frame, its caption says where in the set it is, and the set's buttons sit in its bar. The first try at each counts, and finishing sends the score."
+  in title text = "" "the set's name, in each question's caption"
   in items list(record item {kind: choice(pick|numeric|expression), question: text, answer: text = "", vars: list(text) = ["x"], multiple: bool = false,
       options: list(record option {text: text, right: bool = false, why: text = ""}), solution: text = ""}) "the questions: pick has options, numeric and expression have an answer"
   out finished {correct: int, total: int}
@@ -12,39 +12,58 @@ quiz.set@1 "A set of questions one at a time, with a running score; the first tr
   right = len(filter(keys(firsts), k => firsts[k]))
   fn key(k: int): text = "" + k
   fn ans(k: int): text = if(items[k].kind == pick, join(map(filter(items[k].options, o => o.right), o => o.text), "; "), if(items[k].kind == expression, "`" + items[k].answer + "`", items[k].answer))
+  where = (if(title == "", "Question", title) + " · " + (at + 1) + " of " + n)
   project md = (if(title == "", "", "**" + title + "**\n\n") + join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].question
       + if(items[k].kind == pick, join(map(items[k].options, o => "\n   - " + o.text), ""), "")), "\n")
       + "\n\n:::details \"Answers\"\n" + join(map(range(0, n - 1), k => "" + (k + 1) + ". " + ans(k) + if(items[k].solution == "", "", " — " + items[k].solution)), "\n") + "\n:::\n")
-  stack gap=m
-    flex justify=between align=center gap=m
-      text title weight=bold if=(title != "")
-      text "Question \val{at + 1} of \val{n} · score \val{right} of \val{tried}" tone=muted
-    progress tried n show=fraction label="answered"
+  stack
     each k in 0..(n - 1)
       stack if=(k == at)
         switch on=(items[k].kind)
           case pick
-            quiz.choice question=(items[k].question) multiple=(items[k].multiple)
-              each o in items[k].options
+            quiz.choice label=where question=(items[k].question) multiple=(items[k].multiple)
+              each o in items[k].options key=o.text
                 option o.text right=(o.right) why=(o.why)
               solution (items[k].solution) if=(items[k].solution != "")
               @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true)))
               @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false)))
+              # the set's own buttons, in the question's bar
+              quiz.setbar at=at last=(n - 1) tried=tried right=right done=done
+                @finish set done=true send score correct=right total=n emit finished correct=right total=n
           case numeric
-            quiz.numeric question=(items[k].question) answer=(parse(items[k].answer, [])())
+            quiz.numeric label=where question=(items[k].question) answer=(parse(items[k].answer, [])())
               solution (items[k].solution) if=(items[k].solution != "")
               @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true)))
               @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false)))
+              # the set's own buttons, in the question's bar
+              quiz.setbar at=at last=(n - 1) tried=tried right=right done=done
+                @finish set done=true send score correct=right total=n emit finished correct=right total=n
           else
-            quiz.expression question=(items[k].question) answer=(items[k].answer) vars=(items[k].vars)
+            quiz.expression label=where question=(items[k].question) answer=(items[k].answer) vars=(items[k].vars)
               solution (items[k].solution) if=(items[k].solution != "")
               @correct set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), true)))
               @wrong set firsts=(if(has(firsts, key(k)), firsts, put(firsts, key(k), false)))
-    flex gap=s align=center
-      stepper at last=(n - 1)
-      press id=finish if=(tried == n and not done)
-        text "Finish"
-        @click set done=true send score correct=right total=n emit finished correct=right total=n
-    stack gap=xs pad=m stroke=ok radius=card if=done
-      text "You scored \val{right} out of \val{n}." weight=bold tone=ok
-      text "Only your first try at each question counts." tone=muted size=small
+              # the set's own buttons, in the question's bar
+              quiz.setbar at=at last=(n - 1) tried=tried right=right done=done
+                @finish set done=true send score correct=right total=n emit finished correct=right total=n
+
+part quiz.setbar@1 "A set's own buttons in its question's bar: back and on, the score so far, and Finish once every question has been tried."
+  in at ref int "the set's position"
+  in last int "the last position"
+  in tried int "questions tried"
+  in right int "first tries that were right"
+  in done bool = false "finished"
+  out finish
+  flex gap=s align=center wrap=false
+    text ("score " + right + "/" + tried) font=mono size=small tone=muted if=(tried > 0 and not done)
+    press id=prev emphasis=low label="previous question" disabled=(at <= 0)
+      icon name=prev size=small
+      @click set at=(max(at - 1, 0))
+    press id=next emphasis=low label="next question" disabled=(at >= last)
+      icon name=next size=small
+      @click set at=(min(at + 1, last))
+    press id=finish emphasis=high if=(tried == last + 1 and not done)
+      icon name=flag size=small
+      text "Finish"
+      @click emit finish
+    text ("**Scored " + right + " of " + (last + 1) + ".**") tone=ok if=done

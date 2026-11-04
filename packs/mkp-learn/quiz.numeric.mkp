@@ -1,43 +1,70 @@
-quiz.numeric@1 "A question with a numeric answer, known wrong answers, hints and a worked solution."
+quiz.numeric@1 "A question with a numeric answer: a field whose own line says how the number was read, known wrong answers, hints and a worked solution."
   in question text "the question, with maths"
   in answer num "the right value"
   in tolerance num = 0.000001 "how close counts as right"
+  in label text = "Question" "the caption before the title: what the question belongs to (Exercise, Practice)"
+  in title text = "Work it out" "the header's title, what the reader does"
+  in help text = "" "under the question, small: how to answer (to the cent, in metres)"
+  in caption text = "" "over the field, in capitals: what to type (Amount in USD)"
+  in unit text = "" "the answer's unit, after the value where it is read back (USD)"
   in wrongs list(record wrong {value: num, why: text}) "known wrong answers and why"
   in hints list(record hint {text: text})
   in solutions list(record solution {text: text})
+  in next slot "the caller's own buttons, after the question's in its bar (a set's Next)"
   out correct
   out wrong
   signal answered {correct: bool, value: num} "sent on every check"
   var entry text = ""
   var tries int = 0
-  var hinted int = 0
-  var result choice(none|pass|fail) = none
-  var solved bool = false
+  var result choice(none|pass|fail|unread) = none
+  var calm color = none
   got = parse(entry, [])()
-  right = abs(got - answer) <= tolerance
-  known = find(wrongs, w => abs(w.value - got) <= tolerance, {value: 0, why: ""})
-  stack gap=m pad=m stroke=muted radius=card
-    text question
-    flex gap=s align=center
-      field entry kind=number label="your answer"
-      press if=(right)
-        text "Check"
-        @click set tries=(tries + 1) result=pass send answered correct=true value=got emit correct
-      press if=(not right)
-        text "Check"
-        @click set tries=(tries + 1) result=fail send answered correct=false value=got emit wrong
-    text "Right." tone=ok if=(result == pass)
-    text "Not quite." tone=bad if=(result == fail and known.why == "")
-    text known.why tone=bad if=(result == fail and known.why != "")
-    each k in 0..(hinted - 1)
-      text hints[k].text tone=muted
-    flex gap=s if=(hinted < len(hints) or (len(solutions) > 0 and not solved))
-      press if=(hinted < len(hints))
-        text "Hint"
-        @click set hinted=(hinted + 1)
-      press if=(len(solutions) > 0 and not solved)
-        text "Show the solution"
-        @click set solved=true
-    stack gap=s if=(solved)
-      each sol in solutions
-        text sol.text
+  readable = entry != "" and abs(got) >= 0
+  right = readable and abs(got - answer) <= tolerance
+  known = find(wrongs, w => readable and abs(w.value - got) <= tolerance, {value: 0, why: ""})
+  # as many decimals as the value has, up to six
+  places = if(readable, find(range(0, 6), d => abs(round(got * 10^d) - got * 10^d) < 0.000001, 6), 0)
+  read = (if(readable, format(got, places), "") + if(unit == "", "", " " + unit))
+  say = if(result == pass, "**Correct.** " + read + ".", if(result == fail, "**Not quite.** " + if(known.why != "", known.why, if(len(hints) > 0, "Try a hint.", "Check your working.")),
+      if(result == unread, "That is not a number yet.", "Type your answer, then press Check.")))
+  mood = if(result == none, calm, if(result == pass, ok, if(result == fail, bad, info)))
+  project md = (question + if(help == "", "", " *(" + help + ")*") + "\n\n:::details \"Answer\"\n" + format(answer, find(range(0, 6), d => abs(round(answer * 10^d) - answer * 10^d) < 0.000001, 6))
+      + if(unit == "", "", " " + unit) + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
+  frame kind=label title=title tone=mood
+    fill actions
+      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0)
+      quiz.answer items=(map(solutions, s => s.text)) if=(len(solutions) > 0)
+    stack pad=l gap=m
+      stack gap=xs
+        text question weight=medium
+        text help size=small tone=muted if=(help != "")
+      stack gap=xs
+        text caption font=mono size=small tone=muted caps=true if=(caption != "")
+        field entry kind=number label=(if(caption != "", caption, "your answer")) width=m
+          @change set result=none
+        # its own line, always there, so reading the number back moves nothing
+        flex gap=xs align=center wrap=false
+          icon name=alert tone=warn size=small if=(entry != "" and not readable)
+          text (if(entry == "", "", if(readable, "Reads as `" + read + "`", "Not a number yet"))) size=small tone=(if(entry != "" and not readable, warn, muted)) lines=1
+    fill bar
+      # the line says what to do or how it went; on a narrow screen the buttons wrap under it
+      flex gap=s align=center justify=between grow
+        flex gap=s align=baseline wrap=false grow basis=s
+          icon name=check tone=ok size=small if=(result == pass)
+          icon name=cross tone=bad size=small if=(result == fail)
+          text say tone=(if(result == none, muted, ink))
+        flex gap=s align=center
+          quiz.answer items=(map(solutions, s => s.text)) plain=true spoil=false if=(result == fail and len(solutions) > 0)
+          press id=check_ok emphasis=high if=(right)
+            icon name=check size=small
+            text "Check"
+            @click set tries=(tries + 1) result=pass send answered correct=true value=got emit correct
+          press id=check_wrong emphasis=high disabled=(entry == "") if=(not right and (readable or entry == ""))
+            icon name=check size=small
+            text "Check"
+            @click set tries=(tries + 1) result=fail send answered correct=false value=got emit wrong
+          press id=check_unread emphasis=high if=(entry != "" and not readable)
+            icon name=check size=small
+            text "Check"
+            @click set result=unread
+          slot next

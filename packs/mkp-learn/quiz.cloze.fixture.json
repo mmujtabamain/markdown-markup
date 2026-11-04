@@ -1,13 +1,159 @@
-{ "widget": "quiz.cloze@1", "cases": {
-  "derivatives": { "summary": "Two blanks checked as expressions: the derivatives of $x^2$ and $x^3$.",
-    "props": { "prompt": "Fill in the derivatives.", "match": "expression",
-      "pieces": [ { "text": "The derivative of $x^2$ is", "answer": "2x" }, { "text": "and the derivative of $x^3$ is", "answer": "3x^2" }, { "text": "." } ],
-      "solutions": [ { "text": "Bring the power down and lower it by one: $\\frac{d}{dx}x^n = n x^{n-1}$." } ] },
-    "play": [ { "set": { "entries": { "0": "2x", "1": "3x^3" } } }, { "press": "check" }, { "wait": 100 } ] },
-  "words": { "summary": "Exact-text blanks in a sentence about the parts of a fraction.",
-    "props": { "pieces": [ { "text": "In $\\frac{3}{4}$, $3$ is the", "answer": "numerator" }, { "text": "and $4$ is the", "answer": "denominator" }, { "text": "." } ],
-      "hints": [ { "text": "The one on top counts the parts." } ] },
-    "play": [ { "set": { "entries": { "0": "numerator", "1": "denominator" } } }, { "press": "check_ok" }, { "wait": 100 } ] },
-  "numbers": { "summary": "Number blanks: the first squares, to within a tolerance.",
-    "props": { "match": "number", "tolerance": 0.01, "pieces": [ { "text": "$1, 4, 9,$", "answer": "16" }, { "text": ",", "answer": "25" }, { "text": ", …" } ] } },
-  "bad-match": { "props": { "match": "fuzzy", "pieces": [] }, "expect": { "errors": ["mkp.enum"] } } } }
+{
+ "widget": "quiz.cloze@1",
+ "cases": {
+  "derivatives": {
+   "summary": "Two blanks checked as expressions: the derivatives of $x^2$ and $x^3$.",
+   "props": {
+    "prompt": "Fill in the derivatives.",
+    "match": "expression",
+    "pieces": [
+     {
+      "text": "The derivative of $x^2$ is",
+      "answer": "2x"
+     },
+     {
+      "text": "and the derivative of $x^3$ is",
+      "answer": "3x^2"
+     },
+     {
+      "text": "."
+     }
+    ],
+    "solutions": [
+     {
+      "text": "Bring the power down and lower it by one: $\\frac{d}{dx}x^n = n x^{n-1}$."
+     }
+    ]
+   },
+   "play": [
+    {
+     "set": {
+      "entries": {
+       "0": "2x",
+       "1": "3x^3"
+      }
+     }
+    },
+    {
+     "press": "check"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "words": {
+   "summary": "Exact-text blanks in a sentence about the parts of a fraction.",
+   "props": {
+    "pieces": [
+     {
+      "text": "In $\\frac{3}{4}$, $3$ is the",
+      "answer": "numerator"
+     },
+     {
+      "text": "and $4$ is the",
+      "answer": "denominator"
+     },
+     {
+      "text": "."
+     }
+    ],
+    "hints": [
+     {
+      "text": "The one on top counts the parts."
+     }
+    ]
+   },
+   "play": [
+    {
+     "set": {
+      "entries": {
+       "0": "numerator",
+       "1": "denominator"
+      }
+     }
+    },
+    {
+     "press": "check_ok"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "numbers": {
+   "summary": "Number blanks: the first squares, to within a tolerance.",
+   "props": {
+    "match": "number",
+    "tolerance": 0.01,
+    "pieces": [
+     {
+      "text": "$1, 4, 9,$",
+      "answer": "16"
+     },
+     {
+      "text": ",",
+      "answer": "25"
+     },
+     {
+      "text": ", …"
+     }
+    ]
+   }
+  },
+  "a-word": {
+   "summary": "A one-word answer: the capital of Australia, with the usual wrong answer explained.",
+   "props": {
+    "label": "Quiz",
+    "prompt": "What is the capital of Australia?",
+    "pieces": [
+     {
+      "text": "",
+      "answer": "Canberra",
+      "also": [
+       "canberra",
+       "CANBERRA"
+      ]
+     }
+    ],
+    "praise": "Canberra.",
+    "wrongs": [
+     {
+      "value": "Sydney",
+      "why": "Not Sydney: the capital was built between Sydney and Melbourne."
+     },
+     {
+      "value": "sydney",
+      "why": "Not Sydney: the capital was built between Sydney and Melbourne."
+     }
+    ]
+   },
+   "play": [
+    {
+     "set": {
+      "entries": {
+       "0": "Sydney"
+      }
+     }
+    },
+    {
+     "press": "check"
+    },
+    {
+     "wait": 100
+    }
+   ]
+  },
+  "bad-match": {
+   "props": {
+    "match": "fuzzy",
+    "pieces": []
+   },
+   "expect": {
+    "errors": [
+     "mkp.enum"
+    ]
+   }
+  }
+ }
+}

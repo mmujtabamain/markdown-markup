@@ -1,0 +1,35 @@
+listing@1 "A code listing in a frame: numbered lines, a line or a part of one toned with a note at its end (a diff, a lint), and optionally steps through its lines with a note for each, as a debugger does."
+  in code list(text) "the code, one line each"
+  in lang text = "" "the language, in the header and the Markdown code block"
+  in kind text = "Code" "what kind of listing it is, said small before the title (Review, Debugger)"
+  in title text = "" "the header's title, such as the file's name"
+  in heading text = "" "a caption over the code, such as changes in **config.yaml**; empty: none"
+  in note text = "" "right of the caption: a count or a remark"
+  in line int = 0 "the current line, from 1, when there are no steps"
+  in marks list(record mark {line: int, tone: color = ink, note: text = "", from: int = 0, to: int = 0}) = [] "marks on lines, from 1: the line's tone (ok added, bad removed, warn, info, accent; ink for none), only over columns from to to (from 1) when from is above 0, and a note at its end"
+  in steps list(record step {line: int, note: text = "", marks: list(record smark {line: int, tone: color = ink, note: text = "", from: int = 0, to: int = 0}) = []}) = [] "steps through the code: the line about to run, what is said in the bar, and marks shown only at this step (the error it throws)"
+
+  stepped = len(steps) > 0
+  pos = steps (max(len(steps), 1)) play=1200ms "step"
+  cur = if(stepped, steps[pos].line, line)
+  # a step's own marks come first: a provider draws the first mark of a line
+  fn plain(x) = {line: x.line, tone: x.tone, note: x.note, from: x.from, to: x.to}
+  stepmarks = flatten(map(filter(range(0, len(steps) - 1), k => k == pos), k => map(steps[k].marks, x => plain(x))))
+  shown = stepmarks + map(marks, x => plain(x))
+  status = if(stepped, "**Line " + steps[pos].line + "**" + if(steps[pos].note == "", "", " — " + steps[pos].note), "")
+  boxed = heading != "" or note != ""
+
+  project md = ("```" + lang + "\n" + join(code, "\n") + "\n```\n" +
+      if(len(marks) == 0, "", "\n" + join(map(filter(marks, x => x.note != ""), x => "- line " + x.line + ": " + x.note), "\n") + "\n") +
+      if(stepped, "\n" + join(map(range(0, len(steps) - 1), k => "" + (k + 1) + ". line " + steps[k].line + if(steps[k].note == "", "", " — " + steps[k].note)), "\n") + "\n", ""))
+
+  # the language is said in the header, so the listing itself is only lines
+  frame kind=(kind + if(lang == "", "", " · " + lang)) title=title status=status
+    # the bar only when it steps: the steps' buttons, the note, a track and the count
+    fill bar
+      switch on=stepped
+        case true
+          controls pos
+    pane title=heading note=note if=boxed
+      code (join(code, "\n")) line=(cur) marks=(shown)
+    code (join(code, "\n")) line=(cur) marks=(shown) if=(not boxed)

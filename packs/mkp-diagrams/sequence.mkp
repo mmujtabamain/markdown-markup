@@ -112,4 +112,4 @@ sequence@1 "A sequence diagram that plays: participants as lanes with dashed lif
   each r in rows key=r.id
     arrow from=(r.id + "a") to=(r.id + "b") if=(not local(r) and not lost(r)) tone=(ink(r.k)) bold=(r.k == pos) dim=(r.k > pos) line=(if(r.mm.reply, dashed, solid))
     # a lost message stops half way, with a bar across its end
-    arrow from=(r.id + "a") to=(r.id + "b") if=(lost(r)) head=one tone=(ink(r.k)) bold=(r.k == pos) dim=(r.k > pos) line=(if(r.mm.reply, dashed, solid))
+    arrow from=(r.id + "a") to=(r.id + "b") if=(lost(r)) head=cross tone=(ink(r.k)) bold=(r.k == pos) dim=(r.k > pos) line=(if(r.mm.reply, dashed, solid))

@@ -1,41 +1,58 @@
-scenario@1 "A branching scenario: each scene offers choices that lead to other scenes, until an ending; the reader can step back or start again."
+scenario@1 "A branching scenario: each scene offers choices that lead to other scenes, until an ending; the bar says where the reader is and how it ended, with Back and Start again."
   in title text = ""
+  in label text = "Scenario" "the frame's caption"
   in scenes list(record scene {id: text, text: text, ending: choice(none|good|bad|neutral) = none}) "the scenes; the first is the start, and a scene no link leaves is an ending"
   in links list(record link {from: text, label: text, to: text, note: text = ""}) "the choices: from a scene, its label, the scene it leads to, and what the reader learns on the way"
   signal ended {id: text, ending: text, steps: int} "sent when the reader reaches an ending"
   var at text = ""
   var trail list(text) = []
   var note text = ""
+  var calm color = none
   ids = map(scenes, s => s.id)
   cur = if(at == "", scenes[0].id, at)
   fn find(id: text): int = max(indexof(ids, id), 0)
   here = scenes[find(cur)]
   picks = filter(links, x => x.from == cur)
+  over = len(picks) == 0
   fn ends(id: text): bool = len(filter(links, x => x.from == id)) == 0
   fn kind(id: text): text = if(scenes[find(id)].ending == good, "good", if(scenes[find(id)].ending == bad, "bad", "neutral"))
+  # what the last choice led to comes first, then what to do, or how it ended
+  say = (if(note == "", "", note + " ") + if(not over, "What do you do?", if(here.ending == good, "**A good ending.** ", if(here.ending == bad, "**A bad ending.** ", "**The end.** "))
+      + "It took " + (len(trail)) + if(len(trail) == 1, " choice.", " choices.")))
+  mood = if(not over, calm, if(here.ending == good, ok, if(here.ending == bad, bad, info)))
   project md = ((if(title == "", "", "**" + title + "**\n\n")) + join(map(scenes, s => "**" + s.id + ".** " + s.text
       + join(map(filter(links, x => x.from == s.id), p => "\n- " + p.label + " → " + p.to), "")), "\n\n") + "\n")
-  stack gap=m pad=m stroke=muted radius=card
-    flex justify=between align=center gap=m
-      text title weight=bold if=(title != "")
-      text "Step \val{len(trail) + 1}" tone=muted size=small
-    text note tone=muted if=(note != "")
-    text here.text
-    stack gap=xs if=(len(picks) > 0)
-      each p in picks key=(p.to + p.label)
-        press kind=option if=(not ends(p.to))
-          text p.label
-          @click set trail=(trail + [cur]) at=p.to note=p.note
-        press kind=option if=(ends(p.to))
-          text p.label
-          @click set trail=(trail + [cur]) at=p.to note=p.note send ended id=p.to ending=(kind(p.to)) steps=(len(trail) + 1)
-    text "A good ending." tone=ok weight=bold if=(len(picks) == 0 and here.ending == good)
-    text "A bad ending." tone=bad weight=bold if=(len(picks) == 0 and here.ending == bad)
-    text "The end." tone=muted weight=bold if=(len(picks) == 0 and here.ending != good and here.ending != bad)
-    flex gap=s
-      press id=back if=(len(trail) > 0)
-        text "Back"
-        @click set at=(trail[len(trail) - 1]) trail=(slice(trail, 0, len(trail) - 1)) note=""
-      press id=restart if=(len(trail) > 0)
-        text "Start again"
-        @click set at="" trail=[] note=""
+  frame kind=(label + " · step " + (len(trail) + 1)) title=title tone=mood
+    stack pad=l gap=m
+      text here.text weight=medium
+      stack gap=s if=(not over)
+        each p in picks key=(p.to + p.label)
+          press id=("choice" + (indexof(picks, p) + 1)) kind=plain label=(p.label) if=(not ends(p.to))
+            flex gap=s align=center wrap=false pad=m stroke=muted radius=card fill=surface
+              stack grow
+                text p.label align=start
+              icon name=right tone=muted size=small
+            @click set trail=(trail + [cur]) at=p.to note=p.note
+          press id=("choice" + (indexof(picks, p) + 1)) kind=plain label=(p.label) if=(ends(p.to))
+            flex gap=s align=center wrap=false pad=m stroke=muted radius=card fill=surface
+              stack grow
+                text p.label align=start
+              icon name=right tone=muted size=small
+            @click set trail=(trail + [cur]) at=p.to note=p.note send ended id=p.to ending=(kind(p.to)) steps=(len(trail) + 1)
+    fill bar
+      # the line says what to do or how it went; on a narrow screen the buttons wrap under it
+      flex gap=s align=center justify=between grow
+        flex gap=s align=baseline wrap=false grow basis=s
+          icon name=check tone=ok size=small if=(over and here.ending == good)
+          icon name=cross tone=bad size=small if=(over and here.ending == bad)
+          icon name=flag tone=info size=small if=(over and here.ending != good and here.ending != bad)
+          text say tone=(if(over or note != "", ink, muted))
+        flex gap=s align=center
+          press id=back if=(len(trail) > 0)
+            icon name=prev size=small
+            text "Back"
+            @click set at=(trail[len(trail) - 1]) trail=(slice(trail, 0, len(trail) - 1)) note=""
+          press id=restart if=(len(trail) > 0)
+            icon name=reset size=small
+            text "Start again"
+            @click set at="" trail=[] note=""

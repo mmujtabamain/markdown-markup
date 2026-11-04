@@ -1,62 +1,104 @@
-quiz.order@1 "Put items in order: they start shuffled, the reader moves them with up and down presses, then checks."
+quiz.order@1 "Build an order: the items wait in a shuffled pool, the reader adds them one by one with + to an answer list, moves them there with up and down, and checks. Decoys are steps that do not belong at all."
   in question text "what to order, and by what"
   in items list(record item {text: text}) "the items, in the right order"
+  in decoys list(record decoy {text: text}) "items that do not belong in the answer at all"
+  in label text = "Question" "the caption before the title: what the question belongs to (Runbook, Practice)"
+  in title text = "Put in order" "the header's title, what the reader does"
+  in help text = "" "under the question, small: how to answer (one of the steps does not belong)"
+  in pool text = "To choose from" "the pool's caption"
+  in placed text = "Your order" "the answer's caption"
   in hints list(record hint {text: text})
   in solutions list(record solution {text: text})
+  in next slot "the caller's own buttons, after the question's in its bar (a set's Next)"
   out correct
   out wrong
-  signal answered {correct: bool, order: list(int)} "sent on every check, with the item indices as placed"
+  signal answered {correct: bool, order: list(int)} "sent on every check, with the item indices as placed (decoys after the items)"
   host seed int = 0 "per-reader seed for the shuffle"
   var moved list(int) = []
   var result choice(none|pass|fail) = none
-  var hinted int = 0
-  var solved bool = false
+  var calm color = none
   n = len(items)
-  mixed = sort(range(0, n - 1), k => rand(seed + 17, k))
-  # never start already in order
-  start = if(n > 1 and len(filter(range(0, n - 1), k => mixed[k] == k)) == n, reverse(mixed), mixed)
-  now = if(len(moved) == n, moved, start)
+  every = map(items, x => x.text) + map(decoys, x => x.text)
+  total = len(every)
+  mixed = sort(range(0, total - 1), k => rand(seed + 17, k))
+  # never start with the pool already in order
+  shuffled = if(total > 1 and len(filter(range(0, total - 1), k => mixed[k] == k)) == total, reverse(mixed), mixed)
+  fn taken(j: int): bool = indexof(moved, j) >= 0
+  left = filter(shuffled, j => not taken(j))
   fn swap(xs: list(int), a: int, b: int): list(int) = map(range(0, len(xs) - 1), k => if(k == a, xs[b], if(k == b, xs[a], xs[k])))
-  fn pos(j: int): int = indexof(now, j)
-  placed = len(filter(range(0, n - 1), k => now[k] == k))
-  right = placed == n
-  project md = (question + "\n\n" + join(map(start, j => "- " + items[j].text), "\n")
+  fn misplaced(k: int): bool = moved[k] != k
+  off = len(filter(range(0, len(moved) - 1), k => misplaced(k)))
+  right = len(moved) == n and off == 0
+  say = if(result == none, if(len(moved) == 0, "Add the steps that belong, in order.", "" + len(moved) + " placed. Check when the order is done."),
+      if(result == pass, "**Correct.** That is the right order.", "**Not quite.** " + if(off == 0, "Right so far, but there is more to add.",
+      if(off == 1, "One step is out of place or does not belong.", "" + off + " steps are out of place or do not belong."))))
+  mood = if(result == none, calm, if(result == pass, ok, bad))
+  sol = [join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].text), "  \n")] + map(solutions, s => s.text)
+  project md = (question + "\n\n" + join(map(shuffled, j => "- " + every[j]), "\n")
       + "\n\n:::details \"Answer\"\n" + join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].text), "\n")
       + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
-  stack gap=m pad=m stroke=muted radius=card
-    text question
-    stack gap=xs
-      each j in now key=j
-        flex gap=s align=center wrap=false pad=s stroke=muted radius=card
-          text ("" + (pos(j) + 1) + ".") tone=muted
-          stack grow
-            text items[j].text
-          text "✓" tone=ok if=(result != none and pos(j) == j)
-          text "✗" tone=bad if=(result != none and pos(j) != j)
-          press label=("move up: " + items[j].text) disabled=(pos(j) == 0)
-            text "↑"
-            @click set moved=(swap(now, pos(j), pos(j) - 1)) result=none
-          press label=("move down: " + items[j].text) disabled=(pos(j) == n - 1)
-            text "↓"
-            @click set moved=(swap(now, pos(j), pos(j) + 1)) result=none
-    flex gap=s align=center
-      press id=check_ok if=(right)
-        text "Check"
-        @click set result=pass send answered correct=true order=now emit correct
-      press id=check if=(not right)
-        text "Check"
-        @click set result=fail send answered correct=false order=now emit wrong
-      press if=(hinted < len(hints))
-        text "Hint"
-        @click set hinted=(hinted + 1)
-      press if=(result == fail and not solved)
-        text "Show the order"
-        @click set solved=true
-    text "Right order." tone=ok if=(result == pass)
-    text "\val{placed} of \val{n} in the right place." tone=bad if=(result == fail)
-    each k in 0..(hinted - 1)
-      text hints[k].text tone=muted
-    stack gap=s if=solved
-      text (join(map(range(0, n - 1), k => "" + (k + 1) + ". " + items[k].text), "  \n"))
-      each s in solutions
-        text s.text
+  # one height from the start, so adding and moving never resizes it
+  frame kind=label title=title tone=mood height=(if(total > 4, l, m))
+    fill actions
+      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0)
+      quiz.answer items=sol word="order"
+    stack pad=l gap=m
+      stack gap=xs
+        text question weight=medium
+        text help size=small tone=muted if=(help != "")
+      flex gap=m align=stretch
+        stack gap=s pad=s radius=card tint=muted grow basis=s
+          flex justify=between align=center pad=xs
+            text pool font=mono size=small tone=muted caps=true
+            text ("" + len(left)) font=mono size=small tone=muted
+          each j in left key=j
+            # the whole card is the button: press anywhere on it to add it
+            press id=("add" + (j + 1)) kind=plain label=("Add “" + every[j] + "” to your answer")
+              flex gap=s align=center wrap=false pad=s stroke=muted radius=card fill=surface
+                stack grow
+                  text every[j] align=start
+                icon name=plus tone=muted size=small
+              @click set moved=(moved + [j]) result=none
+          text "Everything is placed." size=small tone=muted if=(len(left) == 0)
+        stack gap=s pad=s radius=card stroke=muted grow basis=s
+          flex justify=between align=center pad=xs
+            text placed font=mono size=small tone=muted caps=true
+            text ("" + len(moved)) font=mono size=small tone=muted
+          each k in 0..(len(moved) - 1)
+            flex gap=s align=center wrap=false pad=s stroke=(if(result != none and misplaced(k), bad, muted)) radius=card fill=surface tint=(if(result != none and misplaced(k), bad, surface))
+              text ("" + (k + 1)) font=mono size=small tone=muted
+              stack grow
+                text every[moved[k]]
+              flex wrap=false
+                press emphasis=low label=("Move “" + every[moved[k]] + "” up") disabled=(k == 0)
+                  icon name=up size=small
+                  @click set moved=(swap(moved, k, k - 1)) result=none
+                press emphasis=low label=("Move “" + every[moved[k]] + "” down") disabled=(k == len(moved) - 1)
+                  icon name=down size=small
+                  @click set moved=(swap(moved, k, k + 1)) result=none
+                press emphasis=low label=("Remove “" + every[moved[k]] + "” from your answer")
+                  icon name=minus size=small
+                  @click set moved=(filter(moved, j => j != moved[k])) result=none
+          text "Nothing yet. Use + to add one." size=small tone=muted if=(len(moved) == 0)
+    fill bar
+      # the line says what to do or how it went; on a narrow screen the buttons wrap under it
+      flex gap=s align=center justify=between grow
+        flex gap=s align=baseline wrap=false grow basis=s
+          icon name=check tone=ok size=small if=(result == pass)
+          icon name=cross tone=bad size=small if=(result == fail)
+          text say tone=(if(result == none, muted, ink))
+        flex gap=s align=center
+          quiz.answer items=sol word="order" plain=true spoil=false if=(result == fail)
+          press id=restart if=(len(moved) > 0)
+            icon name=reset size=small
+            text "Start over"
+            @click set moved=[] result=none
+          press id=check_ok emphasis=high if=(right)
+            icon name=check size=small
+            text "Check"
+            @click set result=pass send answered correct=true order=moved emit correct
+          press id=check emphasis=high disabled=(len(moved) == 0) if=(not right)
+            icon name=check size=small
+            text "Check"
+            @click set result=fail send answered correct=false order=moved emit wrong
+          slot next

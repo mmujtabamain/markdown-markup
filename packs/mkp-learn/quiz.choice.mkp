@@ -1,58 +1,86 @@
-quiz.choice@1 "A question with options to pick: one right answer, or several with multiple; feedback for each option, hints and a worked solution."
+quiz.choice@1 "A question with options to pick: one right answer, checked as soon as it is picked, or several with multiple, ticked and then checked; feedback for each option, hints and a worked solution."
   in question text "the question, with maths"
   in multiple bool = false "several options may be right, and the reader ticks every one"
+  in label text = "Question" "the caption before the title: what the question belongs to (Practice, Theory test, Review)"
+  in title text = "" "the header's title, what the reader does; empty: Pick one, or Select all that apply"
+  in help text = "" "under the question, small: how to answer"
   in options list(record option {text: text, right: bool = false, why: text = ""}) "the options, with why each is right or wrong"
   in hints list(record hint {text: text})
-  in solutions list(record solution {text: text})
+  in solutions list(record solution {text: text}) "the worked solution; empty: the right options and why"
+  in next slot "the caller's own buttons, after the question's in its bar (a set's Next)"
   out correct
   out wrong
   signal answered {correct: bool, picked: list(int)} "sent on every check"
   var picked list(int) = []
   var result choice(none|pass|fail) = none
-  var hinted int = 0
-  var shown bool = false
+  var peek int = -1
+  var calm color = none
   n = len(options)
   rights = filter(range(0, n - 1), k => options[k].right)
-  right = len(picked) == len(rights) and len(filter(picked, k => options[k].right)) == len(rights)
-  fn has(k: int): bool = indexof(picked, k) >= 0
-  fn verdict(k: int): color = if(result != none and has(k), if(options[k].right, ok, bad), ink)
+  hits = len(filter(picked, k => options[k].right))
+  misses = len(picked) - hits
+  right = len(picked) == len(rights) and hits == len(rights)
+  locked = result != none
+  good = result == pass
+  fn chosen(k: int): bool = indexof(picked, k) >= 0
+  fn verdict(k: int): color = if(locked and chosen(k), if(options[k].right, ok, bad), ink)
+  heading = if(title != "", title, if(multiple, "Select all that apply", "Pick one"))
+  sol = if(len(solutions) > 0, map(solutions, s => s.text), map(filter(options, o => o.right), o => "**" + o.text + "**" + if(o.why == "", "", " — " + o.why)))
+  seen = if(peek >= 0 and peek < n, options[max(peek, 0)], {text: "", right: false, why: ""})
+  tally = if(right, "That is exactly the right set.", "You picked " + hits + " of " + len(rights) + " right option" + if(len(rights) == 1, "", "s")
+      + if(misses == 0, "", " and " + misses + " that " + if(misses == 1, "is", "are") + " not right") + ".")
+  say = if(not locked, if(multiple, "Pick every option that applies, then check.", "Pick one answer."),
+      if(multiple and peek >= 0, if(seen.right, "**Belongs.** ", "**Does not belong.** ") + seen.why,
+      if(multiple, if(good, "**Correct.** ", "**Not quite.** ") + tally + " Press a marked option to read why.",
+      if(good, "**Correct.** ", "**Not quite.** ") + if(len(picked) > 0, options[picked[0]].why, ""))))
+  mood = if(not locked, calm, if(multiple and peek >= 0, if(seen.right, ok, bad), if(good, ok, bad)))
   fn answers(sep: text): text = join(map(filter(options, o => o.right), o => "- " + o.text + if(o.why == "", "", sep + o.why)), "\n")
   project md = (question + if(multiple, " *(Tick every right answer.)*", "") + "\n\n"
       + join(map(options, o => if(multiple, "- [ ] ", "- ") + o.text), "\n")
       + "\n\n:::details \"Answer\"\n" + answers(": ")
       + join(map(solutions, s => "\n\n" + s.text), "") + "\n:::\n")
-  stack gap=m pad=m stroke=muted radius=card
-    text question
-    text "Tick every right answer." tone=muted size=small if=multiple
-    stack gap=xs
-      each k in 0..(n - 1)
-        stack gap=xs
-          press kind=radio selected=(has(k)) tone=(verdict(k)) if=(not multiple)
-            text options[k].text
-            @click set picked=[k] result=none
-          press kind=check selected=(has(k)) tone=(verdict(k)) if=multiple
-            text options[k].text
-            @click set picked=(if(has(k), filter(picked, j => j != k), sort(picked + [k], j => j))) result=none
-          text ("✓ " + options[k].why) tone=ok size=small if=(result != none and has(k) and options[k].right and options[k].why != "")
-          text ("✗ " + options[k].why) tone=bad size=small if=(result != none and has(k) and not options[k].right and options[k].why != "")
-    flex gap=s align=center
-      press id=check_ok if=(right) disabled=(len(picked) == 0)
-        text "Check"
-        @click set result=pass send answered correct=true picked=picked emit correct
-      press id=check if=(not right) disabled=(len(picked) == 0)
-        text "Check"
-        @click set result=fail send answered correct=false picked=picked emit wrong
-      press if=(hinted < len(hints))
-        text "Hint"
-        @click set hinted=(hinted + 1)
-      press if=(result == fail and not shown)
-        text "Show the answer"
-        @click set shown=true
-    text "Right." tone=ok if=(result == pass)
-    text (if(multiple and len(filter(picked, k => options[k].right)) == len(picked), "Right so far, but there is more to tick.", "Not quite.")) tone=bad if=(result == fail)
-    each k in 0..(hinted - 1)
-      text hints[k].text tone=muted
-    stack gap=s if=(shown or result == pass)
-      text (answers(" — ")) if=shown
-      each s in solutions
-        text s.text
+  frame kind=label title=heading tone=mood
+    fill actions
+      quiz.hints hints=(map(hints, h => h.text)) if=(len(hints) > 0)
+      quiz.answer items=sol
+    stack pad=l gap=m
+      stack gap=xs
+        text question weight=medium
+        text help size=small tone=muted if=(help != "")
+      stack gap=s
+        each k in 0..(n - 1)
+          stack dim=(locked and not chosen(k))
+            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and options[k].right)
+              text options[k].text
+              @click set picked=[k] result=pass send answered correct=true picked=[k] emit correct
+            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) if=(not multiple and not locked and not options[k].right)
+              text options[k].text
+              @click set picked=[k] result=fail send answered correct=false picked=[k] emit wrong
+            # answered: the pick stands until Try again (a press that does nothing, so the row keeps its look)
+            press id=("option" + (k + 1)) kind=radio selected=(chosen(k)) tone=(verdict(k)) if=(not multiple and locked)
+              text options[k].text
+            press id=("option" + (k + 1)) kind=check selected=(chosen(k)) tone=(verdict(k)) if=multiple
+              text options[k].text
+              @click set picked=(if(locked, picked, if(chosen(k), filter(picked, j => j != k), sort(picked + [k], j => j)))) peek=(if(locked and chosen(k), k, -1))
+    fill bar
+      # the line says what to do or how it went; on a narrow screen the buttons wrap under it
+      flex gap=s align=center justify=between grow
+        flex gap=s align=baseline wrap=false grow basis=s
+          icon name=check tone=ok size=small if=(mood == ok)
+          icon name=cross tone=bad size=small if=(mood == bad)
+          text say tone=(if(locked, ink, muted))
+        flex gap=s align=center
+          quiz.answer items=sol plain=true spoil=false if=(locked and not good)
+          press id=again if=(locked and not good)
+            icon name=reset size=small
+            text "Try again"
+            @click set picked=[] result=none peek=-1
+          press id=check_ok emphasis=high disabled=(len(picked) == 0) if=(multiple and not locked and right)
+            icon name=check size=small
+            text "Check"
+            @click set result=pass peek=-1 send answered correct=true picked=picked emit correct
+          press id=check emphasis=high disabled=(len(picked) == 0) if=(multiple and not locked and not right)
+            icon name=check size=small
+            text "Check"
+            @click set result=fail peek=-1 send answered correct=false picked=picked emit wrong
+          slot next
