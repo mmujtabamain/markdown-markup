@@ -1,0 +1,339 @@
+{
+  "widget": "rowlinks@1",
+  "cases": {
+    "invoices-and-payments": {
+      "summary": "Seven invoices beside five payments: three payments settle their invoice, one is short, and one has no reference, so its match is a guess.",
+      "props": {
+        "kind": "Reconcile",
+        "title": "Which payment settles which invoice",
+        "left": {
+          "name": "invoices",
+          "cols": [
+            "id",
+            "customer",
+            "amount"
+          ],
+          "rows": [
+            [
+              "INV-1041",
+              "Acme Ltd",
+              "1,200.00"
+            ],
+            [
+              "INV-1042",
+              "Borealis",
+              "480.00"
+            ],
+            [
+              "INV-1043",
+              "Acme Ltd",
+              "75.50"
+            ],
+            [
+              "INV-1044",
+              "Cobalt & Co",
+              "2,990.00"
+            ],
+            [
+              "INV-1045",
+              "Dunmore",
+              "310.00"
+            ],
+            [
+              "INV-1046",
+              "Borealis",
+              "880.00"
+            ],
+            [
+              "INV-1047",
+              "Elm Street",
+              "64.00"
+            ]
+          ]
+        },
+        "right": {
+          "name": "payments",
+          "cols": [
+            "id",
+            "memo",
+            "amount"
+          ],
+          "rows": [
+            [
+              "PAY-77",
+              "ref 1041",
+              "1,200.00"
+            ],
+            [
+              "PAY-78",
+              "ref 1044",
+              "2,500.00"
+            ],
+            [
+              "PAY-79",
+              "no ref",
+              "75.50"
+            ],
+            [
+              "PAY-80",
+              "ref 1042",
+              "480.00"
+            ],
+            [
+              "PAY-81",
+              "ref 1046",
+              "880.00"
+            ]
+          ]
+        },
+        "links": [
+          {
+            "from": "INV-1041",
+            "to": "PAY-77"
+          },
+          {
+            "from": "INV-1042",
+            "to": "PAY-80"
+          },
+          {
+            "from": "INV-1044",
+            "to": "PAY-78",
+            "kind": "partial",
+            "label": "short"
+          },
+          {
+            "from": "INV-1043",
+            "to": "PAY-79",
+            "kind": "unknown"
+          },
+          {
+            "from": "INV-1046",
+            "to": "PAY-81"
+          }
+        ]
+      },
+      "play": [
+        {
+          "press": "L3"
+        },
+        {
+          "wait": 300
+        },
+        {
+          "press": "R4"
+        }
+      ]
+    },
+    "translation-keys": {
+      "summary": "The German strings against the English source: most keys match, one translation is stale, one English key has none, and one German key may be a renamed one.",
+      "props": {
+        "kind": "Translation",
+        "title": "German against the English source",
+        "left": {
+          "name": "en.json",
+          "cols": [
+            "key"
+          ],
+          "rows": [
+            [
+              "nav.home"
+            ],
+            [
+              "nav.settings"
+            ],
+            [
+              "cart.empty"
+            ],
+            [
+              "cart.checkout"
+            ],
+            [
+              "auth.signin"
+            ],
+            [
+              "auth.forgot"
+            ],
+            [
+              "errors.offline"
+            ]
+          ]
+        },
+        "right": {
+          "name": "de.json",
+          "cols": [
+            "key",
+            "text"
+          ],
+          "rows": [
+            [
+              "nav.home",
+              "Start"
+            ],
+            [
+              "nav.settings",
+              "Einstellungen"
+            ],
+            [
+              "cart.checkout",
+              "Zur Kasse"
+            ],
+            [
+              "auth.signin",
+              "Anmelden"
+            ],
+            [
+              "auth.forgot",
+              "Passwort vergessen?"
+            ],
+            [
+              "errors.network",
+              "Keine Verbindung"
+            ]
+          ]
+        },
+        "links": [
+          {
+            "from": "nav.home",
+            "to": "nav.home"
+          },
+          {
+            "from": "nav.settings",
+            "to": "nav.settings"
+          },
+          {
+            "from": "cart.checkout",
+            "to": "cart.checkout",
+            "kind": "partial",
+            "label": "stale"
+          },
+          {
+            "from": "auth.signin",
+            "to": "auth.signin"
+          },
+          {
+            "from": "auth.forgot",
+            "to": "auth.forgot"
+          },
+          {
+            "from": "errors.offline",
+            "to": "errors.network",
+            "kind": "unknown"
+          }
+        ]
+      }
+    },
+    "one-pair-lit": {
+      "summary": "The short payment picked: its line is drawn strong and the others fade.",
+      "props": {
+        "kind": "Reconcile",
+        "title": "Which payment settles which invoice",
+        "lit": "INV-1044",
+        "left": {
+          "name": "invoices",
+          "cols": [
+            "id",
+            "customer",
+            "amount"
+          ],
+          "rows": [
+            [
+              "INV-1041",
+              "Acme Ltd",
+              "1,200.00"
+            ],
+            [
+              "INV-1042",
+              "Borealis",
+              "480.00"
+            ],
+            [
+              "INV-1043",
+              "Acme Ltd",
+              "75.50"
+            ],
+            [
+              "INV-1044",
+              "Cobalt & Co",
+              "2,990.00"
+            ],
+            [
+              "INV-1045",
+              "Dunmore",
+              "310.00"
+            ],
+            [
+              "INV-1046",
+              "Borealis",
+              "880.00"
+            ],
+            [
+              "INV-1047",
+              "Elm Street",
+              "64.00"
+            ]
+          ]
+        },
+        "right": {
+          "name": "payments",
+          "cols": [
+            "id",
+            "memo",
+            "amount"
+          ],
+          "rows": [
+            [
+              "PAY-77",
+              "ref 1041",
+              "1,200.00"
+            ],
+            [
+              "PAY-78",
+              "ref 1044",
+              "2,500.00"
+            ],
+            [
+              "PAY-79",
+              "no ref",
+              "75.50"
+            ],
+            [
+              "PAY-80",
+              "ref 1042",
+              "480.00"
+            ],
+            [
+              "PAY-81",
+              "ref 1046",
+              "880.00"
+            ]
+          ]
+        },
+        "links": [
+          {
+            "from": "INV-1041",
+            "to": "PAY-77"
+          },
+          {
+            "from": "INV-1042",
+            "to": "PAY-80"
+          },
+          {
+            "from": "INV-1044",
+            "to": "PAY-78",
+            "kind": "partial",
+            "label": "short"
+          },
+          {
+            "from": "INV-1043",
+            "to": "PAY-79",
+            "kind": "unknown"
+          },
+          {
+            "from": "INV-1046",
+            "to": "PAY-81"
+          }
+        ]
+      }
+    }
+  }
+}

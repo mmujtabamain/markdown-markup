@@ -1,0 +1,160 @@
+# Cards with a title and rows, and links between rows (or between cards): a database schema, a class
+# diagram, a map of services. The drawing (cardsview) is shared by cards and er.
+#
+# Cards stand in columns by their links: a card sits left of the cards it links to (the longest path
+# from the cards nothing links to; a link that closes a cycle doesn't count), so links run rightwards
+# with level and upright runs only (route=right). Within a column, cards are ordered by where the rows
+# they link to sit (four barycentre sweeps), which keeps links from crossing. A link back to the column
+# before runs left; one within a column goes round through a lane just right of it; one that skips columns
+# runs under the cards between, through a channel of its own at the foot of each.
+#
+# An end is a card id (the card's title) or "card.row". An end is {at, card, row, n}: n is the row's
+# place in its card, -1 for the title.
+
+fn cardends(cards) = index(flatten(map(cards, c => [{at: c.id, card: c.id, row: "", n: -1}]
+    + map(range(0, len(c.rows) - 1), j => {at: c.id + "." + c.rows[j].id, card: c.id, row: c.rows[j].id, n: j}))), e => e.at)
+# the links whose two ends are there
+fn cardlinks(links, ends) = filter(links, l => has(ends, l.from) and has(ends, l.to))
+# the links a pick lights: those at the picked row, or at any row of the picked card
+fn cardlit(links, ends, pick: text) = filter(links, l => pick != "" and (l.from == pick or l.to == pick
+    or ends[l.from].card == pick or ends[l.to].card == pick))
+# an end in words: the card's title, and the row's label after a dot
+fn cardend(cards, ends, e: text): text = fold(filter(cards, c => c.id == ends[e].card), e, (s, c) =>
+    if(ends[e].row == "", c.title, c.title + "." + at(map(filter(c.rows, r => r.id == ends[e].row), r => r.label), 0, "")))
+fn cardlink(cards, ends, l): text = cardend(cards, ends, l.from) + " → " + cardend(cards, ends, l.to) + if(l.label == "", "", " · " + l.label)
+# the same, with the picked end (or the ends on the picked card) in bold
+fn cardbold(cards, ends, e: text, pick: text): text = if(e == pick or ends[e].card == pick, "**" + cardend(cards, ends, e) + "**", cardend(cards, ends, e))
+fn cardsaid(cards, ends, l, pick: text): text = cardbold(cards, ends, l.from, pick) + " → " + cardbold(cards, ends, l.to, pick) + if(l.label == "", "", " · " + l.label)
+# the bar's line: what the pick lights, or how to pick
+fn cardsay(cards, links, pick: text, hint: text): text = if(pick == "" or not has(cardends(cards), pick), hint,
+    if(len(cardlit(cardlinks(links, cardends(cards)), cardends(cards), pick)) == 0, "**" + cardend(cards, cardends(cards), pick) + "** has no links.",
+      join(map(cardlit(cardlinks(links, cardends(cards)), cardends(cards), pick), l => cardsaid(cards, cardends(cards), l, pick)), "; ")))
+# the cards and their links as text
+fn cardsmd(cards, links): text = (join(map(cards, c => "**" + c.title + "**" + if(c.aside == "", "", " (" + c.aside + ")") + ": "
+      + join(map(c.rows, r => r.label + if(len(r.badges) == 0, "", " (" + join(r.badges, ", ") + ")") + if(r.meta == "", "", " `" + r.meta + "`")), ", ")), "\n\n")
+    + if(len(cardlinks(links, cardends(cards))) == 0, "", "\n\n" + join(map(cardlinks(links, cardends(cards)), l => "- " + cardlink(cards, cardends(cards), l)), "\n")) + "\n")
+
+part cardsview@1 "Cards in columns by their links, with lines between their rows; pressing a row or a card's title lights its links and the rows they join, and fades the rest."
+  fields cards links
+  in cards list({id: text, title: text, aside: text, external: bool, rows: list({id: text, label: text, badges: list(text), meta: text})}) "the cards, each with its rows"
+  in links list({from: text, to: text, head: choice(arrow|hollow|one|many|none), tail: choice(arrow|hollow|one|many|none), label: text, tone: choice(accent|info|ok|warn|bad|muted|ink), line: choice(solid|dashed|dotted)}) "each end a card id or card.row; head is the mark at to, tail at from"
+  in columns list(list(text)) = [] "card ids in columns, left to right, instead of by the links"
+  in pick ref text "what is lit: a card id, a card.row, or nothing"
+
+  ids = map(cards, c => c.id)
+  byid = index(cards, c => c.id)
+  ix = fold(range(0, len(ids) - 1), {}, (d, i) => put(d, ids[i], i))
+  ends = cardends(cards)
+  good = cardlinks(links, ends)
+  # card to card, for the columns: a link that closes a cycle doesn't count
+  hops = filter(map(good, l => {from: ends[l.from].card, to: ends[l.to].card}), e => e.from != e.to)
+  heads = filter(ids, id => len(filter(hops, e => e.to == id)) == 0)
+  near = levels(ids, if(len(heads) > 0, heads, first(ids, 1)), hops)
+  onward = filter(hops, e => not (near[e.to] <= near[e.from] and levels(ids, [e.to], hops)[e.from] < 1000))
+  rank0 = ranks(map(cards, c => {id: c.id}), onward)
+  # a card nothing links to sits just left of the nearest card it links to, so its links stay short
+  fn after(id: text): list(int) = map(filter(onward, e => e.from == id), e => rank0[e.to])
+  fn rankof(id: text): int = if(len(filter(onward, e => e.to == id)) == 0 and len(after(id)) > 0, max(min(after(id)) - 1, 0), rank0[id])
+  depth = max([0] + map(ids, id => rankof(id)))
+  bylinks = filter(map(range(0, depth), k => filter(ids, id => rankof(id) == k)), col => len(col) > 0)
+  given = filter(map(columns, col => filter(col, id => has(byid, id))), col => len(col) > 0)
+  # each card's other ends (on other cards); a card's weight is where they sit: their card's slot and
+  # how far down that card the row is
+  others = fold(ids, {}, (d, id) => put(d, id, flatten(map(good, l => if(ends[l.from].card == id and ends[l.to].card != id, [ends[l.to]],
+      if(ends[l.to].card == id and ends[l.from].card != id, [ends[l.from]], []))))))
+  fn slots(cs: list(list(text))): dict(num) = fold(cs, {}, (d, col) => fold(range(0, len(col) - 1), d, (d2, i) => put(d2, col[i], i)))
+  fn weight(p: dict(num), id: text): num = if(len(others[id]) == 0, p[id],
+      mean(map(others[id], e => p[e.card] + (max(0, e.n) + 1) / (len(byid[e.card].rows) + 2)))) + ix[id] / 100000
+  cols = if(len(given) > 0, given, iterate(bylinks, 4, cs => map(cs, col => sort(col, id => weight(slots(cs), id)))))
+  colof = fold(range(0, len(cols) - 1), {}, (d, k) => fold(cols[k], d, (d2, id) => put(d2, id, k)))
+  shown = filter(good, l => has(colof, ends[l.from].card) and has(colof, ends[l.to].card))
+
+  # where each link meets its cards: a row, or the card's title; a link whose mark differs from the
+  # first one at that title meets the card's side instead, so two marks never sit on one point
+  fn endmark(l, side: text): text = if(side == "to", "" + l.head, "" + l.tail)
+  fn endat(l, side: text): text = if(side == "to", l.to, l.from)
+  fn claim(card: text, side: text): text = at(map(filter(shown, l => endat(l, side) == card), l => endmark(l, side)), 0, "")
+  fn el(l, side: text): text = if(ends[endat(l, side)].row != "", "r~" + endat(l, side),
+      if(claim(endat(l, side), side) == endmark(l, side), "t~" + endat(l, side), "c~" + endat(l, side)))
+  # the elements a link passes on its way: the lane beside its column when both ends are in one, and
+  # a channel at the foot of every column it skips
+  fn span(l): list(int) = if(colof[ends[l.to].card] > colof[ends[l.from].card] + 1, range(colof[ends[l.from].card] + 1, colof[ends[l.to].card] - 1),
+      if(colof[ends[l.to].card] < colof[ends[l.from].card] - 1, reverse(range(colof[ends[l.to].card] + 1, colof[ends[l.from].card] - 1)), []))
+  drawn = map(range(0, len(shown) - 1), k => {k: k, l: shown[k], from: el(shown[k], "from"), to: el(shown[k], "to"),
+      via: if(colof[ends[shown[k].from].card] == colof[ends[shown[k].to].card] and el(shown[k], "from") != el(shown[k], "to"),
+        ["sl~" + colof[ends[shown[k].from].card] + "~" + k], map(span(shown[k]), c => "ch~" + c + "~" + k))})
+  fn chans(c: int): list(text) = flatten(map(drawn, d => filter(d.via, v => v == "ch~" + c + "~" + d.k)))
+  # each link within a column has a lane of its own right of the column, close to it, so it keeps
+  # off the other links there and off the runs that cross the gap to the next column
+  fn within(c: int): list(int) = map(filter(drawn, d => len(filter(d.via, v => v == "sl~" + c + "~" + d.k)) > 0), d => d.k)
+  # a gap that carries a label is wider, so the label sits clear of the cards
+  fn labelled(c: int): bool = len(filter(drawn, d => d.l.label != "" and min(colof[ends[d.l.from].card], colof[ends[d.l.to].card]) <= c
+      and max(colof[ends[d.l.from].card], colof[ends[d.l.to].card]) > c)) > 0
+
+  # what the pick lights: its links, the rows at their ends, and those rows' cards
+  lit = cardlit(shown, ends, pick)
+  on = pick != "" and has(ends, pick)
+  litrows = fold(lit, if(on, put({}, pick, true), {}), (d, l) => put(put(d, l.from, true), l.to, true))
+  litcards = fold(keys(litrows), {}, (d, at) => put(d, ends[at].card, true))
+  fn linklit(l): bool = len(filter(lit, x => x == l)) > 0
+  # a badge's colour: a primary key, a foreign key, anything else
+  fn badgetone(b: text): color = if(b == "PK", info, if(b == "FK", accent, muted))
+  fn ink(t: text): color = if(t == "info", info, if(t == "ok", ok, if(t == "warn", warn, if(t == "bad", bad, if(t == "muted", muted, if(t == "ink", ink, accent))))))
+
+  flex gap=xl align=start wrap=false pad=l
+    each c in 0..(len(cols) - 1)
+      stack gap=l grow basis=s
+        each id in cols[c] key=id
+          stack id=("c~" + id) stroke=muted line=(if(byid[id].external, dashed, solid)) radius=card fill=surface tint=(if(byid[id].external, muted, surface)) dim=(on and not has(litcards, id))
+            press kind=plain id=("t~" + id) selected=(pick == id) label=(byid[id].title)
+              flex pad=m gap=s align=center justify=between wrap=false tint=(if(pick == id, info, muted))
+                flex gap=s align=center wrap=false
+                  icon name=cloud size=small tone=muted if=(byid[id].external)
+                  text (byid[id].title) font=mono weight=bold size=small wrap=false literal=true tone=(if(byid[id].external, muted, ink))
+                text (byid[id].aside) font=mono size=small tone=muted wrap=false if=(byid[id].aside != "")
+              @click set pick=(if(pick == id, "", id))
+            each r in byid[id].rows key=r.id
+              divider
+              press kind=plain id=("r~" + id + "." + r.id) selected=(pick == id + "." + r.id) label=(r.label)
+                flex pad=m gap=s align=center wrap=false tint=(if(has(litrows, id + "." + r.id), info, if(byid[id].external, muted, surface)))
+                  text (r.label) weight=medium wrap=false literal=true tone=(if(byid[id].external, muted, ink))
+                  each b in r.badges key=b
+                    flex pad=xs stroke=(badgetone(b)) tint=(badgetone(b)) radius=pill
+                      text b font=mono size=small tone=(badgetone(b))
+                  stack grow
+                  text (r.meta) font=mono size=small tone=muted wrap=false literal=true if=(r.meta != "")
+                @click set pick=(if(pick == id + "." + r.id, "", id + "." + r.id))
+        each ch in chans(c) key=ch
+          stack id=(ch)
+      each k in within(c) key=k
+        stack id=("sl~" + c + "~" + k) pad=(if(shown[k].label != "", l, xs))
+      # the gap to the next column, wider when a label crosses it
+      stack id=("ln~" + c) pad=(if(labelled(c), l, xs)) if=(c < len(cols) - 1)
+  each d in drawn key=d.k
+    arrow from=(d.from) to=(d.to) via=(d.via) route=right head=(d.l.head) tail=(d.l.tail) tone=(ink("" + d.l.tone)) line=(d.l.line) dim=(on and not linklit(d.l)) bold=(linklit(d.l)) if=(d.l.label == "")
+    arrow from=(d.from) to=(d.to) via=(d.via) route=right head=(d.l.head) tail=(d.l.tail) tone=(ink("" + d.l.tone)) line=(d.l.line) dim=(on and not linklit(d.l)) bold=(linklit(d.l)) label=(d.l.label) if=(d.l.label != "")
+
+cards@1 "Cards with a title and rows, and links between rows or between cards: a database schema, a class diagram, a map of services. Cards stand in columns by their links; pressing a row or a card lights its links and fades the rest."
+  fields cards links
+  in title text = "Linked cards" "the header's title"
+  in kind text = "Cards" "what kind of thing it is, said small before the title: Schema, Classes, Services"
+  in caption text = "" "a line under the header, such as 4 tables · 3 foreign keys"
+  in cards list(record card {id: text, title: text = "", aside: text = "", external: bool = false,
+      rows: list(record row {id: text, label: text = "", badges: list(text) = [], meta: text = ""}) = []}) "the cards: a title (the id when empty), an aside right of it (a stereotype, a technology), and rows, each with a label, badges after it (PK, FK, static) and a note at its right (a type); an external card is drawn dashed and muted"
+  in links list(record link {from: text, to: text, head: choice(arrow|hollow|one|many|none) = arrow, tail: choice(arrow|hollow|one|many|none) = none,
+      label: text = "", tone: choice(accent|info|ok|warn|bad|muted|ink) = accent, line: choice(solid|dashed|dotted) = solid}) "each end a card id (its title) or card.row; head is the mark at to and tail the mark at from: an arrow head, a hollow triangle (is a kind of), a bar (one), a crow's foot (many) or none"
+  in columns list(list(text)) = [] "card ids in columns, left to right, instead of laying them out by their links"
+  in lit text = "" "what starts lit: a card id or card.row"
+  var pick text = lit
+  drawn = map(cards, c => {id: c.id, title: if(c.title == "", c.id, c.title), aside: c.aside, external: c.external,
+      rows: map(c.rows, r => {id: r.id, label: if(r.label == "", r.id, r.label), badges: r.badges, meta: r.meta})})
+  joins = map(links, l => {from: l.from, to: l.to, head: l.head, tail: l.tail, label: l.label, tone: l.tone, line: l.line})
+  project md = cardsmd(drawn, joins)
+  frame kind=kind title=title status=(cardsay(drawn, joins, pick, "Pick a row or a card to light its links."))
+    pane title=caption
+      # as wide as the pane, or as the cards when they need more: then the pane scrolls, rather
+      # than the zoom cutting them off
+      flex wrap=false
+        stack grow
+          zoom
+            cardsview drawn joins columns=columns pick=pick

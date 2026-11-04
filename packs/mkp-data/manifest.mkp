@@ -1,3 +1,3 @@
 pack mkp-data@1 "Data pieces over the base set: relation tables, query steps, joins, groups, operator trees and truth tables."
   requires core@1
-  provides relation reltable rel rrow cell number shownum compare mdtable rrowof rrowoff rrowhead opsym sqlval aggvalues aggval agglabel aggsql mdrows query join group optree opnode optnode postorder popnode truth tf
+  provides relation reltable rel rrow cell number shownum compare mdtable rrowof rrowoff rrowhead opsym sqlval aggvalues aggval agglabel aggsql mdrows query join rowpanes rowlinks group optree opnode optnode postorder popnode truth tf

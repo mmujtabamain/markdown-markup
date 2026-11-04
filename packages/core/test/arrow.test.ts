@@ -156,10 +156,11 @@ describe('layered diagrams route every edge row by row', () => {
   // time: a step that skips a row could pass through a box in it, and a step within one row runs
   // along it. Rows are the children of the innermost element holding every arrow end.
   const c = compile({ packs: allPacks() });
-  const wanted = new Set(['mkp-diagrams/flow@1', 'mkp-diagrams/graph@1', 'mkp-diagrams/er@1', 'mkp-cs/protocol@1']);
+  // er is drawn as linked cards in columns now (below)
+  const wanted = new Set(['mkp-diagrams/flow@1', 'mkp-diagrams/graph@1', 'mkp-cs/protocol@1']);
   const cases = fixtureCases(c).filter((fc) => wanted.has(`${fc.pack}/${fc.widget}`) && !fc.expect?.errors?.length);
 
-  it('covers the fixture cases', () => expect(cases.length).toBeGreaterThanOrEqual(8));
+  it('covers the fixture cases', () => expect(cases.length).toBeGreaterThanOrEqual(6));
 
   it.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as const))('%s', (_name, fc) => {
     const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
@@ -193,6 +194,54 @@ describe('layered diagrams route every edge row by row', () => {
     }
     // labels are laid out as elements of their own, never drawn on the arrow
     expect(arrows.filter((a) => a.label)).toEqual([]);
+  });
+});
+
+describe('linked cards route every link column by column', () => {
+  // Cards stand in columns with a lane between each two; a row's line leaves its card's column for
+  // the next one, so every step of a run crosses one gap: from a column to the next (two children
+  // of the row of columns on), or into or out of the lane beside a column, or along a channel at
+  // the foot of a column it skips. None runs through a column of cards.
+  const c = compile({ packs: allPacks() });
+  const wanted = new Set(['mkp-diagrams/cards@1', 'mkp-diagrams/cardsview@1', 'mkp-diagrams/er@1']);
+  const cases = fixtureCases(c).filter((fc) => wanted.has(`${fc.pack}/${fc.widget}`) && !fc.expect?.errors?.length);
+
+  it('covers the fixture cases', () => expect(cases.length).toBeGreaterThanOrEqual(8));
+
+  it.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as const))('%s', (_name, fc) => {
+    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
+    const scope = scopeWithArrows(rt.view())!;
+    const arrows = scope.arrows ?? [];
+    expect(arrows.length).toBeGreaterThan(0);
+    // the row of columns: the scope's first flex. Its children are columns of cards and, between
+    // them, empty lanes; column c is slot 2c and a lane after it slot 2c + 1
+    const row = (scope.kids ?? []).find((n) => n.t === 'flex')!;
+    const kids = row.kids ?? [];
+    const column = new Map<string, number>();
+    const walk = (ns: VNode[], k: number): void => {
+      for (const n of ns) {
+        column.set(n.key, k);
+        walk(n.kids ?? [], k);
+      }
+    };
+    const lanes = new Set<string>();
+    let cols = 0;
+    for (const n of kids) {
+      const empty = !(n.kids ?? []).length;
+      if (empty) lanes.add(n.key);
+      else cols++;
+      walk([n], empty ? 2 * cols - 1 : 2 * (cols - 1));
+    }
+    for (const a of arrows) {
+      expect(a.route).toBe('right');
+      if (a.from === a.to) continue;
+      const run = [a.from, ...(a.via ?? []), a.to];
+      for (const k of run) expect(column.has(k), `${a.key}: ${k} is in a column`).toBe(true);
+      for (let i = 1; i < run.length; i++) {
+        const step = Math.abs(column.get(run[i])! - column.get(run[i - 1])!);
+        expect(step === 2 || (step === 1 && (lanes.has(run[i]) || lanes.has(run[i - 1]))), `${a.key} step ${i}`).toBe(true);
+      }
+    }
   });
 });
 

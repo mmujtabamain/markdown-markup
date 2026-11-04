@@ -150,6 +150,121 @@
           }
         ]
       }
+    },
+    "shop-keys": {
+      "summary": "A shop's tables with their keys: orders point at customers, order items at orders and products; each line runs from the foreign key to the key it names.",
+      "props": {
+        "title": "A shop",
+        "caption": "4 tables · 3 foreign keys",
+        "entities": [
+          {
+            "name": "customers",
+            "attrs": [
+              {
+                "type": "uuid",
+                "name": "id",
+                "kind": "pk"
+              },
+              {
+                "type": "text",
+                "name": "email",
+                "kind": "plain"
+              },
+              {
+                "type": "char(2)",
+                "name": "country",
+                "kind": "plain"
+              }
+            ]
+          },
+          {
+            "name": "orders",
+            "attrs": [
+              {
+                "type": "uuid",
+                "name": "id",
+                "kind": "pk"
+              },
+              {
+                "type": "uuid",
+                "name": "customer_id",
+                "kind": "fk"
+              },
+              {
+                "type": "timestamptz",
+                "name": "placed_at",
+                "kind": "plain"
+              }
+            ]
+          },
+          {
+            "name": "order_items",
+            "attrs": [
+              {
+                "type": "uuid",
+                "name": "order_id",
+                "kind": "pkfk"
+              },
+              {
+                "type": "uuid",
+                "name": "product_id",
+                "kind": "pkfk"
+              },
+              {
+                "type": "int",
+                "name": "qty",
+                "kind": "plain"
+              }
+            ]
+          },
+          {
+            "name": "products",
+            "attrs": [
+              {
+                "type": "uuid",
+                "name": "id",
+                "kind": "pk"
+              },
+              {
+                "type": "text",
+                "name": "name",
+                "kind": "plain"
+              },
+              {
+                "type": "numeric",
+                "name": "price",
+                "kind": "plain"
+              }
+            ]
+          }
+        ],
+        "rels": [
+          {
+            "a": "customers",
+            "b": "orders",
+            "label": "places"
+          },
+          {
+            "a": "orders",
+            "b": "order_items",
+            "label": "contains",
+            "right": "many",
+            "bcol": "order_id"
+          },
+          {
+            "a": "products",
+            "b": "order_items",
+            "label": "appears in",
+            "bcol": "product_id"
+          }
+        ],
+        "lit": "order_items.product_id"
+      },
+      "play": [
+        {
+          "press": "t~orders"
+        }
+      ]
     }
   }
 }

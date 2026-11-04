@@ -1,0 +1,90 @@
+# Two tables side by side and the lines between the rows that go together: invoices and the payments
+# that settle them, a translation file against its source, a join's matching keys. The drawing
+# (rowpanes) is shared by rowlinks and join; rows are counted from 0 and drawn as L<i> and R<j>.
+
+part rowpanes@1 "Two relations in panes side by side, with a gutter of lines between the rows that go together; pressing a row reports it."
+  fields lrel rrel links
+  # not left and right: a name in scope hides the option of the same name, so route=right would read it
+  in lrel rel "the left relation"
+  in rrel rel "the right relation"
+  in links list({from: int, to: int, tone: choice(ok|warn|bad|info|accent|muted), line: choice(solid|dashed|dotted), label: text, bold: bool, dim: bool}) "a line from left row from to right row to, each counted from 0"
+  in lit list(text) = [] "rows to light, as L<i> or R<j>"
+  in leftnote text = "" "right of the left pane's title; by default its number of rows"
+  in rightnote text = "" "right of the right pane's title; by default its number of rows"
+  in ids bool = true "the first column names the row: drawn in mono"
+  out picked {side: text, row: int} "a row was pressed: side L or R, and the row"
+  fn rows(n: int): text = n + if(n == 1, " row", " rows")
+  fn on(id: text): bool = len(filter(lit, x => x == id)) > 0
+  fn ink(t: text): color = if(t == "ok", ok, if(t == "warn", warn, if(t == "bad", bad, if(t == "info", info, if(t == "muted", muted, accent)))))
+  good = filter(links, l => l.from >= 0 and l.from < len(lrel.rows) and l.to >= 0 and l.to < len(rrel.rows))
+  flex align=stretch wrap=false
+    pane title=(if(lrel.name == "", "left", lrel.name)) note=(if(leftnote == "", rows(len(lrel.rows)), leftnote)) grow basis=m
+      stack
+        grid cols=(max(1, min(12, len(lrel.cols)))) gap=s pad=m tint=muted
+          each c in lrel.cols key=c
+            text c size=small tone=muted caps=true
+        each i in 0..(len(lrel.rows) - 1)
+          divider
+          press kind=plain id=("L" + i) selected=(on("L" + i)) label=(at(lrel.rows[i], 0, ""))
+            grid cols=(max(1, min(12, len(lrel.cols)))) gap=s pad=m align=center tint=(if(on("L" + i), info, surface))
+              each j in 0..(len(lrel.cols) - 1)
+                # align written out: a press may centre what it holds
+                text (at(lrel.rows[i], j, "")) font=(if(j == 0 and ids, mono, body)) literal=true align=start
+            @click emit picked side="L" row=i
+        divider
+    # the gutter the lines cross
+    stack pad=xl stroke=muted
+    pane title=(if(rrel.name == "", "right", rrel.name)) note=(if(rightnote == "", rows(len(rrel.rows)), rightnote)) grow basis=m
+      stack
+        grid cols=(max(1, min(12, len(rrel.cols)))) gap=s pad=m tint=muted
+          each c in rrel.cols key=c
+            text c size=small tone=muted caps=true
+        each i in 0..(len(rrel.rows) - 1)
+          divider
+          press kind=plain id=("R" + i) selected=(on("R" + i)) label=(at(rrel.rows[i], 0, ""))
+            grid cols=(max(1, min(12, len(rrel.cols)))) gap=s pad=m align=center tint=(if(on("R" + i), info, surface))
+              each j in 0..(len(rrel.cols) - 1)
+                # align written out: a press may centre what it holds
+                text (at(rrel.rows[i], j, "")) font=(if(j == 0 and ids, mono, body)) literal=true align=start
+            @click emit picked side="R" row=i
+        divider
+  each l in good key=("" + l.from + "-" + l.to)
+    arrow from=("L" + l.from) to=("R" + l.to) route=right head=none tone=(ink("" + l.tone)) line=(l.line) dim=(l.dim) bold=(l.bold) if=(l.label == "")
+    arrow from=("L" + l.from) to=("R" + l.to) route=right head=none tone=(ink("" + l.tone)) line=(l.line) dim=(l.dim) bold=(l.bold) label=(l.label) if=(l.label != "")
+
+rowlinks@1 "Two tables side by side and lines between the rows that go together: a match, a partial match with a note, or a guess. Picking a row lights its pair and fades the other lines."
+  fields left right links
+  in left rel "the left table; a row is named by its first cell"
+  in right rel "the right table; a row is named by its first cell"
+  in links list(record pair {from: text, to: text, kind: choice(match|partial|unknown) = match, label: text = ""}) "pairs of rows by their first cells: a match, a partial match (with a note such as short or stale) or an unknown one (shown with ?)"
+  in title text = "Which rows go together" "the header's title"
+  in kind text = "Match" "what kind of thing it is, said small before the title: Reconcile, Translation"
+  in lit text = "" "the row that starts picked: its first cell"
+  var pick text = lit
+  lids = map(left.rows, r => at(r, 0, ""))
+  rids = map(right.rows, r => at(r, 0, ""))
+  good = filter(links, l => indexof(lids, l.from) >= 0 and indexof(rids, l.to) >= 0)
+  matched = len(filter(good, l => l.kind == match))
+  # the picked row's lines: a first cell can name a row on either side
+  hit = filter(good, l => pick != "" and (l.from == pick or l.to == pick))
+  fn shown(l): bool = len(filter(hit, h => h == l)) > 0
+  fn tone(l): choice(ok|warn|bad|info|accent|muted) = if(l.kind == match, ok, if(l.kind == partial, warn, muted))
+  fn line(l): choice(solid|dashed|dotted) = if(l.kind == unknown, dashed, solid)
+  fn note(l): text = if(l.label != "", l.label, if(l.kind == unknown, "?", ""))
+  fn said(l): text = if(l.kind == match, "", " · " + if(l.kind == partial, "partly: ", "not sure") + if(l.kind == partial, note(l), if(l.label != "", ": " + l.label, "")))
+  fn bold(id: text): text = if(id == pick, "**" + id + "**", id)
+  drawn = map(good, l => {from: indexof(lids, l.from), to: indexof(rids, l.to), tone: tone(l), line: line(l), label: note(l), bold: shown(l), dim: len(hit) > 0 and not shown(l)})
+  litrows = (map(filter(range(0, len(lids) - 1), i => lids[i] == pick or len(filter(hit, h => h.from == lids[i])) > 0), i => "L" + i)
+    + map(filter(range(0, len(rids) - 1), j => rids[j] == pick or len(filter(hit, h => h.to == rids[j])) > 0), j => "R" + j))
+  say = if(pick == "", "Pick a row to light its pair.", if(len(hit) == 0, "**" + pick + "** has no pair.",
+      join(map(hit, l => bold(l.from) + " ↔ " + bold(l.to) + said(l)), "; ")))
+  project md = ("**" + if(left.name == "", "left", left.name) + "**\n\n" + mdtable(left.cols, left.rows) + "\n**" + if(right.name == "", "right", right.name)
+      + "**\n\n" + mdtable(right.cols, right.rows) + "\n" + join(map(good, l => "- " + l.from + " ↔ " + l.to + said(l)), "\n")
+      + "\n\n" + matched + " of " + len(good) + " matched.\n")
+  frame kind=kind title=title status=say
+    # as wide as the frame, or as the tables when they need more: then the stage scrolls
+    flex wrap=false
+      rowpanes left right drawn lit=litrows grow
+        @picked set pick=(if(picked.side == "L", if(lids[picked.row] == pick, "", lids[picked.row]), if(rids[picked.row] == pick, "", rids[picked.row])))
+    fill bar
+      text (matched + "/" + len(good) + " matched") font=mono size=small tone=muted wrap=false

@@ -343,7 +343,8 @@ export const SHELL_CSS = `
 .mkp-zoom { position: relative; overflow: hidden; min-height: 0; }
 .mkp-zoom[data-nudged] { outline: 2px solid var(--mkp-color-accent); outline-offset: -2px; }
 .mkp-zoom-content { transform-origin: 0 0; }
-.mkp-fit { overflow: hidden; }
+/* its own width never comes from what it holds, so a wide drawing can't widen the column it sits in */
+.mkp-fit { overflow: hidden; contain: inline-size; }
 .mkp-fit-inner { width: max-content; min-width: 100%; transform-origin: 0 0; }
 .mkp-zoom-tools { position: absolute; top: var(--mkp-space-s); right: var(--mkp-space-s); z-index: 2; display: flex; gap: 2px; padding: 2px; border-radius: var(--mkp-radius-card); background: color-mix(in srgb, var(--mkp-color-surface) 90%, transparent); border: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 30%, transparent)); }
 .mkp-zoom[data-nudged] .mkp-zoom-tools { border-color: var(--mkp-color-accent); }

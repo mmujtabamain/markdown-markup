@@ -419,3 +419,34 @@ rule of the spec, not a defect), *in progress*.
      details` content. *Fixed in the test* (102); protocol still has no details drawer.
 134. **MKP packs: protocol needs routing but mkp-cs depends on core only.** *Worked around:* a copied
      `route.mkp` in mkp-cs. *Open.*
+
+### Views parity: linked cards and row links (mkp-diagrams cards, er; mkp-data rowlinks, join)
+
+135. **MKP renderer: lines inside a `zoom` are drawn at the zoom squared.** Measured with the transform,
+     then drawn under it again; any re-render after zooming moved them, a pick included. *Fixed:*
+     arrows measure in their scope's own units (SN 111).
+136. **MKP syntax: a continuation line outside brackets is dropped silently.** `xs = [1, 2]` with an
+     indented `+ [3]` checks clean and gives `[1, 2]`. *Worked around:* parentheses. *Open*; it should
+     be an error.
+137. **MKP names: an input hides the option of the same name.** With an input called `right`,
+     `route=right` is refused ("expected one of down, right, found right"). *Worked around:* the part's
+     inputs are `lrel`/`rrel`. (83 and 110 are the same trap.)
+138. **MKP expressions: a choice option or token can't be a value in a record.** `{head: many}` gives
+     "many is not defined here". *Worked around:* functions with a declared return type. (101 is the
+     same.)
+139. **MKP box: no dashed outline.** *Fixed:* `line=dashed` (SN 110); an external card is dashed.
+140. **MKP arrow: no dot end and no optional (o) end.** *Worked around:* plain ends; ER cardinalities go
+     in the status, the Markdown and the Mermaid output. *Open.*
+141. **MKP arrow: a label sits halfway along its path as plain text.** It can cover another line (one
+     label was dropped for that reason) and can't be a pill. *Worked around:* wider gaps where labels
+     cross. *Open.*
+142. **MKP layout: no minimum width.** Row links squeeze at 390px, where Study Pad's panes scroll
+     sideways. *Open.*
+143. **MKP arrows: lines don't follow a scrolling pane.** *Worked around:* no frame `height` for row
+     links and join. (93 is the same.)
+144. **@mkp/shadcn: a plain press centres its text.** *Fixed* (89).
+145. **MKP pane: a pane inside a `stack` comes out zero tall.** *Worked around:* the pane sits in its own
+     `flex align=stretch`. *Open.*
+146. **MKP press: no hover.** *Open*, minor.
+147. **MKP zoom: a drawing's own width widened the column it sat in**, so a fitted zoom never shrank and
+     its lock sat off to the right. *Fixed:* the fit is `contain: inline-size`.
