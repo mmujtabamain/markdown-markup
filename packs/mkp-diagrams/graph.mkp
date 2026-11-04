@@ -6,24 +6,28 @@ fn ranks(nodes, edges) = iterate(
     len(nodes),
     d => fold(edges, d, (d2, e) => put(d2, e.to, max(d2[e.to], d2[e.from] + 1))))
 
-# where a node sits within its layer, or -1
-fn position(ls, id) = fold(ls, -1, (p, l) => if(p >= 0, p, indexof(map(l, n => n.id), id)))
-
 graph@1 "Nodes in layers by their edges, laid out automatically."
   in nodes list({id: text, label: text})
   in edges list(edge)
   rank = ranks(nodes, edges)
   depth = max([0] + map(nodes, n => rank[n.id]))
-  layers = map(range(0, depth), r => filter(nodes, n => rank[n.id] == r))
-  # six barycentre passes: each node moves towards the mean position of itself and its parents
-  rows = iterate(layers, 6, ls => map(ls, l => sort(l, n =>
-      mean([position(ls, n.id)] + map(filter(edges, e => e.to == n.id), e => position(ls, e.from))))))
+  layers = map(range(0, depth), r => map(filter(nodes, n => rank[n.id] == r), n => n.id))
+  # an edge that spans layers runs through a lane in each layer it crosses, ordered with the
+  # nodes by barycentre passes (route.mkp)
+  links = map(edges, e => {from: e.from, to: e.to, label: ""})
+  lay = route(layers, links)
+  byid = index(nodes, n => n.id)
   project mermaid = "flowchart TD\n" + join(map(edges, e => "  " + e.from + " --> " + e.to), "\n")
   stack gap=xl
-    each r in 0..(len(rows) - 1)
-      flex gap=l justify=center
-        each n in rows[r] key=n.id
-          stack id=(n.id) pad=s fill=surface stroke=ink radius=card
-            text n.label
-  each e in edges key=(e.from + ">" + e.to)
-    arrow from=(e.from) to=(e.to)
+    each r in 0..(len(lay.rows) - 1)
+      flex gap=l justify=center align=stretch
+        each c in lay.rows[r] key=c.id
+          switch on=(c.kind)
+            case "node"
+              flex wrap=false
+                stack id=(c.id) pad=s fill=surface stroke=ink radius=card
+                  text (byid[c.id].label)
+            else
+              stack id=(c.id)
+  each k in 0..(len(links) - 1)
+    arrow from=(links[k].from) to=(links[k].to) via=(lay.via[k])

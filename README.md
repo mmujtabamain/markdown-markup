@@ -19,6 +19,7 @@ This is the implementation of the spec v0.2 draft: one TypeScript codebase.
 | `conformance/` | Golden cases any provider or port runs. |
 | `docs/` | The authoring guide for agents and the written runtime spec. |
 | `SPEC-NOTES.md` | Every place the implementation reads, extends or departs from the spec. |
+| `GAPS.md` | What building a real provider turned up, fixed or still open. |
 
 ## Use
 

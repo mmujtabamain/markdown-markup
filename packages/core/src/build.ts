@@ -15,6 +15,9 @@ import type { Type } from './types';
 import { canonicalJson } from './util/jcs';
 import { sha256 } from './util/sha256';
 
+/** IR node names the compiler and runtime give their own meaning (statements, document state). */
+const BUILTIN_NODES = new Set(['each', 'switch', 'case', 'else', 'slot', 'fill', 'controls', 'arrow']);
+
 export interface PackSource {
   /** a folder's files, or the bytes of a .mkpack */
   files?: Map<string, Uint8Array>;
@@ -229,6 +232,8 @@ export function compile(opts: CompileOptions): Compiled {
   for (const [n, ps] of providers) {
     if (ps.length > 1) diags.warn('mkp.name-clash', `${n} is provided by ${ps.join(' and ')}; uses must be qualified as pack:${n}`);
     if (prog.lookupDefs(n, '$none').some((d) => d.pack === 'core')) diags.error('mkp.reserved', `${n} is a base widget name and is reserved`);
+    // a use is an IR node named after the definition, so a built-in's name would be read as the built-in
+    if (BUILTIN_NODES.has(n)) diags.error('mkp.reserved', `${n} is a built-in node name (${[...BUILTIN_NODES].join(', ')}) and is reserved`);
   }
   // tokens
   c.tokens = prog.tokenSets.map((t) => tokenSetIR(t.syn, t.pack, diags));

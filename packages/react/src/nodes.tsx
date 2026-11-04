@@ -164,7 +164,8 @@ function boxStyle(p: Record<string, unknown>): CSSProperties {
     padding: space(p.pad),
     gap: space(p.gap),
     background: color(p.fill),
-    border: p.stroke && p.stroke !== 'none' ? `1px solid ${color(p.stroke)}` : undefined,
+    // a box's outline: --mkp-stroke-<name> if the provider sets one (lines lighter than text), else the colour
+    border: p.stroke && p.stroke !== 'none' ? `1px solid var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})` : undefined,
     borderRadius: radius(p.radius),
     boxShadow: shadow(p.shadow),
   };
@@ -181,7 +182,8 @@ const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important:
 export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement | null) => void }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
-  const common = { 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined, className: cls, ref: reg } as const;
+  // data-mkp names the base widget, so a provider's stylesheet can say what it styles
+  const common = { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined, className: cls, ref: reg } as const;
   const lay = layoutStyle(n);
   switch (n.t) {
     case 'scope':
@@ -207,7 +209,7 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
       );
     case 'flex':
       return (
-        <div {...common} role={p.role === 'control' ? 'group' : (p.role as string | undefined)} aria-label={p.label as string | undefined} style={{ display: 'flex', flexDirection: 'row', flexWrap: p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(p.align)] ?? 'flex-start', justifyContent: JUSTIFY[String(p.justify)] ?? 'flex-start', ...boxStyle(p), ...lay }}>
+        <div {...common} role={p.role === 'control' ? 'group' : ((p.role as string | undefined) ?? (n.kids?.some((k) => k.t === 'press' && k.p.kind === 'tab') ? 'tablist' : undefined))} aria-label={p.label as string | undefined} style={{ display: 'flex', flexDirection: 'row', flexWrap: p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(p.align)] ?? 'flex-start', justifyContent: JUSTIFY[String(p.justify)] ?? 'flex-start', ...boxStyle(p), ...lay }}>
           <Kids nodes={n.kids} />
         </div>
       );
@@ -244,7 +246,7 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
       else if (kind === 'toggle') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
-        <button {...common} {...aria} type="button" disabled={!!p.disabled} className={['mkp-press', kind === 'tab' ? 'mkp-tab' : '', cls].filter(Boolean).join(' ')} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
+        <button {...common} {...aria} data-kind={kind} type="button" disabled={!!p.disabled} className={['mkp-press', kind === 'tab' ? 'mkp-tab' : '', cls].filter(Boolean).join(' ')} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
           <Kids nodes={n.kids} />
         </button>
       );
@@ -262,7 +264,8 @@ export function Node({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLE
           aria-label={String(p.label || 'value')}
           aria-valuetext={String(Number(Number(p.value).toPrecision(4)))}
           onChange={(e) => rt.dispatch(n.key, 'change', { value: Number(e.currentTarget.value) })}
-          style={lay}
+          // how far along the track the value is, for providers that paint the filled part
+          style={{ ...lay, '--mkp-range-fill': `${Number(p.max) > Number(p.min) ? ((Number(p.value) - Number(p.min)) / (Number(p.max) - Number(p.min))) * 100 : 0}%` } as CSSProperties}
         />
       );
     case 'field':
@@ -444,7 +447,7 @@ function Overlay({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLEleme
   ) : null;
   const hover = mode === 'tooltip' ? { onMouseEnter: () => rt.dispatch(n.key, 'open'), onMouseLeave: () => rt.dispatch(n.key, 'close'), onFocus: () => rt.dispatch(n.key, 'open'), onBlur: () => rt.dispatch(n.key, 'close') } : {};
   return (
-    <span ref={reg} data-mkp-key={n.key} data-mkp-id={n.id} hidden={n.hidden || undefined} className={cls} style={{ position: 'relative', display: 'inline-block', ...layoutStyle(n) }}>
+    <span ref={reg} data-mkp="overlay" data-mode={mode} data-mkp-key={n.key} data-mkp-id={n.id} hidden={n.hidden || undefined} className={cls} style={{ position: 'relative', display: 'inline-block', ...layoutStyle(n) }}>
       <button ref={anchor} type="button" className="mkp-press" aria-expanded={open} aria-haspopup={mode === 'tooltip' ? undefined : 'dialog'} aria-label={p.label ? String(p.label) : undefined} onClick={() => rt.dispatch(n.key, open ? 'close' : 'open')} {...hover}>
         <Kids nodes={n.kids} />
       </button>
@@ -484,7 +487,7 @@ function Scope({ n, cls, reg }: { n: VNode; cls?: string; reg?: (el: HTMLElement
 /** Measures the arrow ends after layout and redraws while anything moves (6.10). */
 function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElement | null } }): ReactNode {
   const [paths, setPaths] = useState<{ key: string; d: string; head: string; label?: [number, number]; runs?: VRun[] }[]>([]);
-  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}`).join(';'), [arrows]);
+  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
   const measure = useRef<() => void>(() => undefined);
   measure.current = () => {
     const root = box.current;
@@ -498,11 +501,14 @@ function Arrows({ arrows, box }: { arrows: VArrow[]; box: { current: HTMLDivElem
       return r;
     };
     const out: typeof paths = [];
+    const rel = (r: DOMRect) => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
     for (const a of arrows) {
       const ra = find(a.from);
       const rb = find(a.to);
       if (!ra || !rb) continue;
-      const p = arrowPath({ x: ra.left - base.left, y: ra.top - base.top, w: ra.width, h: ra.height }, { x: rb.left - base.left, y: rb.top - base.top, w: rb.width, h: rb.height }, a.curve);
+      // waypoints that are not shown (hidden, or not laid out) are passed by
+      const via = (a.via ?? []).map(find).filter((r): r is DOMRect => !!r).map(rel);
+      const p = arrowPath(rel(ra), rel(rb), a.curve, 3, 7, via);
       if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), label: a.label ? p.label : undefined, runs: a.label });
     }
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));

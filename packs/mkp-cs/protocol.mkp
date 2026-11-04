@@ -14,6 +14,13 @@ protocol@1 "A protocol's states and transitions: step through a run of events an
   depth = max([0] + map(states, s => get(rank, s, 0)))
   layers = map(range(0, depth), r => filter(states, s => get(rank, s, 0) == r))
   fn back(m) = get(rank, m.to, 0) <= get(rank, m.from, 0)
+  # a move back up more than one layer runs up a lane at the left of each layer between, so it
+  # passes beside their boxes (its arrow goes via the lanes); the longest runs outermost, and a
+  # spacer on the right of each lane's layer keeps the states centred
+  fn span(m) = get(rank, m.from, 0) - get(rank, m.to, 0)
+  ups = sort(filter(moves, m => span(m) > 1), m => 0 - span(m))
+  fn lane(m, r: int): text = "~" + m.from + ">" + m.on + "~" + r
+  fn lanes(r: int): list({from: text, to: text, on: text}) = filter(ups, m => get(rank, m.to, 0) < r and r < get(rank, m.from, 0))
 
   pos = steps (len(run) + 1) "event"
   here = path[pos]
@@ -25,13 +32,17 @@ protocol@1 "A protocol's states and transitions: step through a run of events an
   stack gap=l
     stack gap=xl
       each r in 0..(len(layers) - 1)
-        flex gap=xl justify=center
+        flex gap=xl justify=center align=stretch
+          each u in lanes(r) key=("<" + lane(u, r))
+            stack id=(lane(u, r))
           each s in layers[r] key=s
             stack id=("" + s)
               stack pad=m stroke=accent radius=card if=(s == here)
                 text s weight=bold
               stack pad=m stroke=muted radius=card if=(s != here)
                 text s tone=muted
+          each u in lanes(r) key=(">" + lane(u, r))
+            stack
     flex gap=l justify=center
       each m in moves key=(m.from + ">" + m.on)
         text (m.from + " —" + m.on + "→ " + m.to) size=small tone=muted weight=(if(pos > 0 and m.from == path[pos - 1] and m.on == run[pos - 1], bold, regular))
@@ -42,5 +53,6 @@ protocol@1 "A protocol's states and transitions: step through a run of events an
             if(known(path[k], run[k]), "", " (no transition: it stays)")) weight=(if(k == pos - 1, bold, regular))
       text ("Next: **" + run[pos] + "**") tone=muted if=(pos < len(run))
   each m in moves key=(m.from + ">" + m.on)
-    arrow from=(m.from) to=(m.to) curve if=(back(m) and m.from != m.to)
+    arrow from=(m.from) to=(m.to) via=(map(reverse(range(get(rank, m.to, 0) + 1, get(rank, m.from, 0) - 1)), r => lane(m, r))) if=(span(m) > 1)
+    arrow from=(m.from) to=(m.to) curve if=(back(m) and span(m) <= 1 and m.from != m.to)
     arrow from=(m.from) to=(m.to) if=(not back(m))

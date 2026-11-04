@@ -8,7 +8,7 @@ afterEach(cleanup);
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compile, Runtime } from '@mkp/core';
-import { MkpDocument } from '../src/index';
+import { MkpDocument, MkpProvider, Node, useMkpView } from '../src/index';
 import { allPacks, ROOT } from '../../core/test/helpers';
 
 function rootsBundle() {
@@ -22,6 +22,10 @@ describe('@mkp/react', () => {
     expect(container.querySelector('.mkp-error')).toBeNull();
     expect(getAllByRole('tab').map((t) => t.textContent)).toEqual(['Roots', 'Powers']);
     expect(getAllByRole('tab')[0].getAttribute('aria-selected')).toBe('true');
+    // the row of tabs is their tablist, and every node names its base widget for providers' styles
+    expect(getByRole('tablist').querySelectorAll('[role=tab]').length).toBe(2);
+    expect(getAllByRole('tab')[0].getAttribute('data-mkp')).toBe('press');
+    expect(getAllByRole('tab')[0].getAttribute('data-kind')).toBe('tab');
     expect(getByRole('toolbar', { name: 'controls' })).toBeTruthy();
     expect(getByRole('slider', { name: 'which root' })).toBeTruthy();
     expect(container.querySelector('blockquote[role="note"]')?.textContent).toContain('Every root lies on the unit circle.');
@@ -38,6 +42,8 @@ describe('@mkp/react', () => {
     act(() => {
       fireEvent.change(getByRole('slider', { name: 'which root' }), { target: { value: '3' } });
     });
+    // how far along the track the value is (0..4 here), for providers that paint the filled part
+    expect((getByRole('slider', { name: 'which root' }) as HTMLElement).style.getPropertyValue('--mkp-range-fill')).toBe('75%');
     expect(rt.blocks().find((b) => b.def.name === 'roots')!.get('k')).toBe(3);
     const spin = getByRole('button', { name: 'multiply the plane by it' });
     act(() => {
@@ -45,5 +51,26 @@ describe('@mkp/react', () => {
     });
     expect(spin.getAttribute('aria-pressed')).toBe('true');
     expect(container.querySelector('.mkp-error')).toBeNull();
+  });
+  it('lets a host lay the top-level blocks out itself, each in its own root', () => {
+    const bundle = rootsBundle();
+    function Host() {
+      const nodes = useMkpView();
+      return nodes.map((n) => (
+        <section key={n.key} className="mkp-root" data-host-block>
+          <Node n={n} />
+        </section>
+      ));
+    }
+    const { container, getAllByRole } = render(
+      <MkpProvider bundle={bundle} reducedMotion>
+        <Host />
+      </MkpProvider>,
+    );
+    expect(container.querySelectorAll('[data-host-block]').length).toBe(bundle.doc.body.length);
+    expect(getAllByRole('tab').length).toBe(2);
+    expect(container.querySelector('.mkp-error')).toBeNull();
+    // a box's outline reads a provider's --mkp-stroke-<name> first
+    expect(container.querySelector('[data-mkp=stack][style*="border"]')?.getAttribute('style')).toMatch(/var\(--mkp-stroke-\w+, var\(--mkp-color-\w+\)\)/);
   });
 });

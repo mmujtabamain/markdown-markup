@@ -26,13 +26,13 @@ trace@1 "A program trace: the code with the current line marked, the variables a
         join(map(range(0, len(vars) - 1), v => at(run[k].values, v, "")), " | ") + " | " + run[k].output + " |"), "\n") + "\n")
 
   flex gap=l align=start
-    stack gap=none pad=s stroke=muted radius=card grow
+    stack gap=none pad=s stroke=muted radius=card grow basis=m
       each l in lines key=l.id
         stack id=(l.id)
-          flex gap=s align=center pad=xs stroke=accent radius=card if=(l.on)
+          flex gap=s align=center pad=xs wrap=false stroke=accent radius=card if=(l.on)
             text ("" + l.n) tone=accent font=mono weight=bold
             text (indented(l.src)) weight=bold
-          flex gap=s align=center pad=xs if=(not l.on)
+          flex gap=s align=center pad=xs wrap=false if=(not l.on)
             text ("" + l.n) tone=muted font=mono
             text (indented(l.src))
     stack gap=s

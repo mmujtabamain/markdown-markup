@@ -71,7 +71,17 @@ Walk the nodes with a scope:
 - `switch`: the first case whose value equals the subject, else `else`.
 - `slot`: render the slot's nodes in the slot's own scope.
 - `arrow`: collect; after the instance renders, resolve `from`/`to` ids in the instance, then in the
-  instances nested inside it (two matches is an error; none draws nothing and warns).
+  instances nested inside it (two matches is an error; none draws nothing and warns). `via` (a
+  list of ids) is resolved the same way, in order; a via id with no element is left out, with the
+  same warning. The renderer measures the ends and the via elements after layout and draws the path
+  (`arrowPath` in `runtime/arrow.ts` is the reference): from `from`'s outline through each via
+  element in turn to `to`'s outline. A via element is passed along its longer centre line — top to
+  bottom through one taller than wide, side to side through one wider than tall, whichever way
+  round is shorter from the point before to the element after — and through the centre of a square
+  or empty one. The runs between are straight, with each corner rounded (radius 12 px, at most half
+  of either run), the head is on the last run, and a label sits halfway along the path. `curve`
+  bends only an arrow without via elements. A via element that is hidden or not laid out is passed
+  by.
 - a use: create or reuse the instance, render its view, then its **bar**: a row of base widgets for
   each control not placed by `controls` (drag is never in the bar).
 - a base widget: evaluate props; text props become inline runs (text, strong, emphasis, code, links,

@@ -38,7 +38,9 @@ export function markdownToNodes(src: string, line0 = 1, warnings: MdWarning[] = 
   const inline = (n: MdNode): string => {
     const kids = n.children ?? [];
     if (!kids.length) return '';
-    return src.slice(kids[0].position!.start.offset!, kids[kids.length - 1].position!.end.offset!);
+    // continuation lines keep their container markers in the source (a quote's "> ", a list
+    // item's indent); Markdown drops them, so the text does too
+    return src.slice(kids[0].position!.start.offset!, kids[kids.length - 1].position!.end.offset!).replace(/\n[ \t]*(?:>[ \t]?)*/g, '\n');
   };
   const conv = (n: MdNode): IRNode[] => {
     const p = posOf(n);
@@ -122,7 +124,10 @@ export function inlineRuns(text: string): Run[] {
   if (!/[*_`$[\\!~<\n]/.test(text)) {
     if (text) out.push({ t: 'text', v: text });
   } else {
-    const root = parse(text);
+    // a footnote reference is only recognised beside its definition, and definitions live
+    // elsewhere in the document: give each [^label] a stand-in one, which is never walked
+    const labels = [...new Set([...text.matchAll(/\[\^([^\]\s]+)\]/g)].map((m) => m[1]))];
+    const root = parse(labels.length ? `${text}\n\n${labels.map((l) => `[^${l}]: -`).join('\n')}` : text);
     const para = (root.children ?? []).find((c) => c.type === 'paragraph' || c.type === 'heading');
     const walk = (n: MdNode, marks: { b?: true; i?: true; s?: true; href?: string }): void => {
       switch (n.type) {
@@ -168,7 +173,7 @@ export function inlineRuns(text: string): Run[] {
       }
     };
     if (para) (para.children ?? []).forEach((c) => walk(c, {}));
-    else (root.children ?? []).forEach((c) => walk(c, {}));
+    else (root.children ?? []).filter((c) => c.type !== 'footnoteDefinition').forEach((c) => walk(c, {}));
   }
   if (runCache.size > 5000) runCache.clear();
   runCache.set(text, out);

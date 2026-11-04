@@ -28,7 +28,7 @@ const CMP = new Set(['==', '!=', '<', '<=', '>', '>=']);
 export class ExprParser {
   private i = 0;
   private readonly toks: Tok[];
-  constructor(private readonly text: string, from: number, to: number, private readonly map: PosMap) {
+  constructor(text: string, from: number, to: number, private readonly map: PosMap) {
     this.toks = tokenize(text, from, to);
   }
 

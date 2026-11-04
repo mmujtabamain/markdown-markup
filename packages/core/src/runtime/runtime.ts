@@ -781,6 +781,16 @@ export class Runtime {
       const a: VArrow = { key: `${key}:${fromId}>${toId}`, from, to };
       if (n.label) a.label = this.runs(String(this.valueOf(n.label, env, inst)));
       if (n.curve) a.curve = true;
+      if (n.via) {
+        // waypoints: each id found like from and to; one that is missing is left out, with a warning
+        const via: string[] = [];
+        for (const v of this.valueOf(n.via, env, inst) as V[]) {
+          const k = this.findId(inst, String(v));
+          if (k) via.push(k);
+          else this.warn('mkp.arrow-missing', `arrow ${fromId} → ${toId}: no element with id ${String(v)} to pass through; the path goes on without it`);
+        }
+        if (via.length) a.via = via;
+      }
       out.push(a);
     }
     return out;

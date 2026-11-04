@@ -18,7 +18,7 @@ annotated-source@1 "Source code with numbered notes on its lines; picking a note
         press kind=option selected=(sel == k)
           flex gap=s align=baseline wrap=false
             text ("" + (k + 1) + ".") weight=bold
-            text ("line " + notes[k].line + ":")
+            text ("line " + notes[k].line + ":") wrap=false
             text notes[k].text
           @click set sel=(if(sel == k, -1, k))
         stack pad=xs if=(sel == k)

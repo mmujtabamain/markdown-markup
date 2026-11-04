@@ -238,7 +238,8 @@ spec doesn't have that the implementation needed), **Deviation** (differs from t
     *Proposed:* `play=(expr)` with a duration-typed expression, or `speed=` on play.
 62. **Arrow labels** sit at the middle of the shaft, in a box of fixed width, so nearby labels can
     overlap (the ER example's two arrows into one entity). Placing labels to avoid each other is a
-    renderer improvement, not language.
+    renderer improvement, not language. *Superseded by 99:* flow and er lay their labels out as
+    content, so no renderer heuristic is needed.
 63. **`curve` has no breaks.** Non-finite samples are dropped, so the curve joins across a pole
     (`1/x`). *Proposed (8):* a curve breaks its path at non-finite samples and where it leaves the
     canvas's y range.
@@ -276,3 +277,123 @@ spec doesn't have that the implementation needed), **Deviation** (differs from t
     differences between engines: the 120-step force layout differs by about 1e-9 between V8 and
     Hermes. The difference grows through the layout's 120 steps to about 1e-4 in final positions, so the
     force-graph fixtures say 1e-3, a hundredth of a pixel on a 320 px canvas; everything else keeps 11's 1e-9.
+
+## Found while writing a provider
+
+Notes from building a host's provider on `@mkp/react` (a design system's tokens and stylesheet over
+the base set, documents laid out in the host's own page). Each is product-neutral.
+
+76. **Built-in node names are reserved.** *Gap, fixed (6.8, 6.23).* A use is an IR node named after
+    its definition, and a document `state` block compiles to the built-in `controls` node; so a widget
+    named `controls` (or `each`, `switch`, `case`, `else`, `slot`, `fill`, `arrow`) compiled cleanly and
+    then drew nothing. These names are now `mkp.reserved`, like base widget names.
+77. **Quoted paragraphs lose their `> ` markers.** *Gap, fixed (5, 14).* Inline text is sliced from
+    the source, so a paragraph running over several lines inside a quote (every GitHub alert with a
+    body: `> [!NOTE]` then `> text`) kept `> ` at the start of its continuation lines. Continuation
+    lines now drop container markers, as Markdown does.
+78. **Footnote references resolve anywhere in the document.** *Gap, fixed (5).* A paragraph's inline
+    text is parsed on its own, and Markdown only recognises `[^label]` beside its definition, so no
+    reference ever became a footnote run. Each reference is now parsed against a stand-in definition.
+79. **A host can lay blocks out itself.** *Extension (15).* `MkpProvider` gives the runtime, its clock
+    and the token stylesheet with no element of its own, and `useMkpView()` the document's top-level
+    nodes (keyed `doc/<body index>`). A host renders each with `Node` in its own `.mkp-root`, into its
+    own sections or columns. `MkpDocument` is the provider plus one root that stacks them.
+80. **Hooks for a provider's stylesheet.** *Extension (15).* The web renderer gives every node
+    `data-mkp="<base widget>"` and every press `data-kind`; a range carries `--mkp-range-fill` (how far
+    along the value is, for a painted track); a box's `stroke` reads `--mkp-stroke-<name>` before the
+    colour token, so a design system can draw outlines lighter than text in the same colour name.
+    Tokens stay the contract; these only let a stylesheet reach what tokens cannot say.
+81. **A row of tabs is a tablist.** *Gap, fixed (8, accessibility).* `press kind=tab` was `role=tab`
+    with no `tablist` around it; a row (flex) whose children include tabs is now `role=tablist`.
+82. **mkp-ui's toggle draws its own track.** *Gap, fixed (9).* The switch's "on" track had no fill and
+    showed only because the neutral renderer fills a selected press with `accent`; a provider that
+    styles pressed toggles differently got a white knob on white. The track is now `fill=accent`.
+83. **Profile rule errors point at the start of the file.** *Gap (16, open).* A failed `rule` reports
+    1:1, not the front-matter line of the field it checks. The YAML positions exist; the profile
+    checker does not use them yet.
+84. **Parts can't be used in documents.** *Reading (6.4).* So a document can't show `tabs`, `slider`,
+    `select`, `toggle`, `stepper`, `playback`, `value` or `button` directly; a host that wants to judge
+    them wraps them in a widget of its own (with the state their `ref` inputs bind to).
+85. **An overlay says which kind it is.** *Extension (15).* The web renderer gives an overlay's
+    trigger span `data-mkp="overlay"` and `data-mode` (tooltip, popover, dialog), so a stylesheet can
+    draw a tooltip's trigger as a term (dotted underline) and a popover's as a button.
+86. **Series colours avoid the alert tones first.** *Reading (9, mkp-charts).* A chart's second
+    series was `warn`, which read as a warning beside the first. Series now run accent, info, warn,
+    ok in `chart`, `axes` and their legends. `bad` is left to mean an error.
+87. **No fixed-height sizing.** *Gap (8, open).* A canvas has only an aspect, so a thin bar's height
+    follows its width. mkp-ui's progress bar at 28:1 was a slab at a reading width and a sliver on a
+    phone. It is 48:1 now. We propose a canvas `height` in a size token (or min/max heights), so a
+    bar can be 6px at any width.
+88. **No shrink-to-content box.** *Gap (8, open).* A stack is as wide as its parent, so text under a
+    fixed-width canvas spans the block, not the canvas. A chart's x-axis label with `align=center`
+    sat centred on the page, not under the plot; it is left-aligned now. We propose `fit` on a
+    stack (as wide as its widest child).
+89. **Actions sit in a row.** *Reading (9, mkp-learn).* `quiz.numeric`'s Hint and Show the solution
+    were direct children of the question's stack, so they drew as full-width rows, unlike every
+    other question's buttons. They are in one `flex` now.
+90. **A row only stacks when its children have a basis.** *Reading (6, 8).* `grow` is `flex: 1 1 0`,
+    so a wrapping row of grown children never wraps, and a grid's `minmax(0, 1fr)` columns clip
+    instead. mkp-data's join (two tables side by side) and mkp-cs's trace (code beside its
+    variables) clipped on a phone. Both now use `grow basis=m`, so they stack below twice the size
+    token and stay side by side on wider screens. A trace's code line is `wrap=false`, so its number
+    stays beside its code. The authoring guide should say this. A check could warn about `grow`
+    without `basis` in a wrapping row.
+91. **No width-dependent conditions.** *Gap (6, open).* A widget can't know its row has wrapped: there
+    are no breakpoints or container queries. So when the join's tables stack on a phone, its match
+    arrow (left row → right row) runs down through the other left rows. A `wide` condition (true when
+    the widget's root is at least a size token wide), re-evaluated on resize, would let a widget pick
+    another route or layout.
+92. **A label that must not break says so.** *Reading (9, mkp-learn).* annotated-source's "line 3:"
+    label shrank in its no-wrap row and broke at its space on a phone. It is `wrap=false` now.
+93. **The base stylesheet should not rely on browser defaults.** *Gap (15, open).* Under a common CSS
+    reset (Tailwind's preflight): inline maths SVGs became blocks (`svg { display: block }`), lists
+    lost their markers (`list-style: none`), and a footnote's `sup` marker floated above its text
+    (`position: relative; top: -0.5em`). A host's stylesheet put each back. The base stylesheet
+    should set what its layout relies on. It should also sit in a cascade layer (`@layer mkp`):
+    it is injected after the host's CSS, so at equal specificity it wins, and a host now has to
+    out-specify every rule (`.host.mkp-root …`).
+94. **The CLI's lock defaults to the current directory.** *Gap (12, open).* `mkp build` reads and
+    writes `./mkp.lock`, so a build run from another folder read a stale lock left there, and left a
+    stray one behind. We propose the nearest `mkp.lock` above the document, or beside it when none.
+95. **Unpublished definitions still need a version bump.** *Gap (12, open).* Every change to a
+    definition fails the next locked build with `mkp.version-changed`, even when nothing outside the
+    repo has used that version. A host's build had to delete the lock to start it afresh. We propose
+    `mkp build --relock` (a fresh lock, saying so), or a pack-level `unpublished` flag.
+96. **Footnotes show their label.** *Gap (5, open).* `[^engine]` draws "engine" as the reference and
+    as the note's marker. Markdown renderers number footnotes in order of first reference. The
+    label is the author's name for the note, so the web renderer could number them the same way.
+97. **Back-edges in flowcharts.** *Extension (6.10, 9).* The retry loop in `flow`'s login example,
+    a link to an earlier row, was drawn as one curve straight up through every box between its ends.
+    `arrow` could only join two outlines with a line or one bend, and the compute layer can't know
+    where flex rows put their boxes, so no expression could steer it. *Decided:* `arrow` takes
+    `via=(ids)`, waypoints that are ordinary elements. `flow` gives a back link a lane (an empty,
+    row-stretched element laid out with the boxes) in every row it crosses, and the arrow runs up
+    those lanes beside the boxes. Rows now come from the longest path along the links that don't
+    loop back, where a link to the same or an earlier row is a loop only if its target leads round
+    to its source. So a link along a row (Lock → End) now runs down. *Why:* the routing stays in
+    MKP's compute layer, `arrow` stays generic, and measured lanes hold at any width in both
+    renderers.
+98. **Edges that skip layers in `graph`.** *Reading (9).* With longest-path layering, source →
+    Markdown spans three layers and was drawn straight through parse, check and IR. *Decided:* one
+    lane per crossed layer, ordered with the nodes by barycentre sweeps. Each sweep orders every row
+    against the one above, top to bottom, then against the one below, bottom to top, for four rounds.
+    This lives in `route.mkp`, which `flow` and `er` share. *Why:* a lane is Sugiyama's dummy node, and
+    the flex row reserves its place. Every run of a path then goes to the next row, so it can't cross
+    a box; `core/test/arrow.test.ts` checks this on the fixtures.
+99. **Edge labels are laid out.** *Reading (9), supersedes 62.* Labels sat at each arrow's middle, so
+    two relationships into one entity (er shop's contains / appears in) overlapped, and short links put
+    labels on boxes (flow's yes/no). *Decided:* labels are laid out, not drawn. A labelled link puts
+    its label beside its lane in a row of its own, between the two layers it leaves, and other links
+    crossing that row get a lane there too. *Why:* the layout then guarantees no label overlaps a
+    label or a box, without a renderer heuristic, at the cost of some height per labelled gap. Since
+    labels are now content, `flow` and `er` gained `project md`, which writes each connection in text.
+100. **Back-moves in `protocol` (mkp-cs).** *Reading (9).* TIME_WAIT → CLOSED ran straight up
+    through the column of states. *Decided:* a move back more than one layer gets a lane at the side
+    of each layer between, with the longest outermost and a spacer opposite to keep the states
+    centred, and draws via those lanes. This is protocol's own few lines, not `route.mkp`: mkp-cs
+    depends only on core, a pack can share an MKP function only through a dependency or core@1, and
+    changing core@1's source changes its digest in every lock and golden.
+101. **The expanded IR substitutes an arrow's label.** *Gap, fixed (13).* `expand` substituted
+    inputs and `each` variables in `from`, `to` and `via`, but not `label`. So in `ir-expanded`, a
+    label inside an unrolled `each` still read the variable the unrolling removed. It is substituted
+    like the others now, with a test.

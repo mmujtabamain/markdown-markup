@@ -31,12 +31,13 @@ quiz.numeric@1 "A question with a numeric answer, known wrong answers, hints and
     text known.why tone=bad if=(result == fail and known.why != "")
     each k in 0..(hinted - 1)
       text hints[k].text tone=muted
-    press if=(hinted < len(hints))
-      text "Hint"
-      @click set hinted=(hinted + 1)
-    press if=(len(solutions) > 0 and not solved)
-      text "Show the solution"
-      @click set solved=true
+    flex gap=s if=(hinted < len(hints) or (len(solutions) > 0 and not solved))
+      press if=(hinted < len(hints))
+        text "Hint"
+        @click set hinted=(hinted + 1)
+      press if=(len(solutions) > 0 and not solved)
+        text "Show the solution"
+        @click set solved=true
     stack gap=s if=(solved)
       each sol in solutions
         text sol.text

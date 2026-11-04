@@ -60,11 +60,11 @@ axes@1 "Axes with ticks and a grid, for plotting functions of x and marking poin
         each k in colour(0) key=k
           curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=accent width=2
         each k in colour(1) key=k
-          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=warn width=2
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=info width=2
         each k in colour(2) key=k
-          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=ok width=2
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=warn width=2
         each k in colour(3) key=k
-          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=bad width=2
+          curve ((t, clip(plots[k].f(t)))) t=(xmin)..(xmax) n=400 stroke=ok width=2
         each j in 0..(len(marks) - 1)
           circle (marks[j].at) (0.01 xs) fill=ink
           label (marks[j].at + (dx, dy)) (marks[j].label) anchor=ne
@@ -74,8 +74,8 @@ axes@1 "Axes with ticks and a grid, for plotting functions of x and marking poin
           case 0
             item (plots[k].label) accent
           case 1
-            item (plots[k].label) warn
+            item (plots[k].label) info
           case 2
-            item (plots[k].label) ok
+            item (plots[k].label) warn
           else
-            item (plots[k].label) bad
+            item (plots[k].label) ok
