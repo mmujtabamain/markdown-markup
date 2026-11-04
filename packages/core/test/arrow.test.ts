@@ -186,6 +186,8 @@ describe('layered diagrams route every edge row by row', () => {
     const index = (k: string): number => rows.indexOf(paths.get(k)![depth]);
     expect(rows.length).toBeGreaterThan(1);
     for (const a of arrows) {
+      // a link from a node to itself stays in its row: it's a loop
+      if (a.from === a.to) continue;
       const run = [a.from, ...(a.via ?? []), a.to];
       for (let i = 1; i < run.length; i++) expect(Math.abs(index(run[i]) - index(run[i - 1])), `${a.key} step ${i}`).toBe(1);
     }

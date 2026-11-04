@@ -149,9 +149,14 @@ mono`. No pixel values anywhere: sizes come from tokens and canvas ranges.
 
 ### Relations: arrow
 
-`arrow from=a to=b ["label"] [curve] [via=(ids)]` joins two elements by their outlines; ids can be
-computed: `arrow from=(node.id) to=(k.id)`. Arrows find ids in their own instance and in instances
-nested in it, which is how a recursive tree joins parent to child.
+`arrow from=a to=b ["label"] [curve] [via=(ids)] [route=down|right]` joins two elements by their
+outlines; ids can be computed: `arrow from=(node.id) to=(k.id)`. Arrows find ids in their own
+instance and in instances nested in it, which is how a recursive tree joins parent to child. An
+arrow from an element to itself is a loop on its side.
+
+`route=down` (rows) or `route=right` (columns) draws only level and upright runs, the way a
+diagram's lines are usually drawn. Arrows that leave one element leave on one trunk and arrows that
+reach one arrive as one line; other arrows keep off each other's runs.
 
 `via=(ids)` routes an arrow through other elements, in order, so it goes round what is between its
 ends instead of straight through it. The path runs along each via element's longer side (top to

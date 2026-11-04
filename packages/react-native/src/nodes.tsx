@@ -19,7 +19,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Polygon, Path, Svg } from 'react-native-svg';
-import { arrowPath, type Rect, type VNode, type VRun } from '@mkp/core';
+import { arrowPaths, type ArrowEnds, type Rect, type VArrow, type VNode, type VRun } from '@mkp/core';
 import { MeasureCtx, useCtx, type Measurable, type Registry } from './context';
 import { InkCtx, InlineImage, MathView, Runs, useInk, type MathLike } from './runs';
 import { Canvas } from './canvas';
@@ -628,6 +628,7 @@ interface Drawn {
   d: string;
   head: string;
   label?: [number, number];
+  align?: 'start' | 'end';
   runs?: VRun[];
 }
 
@@ -647,15 +648,21 @@ function Scope({ n }: { n: VNode }): ReactNode {
   // turns the measured rects into paths; equal output keeps the previous state (no re-render)
   const draw = useRef(() => {
     const out: Drawn[] = [];
+    const shown: VArrow[] = [];
+    const ends: ArrowEnds[] = [];
     for (const a of arrowsRef.current ?? []) {
       const ra = rects.current.get(a.from);
       const rb = rects.current.get(a.to);
       if (!ra || !rb || entries.current.get(a.from)?.hidden || entries.current.get(a.to)?.hidden) continue;
       // waypoints not measured yet, or hidden, are passed by
       const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
-      const pth = arrowPath(ra, rb, a.curve, 3, 7, via);
-      if (pth) out.push({ key: a.key, d: pth.d, head: pth.head.map((q) => q.join(',')).join(' '), label: a.label ? pth.label : undefined, runs: a.label });
+      shown.push(a);
+      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route });
     }
+    arrowPaths(ends).forEach((pth, i) => {
+      const a = shown[i];
+      if (pth) out.push({ key: a.key, d: pth.d, head: pth.head.map((q) => q.join(',')).join(' '), label: a.label ? pth.label : undefined, align: pth.align, runs: a.label });
+    });
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
   }).current;
 
@@ -753,7 +760,7 @@ function Arrows({ paths }: { paths: Drawn[] }): ReactNode {
       </Svg>
       {paths.map((p) =>
         p.label && p.runs ? (
-          <View key={`${p.key}.l`} style={{ position: 'absolute', left: p.label[0] - 60, top: p.label[1] - 12, width: 120, alignItems: 'center' }}>
+          <View key={`${p.key}.l`} style={{ position: 'absolute', left: p.label[0] - (p.align === 'start' ? 0 : p.align === 'end' ? 120 : 60), top: p.label[1] - 12, width: 120, alignItems: p.align === 'start' ? 'flex-start' : p.align === 'end' ? 'flex-end' : 'center' }}>
             <Text style={{ color: muted, fontSize: body.fontSize * 0.8, backgroundColor: theme.color('surface') }}>
               <Runs runs={p.runs} fontSize={body.fontSize * 0.8} />
             </Text>

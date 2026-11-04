@@ -22,7 +22,7 @@ part opnode@1 "One operator above its inputs; the current operator is outlined, 
       each k in node.kids key=k.id
         opnode node=k at=at done=done
   each k in node.kids key=k.id
-    arrow from=(k.id) to=(node.id)
+    arrow from=(k.id) to=(node.id) route=down
 
 optree@1 "A relational-algebra operator tree, evaluated bottom-up one operator at a time."
   fields root

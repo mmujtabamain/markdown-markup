@@ -999,11 +999,12 @@ export class DefChecker {
       else if (!a.key && a.value.v === 'expr' && a.value.e.k !== 'id') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'label') out.label = this.value(a.value, T.text, scope, a.p);
       else if (a.key === 'via') out.via = this.value(a.value, T.list(T.text), scope, a.p);
+      else if (a.key === 'route') out.route = this.value(a.value, { t: 'choice', opts: ['down', 'right'] }, scope, a.p);
       else if (a.key === 'if') {
         const meta: IRMeta = {};
         this.meta(a, meta, scope);
         out.meta = meta;
-      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids) and curve', 'mkp.unknown-prop');
+      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids), route=down|right and curve', 'mkp.unknown-prop');
     }
     if (!out.from || !out.to) this.fail(n.p, 'arrow needs from=id and to=id');
     return out;

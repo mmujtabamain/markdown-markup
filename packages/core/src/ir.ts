@@ -125,6 +125,8 @@ export interface IRNode {
   to?: IRVal;
   label?: IRVal;
   curve?: boolean;
+  /** arrow: level and upright runs only, down or across the page (a choice value) */
+  route?: IRVal;
   /** arrow: the ids of the elements the path runs through, in order (a list(text) value) */
   via?: IRVal;
   /** expanded IR: a definition instance */

@@ -15,7 +15,7 @@ export { toBase64, fromBase64 } from './util/base64';
 export { Runtime, Inst, WidgetHandle, checkValue, type RuntimeOptions, type SignalEvent, type MathsRenderer } from './runtime/runtime';
 export type { VNode, VLayer, VShape, VArrow, VRun, VMaths } from './runtime/view';
 export { walk as walkView } from './runtime/view';
-export { arrowPath, type Rect, type ArrowPath } from './runtime/arrow';
+export { arrowPath, arrowPaths, type ArrowEnds, type Rect, type ArrowPath } from './runtime/arrow';
 export { fmtNum, fromJson, toJson, rand, EvalError } from './eval';
 export { compilePixels, renderPixelsCpu, encodePng, pngDataUri, sampleMesh } from './gfx/compile';
 export { writeMarkdown, canvasSvg, type MdToggle, type MdOptions, type MdResult } from './md';

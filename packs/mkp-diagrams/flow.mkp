@@ -1,9 +1,3 @@
-# rows by breadth-first distance from the start nodes, so loops back up the chart don't push nodes down
-fn levels(ids: list(text), starts: list(text), links: list({from: text, to: text})) = iterate(
-    fold(ids, {}, (d, id) => put(d, id, if(indexof(starts, id) >= 0, 0, 1000))),
-    len(ids),
-    d => fold(links, d, (d2, l) => put(d2, l.to, min(d2[l.to], d2[l.from] + 1))))
-
 flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows from the start, joined by labelled arrows."
   fields steps links
   in steps list(record step {id: text, label: text, kind: choice(start|step|decision|io|end) = step}) "the boxes, by id"
@@ -102,7 +96,5 @@ flow@1 "A flowchart: start and end, steps, decisions and input/output, in rows f
                     stack id=(c.id)
                 else
                   stack id=(c.id)
-  # a link back up to the row just above has no lane; it bends, clear of the link coming down
   each k in 0..(len(good) - 1)
-    arrow from=(good[k].from) to=(good[k].to) via=(lay.via[k]) if=(lv(good[k].from) < lv(good[k].to))
-    arrow from=(good[k].from) to=(good[k].to) via=(lay.via[k]) curve if=(lv(good[k].from) >= lv(good[k].to))
+    arrow from=(good[k].from) to=(good[k].to) via=(lay.via[k]) route=dir

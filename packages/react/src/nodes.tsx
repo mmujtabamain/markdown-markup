@@ -2,7 +2,7 @@
 // overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { arrowPath, type Runtime, type VArrow, type VNode, type VRun } from '@mkp/core';
+import { arrowPaths, type ArrowEnds, type Runtime, type VArrow, type VNode, type VRun } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
 
@@ -471,8 +471,8 @@ function Scope({ n }: { n: VNode }): ReactNode {
 
 /** Draws the arrows, measuring their ends after layout (run by Scope) and whenever a size changes (6.10). */
 function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HTMLDivElement | null }; measure: { current: () => void } }): ReactNode {
-  const [paths, setPaths] = useState<{ key: string; d: string; head: string; label?: [number, number]; runs?: VRun[] }[]>([]);
-  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
+  const [paths, setPaths] = useState<{ key: string; d: string; head: string; label?: [number, number]; align?: 'start' | 'end'; runs?: VRun[] }[]>([]);
+  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${a.route ?? ''}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
   measure.current = () => {
     const root = box.current;
     if (!root) return;
@@ -486,15 +486,21 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
     };
     const out: typeof paths = [];
     const rel = (r: DOMRect) => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
+    const shown: VArrow[] = [];
+    const ends: ArrowEnds[] = [];
     for (const a of arrows) {
       const ra = find(a.from);
       const rb = find(a.to);
       if (!ra || !rb) continue;
       // waypoints that are not shown (hidden, or not laid out) are passed by
       const via = (a.via ?? []).map(find).filter((r): r is DOMRect => !!r).map(rel);
-      const p = arrowPath(rel(ra), rel(rb), a.curve, 3, 7, via);
-      if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), label: a.label ? p.label : undefined, runs: a.label });
+      shown.push(a);
+      ends.push({ from: a.from, to: a.to, a: rel(ra), b: rel(rb), via, curve: a.curve, route: a.route });
     }
+    arrowPaths(ends, 3, 7, base.width).forEach((p, i) => {
+      const a = shown[i];
+      if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), label: a.label ? p.label : undefined, align: p.align, runs: a.label });
+    });
     setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
     // measuring cost, for performance probes (spike 2): passes, total and worst time, arrows drawn
     const stats = ((globalThis as { __mkpArrowStats?: { passes: number; total: number; max: number; arrows: number } }).__mkpArrowStats ??= { passes: 0, total: 0, max: 0, arrows: 0 });
@@ -519,8 +525,8 @@ function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HT
           <path d={p.d} fill="none" stroke="var(--mkp-color-muted)" strokeWidth={1.5} />
           <polygon points={p.head} fill="var(--mkp-color-muted)" />
           {p.label && p.runs ? (
-            <foreignObject x={p.label[0] - 60} y={p.label[1] - 12} width={120} height={24}>
-              <div style={{ textAlign: 'center', fontSize: '0.8em', color: 'var(--mkp-color-muted)' }}>
+            <foreignObject x={p.label[0] - (p.align === 'start' ? 0 : p.align === 'end' ? 120 : 60)} y={p.label[1] - 12} width={120} height={24}>
+              <div style={{ textAlign: p.align ?? 'center', fontSize: '0.8em', color: 'var(--mkp-color-muted)' }}>
                 <span style={{ background: 'var(--mkp-color-surface)', padding: '0 3px' }}><Runs runs={p.runs} /></span>
               </div>
             </foreignObject>

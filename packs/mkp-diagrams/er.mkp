@@ -56,4 +56,4 @@ er@1 "An entity–relationship diagram: entities with their attributes and keys,
             else
               stack id=(g.id)
   each k in 0..(len(named) - 1)
-    arrow from=(named[k].from) to=(named[k].to) via=(lay.via[k])
+    arrow from=(named[k].from) to=(named[k].to) via=(lay.via[k]) route=down

@@ -13,7 +13,6 @@ protocol@1 "A protocol's states and transitions: step through a run of events an
       put(d2, m.to, d2[m.from] + 1), d2)))
   depth = max([0] + map(states, s => get(rank, s, 0)))
   layers = map(range(0, depth), r => filter(states, s => get(rank, s, 0) == r))
-  fn back(m) = get(rank, m.to, 0) <= get(rank, m.from, 0)
   # a move back up more than one layer runs up a lane at the left of each layer between, so it
   # passes beside their boxes (its arrow goes via the lanes); the longest runs outermost, and a
   # spacer on the right of each lane's layer keeps the states centred
@@ -53,6 +52,5 @@ protocol@1 "A protocol's states and transitions: step through a run of events an
             if(known(path[k], run[k]), "", " (no transition: it stays)")) weight=(if(k == pos - 1, bold, regular))
       text ("Next: **" + run[pos] + "**") tone=muted if=(pos < len(run))
   each m in moves key=(m.from + ">" + m.on)
-    arrow from=(m.from) to=(m.to) via=(map(reverse(range(get(rank, m.to, 0) + 1, get(rank, m.from, 0) - 1)), r => lane(m, r))) if=(span(m) > 1)
-    arrow from=(m.from) to=(m.to) curve if=(back(m) and span(m) <= 1 and m.from != m.to)
-    arrow from=(m.from) to=(m.to) if=(not back(m))
+    arrow from=(m.from) to=(m.to) via=(map(reverse(range(get(rank, m.to, 0) + 1, get(rank, m.from, 0) - 1)), r => lane(m, r))) route=down if=(span(m) > 1)
+    arrow from=(m.from) to=(m.to) route=down if=(span(m) <= 1)

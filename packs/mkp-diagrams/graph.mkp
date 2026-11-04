@@ -4,12 +4,23 @@ type edge = {from: text, to: text}
 fn ranks(nodes, edges) = iterate(
     fold(nodes, {}, (d, n) => put(d, n.id, 0)),
     len(nodes),
-    d => fold(edges, d, (d2, e) => put(d2, e.to, max(d2[e.to], d2[e.from] + 1))))
+    d => fold(filter(edges, e => e.from != e.to), d, (d2, e) => put(d2, e.to, max(d2[e.to], d2[e.from] + 1))))
+
+# rows by breadth-first distance from the start nodes, so loops back up the chart don't push nodes down
+fn levels(ids: list(text), starts: list(text), links: list({from: text, to: text})) = iterate(
+    fold(ids, {}, (d, id) => put(d, id, if(indexof(starts, id) >= 0, 0, 1000))),
+    len(ids),
+    d => fold(links, d, (d2, l) => put(d2, l.to, min(d2[l.to], d2[l.from] + 1))))
 
 graph@1 "Nodes in layers by their edges, laid out automatically."
   in nodes list({id: text, label: text})
   in edges list(edge)
-  rank = ranks(nodes, edges)
+  # a link that closes a cycle doesn't count for the rows, so a cycle can't turn the graph upside down
+  ids = map(nodes, n => n.id)
+  heads = filter(ids, id => len(filter(edges, e => e.to == id and e.from != id)) == 0)
+  near = levels(ids, if(len(heads) > 0, heads, first(ids, 1)), edges)
+  onward = filter(edges, e => not (near[e.to] <= near[e.from] and levels(ids, [e.to], edges)[e.from] < 1000))
+  rank = ranks(nodes, onward)
   depth = max([0] + map(nodes, n => rank[n.id]))
   layers = map(range(0, depth), r => map(filter(nodes, n => rank[n.id] == r), n => n.id))
   # an edge that spans layers runs through a lane in each layer it crosses, ordered with the
@@ -30,4 +41,4 @@ graph@1 "Nodes in layers by their edges, laid out automatically."
             else
               stack id=(c.id)
   each k in 0..(len(links) - 1)
-    arrow from=(links[k].from) to=(links[k].to) via=(lay.via[k])
+    arrow from=(links[k].from) to=(links[k].to) via=(lay.via[k]) route=down

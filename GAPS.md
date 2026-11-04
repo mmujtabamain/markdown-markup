@@ -202,7 +202,8 @@ rule of the spec, not a defect), *in progress*.
 53. **MKP: layered routing assumes rows don't wrap.** Rows are centred flex rows with no x positions,
     so lanes shift with box widths and long edges bow. A row wider than the screen wraps and breaks
     the routing (see 30). *Open.*
-54. **MKP: a self-link draws nothing** in flow, graph and er, and its label isn't shown. *Open.*
+54. **MKP: a self-link drew nothing** in flow, graph and er, and its label wasn't shown. *Fixed:* it is
+    a loop on the node, with room left beside it in the row and its label there (SN 107).
 55. **MKP: an arrow's label wasn't expanded.** `expand.ts` substituted inputs and `each` variables in
     `from`, `to` and `via`, but not `label`. So in `--target ir-expanded`, a label inside an unrolled
     `each` still read the variable the unrolling removed, so the expanded IR drew the wrong label. The
@@ -257,3 +258,11 @@ rule of the spec, not a defect), *in progress*.
     · line 3" with a reset button on the right, and its Play is the primary button. *Open*, minor.
 70. **MKP: a header can't uppercase.** Study Pad's `TRACE · PYTHON` is CSS uppercase. MKP has no
     `upper()` or text case, so the language keeps the case it was written in. *Open*, minor.
+71. **MKP (mkp-diagrams): `graph` turned upside down on a cycle.** Its rows counted every link, so a link
+    closing a cycle pushed the first node to the bottom. *Fixed:* such links no longer count for rows.
+72. **MKP: a lane moved its row off centre.** A lane beside a box took half its width and gap from the
+    box's place, so a straight chain with one long edge beside it bent at each row. *Fixed:* a row
+    balances its lanes with empty cells (`route.mkp`).
+73. **MKP: lanes in different rows don't line up.** Rows are centred on their own, so a long edge's lane
+    moves from row to row and the line steps sideways between them (53 says the same of the bow).
+    *Open:* it wants one grid for all the rows.

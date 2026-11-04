@@ -8,6 +8,13 @@
         "edges": [ { "from": "src", "to": "parse" }, { "from": "parse", "to": "check" }, { "from": "check", "to": "ir" }, { "from": "ir", "to": "md" }, { "from": "ir", "to": "app" }, { "from": "src", "to": "md" } ]
       }
     },
+    "lines": {
+      "summary": "Lines that leave one node or reach one node share a trunk, and a node links to itself.",
+      "props": {
+        "nodes": [ { "id": "req", "label": "request" }, { "id": "cache", "label": "cache" }, { "id": "db", "label": "database" }, { "id": "log", "label": "log" }, { "id": "page", "label": "page" }, { "id": "mail", "label": "mail" } ],
+        "edges": [ { "from": "req", "to": "cache" }, { "from": "req", "to": "db" }, { "from": "req", "to": "log" }, { "from": "cache", "to": "page" }, { "from": "db", "to": "page" }, { "from": "db", "to": "db" }, { "from": "db", "to": "mail" }, { "from": "log", "to": "mail" }, { "from": "page", "to": "req" } ]
+      }
+    },
     "diamond": {
       "summary": "Two paths that meet again.",
       "props": { "nodes": [ { "id": "a", "label": "A" }, { "id": "b", "label": "B" }, { "id": "c", "label": "C" }, { "id": "d", "label": "D" } ], "edges": [ { "from": "a", "to": "b" }, { "from": "a", "to": "c" }, { "from": "b", "to": "d" }, { "from": "c", "to": "d" } ] }

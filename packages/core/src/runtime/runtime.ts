@@ -781,6 +781,7 @@ export class Runtime {
       const a: VArrow = { key: `${key}:${fromId}>${toId}`, from, to };
       if (n.label) a.label = this.runs(String(this.valueOf(n.label, env, inst)));
       if (n.curve) a.curve = true;
+      if (n.route) a.route = this.valueOf(n.route, env, inst) as 'down' | 'right';
       if (n.via) {
         // waypoints: each id found like from and to; one that is missing is left out, with a warning
         const via: string[] = [];

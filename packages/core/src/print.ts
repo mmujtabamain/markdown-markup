@@ -258,7 +258,7 @@ export class MkpPrinter {
         out.push(line(['controls', ...(n.names ?? [])]));
         return out;
       case 'arrow':
-        out.push(line(['arrow', `from=${valSrc(n.from!)}`, `to=${valSrc(n.to!)}`, n.label ? ('text' in n.label && !('ast' in n.label) ? valSrc(n.label, { t: 'text' }) : `label=${valSrc(n.label, { t: 'text' })}`) : '', n.via ? `via=${valSrc(n.via)}` : '', n.curve ? 'curve' : '', ...this.meta(n)]));
+        out.push(line(['arrow', `from=${valSrc(n.from!)}`, `to=${valSrc(n.to!)}`, n.label ? ('text' in n.label && !('ast' in n.label) ? valSrc(n.label, { t: 'text' }) : `label=${valSrc(n.label, { t: 'text' })}`) : '', n.via ? `via=${valSrc(n.via)}` : '', n.route ? `route=${valSrc(n.route)}` : '', n.curve ? 'curve' : '', ...this.meta(n)]));
         return out;
       case '$record': {
         const t = recs?.get(n.record!);

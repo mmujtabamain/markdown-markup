@@ -22,6 +22,8 @@ export interface VArrow {
   to: string;
   label?: VRun[];
   curve?: boolean;
+  /** level and upright runs only, and lines with an end in common combine (route=, 6.10) */
+  route?: 'down' | 'right';
   /** the keys of the elements the path runs through, in order (via=, 6.10) */
   via?: string[];
 }

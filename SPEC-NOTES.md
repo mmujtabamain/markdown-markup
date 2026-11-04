@@ -450,3 +450,16 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     - A `steps` control with `play=` puts Play between ‹ and ›, and the count after them.
     `run` gains `watch`, the variables to point out, and `trace` gains `title`.
 
+107. **Diagram lines.** *Extension (6.10).* Layered diagrams drew slanted lines between lanes, and a
+    link from a node to itself drew nothing. Mujtaba, of Study Pad's graphs: "the lines are always
+    straight, the node can reference itself, and lines combine when required", then "just reduce
+    overlaps unless absolutely necessary". *Decided:* `arrow route=down|right`, level and upright runs
+    only, and `arrowPaths` lays out a scope's arrows together, so they can combine: one source, one
+    trunk; one target, one arrival; other lines keep to their own tracks. An arrow from an element to
+    itself is a loop. A line back up enters a box by the side when its lane stands clear of it, which
+    keeps it off the lines coming down. `graph`, `flow`, `er`, `protocol`, `tree` and `optree` use it;
+    `force` keeps direct lines, because its nodes sit where the physics puts them, and `join`'s are row
+    to row. `route.mkp` leaves room beside a node for its loop and balances a row's lanes, so a lane
+    no longer pushes the row's boxes off centre. `graph` drops the links that close a cycle from its
+    rows, as `flow` does. Study Pad's NodeGraph (ELK) has the first two and not the third; its
+    LinkedCards has all three.

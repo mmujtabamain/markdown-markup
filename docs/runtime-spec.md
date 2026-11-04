@@ -81,7 +81,15 @@ Walk the nodes with a scope:
   or empty one. The runs between are straight, with each corner rounded (radius 12 px, at most half
   of either run), the head is on the last run, and a label sits halfway along the path. `curve`
   bends only an arrow without via elements. A via element that is hidden or not laid out is passed
-  by.
+  by. With `route` (`arrowPaths` is the reference) every run is level or upright: `down` leaves and
+  arrives by top and bottom edges and turns in the gaps between rows, `right` does the same by left
+  and right edges between columns, and a pair with no gap that way runs the other way. Arrows of a
+  scope that leave one element by one side start at one point, and those that reach one by one side
+  end at one point. In a gap, arrows that leave one element share a track, or else those that reach
+  one do, and no other two do, unless their level runs don't touch. A side that arrows both leave
+  and reach by has two points, side by side. An arrow back up through via elements leaves or arrives
+  by the side of a box its lane stands clear of. An arrow whose `from` and `to` are one element
+  is a loop on its right side, or its left if the scope has no room, and its label sits beyond it.
 - a use: create or reuse the instance, render its view, then its **bar**: a row of base widgets for
   each control not placed by `controls` (drag is never in the bar).
 - a base widget: evaluate props; text props become inline runs (text, strong, emphasis, code, links,

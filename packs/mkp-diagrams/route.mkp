@@ -19,7 +19,7 @@ fn crossed(a: int, b: int): list(int) = if(a < b, range(a + 1, b - 1), if(a > b,
 
 # the gap rows in use: where a labelled edge puts its label (the first row it crosses) and where
 # an edge within a layer detours; the others stay out of the grid. An edge from a node to itself
-# is not routed (its arrow draws nothing).
+# is not routed: its arrow is a loop on the node.
 fn gaps(at: dict(int), links) = fold(filter(links, l => l.from != l.to), {}, (d, l) => if(l.label != "" or at[l.from] == at[l.to],
     put(d, "" + (2 at[l.from] + if(at[l.to] < at[l.from], -1, 1)), true), d))
 
@@ -54,7 +54,17 @@ fn settle(rs, r: int, q: int, nb) = map(range(0, len(rs) - 1), j =>
 fn arrange(rows, nb) = iterate(rows, 4, rs =>
     fold(reverse(range(0, len(rs) - 2)), fold(range(1, len(rs) - 1), rs, (a, r) => settle(a, r, r - 1, nb)), (a, r) => settle(a, r, r + 1, nb)))
 
-fn routed(layers: list(list(text)), links, hs) = {rows: arrange(grid(layers, flatten(hs)), nbrs(links, hs)),
+# room beside a node for the loop of a link to itself: a lane's width, or the link's label
+fn looped(row, links) = flatten(map(row, c => [c] + first(map(filter(links, l => l.from == c.id and l.to == c.id),
+    l => {id: "~loop~" + c.id, kind: if(l.label != "", "label", "lane"), row: c.row, label: l.label}), 1)))
+
+# how many lanes a row starts with
+fn leading(row): int = fold(row, {n: 0, on: true}, (s, c) => if(s.on and c.kind == "lane", {n: s.n + 1, on: true}, {n: s.n, on: false})).n
+# empty cells to balance a row's lanes, so a lane on one side doesn't push what's in the row off centre
+fn pads(row, side: text, n: int) = map(range(1, n), j => {id: "~pad~" + row[0].id + "~" + side + j, kind: "lane", row: row[0].row, label: ""})
+fn balanced(row) = pads(row, "<", leading(reverse(row)) - leading(row)) + row + pads(row, ">", leading(row) - leading(reverse(row)))
+
+fn routed(layers: list(list(text)), links, hs) = {rows: map(arrange(grid(layers, flatten(hs)), nbrs(links, hs)), r => balanced(looped(r, links))),
     via: map(hs, h => map(h, c => c.id))}
 
 # layers: node ids, top row first; links: {from, to, label} between those ids. The rows to draw

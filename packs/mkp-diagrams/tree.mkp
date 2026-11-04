@@ -9,4 +9,4 @@ part tree@1 "A tidy tree: each node above a row of its children."
       each k in node.kids key=k.id
         tree node=k
   each k in node.kids key=k.id
-    arrow from=(node.id) to=(k.id)
+    arrow from=(node.id) to=(k.id) route=down
