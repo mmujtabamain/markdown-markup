@@ -100,6 +100,8 @@ export interface DefCheckOptions {
   allowParts?: boolean;
   /** the lock's choice for a name used without @N (6.17) */
   locked?: (name: string) => string | undefined;
+  /** the profile's block attributes (16): a document may write these on any block */
+  blockAttrs?: Set<string>;
 }
 
 export class DefChecker {

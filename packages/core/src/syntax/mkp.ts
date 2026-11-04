@@ -111,6 +111,8 @@ export interface ManifestSyn {
   depends: string[];
   provides: string[];
   front: { name: string; type: Type; def?: Val; about?: string; p: Pos }[];
+  /** block attributes a document may write on any block ({name=value}), kept in the IR's meta (16) */
+  attrs: { name: string; type: Type; about?: string; p: Pos }[];
   roles: string[];
   rules: { rule: string; path: string; args: Arg[]; message?: string; p: Pos }[];
   p: Pos;
@@ -164,7 +166,7 @@ export function parseMkp(src: string, file: string, diags: Diagnostics): MkpFile
     const ctx = new LineCtx(l, file);
     try {
       const word = firstWord(l.text);
-      if (lastManifest && ['requires', 'depends', 'provides', 'front', 'roles', 'rule'].includes(word)) {
+      if (lastManifest && ['requires', 'depends', 'provides', 'front', 'attr', 'roles', 'rule'].includes(word)) {
         packLine(ctx, lastManifest);
         continue;
       }
@@ -223,7 +225,7 @@ function topLevel(ctx: LineCtx, diags: Diagnostics): TopSyn | null {
     case 'pack':
     case 'profile': {
       const nv = nameVersion(ctx, cs[1] ?? ctx.fail('expected name@N', 0));
-      const m: ManifestSyn = { item: 'manifest', kind: head, ...nv, about: optText(ctx, cs[2]), requires: [], depends: [], provides: [], front: [], roles: [], rules: [], p, comments };
+      const m: ManifestSyn = { item: 'manifest', kind: head, ...nv, about: optText(ctx, cs[2]), requires: [], depends: [], provides: [], front: [], attrs: [], roles: [], rules: [], p, comments };
       for (const c of ctx.line.children) {
         try {
           packLine(new LineCtx(c, ctx.map.file), m);
@@ -301,6 +303,14 @@ function packLine(ctx: LineCtx, m: ManifestSyn): void {
       m.front.push({ name, type: typed.type, def: typed.def, about: typed.about, p });
       return;
     }
+    case 'attr': {
+      const name = cs[1]?.text;
+      if (!name || !IDENT_RE.test(name) || ['role', 'id'].includes(name)) ctx.fail('expected "attr name type ["about"]" (role and id are taken)');
+      const typed = typedMember(ctx, cs[1].at + name.length);
+      if (typed.def) ctx.fail('a block attribute has no default: a block without it has none');
+      m.attrs.push({ name, type: typed.type, about: typed.about, p });
+      return;
+    }
     case 'rule': {
       const rule = cs[1]?.text;
       const path = cs[2]?.text;
@@ -312,7 +322,7 @@ function packLine(ctx: LineCtx, m: ManifestSyn): void {
       return;
     }
     default:
-      ctx.fail(`a manifest line is requires, depends, provides, front, roles or rule; found "${cs[0].text}"`);
+      ctx.fail(`a manifest line is requires, depends, provides, front, attr, roles or rule; found "${cs[0].text}"`);
   }
 }
 

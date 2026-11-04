@@ -512,3 +512,13 @@ the base set, documents laid out in the host's own page). Each is product-neutra
 112. **A frame's status reads at body size.** *Correction (6.8).* The status was set small, a size under
     the rest of the bar and under the Views it replaces, where it is the line that says what is going
     on. *Decided:* the status line is body text; the bar's counts and values stay small.
+
+113. **A profile's block attributes, and a CLI a host can drive.** *Extension (12, 16).* Study Pad moves
+    its lessons to MKP, and a lesson cites a lecture's slides block by block; the host also compiles on
+    its server. *Decided:* a profile may declare `attr name type ["about"]` (no default; `id` and `role`
+    are taken). A document writes it on any block, `{cite="lecture-2 3 s3-1"}`; the value is kept as
+    written in the block's `meta.attrs`, a choice is checked against its options, and a widget's own
+    input of the same name takes precedence. Without the profile the attribute is ignored with
+    `mkp.attrs`, as before. `mkp build -` reads one document from stdin, named by `--name`; `--target`
+    takes a list (`ir,md`, with `--out`); `--diagnostics json` writes each diagnostic to stderr as one
+    line of JSON (`severity`, `code`, `message`, `file`, `line`, `col`, `path`).

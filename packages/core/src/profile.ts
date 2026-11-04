@@ -1,5 +1,5 @@
 // Profiles (spec 16): a pack whose manifest says `profile name@N`, declaring typed front-matter
-// fields, section roles and rules from a small built-in set: required, one-of, pattern,
+// fields, block attributes, section roles and rules from a small built-in set: required, one-of, pattern,
 // max-length and count. A rule path is front.<field>, blocks.<widget> or roles.<role>.
 
 import { Diagnostics, Pos } from './diag';
@@ -67,6 +67,11 @@ export function checkProfile(c: Compiled, front: Record<string, unknown>, body: 
         roles.push(role);
       }
       if (n.meta?.summary !== undefined) blocks.set(n.node, (blocks.get(n.node) ?? 0) + 1);
+      // block attributes: a choice must be one of its options (they are written as text)
+      for (const [k, v] of Object.entries(n.meta?.attrs ?? {})) {
+        const t = resolve(m.attrs.find((a) => a.name === k)!.type, env);
+        if (t.t === 'choice' && !t.opts.includes(v)) diags.error('mkp.attr-type', `${k} must be ${showType(t)}`, { file, line: n.pos?.[0] ?? 1, col: 1 });
+      }
       if (n.children) walk(n.children);
     }
   };

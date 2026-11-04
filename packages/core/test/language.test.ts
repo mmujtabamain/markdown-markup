@@ -251,6 +251,30 @@ describe('document state (6.23) and profiles (16)', () => {
     c.document('---\ntitle: A very long title that goes on and on\nsources: []\n---\n# x\n', 'b.mkp.md', d);
     expect(d.errors.map((e) => e.code).sort()).toEqual(['mkp.rule.count', 'mkp.rule.max-length', 'mkp.rule.required']);
   });
+  it('keeps the block attributes of a profile in the meta of any block', () => {
+    const prof: PackSource = {
+      label: 'course',
+      files: new Map([['manifest.mkp', enc.encode('profile course@1 "A course profile."\n  requires core@1\n  attr cite text "slides the block draws on"\n  attr level choice(core|extra) "how much it matters"\n')]]),
+    };
+    const w = pack('t', { 't.mkp': 'w@1 "w"\n  in level text = ""\n  text "one"\n' }, '  provides w\n');
+    const c = compile({ packs: [prof, w], profile: 'course' });
+    const b = c.document('# Limits\n\nA limit is where a function heads.\n{#def cite="lecture-2 3 s3-1"}\n\n```w\nsummary: s\n```\n{cite=lecture-2 level=\"extra\"}\n', 'a.mkp.md');
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    expect(c.diags.warnings.map((x) => x.code)).toEqual([]);
+    const para = b!.doc.body.find((n) => n.meta?.anchor === 'def')!;
+    expect(para.meta!.attrs).toEqual({ cite: 'lecture-2 3 s3-1' });
+    // a widget's own input of the same name takes the value; the rest are block attributes
+    const blk = b!.doc.body.find((n) => n.node === 'w')!;
+    expect(blk.meta!.attrs).toEqual({ cite: 'lecture-2' });
+    expect(blk.props!.level).toBeDefined();
+    const d = new Diagnostics();
+    c.document('A paragraph.\n{level=optional}\n', 'b.mkp.md', d);
+    expect(d.errors.map((e) => e.code)).toEqual(['mkp.attr-type']);
+    // without the profile, they are ignored with a warning
+    const plain = compile({ packs: [prof, w] });
+    plain.document('A paragraph.\n{cite=x}\n', 'c.mkp.md');
+    expect(plain.diags.warnings.map((x) => x.code)).toEqual(['mkp.attrs']);
+  });
 });
 
 describe('versions and the lock (6.17)', () => {

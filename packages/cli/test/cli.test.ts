@@ -54,6 +54,19 @@ describe('mkp CLI', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/bad\.mkp\.md:2:1 error mkp\.input-range: n is 40, outside 2\.\.12/);
   });
+  it('build reads stdin, writes several targets and reports diagnostics as JSON lines', () => {
+    const out = mkdtempSync(join(tmpdir(), 'mkp-'));
+    const src = readFileSync(join(root, 'examples/spec18/roots.mkp.md'), 'utf8');
+    const ok = spawnSync(process.execPath, [cli, 'build', '-', '--name', 'lesson.mkp.md', ...packs, ...ex, '--target', 'ir,md', '--out', out, '--no-lock', '--no-speech', '--diagnostics', 'json'], { cwd: root, input: src, encoding: 'utf8', timeout: 120000 });
+    expect(ok.status).toBe(0);
+    expect(JSON.parse(readFileSync(join(out, 'lesson.ir.json'), 'utf8')).doc.file).toBe('lesson.mkp.md');
+    expect(readFileSync(join(out, 'lesson.md'), 'utf8').length).toBeGreaterThan(0);
+    const bad = spawnSync(process.execPath, [cli, 'build', '-', '--name', 'bad.mkp.md', ...packs, ...ex, '--no-lock', '--no-maths', '--diagnostics', 'json'], { cwd: root, input: '```roots\nn: 40\nsummary: s\n```\n', encoding: 'utf8', timeout: 120000 });
+    expect(bad.status).toBe(1);
+    const lines = bad.stderr.trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines.some((l) => l.severity === 'error' && l.file === 'bad.mkp.md' && l.line >= 1 && typeof l.code === 'string')).toBe(true);
+    expect(run(['build', '-', '--target', 'ir,md']).status).not.toBe(0);
+  });
   it('fmt prints the canonical form', () => {
     const r = run(['fmt', join(root, 'packs/mkp-ui/card.mkp'), ...packs]);
     expect(r.status, r.stderr).toBe(0);

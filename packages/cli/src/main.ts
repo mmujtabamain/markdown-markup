@@ -1,8 +1,11 @@
 // mkp: the command-line tool (spec 12). One executable built from the TypeScript implementation,
 // so hosts in any language call it at write time, in an editor or in CI.
 //
-//   mkp build <docs or folders…> --pack <folder|file.mkpack> … [--profile name]
-//             [--target ir|ir-expanded|md] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
+//   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
+//             [--target ir|ir-expanded|md[,…]] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
+//             [--diagnostics json]
+//             `-` reads one document from stdin (named by --name); several targets need --out;
+//             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check --pack …            packs, fixtures and the section-18 rules (every definition has a valid case)
 //   mkp index --pack …            one line per widget: the catalog an agent keeps in context
 //   mkp show <name> --pack …      the full signature and the first valid fixture case
@@ -57,7 +60,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -89,8 +92,16 @@ function packSource(p: string): PackSource {
   return { label: basename(abs), zip: new Uint8Array(readFileSync(abs)) };
 }
 
+let jsonDiagnostics = false;
+
 function report(d: Diagnostics, quiet = false): boolean {
-  for (const x of d.items) if (!quiet || x.severity === 'error') process.stderr.write(formatDiagnostic(x) + '\n');
+  for (const x of d.items) {
+    if (quiet && x.severity !== 'error') continue;
+    if (jsonDiagnostics) {
+      const { severity, code, message, pos, path } = x;
+      process.stderr.write(JSON.stringify({ severity, code, message, file: pos?.file, line: pos?.line, col: pos?.col, ...(path ? { path } : {}) }) + '\n');
+    } else process.stderr.write(formatDiagnostic(x) + '\n');
+  }
   return d.ok;
 }
 
@@ -116,35 +127,42 @@ function docFiles(paths: string[]): string[] {
 async function build(a: Args): Promise<number> {
   const c = compiled(a);
   let ok = report(c.diags);
-  const target = String(a.opts.target ?? 'ir');
+  const targets = String(a.opts.target ?? 'ir').split(',').filter(Boolean);
   const toggles = (typeof a.opts.md === 'string' ? a.opts.md.split(',').filter(Boolean) : []) as MdToggle[];
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
+  if (targets.length > 1 && !outDir) throw new Error('several targets need --out');
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
-  for (const file of docFiles(a.pos)) {
+  // a document from stdin (-), named by --name
+  const docs = a.pos.includes('-')
+    ? [{ file: typeof a.opts.name === 'string' ? a.opts.name : 'stdin.mkp.md', text: readFileSync(0, 'utf8') }]
+    : docFiles(a.pos).map((file) => ({ file: relative(process.cwd(), file), text: readFileSync(file, 'utf8') }));
+  for (const { file, text: src } of docs) {
     const d = new Diagnostics();
-    const bundle = c.document(readFileSync(file, 'utf8'), relative(process.cwd(), file), d);
+    const bundle = c.document(src, file, d);
     if (bundle && maths) prerender(bundle, maths, d);
     ok = report(d) && ok;
     if (!bundle || !d.ok) continue;
     const stem = basename(file).replace(/\.mkp\.md$/, '');
-    let text: string;
-    let ext: string;
-    const files = new Map<string, string>();
-    if (target === 'md') {
-      const r = writeMarkdown(bundle, { toggles, maths: maths ?? undefined, imageBase: stem });
-      text = r.md;
-      ext = '.md';
-      for (const [k, v] of r.files) files.set(k, v);
-    } else {
-      text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
-      ext = target === 'ir-expanded' ? '.expanded.json' : '.ir.json';
+    for (const target of targets) {
+      let text: string;
+      let ext: string;
+      const files = new Map<string, string>();
+      if (target === 'md') {
+        const r = writeMarkdown(bundle, { toggles, maths: maths ?? undefined, imageBase: stem });
+        text = r.md;
+        ext = '.md';
+        for (const [k, v] of r.files) files.set(k, v);
+      } else {
+        text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
+        ext = target === 'ir-expanded' ? '.expanded.json' : '.ir.json';
+      }
+      if (outDir) {
+        mkdirSync(outDir, { recursive: true });
+        writeFileSync(join(outDir, stem + ext), text);
+        for (const [k, v] of files) writeFileSync(join(outDir, k), v);
+        if (!jsonDiagnostics) process.stderr.write(`wrote ${join(outDir, stem + ext)}\n`);
+      } else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'));
     }
-    if (outDir) {
-      mkdirSync(outDir, { recursive: true });
-      writeFileSync(join(outDir, stem + ext), text);
-      for (const [k, v] of files) writeFileSync(join(outDir, k), v);
-      process.stderr.write(`wrote ${join(outDir, stem + ext)}\n`);
-    } else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'));
   }
   // the lock: written on every successful build, pinning versions and digests (6.17)
   if (ok && !a.opts['no-lock']) writeFileSync(typeof a.opts.lock === 'string' ? a.opts.lock : 'mkp.lock', JSON.stringify(c.lock, null, 1) + '\n');
@@ -270,8 +288,9 @@ function pack(a: Args): number {
 
 const HELP = `mkp ${VERSION}: Markdown Markup
 
-  mkp build <docs|folders…> --pack <folder|file.mkpack> … [--profile name]
-            [--target ir|ir-expanded|md] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
+  mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
+            [--target ir|ir-expanded|md[,…]] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
+            [--diagnostics json]
   mkp check --pack …
   mkp index --pack …
   mkp show <name> --pack …
@@ -282,6 +301,7 @@ const HELP = `mkp ${VERSION}: Markdown Markup
 
 export async function main(argv: string[]): Promise<number> {
   const a = parseArgs(argv);
+  jsonDiagnostics = a.opts.diagnostics === 'json';
   try {
     switch (a.cmd) {
       case 'build':

@@ -442,13 +442,18 @@ class DocChecker {
     if (id) (node.meta ??= {}).anchor = id;
     for (const [k, v] of Object.entries(props)) {
       const p = this.p(line);
+      // a profile's block attribute (16), on any block; a widget's own input of that name wins
+      if (this.dc.opts.blockAttrs?.has(k) && !sig?.inputs.has(k)) {
+        ((node.meta ??= {}).attrs ??= {})[k] = v.replace(/^"(.*)"$/s, '$1');
+        continue;
+      }
       if (!sig) {
         // section roles for profiles (16): {role=example} on a heading
         if (k === 'role' && node.node === 'heading') {
           (node.meta ??= {}).role = v.replace(/^"|"$/g, '');
           continue;
         }
-        this.diags.warn('mkp.attrs', `attribute ${k} on a Markdown block is ignored; only #id and role= (on headings) apply`, p);
+        this.diags.warn('mkp.attrs', `attribute ${k} on a Markdown block is ignored; only #id, role= (on headings) and the profile's block attributes apply`, p);
         continue;
       }
       const inp = sig.inputs.get(k);

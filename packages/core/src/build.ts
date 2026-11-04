@@ -62,7 +62,9 @@ export class Compiled {
   /** Checks a document and assembles its bundle (null when it has errors). */
   document(text: string, file: string, diags = this.diags, opts: { allowParts?: boolean } = {}): IRBundle | null {
     const before = diags.errors.length;
-    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn() });
+    const prof = this.opts.profile ? this.prog.packs.get(this.opts.profile) : undefined;
+    const blockAttrs = new Set(prof?.kind === 'profile' ? prof.manifest.attrs.map((a) => a.name) : []);
+    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn(), blockAttrs });
     if (this.opts.profile) checkProfile(this, cd.front, cd.body, file, diags);
     if (diags.errors.length > before) return null;
     const doc: IRDoc = { file, front: cd.front, body: cd.body };

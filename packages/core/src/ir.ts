@@ -96,6 +96,8 @@ export interface IRMeta {
   anchor?: string;
   /** a heading's section role (profiles, 16) */
   role?: string;
+  /** the profile's block attributes written on this block ({cite=…}), as written (16) */
+  attrs?: Record<string, string>;
 }
 
 export interface IRNode {
