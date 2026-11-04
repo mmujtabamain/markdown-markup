@@ -50,6 +50,14 @@ describe('errors (6.19)', () => {
     expect(build('w@1 "w"\n  r = 1 + true\n', '').errors).toContain('mkp.no-operator');
     expect(build('w@1 "w"\n  r = |1|\n', '').all.join()).toMatch(/write abs\(x\)/);
   });
+  it('refuse two blocks with one anchor, at the second one', () => {
+    const src = 'w@1 "w"\n  text "a"\n';
+    const ok = build(src, '# A\n{#a}\n\n```w #one\nsummary: s\n```\n\n```w #two\nsummary: s\n```\n');
+    expect(ok.errors).toEqual([]);
+    const twice = build(src, '# A\n{#a}\n\n```w #a\nsummary: s\n```\n');
+    expect(twice.errors).toEqual(['mkp.duplicate-anchor']);
+    expect(twice.all.join()).toMatch(/doc\.mkp\.md:4:1 .*#a is already the anchor of the block on line 1/);
+  });
   it('check documents against inputs, and the YAML maths guard', () => {
     const src = 'w@1 "w"\n  in n int 2..12 = 5\n  in f latex = $x$\n  text "\\val{n}"\n';
     expect(build(src, '```w\nn: 40\nsummary: s\n```\n').errors).toContain('mkp.input-range');

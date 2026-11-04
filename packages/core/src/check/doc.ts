@@ -51,7 +51,27 @@ export function checkDocument(prog: Program, src: string, file: string, diags: D
   const d = new DocChecker(prog, dc, diags, file);
   const body = d.items(syn.items, true);
   dc.runDeferred();
+  duplicateAnchors(body, file, diags);
   return { file, front: d.front(syn), body, def, uses: dc.uses };
+}
+
+/** An anchor names one block: links, a host's ids and progress keyed by it would reach only the first. */
+function duplicateAnchors(body: IRNode[], file: string, diags: Diagnostics): void {
+  const seen = new Map<string, number>();
+  const walk = (nodes: IRNode[]): void => {
+    for (const n of nodes) {
+      const id = n.meta?.anchor;
+      const line = n.pos?.[0] ?? 1;
+      if (id) {
+        const first = seen.get(id);
+        if (first === undefined) seen.set(id, line);
+        else diags.error('mkp.duplicate-anchor', `#${id} is already the anchor of the block on line ${first}; give this one another`, { file, line, col: n.pos?.[1] ?? 1 });
+      }
+      walk(n.children ?? []);
+      for (const kids of Object.values(n.fills ?? {})) walk(kids);
+    }
+  };
+  walk(body);
 }
 
 class DocChecker {

@@ -67,6 +67,19 @@ describe('mkp CLI', () => {
     expect(lines.some((l) => l.severity === 'error' && l.file === 'bad.mkp.md' && l.line >= 1 && typeof l.code === 'string')).toBe(true);
     expect(run(['build', '-', '--target', 'ir,md']).status).not.toBe(0);
   });
+  it('build without --out writes the whole bundle into a pipe, past 64 KiB', () => {
+    const r = run(['build', join(root, 'examples/spec18/roots.mkp.md'), ...packs, ...ex, '--target', 'ir', '--no-lock']);
+    expect(r.status).toBe(0);
+    expect(r.stdout.length).toBeGreaterThan(65536);
+    expect(JSON.parse(r.stdout).doc.file).toMatch(/roots\.mkp\.md$/);
+  });
+  it('build refuses an anchor used twice, one of them inside a container', () => {
+    const src = ':::callout tip\nA tip.\n{#same}\n:::\n\nText.\n{#same}\n';
+    const r = spawnSync(process.execPath, [cli, 'build', '-', '--name', 'twice.mkp.md', ...packs, '--no-lock', '--no-maths', '--diagnostics', 'json'], { cwd: root, input: src, encoding: 'utf8', timeout: 120000 });
+    expect(r.status).toBe(1);
+    const errors = r.stderr.split('\n').filter((l) => l.startsWith('{')).map((l) => JSON.parse(l)).filter((d) => d.file === 'twice.mkp.md');
+    expect(errors.map((d) => [d.code, d.line])).toEqual([['mkp.duplicate-anchor', 6]]);
+  });
   it('fmt prints the canonical form', () => {
     const r = run(['fmt', join(root, 'packs/mkp-ui/card.mkp'), ...packs]);
     expect(r.status, r.stderr).toBe(0);
