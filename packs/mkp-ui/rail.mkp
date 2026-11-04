@@ -47,7 +47,7 @@ rail@1 "Stops along a line: a timeline, a journey, a shipping status. The stops 
               stack grow if=(k == 0)
               stack pad=xs radius=pill tint=(if(ring(k), hue(k), surface))
                 stack pad=xs radius=pill fill=(hue(k))
-                  stack pad=xs radius=pill fill=(if(solid(k), hue(k), surface))
+                  stack pad=s radius=pill fill=(if(solid(k), hue(k), surface))
               stack grow stroke=(if(k < pos, ink, muted)) if=(k < n - 1)
               stack grow if=(k == n - 1)
             stack pad=xs
@@ -64,7 +64,7 @@ rail@1 "Stops along a line: a timeline, a journey, a shipping status. The stops 
                 stack align=center
                   stack pad=xs radius=pill tint=(if(ring(k), hue(k), muted))
                     stack pad=xs radius=pill fill=(hue(k))
-                      stack pad=xs radius=pill fill=(if(solid(k), hue(k), surface))
+                      stack pad=s radius=pill fill=(if(solid(k), hue(k), surface))
                   stack grow stroke=(if(k < pos, ink, muted)) if=(k < n - 1)
                 stack grow
                   text (stops[k].label) weight=(if(k == pos, bold, regular)) tone=(if(k <= pos, ink, muted)) align=start

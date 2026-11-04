@@ -11,7 +11,7 @@ fn gridextra(ws: list(num)): list(int) = first(sort(filter(range(0, len(ws) - 1)
     i => gridfloor(ws[i], gridwhole(ws)) - 12 ws[i] / gridwhole(ws)), max(0, gridspare(ws)))
 fn gridshares(ws: list(num)): list(int) = map(range(0, len(ws) - 1), i => gridfloor(ws[i], gridwhole(ws)) + if(indexof(gridextra(ws), i) >= 0, 1, 0))
 
-part gridhead@1 "A data grid's header row: a band of column headings, each aligned, with a badge, lit as the sort key (a diamond), or with a rule on its left."
+part gridhead@1 "A data grid's header row: a band of column headings, each aligned, with a badge, lit as the sort key (a diamond, in the accent), or with a rule on its left."
   fields cols
   in cols list({label: text, align: choice(start|center|end), badge: text, lit: bool, span: int, rule: bool}) "the headings, each with its share of the across columns"
   in gutter text = "" "the gutter's heading"
@@ -29,15 +29,15 @@ part gridhead@1 "A data grid's header row: a band of column headings, each align
       each i in 0..(len(cols) - 1)
         flex span=(max(1, cols[i].span)) align=stretch wrap=false
           stack pad=xs tint=ink if=(cols[i].rule)
-          flex gap=s pad=s align=center justify=(cols[i].align) tint=(if(cols[i].lit, info, muted)) grow
+          flex gap=s pad=s align=center justify=(cols[i].align) tint=(if(cols[i].lit, accent, muted)) grow
             text ""
             text (cols[i].label) size=small weight=bold if=(not maths)
             text "$\val{cols[i].label}$" size=small weight=bold if=maths
-            flex pad=xs gap=s radius=pill tint=info align=center wrap=false if=(cols[i].badge != "")
+            flex pad=xs gap=s radius=pill tint=accent align=center wrap=false if=(cols[i].badge != "")
               text ""
-              text (cols[i].badge) font=mono size=small tone=info wrap=false
+              text (cols[i].badge) font=mono size=small tone=accent wrap=false
               text ""
-            text "◆" size=small tone=info if=(cols[i].lit)
+            text "◆" size=small tone=accent if=(cols[i].lit)
             text ""
       stack span=(max(1, nspan)) if=(nspan > 0)
 

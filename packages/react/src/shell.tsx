@@ -189,6 +189,12 @@ export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNo
   );
 }
 
+/** Whether a zoom has something to fit: a canvas is drawn to its width already, so it never needs it. */
+export function fitsWidth(n: VNode): boolean {
+  const canvas = (ns: VNode[] | undefined): boolean => (ns ?? []).some((k) => k.t === 'canvas' || canvas(k.kids));
+  return n.p.fit !== false && !canvas(n.kids);
+}
+
 export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; Button?: ShellButton }): ReactNode {
   const box = useRef<HTMLDivElement>(null);
   const [locked, setLocked] = useState(true);
@@ -275,7 +281,7 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
       }}
     >
       <div className="mkp-zoom-content" style={moved ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
-        <FitBox on={n.p.fit !== false} gutter={44}>
+        <FitBox on={fitsWidth(n)} gutter={44}>
           <Kids nodes={n.kids} />
         </FitBox>
       </div>

@@ -43,7 +43,7 @@ board@1 "Columns of cards on a tray, a kanban or a pipeline: each column shows i
               text ("" + load(ids[i])) font=mono size=small wrap=false
               text ("/" + limits[i]) font=mono size=small tone=muted wrap=false if=(limits[i] > 0)
               text ""
-            flex pad=xs radius=pill tint=warn stroke=warn align=center wrap=false if=(full(i))
+            flex pad=xs radius=pill tint=warn align=center wrap=false if=(full(i))
               text ""
               text ("" + load(ids[i]) + "/" + limits[i]) font=mono size=small tone=warn weight=medium wrap=false
               text ""
