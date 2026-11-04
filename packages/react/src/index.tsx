@@ -2,12 +2,12 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions, type VNode } from '@mkp/core';
-import { BASE_CSS, tokenCss, type TokenMap } from './style';
-import { Kids, RuntimeCtx } from './nodes';
+import { BASE_CSS, NEUTRAL_CSS, tokenCss, type TokenMap } from './style';
+import { Kids, RuntimeCtx, type MkpComponents } from './nodes';
 
-export { Node, Kids, Runs, MathSpan, RuntimeCtx } from './nodes';
+export { Node, Kids, Runs, MathSpan, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, stackStyle, flexStyle, flexRole, gridStyle, textStyle, type BaseWidget, type HostProps, type HostRoute, type MkpComponents } from './nodes';
 export { Canvas } from './canvas';
-export { tokenCss, BASE_CSS, type TokenMap } from './style';
+export { tokenCss, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {
   bundle: IRBundle;
@@ -16,6 +16,8 @@ export interface MkpProviderProps {
   maths?: MathsRenderer;
   /** a provider's own values for token names */
   tokens?: TokenMap;
+  /** a host's own components for base widgets and definitions */
+  components?: MkpComponents;
   reducedMotion?: boolean;
   options?: RuntimeOptions;
   children?: ReactNode;
@@ -80,8 +82,8 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [rt]);
-  const css = useMemo(() => BASE_CSS + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens]);
-  const ctx = useMemo(() => ({ rt }), [rt]);
+  const css = useMemo(() => BASE_CSS + (props.components ? '' : NEUTRAL_CSS) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components]);
+  const ctx = useMemo(() => ({ rt, components: props.components }), [rt, props.components]);
   return (
     <RuntimeCtx.Provider value={ctx}>
       <ViewCtx.Provider value={tree}>

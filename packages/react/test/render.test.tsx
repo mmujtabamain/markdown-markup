@@ -8,7 +8,7 @@ afterEach(cleanup);
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compile, Runtime } from '@mkp/core';
-import { BASE_CSS, MkpDocument, MkpProvider, Node, useMkpView } from '../src/index';
+import { BASE_CSS, MkpDocument, NEUTRAL_CSS, MkpProvider, Node, useMkpView } from '../src/index';
 import { allPacks, ROOT } from '../../core/test/helpers';
 
 function rootsBundle() {
@@ -18,7 +18,7 @@ function rootsBundle() {
 
 describe('@mkp/react', () => {
   it('draws a change at once: a press leaves no old copy behind, and nothing transitions', () => {
-    expect(BASE_CSS).not.toMatch(/transition|animation|@keyframes/);
+    expect(BASE_CSS + NEUTRAL_CSS).not.toMatch(/transition|animation|@keyframes/);
     const { container, getAllByRole } = render(<MkpDocument bundle={rootsBundle()} />);
     const before = container.innerHTML;
     fireEvent.click(getAllByRole('tab')[1]);

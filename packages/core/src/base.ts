@@ -2,7 +2,7 @@
 // default tokens (spec 7). Every provider implements these; the compiler checks uses against them.
 
 export const CORE_MKP = String.raw`pack core@1 "The base set every provider implements, and the default tokens."
-  provides stack flex grid text image press range field overlay canvas paragraph heading list quote code math divider table footnote rgb
+  provides stack flex grid text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote rgb
 
 type rgb = {r: num, g: num, b: num}
 
@@ -55,8 +55,8 @@ extern image@1 "An asset from the pack or the document's folder."
   in alt text
   in size size = none
 
-extern press@1 "Anything clickable and focusable."
-  in kind choice(button|tab|option|toggle) = button
+extern press@1 "Anything clickable and focusable: a button, a tab, an option among others, an on/off toggle or switch, or an answer row with a tick (check) or a dot (radio)."
+  in kind choice(button|tab|option|toggle|switch|check|radio) = button
   in selected bool = false
   in disabled bool = false
   in label text = "" "accessible name when the content has no text"
@@ -73,6 +73,14 @@ extern range@1 "A value on a track: drag, or use the arrow keys."
   in label text = ""
   out change {value: num}
 
+extern meter@1 "How far along something is: a bar filled to value out of max."
+  fields value max
+  in value num
+  in max num = 1
+  in label text = ""
+  in tone color = accent
+  in size size = fill
+
 extern field@1 "Text or number entry."
   fields value
   in value ref text
@@ -83,8 +91,8 @@ extern field@1 "Text or number entry."
   out change {value: text}
   out submit {value: text}
 
-extern overlay@1 "A popover, tooltip or dialog anchored to its first slot."
-  in mode choice(popover|tooltip|dialog) = popover
+extern overlay@1 "A popover, tooltip, dialog or menu anchored to its first slot. A menu's body holds press kind=option, and its anchor shows the current one."
+  in mode choice(popover|tooltip|dialog|menu) = popover
   in label text = ""
   in anchor slot
   in body slot

@@ -407,3 +407,29 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     and it is content moving, not the interface. Reduced motion still makes it move in jumps. Web
     arrows lost the frame loop that followed moves, so they are measured in the scope's layout effect
     and drawn before the first paint (gap 50).
+103. **A provider defines every base widget.** *Reading (8, 15), corrected by Mujtaba.* The web renderer
+    used to be the only thing that drew the base set, with a stylesheet on top. Spec 8 says the base
+    set is what every provider implements. So `MkpDocument` and `MkpProvider` take `components`, a
+    function for each of `BASE_WIDGETS`, and `MkpComponents` requires all of them, so leaving one out
+    fails the build. Derived widgets are not routed: they are described in terms of the base set,
+    and reach a provider's components through it. The renderer keeps what isn't a widget: scopes,
+    arrows, the control bar, the error boundary and the clock. Its neutral versions draw the base set
+    only when no provider is given (conformance, and any page that wants no design system), and its
+    stylesheet splits in two so `NEUTRAL_CSS` loads only then. `canvas` and `math` definitions
+    call the shared `Canvas` and `MathSpan`: spec 6.15 asks for one maths engine everywhere, and a
+    canvas is a drawing engine, not a design choice.
+104. **`@mkp/shadcn`.** *Extension (15).* The definition of the whole base set in terms of shadcn-style
+    components, which a provider passes in as a kit, typed with every one required. Study Pad's
+    `ui` package and the playground differ in their components, not in how a base widget maps to
+    them, so the mapping is written once. Everything is controlled: the runtime owns the state, and
+    a component's change comes back as the base widget's own event. A row of `press kind=tab` is
+    `Tabs`, and a row of `press kind=option` is a `ToggleGroup`, because shadcn draws those as one
+    component where MKP has a row of presses. core and the renderer don't depend on it.
+105. **Base set additions.** *Extension (8), needed to route.* `press kind=switch|check|radio`,
+    `overlay mode=menu` and `meter`. The packs were hand-drawing all of these (a track of boxes, ☑ in
+    text, a canvas bar), so there was nothing for a provider to give its `Switch`, `Checkbox` or
+    `Progress` to. `toggle`, `quiz.choice`, `select` and `progress` use them now. `meter` also ends
+    the 48:1 canvas that made a bar's height follow its width. `quiz.choice` passes `tone` on a checked
+    answer, so a provider can mark the row right or wrong. Adding to core@1 changes its digest in
+    every lock. Nothing outside this repo is locked to it but Study Pad's fixture lesson, which is
+    relocked.

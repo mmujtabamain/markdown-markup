@@ -45,7 +45,7 @@ export interface VLayer {
 }
 
 export interface VNode {
-  /** base widget kind: stack flex grid text image press range field overlay canvas, Markdown kinds,
+  /** base widget kind: stack flex grid text image press range meter field overlay canvas, Markdown kinds,
    *  or the containers scope (a definition instance), bar (its controls) and error */
   t: string;
   key: string;

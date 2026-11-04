@@ -1,0 +1,21 @@
+{
+  "name": "@mkp/shadcn",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "The base widgets a consumer defines, drawn with shadcn-style components the consumer passes in.",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "dependencies": {
+    "@mkp/core": "workspace:*",
+    "@mkp/react": "workspace:*",
+    "lucide-react": "^0.468.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "react": "^19.2.0"
+  }
+}

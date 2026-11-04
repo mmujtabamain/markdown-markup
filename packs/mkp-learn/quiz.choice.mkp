@@ -15,7 +15,7 @@ quiz.choice@1 "A question with options to pick: one right answer, or several wit
   rights = filter(range(0, n - 1), k => options[k].right)
   right = len(picked) == len(rights) and len(filter(picked, k => options[k].right)) == len(rights)
   fn has(k: int): bool = indexof(picked, k) >= 0
-  fn mark(k: int): text = if(multiple, if(has(k), "☑", "☐"), if(has(k), "◉", "○"))
+  fn verdict(k: int): color = if(result != none and has(k), if(options[k].right, ok, bad), ink)
   fn answers(sep: text): text = join(map(filter(options, o => o.right), o => "- " + o.text + if(o.why == "", "", sep + o.why)), "\n")
   project md = (question + if(multiple, " *(Tick every right answer.)*", "") + "\n\n"
       + join(map(options, o => if(multiple, "- [ ] ", "- ") + o.text), "\n")
@@ -27,15 +27,11 @@ quiz.choice@1 "A question with options to pick: one right answer, or several wit
     stack gap=xs
       each k in 0..(n - 1)
         stack gap=xs
-          press kind=option selected=(has(k)) if=(not multiple)
-            flex gap=s align=baseline wrap=false
-              text (mark(k))
-              text options[k].text
+          press kind=radio selected=(has(k)) tone=(verdict(k)) if=(not multiple)
+            text options[k].text
             @click set picked=[k] result=none
-          press kind=toggle selected=(has(k)) if=multiple
-            flex gap=s align=baseline wrap=false
-              text (mark(k))
-              text options[k].text
+          press kind=check selected=(has(k)) tone=(verdict(k)) if=multiple
+            text options[k].text
             @click set picked=(if(has(k), filter(picked, j => j != k), sort(picked + [k], j => j))) result=none
           text ("✓ " + options[k].why) tone=ok size=small if=(result != none and has(k) and options[k].right and options[k].why != "")
           text ("✗ " + options[k].why) tone=bad size=small if=(result != none and has(k) and not options[k].right and options[k].why != "")

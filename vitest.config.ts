@@ -5,11 +5,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@mkp/core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
-      '@mkp/react': fileURLToPath(new URL('./packages/react/src/index.ts', import.meta.url)),
+      '@mkp/react': fileURLToPath(new URL('./packages/react/src/index.tsx', import.meta.url)),
+      '@mkp/shadcn': fileURLToPath(new URL('./packages/shadcn/src/index.tsx', import.meta.url)),
+      '@': fileURLToPath(new URL('./apps/playground/src', import.meta.url)),
     },
   },
   test: {
-    include: ['packages/core/test/**/*.test.ts', 'packages/cli/test/**/*.test.ts', 'packages/react/test/**/*.test.tsx'],
+    include: ['packages/core/test/**/*.test.ts', 'packages/cli/test/**/*.test.ts', 'packages/react/test/**/*.test.tsx', 'apps/playground/test/**/*.test.tsx'],
     testTimeout: 60000,
     hookTimeout: 120000,
     pool: 'threads',

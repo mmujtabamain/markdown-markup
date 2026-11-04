@@ -4,13 +4,6 @@ part toggle@1 "A switch for the caller's on/off state, with its label."
   in label text "what it switches"
   out changed {on: bool} "after the reader flips it"
   project md = if(on, "- [x] ", "- [ ] ") + label
-  press id=switch kind=toggle selected=on
-    flex gap=s align=center wrap=false
-      flex pad=xs radius=pill fill=accent stroke=accent wrap=false if=on
-        stack pad=m
-        stack pad=m radius=pill fill=surface
-      flex pad=xs radius=pill stroke=muted wrap=false if=(not on)
-        stack pad=m radius=pill fill=muted
-        stack pad=m
-      text label
+  press id=switch kind=switch selected=on
+    text label
     @click set on=(not on) emit changed on=(not on)

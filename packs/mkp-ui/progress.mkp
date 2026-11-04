@@ -12,13 +12,4 @@ progress@1 "How far along something is: a bar with its label and amount."
     flex gap=m justify=between if=(label != "" or show != none)
       text label tone=muted size=small
       text amount size=small
-    canvas x=0..1 y=0..1 aspect=48 size=size label=(if(label != "", label + ": ", "progress: ") + round(100 done) + "%")
-      # round ends: a circle's radius is in x units, and the bar is 48 times wider than tall
-      layer opacity=0.25
-        rect (1/96, 0) (1 - 1/96, 1) fill=muted stroke=none
-        circle (1/96, 0.5) (1/96) fill=muted
-        circle (1 - 1/96, 0.5) (1/96) fill=muted
-      layer if=(done > 0)
-        rect (1/96, 0) (1/96 + done (1 - 1/48), 1) fill=tone stroke=none
-        circle (1/96, 0.5) (1/96) fill=tone
-        circle (1/96 + done (1 - 1/48), 0.5) (1/96) fill=tone
+    meter done tone=tone size=size label=(if(label != "", label + ": ", "progress: ") + round(100 done) + "%")

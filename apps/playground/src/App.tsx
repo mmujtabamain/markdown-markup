@@ -4,7 +4,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { compile, compileCase, fixtureCases, formatDiagnostic, MathsEngine, prerender, Runtime, stripPos, writeMarkdown, expand, type Compiled, type FixtureCase, type IRBundle, type MdToggle } from '@mkp/core';
 import { MkpDocument } from '@mkp/react';
+import { shadcnTokens } from '@mkp/shadcn';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { packFolders } from './catalog';
+import { components } from './kit';
+
+declare const __PG_COMMIT__: string;
 
 interface Entry {
   id: string;
@@ -73,83 +83,102 @@ export function App(): ReactNode {
     location.hash = new URLSearchParams({ ...hash, e: id }).toString();
   };
   const groups = [...new Set(entries.map((e) => e.group))];
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
   return (
-    <div className="pg" data-theme={theme}>
-      <style>{PG_CSS}</style>
-      <aside className="pg-side" aria-label="cases">
-        <h1>MKP playground</h1>
-        <p className="pg-muted">{compiled.defs.size} definitions · {entries.filter((e) => e.kind === 'case').length} fixture cases</p>
-        {compiled.diags.errors.length ? <p className="pg-bad">{compiled.diags.errors.length} build errors</p> : null}
-        {groups.map((g) => (
-          <section key={g}>
-            <h2>{g}</h2>
-            <ul>
-              {entries
-                .filter((e) => e.group === g)
-                .map((e) => (
-                  <li key={e.id}>
-                    <a href={`#${new URLSearchParams({ ...hash, e: e.id }).toString()}`} aria-current={e === selected ? 'page' : undefined} onClick={(ev) => (ev.preventDefault(), select(e.id))}>
-                      {e.title}
-                    </a>
-                  </li>
-                ))}
-            </ul>
-          </section>
-        ))}
-      </aside>
-      <main className="pg-main">
-        <header className="pg-head">
-          <div>
-            <strong>{selected?.title}</strong>
-            <span className="pg-muted"> {selected?.group}</span>
-          </div>
-          <div className="pg-tools">
-            <button type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? 'Dark' : 'Light'}</button>
-            <label>
-              <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.currentTarget.checked)} /> reduced motion
-            </label>
-            <label className="pg-open">
-              Open .mkpack or .mkp.md <input type="file" accept=".mkpack,.md" multiple onChange={(e) => void open(e.currentTarget.files)} />
-            </label>
-          </div>
-        </header>
-        {!maths ? <p className="pg-muted">Loading the maths engine…</p> : null}
-        {result && selected ? <Shown key={selected.id + theme + String(reduced)} entry={selected} bundle={result.bundle} maths={maths} theme={theme} reduced={reduced} negative={result.negative} ok={result.ok} diags={result.diags.map(formatDiagnostic)} /> : null}
-        {result?.bundle ? (
-          <section className="pg-out">
-            <div role="tablist" className="pg-tabs">
-              {['md', 'ir', 'expanded', 'diagnostics'].map((t) => (
-                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
-                  {t === 'md' ? 'Markdown' : t === 'ir' ? 'IR (bundle)' : t === 'expanded' ? 'IR (expanded)' : `Diagnostics (${result.diags.length})`}
-                </button>
-              ))}
-              {tab === 'md' ? (
-                <span className="pg-toggles">
-                  {TOGGLES.map((t) => (
-                    <label key={t}>
-                      <input
-                        type="checkbox"
-                        checked={toggles.has(t)}
-                        onChange={(e) => {
-                          const s = new Set(toggles);
-                          if (e.currentTarget.checked) s.add(t);
-                          else s.delete(t);
-                          setToggles(s);
-                        }}
-                      />{' '}
-                      {t}
-                    </label>
+    <TooltipProvider>
+      <div className="grid min-h-svh md:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="pg-side max-h-56 overflow-y-auto border-b p-3 text-sm md:sticky md:top-0 md:max-h-svh md:border-r md:border-b-0" aria-label="cases">
+          <h1 className="text-base font-semibold">MKP playground</h1>
+          <p className="text-xs text-muted-foreground">
+            {compiled.defs.size} definitions · {entries.filter((e) => e.kind === 'case').length} fixture cases
+            {__PG_COMMIT__ ? ` · ${__PG_COMMIT__}` : ''}
+          </p>
+          {compiled.diags.errors.length ? <p className="text-destructive">{compiled.diags.errors.length} build errors</p> : null}
+          {groups.map((g) => (
+            <section key={g} className="mt-3">
+              <h2 className="px-2 text-xs font-medium text-muted-foreground">{g}</h2>
+              <ul>
+                {entries
+                  .filter((e) => e.group === g)
+                  .map((e) => (
+                    <li key={e.id}>
+                      <a
+                        className="block truncate rounded-md px-2 py-1 hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:font-medium"
+                        href={`#${new URLSearchParams({ ...hash, e: e.id }).toString()}`}
+                        aria-current={e === selected ? 'page' : undefined}
+                        onClick={(ev) => (ev.preventDefault(), select(e.id))}
+                      >
+                        {e.title}
+                      </a>
+                    </li>
                   ))}
-                </span>
-              ) : null}
+              </ul>
+            </section>
+          ))}
+        </aside>
+        <main className="min-w-0 space-y-4 p-4 md:p-6">
+          <header className="pg-head flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <strong className="font-semibold">{selected?.title}</strong>
+              <span className="text-sm text-muted-foreground"> {selected?.group}</span>
             </div>
-            <pre className="pg-code" data-pg-out={tab}>
-              {tab === 'md' ? writeMarkdown(result.bundle, { toggles: [...toggles] }).md : tab === 'ir' ? JSON.stringify(stripPos(result.bundle), null, 1).slice(0, 60000) : tab === 'expanded' ? JSON.stringify(stripPos(expand(result.bundle)).doc, null, 1).slice(0, 60000) : result.diags.map(formatDiagnostic).join('\n') || 'No diagnostics.'}
-            </pre>
-          </section>
-        ) : null}
-      </main>
-    </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Button variant="outline" size="sm" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                {theme === 'light' ? 'Dark' : 'Light'}
+              </Button>
+              <Label>
+                <Checkbox checked={reduced} onCheckedChange={(c) => setReduced(c === true)} /> Reduced motion
+              </Label>
+              <Button variant="outline" size="sm" asChild>
+                <label>
+                  Open .mkpack or .mkp.md <input className="sr-only" type="file" accept=".mkpack,.md" multiple onChange={(e) => void open(e.currentTarget.files)} />
+                </label>
+              </Button>
+            </div>
+          </header>
+          {!maths ? <p className="text-sm text-muted-foreground">Loading the maths engine…</p> : null}
+          {result && selected ? <Shown key={selected.id + theme + String(reduced)} entry={selected} bundle={result.bundle} maths={maths} theme={theme} reduced={reduced} negative={result.negative} ok={result.ok} diags={result.diags.map(formatDiagnostic)} /> : null}
+          {result?.bundle ? (
+            <section>
+              <Tabs value={tab} onValueChange={setTab}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <TabsList>
+                    {['md', 'ir', 'expanded', 'diagnostics'].map((t) => (
+                      <TabsTrigger key={t} value={t}>
+                        {t === 'md' ? 'Markdown' : t === 'ir' ? 'IR (bundle)' : t === 'expanded' ? 'IR (expanded)' : `Diagnostics (${result.diags.length})`}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  {tab === 'md' ? (
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {TOGGLES.map((t) => (
+                        <Label key={t}>
+                          <Checkbox
+                            checked={toggles.has(t)}
+                            onCheckedChange={(c) => {
+                              const s = new Set(toggles);
+                              if (c === true) s.add(t);
+                              else s.delete(t);
+                              setToggles(s);
+                            }}
+                          />
+                          {t}
+                        </Label>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </Tabs>
+              <pre className="pg-code" data-pg-out={tab}>
+                {tab === 'md' ? writeMarkdown(result.bundle, { toggles: [...toggles] }).md : tab === 'ir' ? JSON.stringify(stripPos(result.bundle), null, 1).slice(0, 60000) : tab === 'expanded' ? JSON.stringify(stripPos(expand(result.bundle)).doc, null, 1).slice(0, 60000) : result.diags.map(formatDiagnostic).join('\n') || 'No diagnostics.'}
+              </pre>
+            </section>
+          ) : null}
+        </main>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -176,7 +205,7 @@ function Shown({ entry, bundle, maths, theme, reduced, negative, ok, diags }: { 
   if (negative) {
     return (
       <section className="pg-view" data-mkp-ready="1" data-pg-negative={ok ? 'ok' : 'unexpected'}>
-        <p>
+        <p className="mb-2 text-sm">
           <strong>Negative case.</strong> {ok ? 'It fails as expected:' : 'It did not fail as expected.'}
         </p>
         <pre className="pg-code">{diags.join('\n')}</pre>
@@ -186,46 +215,23 @@ function Shown({ entry, bundle, maths, theme, reduced, negative, ok, diags }: { 
   if (!bundle || !runtime) {
     return (
       <section className="pg-view" data-mkp-ready="1" data-pg-failed="1">
-        <pre className="pg-code pg-bad">{diags.join('\n')}</pre>
+        <pre className="pg-code text-destructive">{diags.join('\n')}</pre>
       </section>
     );
   }
   return (
     <section className="pg-view" data-mkp-ready="1">
       {entry.fc?.play ? (
-        <button type="button" className="pg-play" onClick={() => void play()}>
+        <Button variant="outline" size="sm" className="mb-2" onClick={() => void play()}>
           Run the play steps
-        </button>
+        </Button>
       ) : null}
-      <div className="pg-stage" data-pg-stage="1">
-        <MkpDocument bundle={bundle} runtime={runtime} theme={theme} reducedMotion={reduced} />
-      </div>
-      {log.length ? <pre className="pg-code pg-signals">{log.join('\n')}</pre> : null}
+      <Card className="pg-stage py-0" data-pg-stage="1">
+        <CardContent className="p-5">
+          <MkpDocument bundle={bundle} runtime={runtime} theme={theme} reducedMotion={reduced} components={components} tokens={shadcnTokens} />
+        </CardContent>
+      </Card>
+      {log.length ? <pre className="pg-code mt-2">{log.join('\n')}</pre> : null}
     </section>
   );
 }
-
-const PG_CSS = `
-body { margin: 0; font-family: system-ui, sans-serif; }
-.pg { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; background: #f4f5f7; color: #1a1c1f; }
-.pg[data-theme=dark] { background: #0d0f12; color: #e6e8eb; }
-.pg-side { padding: 12px 14px; border-right: 1px solid #0002; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; font-size: 13px; }
-.pg-side h1 { font-size: 16px; margin: 4px 0; } .pg-side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; margin: 14px 0 4px; }
-.pg-side ul { list-style: none; padding: 0; margin: 0; } .pg-side a { color: inherit; text-decoration: none; display: block; padding: 2px 6px; border-radius: 4px; }
-.pg-side a[aria-current=page] { background: #2563eb; color: #fff; }
-.pg-muted { opacity: .65; } .pg-bad { color: #dc2626; }
-.pg-main { padding: 14px 20px; min-width: 0; }
-.pg-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-.pg-tools { display: flex; gap: 10px; align-items: center; font-size: 13px; }
-.pg-view { margin-bottom: 14px; }
-.pg-stage { background: var(--pg-stage, #fff); border-radius: 10px; box-shadow: 0 1px 3px #0002; padding: 16px 18px; }
-.pg[data-theme=dark] .pg-stage { background: #15171a; }
-.pg-stage .mkp-root { background: transparent; }
-.pg-play { margin-bottom: 8px; }
-.pg-tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
-.pg-tabs button[aria-selected=true] { font-weight: 700; }
-.pg-toggles { display: inline-flex; gap: 8px; margin-left: 12px; font-size: 13px; }
-.pg-code { background: #0000000a; border-radius: 8px; padding: 10px 12px; font-size: 12px; overflow: auto; max-height: 420px; white-space: pre-wrap; word-break: break-word; }
-.pg[data-theme=dark] .pg-code { background: #ffffff10; }
-@media (max-width: 720px) { .pg { grid-template-columns: 1fr; } .pg-side { position: static; max-height: 220px; } }
-`;

@@ -213,3 +213,21 @@ rule of the spec, not a defect), *in progress*.
     briefly held two Check buttons and rows grew and shrank. Fading content in and out doesn't suit a
     page that lays itself out from state. *Fixed:* every animation is gone from both renderers, and
     the `motion` tokens from core@1 (SN 102). `play` stays.
+57. **MKP: there is no icon widget.** The packs write symbols as text (`text "▶"`, `"‹"`, `"↑"`), so
+    a provider can only recognise them by their glyph to draw its own icons. *Worked around:*
+    `@mkp/shadcn` maps the eight glyphs the packs use to lucide icons. An `icon` base widget with a
+    fixed set of names would say what is meant. *Open.*
+58. **Provider: MKP drew its own controls.** Found by Mujtaba: "that package has defined buttons,
+    tabs, checkboxes etc, i though mkp was suppoesd to route it there, not makes its own". The first
+    provider was a stylesheet copying the ui package's look over MKP's own elements. *Fixed:* a
+    provider defines every base widget (SN 103), and the stylesheet goes.
+59. **MKP: packs hand-drew controls a design system has.** A switch was a track of boxes, a tick was ☑
+    in text, a progress bar a canvas, and a select's arrow a "▾". None could reach a real component.
+    *Fixed:* `press kind=switch|check|radio`, `overlay mode=menu` and `meter` (SN 105).
+60. **MKP: `card`, `chip` and `badge` are not a host's Card and Chip.** They are derived, so they are
+    drawn from `stack`, `flex` and tokens, and match only as closely as the tokens let them.
+    Mujtaba agreed to keep them derived, with any visible difference logged here. *Open: reading.*
+61. **MKP: `disclosure` is a Button with a text arrow,** not a host's Collapsible, for the same
+    reason. *Open: reading.*
+62. **MKP: a host's outline colour is still a CSS variable.** `--mkp-stroke-muted` is set in each
+    provider's stylesheet, because a token can't give one colour name two values (gap 4). *Open.*

@@ -19,12 +19,22 @@
     "allowJs": false,
     "types": [
       "node"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "apps/playground/src/*"
+      ],
+      "@mkp/shadcn": [
+        "packages/shadcn/src/index.tsx"
+      ]
+    }
   },
   "include": [
     "packages/core/src",
     "packages/core/test",
     "packages/react/src",
+    "packages/shadcn/src",
     "packages/cli/src",
     "apps/playground/src"
   ]

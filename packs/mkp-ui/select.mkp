@@ -15,10 +15,8 @@ part select@1 "Pick one of several options for the caller's text: a menu, or a r
         press kind=option selected=(o.value == value)
           text name(o)
           @click set value=(o.value) emit changed value=(o.value)
-    overlay id=menu label=(if(label != "", label, "choose")) if=(not inline)
-      flex gap=s align=center wrap=false
-        text name(current)
-        text "▾" tone=muted
+    overlay id=menu mode=menu label=(if(label != "", label, "choose")) if=(not inline)
+      text name(current)
       fill body
         stack gap=xs
           each o in options key=o.value

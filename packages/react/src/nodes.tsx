@@ -6,8 +6,33 @@ import { arrowPath, type Runtime, type VArrow, type VNode, type VRun } from '@mk
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
 
+/** What a host's route gets: the node, what goes on its outer element, and how to report events. */
+export interface HostProps {
+  n: VNode;
+  /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
+  attrs: Record<string, unknown>;
+  /** the place its parent gives it: grow, basis, span */
+  style: CSSProperties;
+  dispatch: Runtime['dispatch'];
+}
+
+/** The base set (core@1, spec 8): what every provider implements. */
+export const BASE_WIDGETS = ['stack', 'flex', 'grid', 'text', 'image', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote'] as const;
+export type BaseWidget = (typeof BASE_WIDGETS)[number];
+
+/** Draws one base widget. It is called as a plain function, so hooks go in what it returns. */
+export type HostRoute = (props: HostProps) => ReactNode;
+
+/**
+ * A provider's definition of every base widget (spec 8, 15). Everything else is described in terms of
+ * the base set, so a derived widget reaches a provider's components through its base widgets. With
+ * none given, this renderer's neutral versions draw them.
+ */
+export type MkpComponents = Record<BaseWidget, HostRoute>;
+
 export interface Ctx {
   rt: Runtime;
+  components?: MkpComponents;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);
@@ -74,7 +99,10 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
 
 // ---------------------------------------------------------------------------------------------
 
-function layoutStyle(n: VNode): CSSProperties {
+const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch', baseline: 'baseline' };
+const JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around' };
+
+export function layoutStyle(n: VNode): CSSProperties {
   const s: CSSProperties = {};
   if (n.layout?.grow) s.flex = '1 1 0';
   if (n.layout?.basis) s.flexBasis = size(n.layout.basis);
@@ -94,20 +122,46 @@ function boxStyle(p: Record<string, unknown>): CSSProperties {
   };
 }
 
+/** What goes on a node's outer element, so a provider's stylesheet, arrows and selectors find it. */
+export function nodeAttrs(n: VNode): Record<string, unknown> {
+  return { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined };
+}
+
+export const flexRole = (n: VNode): string | undefined =>
+  n.p.role === 'control' ? 'group' : ((n.p.role as string | undefined) ?? (n.kids?.some((k) => k.t === 'press' && k.p.kind === 'tab') ? 'tablist' : undefined));
+
+export const stackStyle = (n: VNode): CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(n.p.align)] ?? 'stretch', ...boxStyle(n.p) });
+
+export const flexStyle = (n: VNode): CSSProperties => ({ display: 'flex', flexDirection: 'row', flexWrap: n.p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(n.p.align)] ?? 'flex-start', justifyContent: JUSTIFY[String(n.p.justify)] ?? 'flex-start', ...boxStyle(n.p) });
+
+export const gridStyle = (n: VNode): CSSProperties => ({ display: 'grid', gridTemplateColumns: `repeat(${Number(n.p.cols) || 2}, minmax(0, 1fr))`, alignItems: ALIGN[String(n.p.align)] ?? 'stretch', ...boxStyle(n.p) });
+
+export function textStyle(n: VNode): CSSProperties {
+  const font = String(n.p.font ?? 'body');
+  return {
+    color: color(n.p.tone),
+    fontFamily: `var(--mkp-font-${font}), ${font === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}`,
+    fontWeight: n.p.weight === 'bold' ? 700 : n.p.weight === 'medium' ? 550 : undefined,
+    fontSize: n.p.size === 'small' ? '0.875em' : n.p.size === 'large' ? '1.25em' : undefined,
+    textAlign: (n.p.align as CSSProperties['textAlign']) ?? undefined,
+    whiteSpace: n.p.wrap === false ? 'nowrap' : undefined,
+  };
+}
+
 function cssEscape(s: string): string {
   return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }
 
-const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch', baseline: 'baseline' };
-const JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around' };
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
 
 export function Node({ n }: { n: VNode }): ReactNode {
-  const { rt } = useCtx();
+  const { rt, components } = useCtx();
   const p = n.p;
   // data-mkp names the base widget, so a provider's stylesheet can say what it styles
-  const common = { 'data-mkp': n.t, 'data-mkp-key': n.key, 'data-mkp-id': n.id, 'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined, hidden: n.hidden || undefined } as const;
+  const common = nodeAttrs(n);
   const lay = layoutStyle(n);
+  const route = (components as Record<string, HostRoute> | undefined)?.[n.t];
+  if (route) return route({ n, attrs: common, style: lay, dispatch: rt.dispatch.bind(rt) });
   switch (n.t) {
     case 'scope':
       return <Scope n={n} />;
@@ -126,46 +180,36 @@ export function Node({ n }: { n: VNode }): ReactNode {
       );
     case 'stack':
       return (
-        <div {...common} role={p.role as string | undefined} aria-label={p.label as string | undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(p.align)] ?? 'stretch', ...boxStyle(p), ...lay }}>
+        <div {...common} role={p.role as string | undefined} aria-label={p.label as string | undefined} style={{ ...stackStyle(n), ...lay }}>
           <Kids nodes={n.kids} />
         </div>
       );
     case 'flex':
       return (
-        <div {...common} role={p.role === 'control' ? 'group' : ((p.role as string | undefined) ?? (n.kids?.some((k) => k.t === 'press' && k.p.kind === 'tab') ? 'tablist' : undefined))} aria-label={p.label as string | undefined} style={{ display: 'flex', flexDirection: 'row', flexWrap: p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(p.align)] ?? 'flex-start', justifyContent: JUSTIFY[String(p.justify)] ?? 'flex-start', ...boxStyle(p), ...lay }}>
+        <div {...common} role={flexRole(n)} aria-label={p.label as string | undefined} style={{ ...flexStyle(n), ...lay }}>
           <Kids nodes={n.kids} />
         </div>
       );
     case 'grid':
       return (
-        <div {...common} style={{ display: 'grid', gridTemplateColumns: `repeat(${Number(p.cols) || 2}, minmax(0, 1fr))`, alignItems: ALIGN[String(p.align)] ?? 'stretch', ...boxStyle(p), ...lay }}>
+        <div {...common} style={{ ...gridStyle(n), ...lay }}>
           <Kids nodes={n.kids} />
         </div>
       );
-    case 'text': {
-      const font = String(p.font ?? 'body');
-      const st: CSSProperties = {
-        color: color(p.tone),
-        fontFamily: `var(--mkp-font-${font}), ${font === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}`,
-        fontWeight: p.weight === 'bold' ? 700 : p.weight === 'medium' ? 550 : undefined,
-        fontSize: p.size === 'small' ? '0.875em' : p.size === 'large' ? '1.25em' : undefined,
-        textAlign: (p.align as CSSProperties['textAlign']) ?? undefined,
-        whiteSpace: p.wrap === false ? 'nowrap' : undefined,
-        ...lay,
-      };
+    case 'text':
       return (
-        <div {...common} style={st}>
+        <div {...common} style={{ ...textStyle(n), ...lay }}>
           <Runs runs={p.runs as VRun[]} />
         </div>
       );
-    }
     case 'image':
       return <img {...common} src={String(p.src)} alt={String(p.alt)} style={{ maxWidth: p.size && p.size !== 'none' ? size(p.size) : '100%', ...lay }} />;
     case 'press': {
       const kind = String(p.kind ?? 'button');
       const aria: Record<string, unknown> = {};
       if (kind === 'tab') Object.assign(aria, { role: 'tab', 'aria-selected': !!p.selected });
-      else if (kind === 'option') Object.assign(aria, { role: 'radio', 'aria-checked': !!p.selected });
+      else if (kind === 'option' || kind === 'radio') Object.assign(aria, { role: 'radio', 'aria-checked': !!p.selected });
+      else if (kind === 'check' || kind === 'switch') Object.assign(aria, { role: kind === 'check' ? 'checkbox' : 'switch', 'aria-checked': !!p.selected });
       else if (kind === 'toggle') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
@@ -191,6 +235,14 @@ export function Node({ n }: { n: VNode }): ReactNode {
           style={{ ...lay, '--mkp-range-fill': `${Number(p.max) > Number(p.min) ? ((Number(p.value) - Number(p.min)) / (Number(p.max) - Number(p.min))) * 100 : 0}%` } as CSSProperties}
         />
       );
+    case 'meter': {
+      const max = Number(p.max) > 0 ? Number(p.max) : 1;
+      return (
+        <div {...common} className="mkp-meter" role="progressbar" aria-valuemin={0} aria-valuemax={max} aria-valuenow={Number(p.value)} aria-label={String(p.label || 'progress')} style={{ width: size(p.size), ...lay }}>
+          <div style={{ width: `${Math.max(0, Math.min(1, Number(p.value) / max)) * 100}%`, background: color(p.tone) }} />
+        </div>
+      );
+    }
     case 'field':
       return <Field n={n} />;
     case 'overlay':
@@ -370,7 +422,7 @@ function Overlay({ n }: { n: VNode }): ReactNode {
   const hover = mode === 'tooltip' ? { onMouseEnter: () => rt.dispatch(n.key, 'open'), onMouseLeave: () => rt.dispatch(n.key, 'close'), onFocus: () => rt.dispatch(n.key, 'open'), onBlur: () => rt.dispatch(n.key, 'close') } : {};
   return (
     <span data-mkp="overlay" data-mode={mode} data-mkp-key={n.key} data-mkp-id={n.id} hidden={n.hidden || undefined} style={{ position: 'relative', display: 'inline-block', ...layoutStyle(n) }}>
-      <button ref={anchor} type="button" className="mkp-press" aria-expanded={open} aria-haspopup={mode === 'tooltip' ? undefined : 'dialog'} aria-label={p.label ? String(p.label) : undefined} onClick={() => rt.dispatch(n.key, open ? 'close' : 'open')} {...hover}>
+      <button ref={anchor} type="button" className="mkp-press mkp-overlay-anchor" data-mode={mode} aria-expanded={open} aria-haspopup={mode === 'tooltip' ? undefined : 'dialog'} aria-label={p.label ? String(p.label) : undefined} onClick={() => rt.dispatch(n.key, open ? 'close' : 'open')} {...hover}>
         <Kids nodes={n.kids} />
       </button>
       {body}

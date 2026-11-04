@@ -171,6 +171,8 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
         return '[ ____ ]';
       case 'range':
         return `[${fmt(p.value)}]`;
+      case 'meter':
+        return `[${Math.round((Number(p.value) / Number(p.max)) * 100)}%]`;
       case 'overlay':
         return [`[${plain(n)}]`, ...blocks(n.body)].join('\n\n');
       case 'canvas':

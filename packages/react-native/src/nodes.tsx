@@ -156,6 +156,8 @@ export function Node({ n }: { n: VNode }): ReactNode {
       return <Press n={n} />;
     case 'range':
       return <Range n={n} />;
+    case 'meter':
+      return <Meter n={n} />;
     case 'field':
       return <Field n={n} />;
     case 'overlay':
@@ -349,7 +351,23 @@ function plainRuns(rs: VRun[]): string {
 // ---------------------------------------------------------------------------------------------
 // Interaction
 
-const PRESS_ROLE: Record<string, AccessibilityRole> = { button: 'button', tab: 'tab', option: 'radio', toggle: 'togglebutton' };
+const PRESS_ROLE: Record<string, AccessibilityRole> = { button: 'button', tab: 'tab', option: 'radio', toggle: 'togglebutton', radio: 'radio', check: 'checkbox', switch: 'switch' };
+
+/** The tick box, the dot or the switch's track drawn before a press's content. */
+function PressMark({ kind, on }: { kind: string; on: boolean }): ReactNode {
+  const { theme } = useCtx();
+  const accent = theme.color('accent');
+  const surface = theme.color('surface');
+  const muted = theme.color('muted');
+  if (kind === 'switch') {
+    return (
+      <View style={{ width: 36, height: 20, borderRadius: 10, padding: 3, flexDirection: 'row', justifyContent: on ? 'flex-end' : 'flex-start', backgroundColor: on ? accent : muted }}>
+        <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: surface }} />
+      </View>
+    );
+  }
+  return <View style={{ width: 16, height: 16, borderWidth: 1, borderColor: on ? accent : muted, borderRadius: kind === 'radio' ? 8 : 3, backgroundColor: on ? accent : undefined }} />;
+}
 
 /** A press: something clickable and focusable, with the role and state its kind implies. */
 function Press({ n }: { n: VNode }): ReactNode {
@@ -361,7 +379,8 @@ function Press({ n }: { n: VNode }): ReactNode {
   const accent = theme.color('accent');
   const surface = theme.color('surface');
   const tone = theme.color(p.tone);
-  const state = kind === 'tab' ? { selected, disabled } : kind === 'option' || kind === 'toggle' ? { checked: selected, disabled } : { disabled };
+  const state = kind === 'tab' ? { selected, disabled } : kind === 'button' ? { disabled } : { checked: selected, disabled };
+  const mark = kind === 'check' || kind === 'radio' || kind === 'switch';
   const r = theme.radius('card');
   return (
     <Pressable
@@ -374,21 +393,22 @@ function Press({ n }: { n: VNode }): ReactNode {
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: mark ? 'flex-start' : 'center',
         gap: theme.space('s'),
         minHeight: 36,
         minWidth: 36,
         paddingVertical: theme.space('xs'),
-        paddingHorizontal: theme.space('m'),
-        borderWidth: 1,
+        paddingHorizontal: kind === 'switch' ? 0 : theme.space('m'),
+        borderWidth: kind === 'switch' ? 0 : 1,
         borderColor: selected ? accent : pressed ? accent : theme.mix(theme.color('muted'), surface, 0.45),
-        backgroundColor: selected ? accent : theme.mix(theme.color('muted'), surface, pressed ? 0.24 : 0.14),
+        backgroundColor: kind === 'switch' ? undefined : selected && !mark ? accent : theme.mix(theme.color('muted'), surface, pressed ? 0.24 : 0.14),
         borderRadius: r,
         ...(kind === 'tab' ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : null),
         opacity: disabled ? 0.45 : 1,
       })}
     >
-      <InkCtx.Provider value={selected ? surface : tone}>
+      {mark ? <PressMark kind={kind} on={selected} /> : null}
+      <InkCtx.Provider value={selected && !mark ? surface : tone}>
         <Kids nodes={n.kids} />
       </InkCtx.Provider>
     </Pressable>
@@ -506,7 +526,25 @@ function Field({ n }: { n: VNode }): ReactNode {
   );
 }
 
-/** A popover, tooltip or dialog anchored to its first slot. A dialog is a Modal (the back button closes it). */
+function Meter({ n }: { n: VNode }): ReactNode {
+  const { theme } = useCtx();
+  const p = n.p;
+  const max = Number(p.max) > 0 ? Number(p.max) : 1;
+  const done = Math.max(0, Math.min(1, Number(p.value) / max));
+  const surface = theme.color('surface');
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={String(p.label || 'progress')}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(done * 100) }}
+      style={{ height: 8, width: theme.size(p.size), maxWidth: '100%', borderRadius: 4, overflow: 'hidden', backgroundColor: theme.mix(theme.color('muted'), surface, 0.25) }}
+    >
+      <View style={{ height: '100%', width: `${done * 100}%`, backgroundColor: theme.color(p.tone) }} />
+    </View>
+  );
+}
+
+/** A popover, tooltip, dialog or menu anchored to its first slot. A dialog is a Modal (the back button closes it). */
 function Overlay({ n }: { n: VNode }): ReactNode {
   const { rt, theme } = useCtx();
   const p = n.p;
@@ -539,7 +577,7 @@ function Overlay({ n }: { n: VNode }): ReactNode {
         <Kids nodes={n.kids} />
       </Pressable>
       {open && mode === 'dialog' ? (
-        <Modal transparent visible animationType="fade" onRequestClose={close} supportedOrientations={['portrait', 'landscape']}>
+        <Modal transparent visible animationType="none" onRequestClose={close} supportedOrientations={['portrait', 'landscape']}>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.space('l') }}>
             <Pressable accessibilityRole="button" accessibilityLabel="close" onPress={close} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#00000066' }} />
             <View accessibilityViewIsModal accessibilityLabel={label ?? 'dialog'} style={{ ...panel, width: '100%', maxWidth: 480 }}>

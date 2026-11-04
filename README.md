@@ -12,8 +12,9 @@ This is the implementation of the spec v0.2 draft: one TypeScript codebase.
 | `packages/core` | The compiler, type checker, evaluator, maths engine (MathJax SVG + speech), Markdown writer, printers, expander, schemas and runtime. No DOM: it runs in browsers, Node and Hermes. |
 | `packages/react` | The web renderer: the base set as React DOM components. |
 | `packages/react-native` | The React Native renderer. |
+| `packages/shadcn` | A provider's definition of the whole base set, drawn with the shadcn-style components it passes in. |
 | `packages/cli` | `mkp`: build, check, index, show, schema, fmt, pack — also as one executable. |
-| `apps/playground` | Every fixture case and document, live, with its IR and Markdown beside it. |
+| `apps/playground` | Every fixture case and document, live, with its IR and Markdown beside it, on shadcn/ui. Hosted at <https://mmujtabamain.github.io/markdown-markup/>, rebuilt on every commit. |
 | `packs/` | The derived packs: mkp-ui, mkp-charts, mkp-diagrams, mkp-math, mkp-learn, mkp-data, mkp-cs. |
 | `examples/spec18` | The spec's worked examples (18.1, 18.5 and the brand from 7). |
 | `conformance/` | Golden cases any provider or port runs. |

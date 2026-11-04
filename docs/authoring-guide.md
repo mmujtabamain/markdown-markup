@@ -138,8 +138,9 @@ presses with complementary `if=` when the outcome depends on state.
 
 ### Layout and style
 
-Base widgets: `stack` (column), `flex` (row, wraps), `grid cols=n`, `text`, `image`, `press`, `range`,
-`field`, `overlay`, `canvas` (with `layer`s of `rect line circle path curve label image place handle`),
+Base widgets: `stack` (column), `flex` (row, wraps), `grid cols=n`, `text`, `image`, `press`
+(`kind=button|tab|option|toggle|switch|check|radio`), `range`, `meter`, `field`, `overlay`
+(`mode=popover|tooltip|dialog|menu`), `canvas` (with `layer`s of `rect line circle path curve label image place handle`),
 and the Markdown ones (`paragraph heading list quote code math divider table`).
 
 Style props take **token names only**: colours `surface ink muted accent info ok warn bad`, spaces
