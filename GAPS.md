@@ -539,3 +539,11 @@ rule of the spec, not a defect), *in progress*.
      the answers. Study Pad walks the bundle instead, leaving out what a definition marks as an
      answer by input name. *Open:* a `--no-answers` snapshot, with each widget saying which inputs
      are answers (an `answer` flag on `in`), which also lets a host find them without knowing names.
+167. **MKP CLI: `mkp build` without `--out` cuts its output at 64 KiB into a pipe.** It writes the IR
+     to stdout and exits before a piped stdout drains, so a caller reading the bundle from a pipe gets
+     65,536 bytes of it. Study Pad's backend and CLI pass `--out`. *Open:* end with `process.exitCode`
+     (or wait for the write's callback) instead of `process.exit()`.
+168. **MKP CLI: `mkp show` says more than a definition does.** It marks some inputs "(required)" that
+     have defaults or may be left out, and prints a widget's examples as JSON where a document writes
+     YAML, so an agent copying them writes the wrong syntax. *Open:* required only for an `in` with no
+     default, and examples printed as the fence body they would be.
