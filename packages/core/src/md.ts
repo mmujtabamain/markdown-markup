@@ -215,7 +215,8 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
     const inst = rt.instanceAt(n.key);
     const def = inst?.def;
     const out: string[] = [];
-    if (n.p.summary) out.push(`*${escape(String(n.p.summary))}*`);
+    // a summary is Markdown already (with $…$ maths): kept as written
+    if (n.p.summary) out.push(`*${String(n.p.summary).trim()}*`);
     const project = def?.project;
     if (project?.mermaid && t.has('mermaid')) {
       const src = String(rt.evalExpr(project.mermaid, inst!.env as Env, inst!));
