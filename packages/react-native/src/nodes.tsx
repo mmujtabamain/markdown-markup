@@ -620,6 +620,8 @@ function Scope({ n }: { n: VNode }): ReactNode {
   const rects = useRef(new Map<string, Rect>());
   const [paths, setPaths] = useState<Drawn[]>([]);
   const frame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  // children unregister after this scope's own cleanup, and that must not ask for another frame
+  const gone = useRef(false);
   const arrowsRef = useRef(arrows);
   arrowsRef.current = arrows;
 
@@ -667,7 +669,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
   }).current;
 
   const schedule = useRef(() => {
-    if (frame.current !== null) return;
+    if (frame.current !== null || gone.current) return;
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
       measure();
@@ -698,12 +700,13 @@ function Scope({ n }: { n: VNode }): ReactNode {
   useEffect(() => {
     if (arrows?.length) measure();
   });
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
       if (frame.current !== null) cancelAnimationFrame(frame.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const label = n.p.summary ? String(n.p.summary) : undefined;
   return (

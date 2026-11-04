@@ -231,3 +231,7 @@ rule of the spec, not a defect), *in progress*.
     reason. *Open: reading.*
 62. **MKP: a host's outline colour is still a CSS variable.** `--mkp-stroke-muted` is set in each
     provider's stylesheet, because a token can't give one colour name two values (gap 4). *Open.*
+63. **MKP: an RN scope with arrows left a frame pending when it unmounted.** Its children unregister
+    after the scope's own cleanup, and each asked for another measure. Jest then failed the run with
+    every test passed, because the frame fired after teardown, and only on a clean checkout: a later
+    test used to hide it. *Fixed:* a scope that has gone asks for no frame, with a test.

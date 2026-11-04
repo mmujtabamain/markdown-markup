@@ -320,6 +320,20 @@ describe('interactions', () => {
     check(rt);
   });
 
+  it('a scope with arrows asks for no frame while it unmounts', async () => {
+    const hit = firstCase((v) => !!find(v, (n) => !!n.arrows?.length));
+    await mount(hit!.bundle, { hosts: hit!.fc.hosts });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    const frames = jest.spyOn(globalThis, 'requestAnimationFrame');
+    await act(async () => {
+      await screen.unmount();
+    });
+    expect(frames).not.toHaveBeenCalled();
+    frames.mockRestore();
+  });
+
   it('arrows are drawn between measured ends', async () => {
     const hit = firstCase((v) => !!find(v, (n) => !!n.arrows?.length));
     expect(hit).not.toBeNull();
