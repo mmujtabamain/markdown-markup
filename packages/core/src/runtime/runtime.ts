@@ -741,7 +741,7 @@ export class Runtime {
       }
     } else {
       // a keyed instance can move (each key=): its inputs read the scope it is in now
-      if (child.caller !== inst || !sameScope(child.callerEnv, env)) child.scope.set(child.scope.value + 1);
+      if (child.caller !== inst || !sameScope(child.callerEnv, env)) child.scope.set((child.scope.value as number) + 1);
       child.callerEnv = env;
       child.caller = inst;
     }
