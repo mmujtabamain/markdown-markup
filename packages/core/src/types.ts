@@ -425,6 +425,8 @@ export function join(a: Type, b: Type, env: TypeEnv): Type | null {
   const rb = resolve(b, env);
   if (ra.t === 'unknown' || ra.t === 'any') return b;
   if (rb.t === 'unknown' || rb.t === 'any') return a;
+  // a path compares with text: path != "" asks whether an optional path was given
+  if ((ra.t === 'path' && rb.t === 'text') || (ra.t === 'text' && rb.t === 'path')) return T.text;
   if ((ra.t === 'int' || ra.t === 'num') && (rb.t === 'int' || rb.t === 'num')) return ra.t === 'int' && rb.t === 'int' ? T.int : T.num;
   if (ra.t === 'choice' && rb.t === 'choice') return { t: 'choice', opts: [...new Set([...ra.opts, ...rb.opts])] };
   if ((ra.t === 'text' || ra.t === 'choice') && (rb.t === 'text' || rb.t === 'choice')) return T.text;

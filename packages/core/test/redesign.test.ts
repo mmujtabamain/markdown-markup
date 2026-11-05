@@ -235,3 +235,31 @@ describe('positions (GAPS 165)', () => {
     expect(r.all[0]).toMatch(new RegExp(`^doc\\.mkp\\.md:${line}:5 error mkp\\.input-type: xs\\[1\\] is a whole number`));
   });
 });
+
+describe('record kinds and optional paths (GAPS 44)', () => {
+  it('a record kind is a type a fn can take, and an optional path is ""', () => {
+    const src = fence([
+      'board of T "Rows of a table, with an optional note column."',
+      '  in rows list(T)',
+      '  in name path(T, text)',
+      '  in note path(T, text) = ""',
+      '  in marks list(record mark {at: int, tone: color = accent})',
+      '  fn shade(m: mark): color = m.tone',
+      '  column',
+      '    each k in 0..(len(rows) - 1) key=k',
+      '      row',
+      '        text (rows[k][name])',
+      '        text (rows[k][note]) tone=muted if=(note != "")',
+      '    each m in marks key=m.at',
+      '      text "mark \\val{m.at}" tone=(shade(m))',
+      '  project md = join(map(rows, r => r[name]), ", ")',
+    ].join('\n')) + block('board', 'rows:\n  - {city: Oslo, n: 1}\nname: city\nmarks:\n  - {at: 1}\nsummary: s');
+    const r = doc(src);
+    expect(r.all).toEqual([]);
+    expect(texts(new Runtime(r.b!).view())).toEqual(['Oslo', 'mark 1']);
+  });
+  it('a path to a number where text is needed says to quote the values', () => {
+    const src = fence('t of T "t"\n  in rows list(T)\n  in name path(T, text)\n  text "x"\n  project md = "x"') + block('t', 'rows:\n  - {n: 1}\nname: n\nsummary: s');
+    expect(doc(src).all[0]).toMatch(/quote the values in the YAML/);
+  });
+});

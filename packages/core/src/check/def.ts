@@ -194,8 +194,22 @@ export class DefChecker {
     readonly opts: DefCheckOptions,
   ) {
     const s = entry.syn;
-    this.env = withParams(prog.typeEnv(entry.pack), s.params ?? []);
-    this.x = new ExprChecker(prog, entry.pack, this.localFns, entry.file, s.params ?? []);
+    // its record kinds are named types inside it, so a fn can take one (GAPS 44)
+    const kinds = new Map<string, Type>();
+    for (const m of s.members) {
+      if (m.m !== 'in') continue;
+      const visit = (t: Type): void => {
+        if (t.t === 'records') {
+          kinds.set(t.kind, { t: 'rec', name: t.kind, fields: t.slot ? [...t.fields, ['slot', T.slot]] : t.fields, ...(t.defaults ? { defaults: t.defaults } : {}) });
+          t.fields.forEach(([, f]) => visit(f));
+        } else if (t.t === 'list') visit(t.of);
+      };
+      visit(m.type);
+    }
+    const base = prog.typeEnv(entry.pack);
+    const withKinds: TypeEnv = kinds.size ? (n) => base(n) ?? kinds.get(n) : base;
+    this.env = withParams(withKinds, s.params ?? []);
+    this.x = new ExprChecker(prog, entry.pack, this.localFns, entry.file, s.params ?? [], kinds);
     this.x.tokenNames = opts.tokenNames;
     this.ir = {
       ir: IR_VERSION,
@@ -486,6 +500,7 @@ export class DefChecker {
           break;
         case 'named':
           if (this.entry.syn.params?.includes(x.name)) break;
+          if (resolve(x, this.env).t !== 'named') break;
           if (!this.prog.lookupType(x.name, this.entry.pack)) this.fail(p, `there is no type "${x.name}"${didYouMean(x.name, [...this.prog.types.values()].map((v) => v.name))}`, 'mkp.unknown-type');
           break;
         case 'list':
@@ -720,6 +735,7 @@ export class DefChecker {
         if (v.v !== 'expr') this.fail(p, `expected a field name, found ${v.src}`);
         const w = v.e.k === 'id' ? v.e.name : v.e.k === 'str' && !v.e.v.includes('\\val{') ? v.e.v : null;
         const of = resolve(t.of, this.env);
+        if (w === '') return { lit: '' };
         if (w !== null && of.t === 'rec') return this.pathTo(w, t, p);
         const c = this.x.check(v.e, scope, t);
         if (!fits(c.type, t, this.env)) this.fail(p, `expected ${showType(t)}, found ${showType(c.type)}`, 'mkp.type');
@@ -798,11 +814,13 @@ export class DefChecker {
 
   /** A path literal: the field must exist in the records and hold what the path promises. */
   pathTo(field: string, t: Extract<Type, { t: 'path' }>, p: Pos): IRVal {
+    // "" is no field: an optional path's default; the widget tests path != "" before reading it
+    if (field === '') return { lit: '' };
     const of = resolve(t.of, this.env);
     if (of.t !== 'rec') this.fail(p, `a path reads records; ${showType(t.of)} is not one`, 'mkp.type');
     const f = of.fields.find(([n]) => n === field);
     if (!f) this.fail(p, `"${field}" isn't a field of the items (they have ${of.fields.map(([n]) => n).join(', ') || 'no fields'})${didYouMean(field, of.fields.map(([n]) => n))}`, 'mkp.unknown-field');
-    if (!fits(f[1], t.to, this.env)) this.fail(p, `"${field}" holds ${showType(f[1])}, but this path needs ${showType(t.to)}`, 'mkp.type');
+    if (!fits(f[1], t.to, this.env)) this.fail(p, `"${field}" holds ${showType(f[1])}, but this path needs ${showType(t.to)}${resolve(t.to, this.env).t === 'text' && ['int', 'num', 'bool'].includes(resolve(f[1], this.env).t) ? ' (quote the values in the YAML to make them text)' : ''}`, 'mkp.type');
     return { lit: field };
   }
 

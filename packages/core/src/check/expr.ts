@@ -101,8 +101,11 @@ export class ExprChecker {
     readonly file: string,
     /** the definition's type parameters (walk of S): opaque types inside it */
     typeParams: string[] = [],
+    /** the definition's record kinds, as named types (GAPS 44) */
+    kinds?: Map<string, Type>,
   ) {
-    this.env = withParams(prog.typeEnv(pack), typeParams);
+    const base = prog.typeEnv(pack);
+    this.env = withParams(kinds?.size ? (n) => base(n) ?? kinds.get(n) : base, typeParams);
     this.tokenNames = prog.tokenNames;
   }
 
