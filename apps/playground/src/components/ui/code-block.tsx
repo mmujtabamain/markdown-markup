@@ -1,7 +1,7 @@
 // A block of code in shadcn's style: one bordered box, with its language in a strip along the top.
 // With a `line` or marks, it is a numbered listing: the current line marked, toned lines and toned
-// parts of lines, and a note at a line's end.
-import type { ComponentProps, ReactNode } from 'react';
+// parts of lines, and a note at a line's end. With `onPick`, each line can be pressed.
+import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 type Mark = { line: number; tone?: string; note?: string; from?: number; to?: number };
@@ -25,8 +25,8 @@ function parts(text: string, mine: Mark[]): ReactNode {
   return out;
 }
 
-function CodeBlock({ language, code, line = 0, marks = [], className, ...props }: ComponentProps<'figure'> & { language: string; code: string; line?: number; marks?: Mark[] }) {
-  const numbered = line > 0 || marks.length > 0;
+function CodeBlock({ language, code, line = 0, marks = [], onPick, className, ...props }: ComponentProps<'figure'> & { language: string; code: string; line?: number; marks?: Mark[]; onPick?: (line: number) => void }) {
+  const numbered = line > 0 || marks.length > 0 || !!onPick;
   return (
     // a listing fills its pane; a plain block is a bordered box in the flow
     <figure data-slot="code-block" className={cn('overflow-hidden bg-muted/40', numbered ? 'm-0' : 'my-3 rounded-md border', className)} {...props}>
@@ -40,8 +40,22 @@ function CodeBlock({ language, code, line = 0, marks = [], className, ...props }
               const whole = mine.find((m) => !m.from && toned(m));
               const tone = whole ? toned(whole) : mine.map(toned).find(Boolean);
               const note = [...mine].reverse().find((m) => m.note)?.note;
+              // a line the reader can press: a button for the pointer and the keyboard
+              const pick = onPick
+                ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    'aria-label': `line ${i + 1}`,
+                    onClick: () => onPick(i + 1),
+                    onKeyDown: (e: KeyboardEvent<HTMLSpanElement>) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      onPick(i + 1);
+                    },
+                  }
+                : {};
               return (
-                <span key={i} aria-current={i + 1 === line ? 'step' : undefined} data-tone={tone} className={cn('-mx-3 flex gap-3 px-3', i + 1 === line && 'bg-accent font-medium', whole && TONE[toned(whole)!])}>
+                <span key={i} {...pick} aria-current={i + 1 === line ? 'step' : undefined} data-tone={tone} className={cn('-mx-3 flex gap-3 px-3', i + 1 === line && 'bg-accent font-medium', whole && TONE[toned(whole)!], onPick && 'cursor-pointer hover:bg-muted')}>
                   <span className="w-4 shrink-0 select-none text-right text-muted-foreground">{i + 1}</span>
                   <span className="whitespace-pre">{parts(text, mine)}</span>
                   {note ? <span className="ml-auto pl-4 font-sans text-xs text-muted-foreground">{note}</span> : null}

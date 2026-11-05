@@ -1,14 +1,15 @@
-// The 2D canvas (spec 8): a coordinate space with layers drawn in order, shapes in data units,
-// labels and placed elements as HTML over the SVG, handles with arrow-key alternatives (WCAG
-// 2.5.7), and with gfx@1: pixels through WebGL and a 3D mesh with a camera.
+// The 2D canvas (spec 8): a coordinate space with layers drawn in order, shapes in data units (or a
+// circle's px), labels and placed elements as HTML over the SVG, handles with arrow-key
+// alternatives (WCAG 2.5.7), and with gfx@1: pixels through WebGL and a 3D mesh with a camera.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VNode, VShape, VRun } from '@mkp/core';
-import { color, radius as radiusTok } from './style';
+import { color, size as sizeTok } from './style';
 import { Kids, Runs, useCtx } from './nodes';
 
 const SIZES: Record<string, number> = { s: 160, m: 320, l: 480 };
 
+/** The width it has: its parent's, up to `max`. */
 function useWidth(ref: { current: HTMLElement | null }, max: number): number {
   const [w, setW] = useState(max);
   useEffect(() => {
@@ -24,24 +25,40 @@ function useWidth(ref: { current: HTMLElement | null }, max: number): number {
   return w;
 }
 
+/** A fixed height in a size token, as drawn (a provider may give the token its own value). */
+function useHeight(ref: { current: HTMLElement | null }, token: string | undefined): number | undefined {
+  const [h, setH] = useState<number | undefined>(token ? SIZES[token] ?? 160 : undefined);
+  useEffect(() => {
+    const el = ref.current;
+    if (!token || !el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => el.clientHeight && setH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, token]);
+  return token ? h : undefined;
+}
+
 export function Canvas({ n }: { n: VNode }): ReactNode {
   const p = n.p;
   const box = useRef<HTMLDivElement | null>(null);
-  const sizeTok = String(p.size ?? 'm');
-  const cssMax = sizeTok === 'fill' ? 4000 : SIZES[sizeTok] ?? 320;
+  const tok = String(p.size ?? 'm');
+  const cssMax = tok === 'fill' ? 4000 : SIZES[tok] ?? 320;
   const W = useWidth(box, cssMax);
   const x = (p.x as number[]) ?? [-1, 1];
   const y = (p.y as number[]) ?? [-1, 1];
   const aspect = Number(p.aspect) > 0 ? Number(p.aspect) : (x[1] - x[0]) / (y[1] - y[0]) || 1;
-  const H = Math.round(W / aspect);
+  // a height of its own, so a plot fills a stage of that height whatever its width (GAPS 18, 104)
+  const fixed = p.height && p.height !== 'none' ? String(p.height) : undefined;
+  const H = Math.round(useHeight(box, fixed) ?? W / aspect);
   if (Number(p.dims) === 3) return <Canvas3D n={n} W={W} H={H} box={box} />;
   const X = (v: number): number => ((v - x[0]) / (x[1] - x[0])) * W;
   const Y = (v: number): number => H - ((v - y[0]) / (y[1] - y[0])) * H;
   const unit = W / (x[1] - x[0]);
   const html: ReactNode[] = [];
+  const labels: Label[] = [];
   const layers = (n.layers ?? []).map((l) => (
     <g key={l.key} opacity={l.opacity} data-mkp-key={l.key}>
-      {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, html, opacity: l.opacity }))}
+      {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, html, labels, opacity: l.opacity }))}
     </g>
   ));
   return (
@@ -49,11 +66,12 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
       ref={(el) => {
         box.current = el;
       }}
+      data-mkp="canvas"
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       hidden={n.hidden || undefined}
       className="mkp-canvas"
-      style={{ width: W, height: H }}
+      style={{ width: W, height: fixed ? sizeTok(fixed) : H }}
       role="img"
       aria-label={String(p.label || 'figure')}
     >
@@ -61,6 +79,7 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
         {layers}
       </svg>
       {html}
+      <Labels labels={labels} W={W} H={H} />
     </div>
   );
 }
@@ -74,42 +93,63 @@ interface Geo {
   x: number[];
   y: number[];
   html: ReactNode[];
+  labels: Label[];
   opacity: number;
 }
 
-const stroke = (c: string): string => (c && c !== 'none' ? color(c)! : 'none');
+const paint = (c: string): string => (c && c !== 'none' ? color(c)! : 'none');
+const own = (o: number | undefined): number | undefined => (o !== undefined && o < 1 ? o : undefined);
+
+/** A dash that keeps its look at any stroke width. */
+const dash = (w: number): string => `${Math.max(4, 3 * w)} ${Math.max(3, 2.5 * w)}`;
+
+/**
+ * A path's head at its last point, sized to its stroke and never more than a share of its length,
+ * so a short line keeps a shaft (GAPS 113). The shaft stops under an arrow's head, not at its tip.
+ */
+export function pathHead(pts: number[][], kind: 'arrow' | 'dot', w: number): { shaft: number[][]; tri?: string; at: number[]; size: number } {
+  const n = pts.length;
+  const total = pts.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]), 0);
+  const tip = pts[n - 1];
+  let k = n - 2;
+  while (k > 0 && Math.hypot(tip[0] - pts[k][0], tip[1] - pts[k][1]) < 0.5) k--;
+  const from = pts[k] ?? tip;
+  const len = Math.hypot(tip[0] - from[0], tip[1] - from[1]) || 1;
+  const u = [(tip[0] - from[0]) / len, (tip[1] - from[1]) / len];
+  if (kind === 'dot') return { shaft: pts, at: tip, size: Math.min(Math.max(2.5, w * 1.8), Math.max(1.5, total / 4)) };
+  const L = Math.min(5 + 2.5 * w, Math.max(3, total * 0.4));
+  const half = L * 0.42 + w / 2;
+  const base = [tip[0] - u[0] * L, tip[1] - u[1] * L];
+  const shaft = [...pts.slice(0, n - 1), [tip[0] - u[0] * L * 0.6, tip[1] - u[1] * L * 0.6]];
+  const f = (v: number): string => v.toFixed(2);
+  const tri = `${f(tip[0])},${f(tip[1])} ${f(base[0] - u[1] * half)},${f(base[1] + u[0] * half)} ${f(base[0] + u[1] * half)},${f(base[1] - u[0] * half)}`;
+  return { shaft, tri, at: tip, size: L };
+}
 
 function shape(s: VShape, g: Geo): ReactNode {
   const { X, Y, unit } = g;
   switch (s.t) {
-    case 'rect': {
-      const x0 = Math.min(X(s.a[0]), X(s.b[0]));
-      const y0 = Math.min(Y(s.a[1]), Y(s.b[1]));
-      return <rect key={s.key} x={x0} y={y0} width={Math.abs(X(s.b[0]) - X(s.a[0]))} height={Math.abs(Y(s.b[1]) - Y(s.a[1]))} rx={s.radius && s.radius !== 'none' ? radiusTok(s.radius) : undefined} fill={stroke(s.fill)} stroke={stroke(s.stroke)} />;
-    }
-    case 'line':
+    case 'circle':
+      // px: a radius on the screen, whatever the ranges (GAPS 109)
+      return <circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={s.px ? s.px : Math.max(0.5, s.r * unit)} fill={paint(s.fill)} stroke={paint(s.stroke)} strokeWidth={s.width} opacity={own(s.opacity)} />;
+    case 'path': {
+      const pts = s.pts.map((q) => [X(q[0]), Y(q[1])]);
+      if (!pts.length) return null;
+      const head = s.head && pts.length > 1 ? pathHead(pts, s.head, s.width || 1) : null;
+      const line = head?.shaft ?? pts;
+      const d = line.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(2)},${q[1].toFixed(2)}`).join(' ') + (s.closed ? ' Z' : '');
+      const ink = paint(s.stroke);
       return (
-        <g key={s.key}>
-          <line x1={X(s.a[0])} y1={Y(s.a[1])} x2={X(s.b[0])} y2={Y(s.b[1])} stroke={stroke(s.stroke)} strokeWidth={s.width} strokeDasharray={s.dash ? '5 4' : undefined} />
-          {s.arrow ? <ArrowHead a={[X(s.a[0]), Y(s.a[1])]} b={[X(s.b[0]), Y(s.b[1])]} fill={stroke(s.stroke)} /> : null}
+        <g key={s.key} opacity={own(s.opacity)} data-head={s.head}>
+          <path d={d} fill={paint(s.fill)} stroke={ink} strokeWidth={s.width} strokeDasharray={s.dash ? dash(s.width || 1) : undefined} strokeLinejoin="round" />
+          {head?.tri ? <polygon points={head.tri} fill={ink} /> : null}
+          {head && !head.tri ? <circle cx={head.at[0]} cy={head.at[1]} r={head.size} fill={ink} /> : null}
         </g>
       );
-    case 'circle':
-      return <circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={Math.max(0.5, s.r * unit)} fill={stroke(s.fill)} stroke={stroke(s.stroke)} strokeWidth={s.width} />;
-    case 'path': {
-      if (!s.pts.length) return null;
-      const d = s.pts.map((q, i) => `${i ? 'L' : 'M'}${X(q[0]).toFixed(2)},${Y(q[1]).toFixed(2)}`).join(' ') + (s.closed ? ' Z' : '');
-      return <path key={s.key} d={d} fill={stroke(s.fill)} stroke={stroke(s.stroke)} strokeWidth={s.width} strokeDasharray={s.dash ? '5 4' : undefined} strokeLinejoin="round" />;
     }
-    case 'label': {
-      const off = anchorOffset(s.anchor);
-      g.html.push(
-        <div key={s.key} className="mkp-overlay-label" data-chip={s.chip ? '' : undefined} style={{ left: X(s.at[0]), top: Y(s.at[1]), color: color(s.tone), opacity: g.opacity, transform: `translate(${off[0]}, ${off[1]})` }}>
-          <Runs runs={s.runs as VRun[]} />
-        </div>,
-      );
+    case 'label':
+      g.labels.push({ s, x: X(s.at[0]) + (s.dx ?? 0), y: Y(s.at[1]) - (s.dy ?? 0), opacity: g.opacity * (s.opacity ?? 1) });
       return null;
-    }
     case 'image':
       return <image key={s.key} href={s.src} x={X(s.at[0]) - (s.w * unit) / 2} y={Y(s.at[1]) - ((s.h || s.w) * unit) / 2} width={s.w * unit} height={(s.h || s.w) * unit} aria-label={s.alt} />;
     case 'place':
@@ -129,19 +169,84 @@ function shape(s: VShape, g: Geo): ReactNode {
   }
 }
 
-function anchorOffset(a: string): [string, string] {
-  if (a === 'center') return ['-50%', '-50%'];
-  const h = a.includes('e') ? '0%' : a.includes('w') ? '-100%' : '-50%';
-  const v = a.includes('n') ? '-100%' : a.includes('s') ? '0%' : '-50%';
-  return [h, v];
+/** A label to place: its shape, its point in pixels (with its own offsets, dy up), and its opacity. */
+interface Label {
+  s: Extract<VShape, { t: 'label' }>;
+  x: number;
+  y: number;
+  opacity: number;
 }
 
-function ArrowHead({ a, b, fill }: { a: number[]; b: number[]; fill: string }): ReactNode {
-  const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  const s = 8;
-  const p1 = [b[0] - s * Math.cos(ang - 0.4), b[1] - s * Math.sin(ang - 0.4)];
-  const p2 = [b[0] - s * Math.cos(ang + 0.4), b[1] - s * Math.sin(ang + 0.4)];
-  return <polygon points={`${b[0]},${b[1]} ${p1.join(',')} ${p2.join(',')}`} fill={fill} />;
+/** Where on a label its point is: a fraction across and down it. */
+function anchorAt(a: string): [number, number] {
+  if (a === 'center') return [0.5, 0.5];
+  return [a.includes('e') ? 0 : a.includes('w') ? 1 : 0.5, a.includes('n') ? 1 : a.includes('s') ? 0 : 0.5];
+}
+
+type Spot = [number, number, number, number];
+const clash = (a: Spot, b: Spot): number => Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]));
+
+/**
+ * The labels' places once their sizes are known: each kept inside the canvas, then moved the least
+ * it can to clear the labels placed before it (GAPS 107). [x, y, w, h] per label, in order.
+ */
+export function placeCanvasLabels(boxes: { x: number; y: number; w: number; h: number; anchor: string }[], W: number, H: number): Spot[] {
+  const inside = (x: number, y: number, w: number, h: number): Spot => [Math.max(0, Math.min(W - w, x)), Math.max(0, Math.min(H - h, y)), w, h];
+  const placed: Spot[] = [];
+  for (const b of boxes) {
+    const [ax, ay] = anchorAt(b.anchor);
+    const start = inside(b.x - b.w * ax, b.y - b.h * ay, b.w, b.h);
+    const hits = placed.filter((o) => clash(o, start) > 0);
+    if (!hits.length) {
+      placed.push(start);
+      continue;
+    }
+    const tries: Spot[] = [start];
+    for (const o of hits) tries.push(inside(start[0], o[1] - b.h - 1, b.w, b.h), inside(start[0], o[1] + o[3] + 1, b.w, b.h), inside(o[0] - b.w - 1, start[1], b.w, b.h), inside(o[0] + o[2] + 1, start[1], b.w, b.h));
+    const cost = (t: Spot): number => placed.reduce((s, o) => s + clash(o, t), 0) * 1000 + Math.hypot(t[0] - start[0], t[1] - start[1]);
+    placed.push(tries.reduce((best, t) => (cost(t) < cost(best) ? t : best)));
+  }
+  return placed;
+}
+
+/** The canvas's labels as HTML (so they hold inline maths), placed once their sizes are measured. */
+function Labels({ labels, W, H }: { labels: Label[]; W: number; H: number }): ReactNode {
+  const refs = useRef(new Map<string, HTMLDivElement>());
+  const [spots, setSpots] = useState<Record<string, [number, number]>>({});
+  useLayoutEffect(() => {
+    const boxes = labels.map((l) => {
+      const el = refs.current.get(l.s.key);
+      return { x: l.x, y: l.y, w: el?.offsetWidth ?? 0, h: el?.offsetHeight ?? 0, anchor: l.s.anchor };
+    });
+    // not laid out yet (no sizes): the anchors stand
+    if (!boxes.some((b) => b.w > 0)) return;
+    const placed = placeCanvasLabels(boxes, W, H);
+    const next: Record<string, [number, number]> = {};
+    labels.forEach((l, i) => (next[l.s.key] = [Math.round(placed[i][0] * 10) / 10, Math.round(placed[i][1] * 10) / 10]));
+    setSpots((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  });
+  return labels.map((l) => {
+    const s = l.s;
+    const at = spots[s.key];
+    const [ax, ay] = anchorAt(s.anchor);
+    const place: CSSProperties = at ? { left: at[0], top: at[1] } : { left: l.x, top: l.y, transform: `translate(${-ax * 100}%, ${-ay * 100}%)` };
+    return (
+      <div
+        key={s.key}
+        ref={(el) => {
+          if (el) refs.current.set(s.key, el);
+          else refs.current.delete(s.key);
+        }}
+        className="mkp-overlay-label"
+        data-chip={s.chip ? '' : undefined}
+        data-halo={s.halo ? '' : undefined}
+        data-size={s.size}
+        style={{ ...place, color: color(s.tone), opacity: l.opacity < 1 ? l.opacity : undefined }}
+      >
+        <Runs runs={s.runs as VRun[]} />
+      </div>
+    );
+  });
 }
 
 /** A drag handle: pointer drag, plus arrow keys as the non-drag alternative. */
@@ -262,6 +367,8 @@ function Canvas3D({ n, W, H, box }: { n: VNode; W: number; H: number; box: { cur
   const p = n.p;
   const view = (p.view as number[]) ?? [35, 25];
   const [cam, setCam] = useState<[number, number]>([view[0], view[1]]);
+  // a view the widget changes (a turn slider) moves the camera too (GAPS 114)
+  useEffect(() => setCam([view[0], view[1]]), [view[0], view[1]]);
   const drag = useRef<[number, number] | null>(null);
   const xr = (p.x as number[]) ?? [-1, 1];
   const yr = (p.y as number[]) ?? [-1, 1];

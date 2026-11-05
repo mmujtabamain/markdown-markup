@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CodeBlock } from '@/components/ui/code-block';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { OptionRow } from '@/components/ui/option-row';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Footnote, Heading, List, Paragraph, Quote } from '@/components/ui/typography';
 
 const kit: Kit = {
-  Button, Toggle, Switch, Slider, Input, Checkbox, Progress, Separator,
+  Button, Toggle, Switch, Slider, Input, Textarea, Checkbox, Progress, Separator,
   Tabs, TabsList, TabsTrigger,
   ToggleGroup, ToggleGroupItem,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,

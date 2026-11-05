@@ -3,8 +3,13 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
-import { color, size } from './style';
+import { color, layer, size } from './style';
 import { Kids, Runs } from './nodes';
+
+/** Tells the arrows around an element that what it holds has moved without changing size. */
+export function relayout(el: Element | null): void {
+  el?.dispatchEvent(new Event('mkp-layout', { bubbles: true }));
+}
 
 /** A small button: a provider's own, or a plain one. */
 export interface ShellButtonProps {
@@ -46,6 +51,9 @@ export function Frame({ n, attrs, style, Button = PlainButton }: { n: VNode; att
   const slots = n.slots ?? {};
   const has = (k: string): boolean => (slots[k]?.length ?? 0) > 0;
   const height = n.p.height && n.p.height !== 'none' ? size(n.p.height) : undefined;
+  const own = useRef<HTMLElement>(null);
+  // its content moved: arrows drawn outside it measure again
+  useEffect(() => relayout(own.current), [full]);
   useEffect(() => {
     if (!full && !drawer) return;
     const key = (e: KeyboardEvent): void => {
@@ -57,7 +65,9 @@ export function Frame({ n, attrs, style, Button = PlainButton }: { n: VNode; att
     return () => document.removeEventListener('keydown', key);
   }, [full, drawer]);
   return (
-    <section {...attrs} className="mkp-frame" data-full={full || undefined} data-tone={n.p.tone && n.p.tone !== 'none' ? String(n.p.tone) : undefined} style={style}>
+    // full screen, it is a layer of its own for the arrows inside it (GAPS 92); a stage that
+    // scrolls is one too, so they scroll with it (GAPS 93)
+    <section {...attrs} ref={own} className="mkp-frame" data-full={full || undefined} data-mkp-arrow-host={full ? '' : undefined} data-tone={n.p.tone && n.p.tone !== 'none' ? String(n.p.tone) : undefined} style={style}>
       <header className="mkp-frame-head">
         {n.p.kind ? <span className="mkp-frame-kind">{String(n.p.kind)}</span> : null}
         <span className="mkp-frame-title">
@@ -84,7 +94,7 @@ export function Frame({ n, attrs, style, Button = PlainButton }: { n: VNode; att
           </Button>
         </span>
       </header>
-      <div className="mkp-frame-stage" data-fixed={height ? '' : undefined} style={height && !full ? { height } : undefined}>
+      <div className="mkp-frame-stage" data-fixed={height ? '' : undefined} data-mkp-arrow-host={height || full ? '' : undefined} style={height && !full ? { height } : undefined}>
         <Kids nodes={n.kids} />
       </div>
       {has('bar') ? (
@@ -129,7 +139,8 @@ export function Pane({ n, attrs, style }: { n: VNode; attrs?: Record<string, unk
           ) : null}
         </header>
       ) : null}
-      <div className="mkp-pane-body">
+      {/* it scrolls on its own: arrows between what it holds are drawn in it (GAPS 143) */}
+      <div className="mkp-pane-body" data-mkp-arrow-host="">
         <Kids nodes={n.kids} />
       </div>
       {n.slots?.footer?.length ? (
@@ -263,7 +274,8 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
-  const moved = view.scale !== 1 || view.x !== 0 || view.y !== 0;
+  const shifted = view.scale !== 1 || view.x !== 0 || view.y !== 0;
+  useEffect(() => relayout(box.current), [view]);
   return (
     <div
       {...attrs}
@@ -280,7 +292,8 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
         zoomAt(ZOOM_STEP * ZOOM_STEP, e.clientX - r.left, e.clientY - r.top);
       }}
     >
-      <div className="mkp-zoom-content" style={moved ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
+      {/* the moving layer: arrows with both ends in it are drawn in it, and follow it (GAPS 126) */}
+      <div className="mkp-zoom-content" data-mkp-arrow-host="" style={shifted ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
         <FitBox on={fitsWidth(n)} gutter={44}>
           <Kids nodes={n.kids} />
         </FitBox>
@@ -308,10 +321,10 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
 }
 
 /** The shell's layout, whoever draws its buttons. */
-export const SHELL_CSS = `
-.mkp-frame { position: relative; display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 35%, transparent)); border-radius: var(--mkp-radius-card); background: var(--mkp-color-surface); overflow: hidden; }
+export const SHELL_CSS = layer(`
+.mkp-frame { position: relative; display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--mkp-color-line); border-radius: var(--mkp-radius-card); background: var(--mkp-color-surface); overflow: hidden; }
 .mkp-frame[data-full] { position: fixed; inset: 12px; z-index: 900; }
-.mkp-frame-head { display: flex; align-items: center; gap: var(--mkp-space-m); min-height: 40px; padding: var(--mkp-space-s) var(--mkp-space-s) var(--mkp-space-s) var(--mkp-space-l); border-bottom: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 25%, transparent)); }
+.mkp-frame-head { display: flex; align-items: center; gap: var(--mkp-space-m); min-height: 40px; padding: var(--mkp-space-s) var(--mkp-space-s) var(--mkp-space-s) var(--mkp-space-l); border-bottom: 1px solid var(--mkp-color-line); }
 .mkp-frame-kind { font-family: var(--mkp-font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mkp-color-muted); }
 .mkp-frame-title { min-width: 0; flex: 1 1 auto; font-weight: 600; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mkp-frame-actions, .mkp-frame-tools { display: flex; align-items: center; gap: var(--mkp-space-xs); flex: none; }
@@ -336,7 +349,7 @@ export const SHELL_CSS = `
 .mkp-frame-stage { position: relative; min-height: 0; overflow: auto; }
 .mkp-frame-stage[data-fixed] { resize: vertical; }
 .mkp-frame[data-full] .mkp-frame-stage { flex: 1 1 auto; }
-.mkp-frame-bar { display: flex; align-items: center; gap: var(--mkp-space-s) var(--mkp-space-m); min-height: 44px; padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 25%, transparent)); background: color-mix(in srgb, var(--mkp-color-muted) 6%, var(--mkp-color-surface)); }
+.mkp-frame-bar { display: flex; align-items: center; gap: var(--mkp-space-s) var(--mkp-space-m); min-height: 44px; padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-color-line); background: color-mix(in srgb, var(--mkp-color-muted) 6%, var(--mkp-color-surface)); }
 .mkp-frame[data-tone] .mkp-frame-bar { background: var(--mkp-tint-bar, color-mix(in srgb, var(--mkp-frame-tone) 10%, var(--mkp-color-surface))); }
 .mkp-frame[data-tone=ok] { --mkp-frame-tone: var(--mkp-color-ok); } .mkp-frame[data-tone=bad] { --mkp-frame-tone: var(--mkp-color-bad); } .mkp-frame[data-tone=info] { --mkp-frame-tone: var(--mkp-color-info); } .mkp-frame[data-tone=warn] { --mkp-frame-tone: var(--mkp-color-warn); }
 .mkp-frame-bar [role=status] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -344,26 +357,26 @@ export const SHELL_CSS = `
    first line, the controls the next */
 .mkp-frame-bar { flex-wrap: wrap; }
 .mkp-frame-bar > [role=status] { flex: 1 1 14rem !important; }
-.mkp-frame-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, 92%); z-index: 5; display: flex; flex-direction: column; background: var(--mkp-color-surface); border-left: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 35%, transparent)); box-shadow: -8px 0 24px #0000001a; }
+.mkp-frame-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, 92%); z-index: 5; display: flex; flex-direction: column; background: var(--mkp-color-surface); border-left: 1px solid var(--mkp-color-line); box-shadow: -8px 0 24px #0000001a; }
 .mkp-frame-drawer-body { padding: var(--mkp-space-l); overflow: auto; }
 .mkp-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 0; }
-.mkp-pane + .mkp-pane { border-left: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 25%, transparent)); }
-.mkp-pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--mkp-space-m); padding: var(--mkp-space-m) var(--mkp-space-l); border-bottom: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 25%, transparent)); }
+.mkp-pane + .mkp-pane { border-left: 1px solid var(--mkp-color-line); }
+.mkp-pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--mkp-space-m); padding: var(--mkp-space-m) var(--mkp-space-l); border-bottom: 1px solid var(--mkp-color-line); }
 .mkp-pane-title { font-family: var(--mkp-font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mkp-color-muted); }
 .mkp-pane-note { font-size: 0.8em; color: var(--mkp-color-muted); }
-.mkp-pane-body { min-height: 0; overflow: auto; flex: 1 1 auto; }
-.mkp-pane-foot { padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 25%, transparent)); font-size: 0.85em; color: var(--mkp-color-muted); }
+.mkp-pane-body { position: relative; min-height: 0; overflow: auto; flex: 1 1 auto; }
+.mkp-pane-foot { padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-color-line); font-size: 0.85em; color: var(--mkp-color-muted); }
 .mkp-zoom { position: relative; overflow: hidden; min-height: 0; }
 .mkp-zoom[data-nudged] { outline: 2px solid var(--mkp-color-accent); outline-offset: -2px; }
-.mkp-zoom-content { transform-origin: 0 0; }
+.mkp-zoom-content { position: relative; transform-origin: 0 0; }
 /* its own width never comes from what it holds, so a wide drawing can't widen the column it sits in */
 .mkp-fit { overflow: hidden; contain: inline-size; }
 .mkp-fit-inner { width: max-content; min-width: 100%; transform-origin: 0 0; }
-.mkp-zoom-tools { position: absolute; top: var(--mkp-space-s); right: var(--mkp-space-s); z-index: 2; display: flex; gap: 2px; padding: 2px; border-radius: var(--mkp-radius-card); background: color-mix(in srgb, var(--mkp-color-surface) 90%, transparent); border: 1px solid var(--mkp-stroke-muted, color-mix(in srgb, var(--mkp-color-muted) 30%, transparent)); }
+.mkp-zoom-tools { position: absolute; top: var(--mkp-space-s); right: var(--mkp-space-s); z-index: 2; display: flex; gap: 2px; padding: 2px; border-radius: var(--mkp-radius-card); background: color-mix(in srgb, var(--mkp-color-surface) 90%, transparent); border: 1px solid var(--mkp-color-line); }
 .mkp-zoom[data-nudged] .mkp-zoom-tools { border-color: var(--mkp-color-accent); }
 .mkp-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; width: 1.1em; height: 1.1em; flex: none; }
 .mkp-icon[data-size=small] { font-size: 0.8em; } .mkp-icon[data-size=large] { font-size: 1.4em; }
 .mkp-shell-button { padding: 2px 6px; min-width: 26px; min-height: 26px; justify-content: center; }
 .mkp-root [data-dim] { opacity: .4; }
 .mkp-root [data-blur] { filter: blur(6px); pointer-events: none; user-select: none; }
-`;
+`);

@@ -7,7 +7,7 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import * as L from 'lucide-react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, SkipBack, type LucideIcon } from 'lucide-react';
 import { walkView, type VNode, type VRun } from '@mkp/core';
-import { Canvas, color, fitsWidth, flexRole, flexStyle, Frame, gridStyle, Kids, MathSpan, nodeAttrs, Pane, Runs, size, stackStyle, textStyle, Zoom, type HostProps, type MkpComponents, type ShellButtonProps, type TokenMap } from '@mkp/react';
+import { Box, Canvas, color, fieldKeys, fieldTone, fitsWidth, Frame, hoverEvents, Kids, MathBlock, nodeAttrs, Pane, rowRole, Runs, size, TextBlock, Zoom, type HostProps, type MkpComponents, type ShellButtonProps, type TokenMap } from '@mkp/react';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- kits differ in their exact props; these pass only what shadcn's take
 type C = ComponentType<any>;
@@ -41,6 +41,8 @@ export interface Kit {
   Switch: C;
   Slider: C;
   Input: C;
+  /** a field of several lines (field lines=); a plain textarea in the Input's place without one */
+  Textarea?: C;
   Checkbox: C;
   Progress: C;
   Separator: C;
@@ -73,8 +75,8 @@ export interface Kit {
   /** one answer among others: a full-width row with a tick or a dot */
   OptionRow: ComponentType<OptionRowProps>;
   Callout: ComponentType<{ alert: AlertKind; children?: ReactNode }>;
-  /** With a `line`, a numbered listing with that line marked. */
-  CodeBlock: ComponentType<{ language: string; code: string; line?: number; marks?: CodeMark[]; style?: CSSProperties }>;
+  /** With a `line`, a numbered listing with that line marked; with `onPick`, each line can be pressed (from 1). */
+  CodeBlock: ComponentType<{ language: string; code: string; line?: number; marks?: CodeMark[]; onPick?: (line: number) => void; style?: CSSProperties }>;
   Paragraph: C;
   /** takes `level`, 1 to 6 */
   Heading: C;
@@ -122,6 +124,14 @@ export const shadcnTokens: TokenMap = {
     ok: shade('--ok', '#15803d'),
     warn: shade('--warn', '#b45309'),
     bad: shade('--destructive', '#dc2626'),
+    // outlines and rules are shadcn's border (GAPS 62); the categorical tones are its chart colours
+    line: shade('--border', '#e5e5e5'),
+    c1: shade('--chart-1', '#2563eb'),
+    c2: shade('--chart-2', '#d97706'),
+    c3: shade('--chart-3', '#059669'),
+    c4: shade('--chart-4', '#9333ea'),
+    c5: shade('--chart-5', '#db2777'),
+    c6: shade('--chart-6', '#0891b2'),
   },
   radius: { card: { value: 'var(--radius, 0.625rem)' }, pill: { value: 999 } },
 };
@@ -178,6 +188,7 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
   const selected = !!p.selected;
   const disabled = !!p.disabled;
   const label = words(p.label);
+  attrs = { ...attrs, ...hoverEvents(n, dispatch) };
   switch (kind) {
     case 'switch':
       return (
@@ -229,7 +240,7 @@ function press({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
 }
 
 /** A row of tabs is Tabs and a row of options is a ToggleGroup; any other row is plain layout. */
-function flex({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
+function row({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
   const kids = shown(n);
   if (every(n, 'tab')) {
     return (
@@ -263,18 +274,18 @@ function flex({ n, attrs, style, dispatch }: HostProps, kit: Kit): ReactNode {
   const picks = kids.filter((k) => k.t === 'press');
   if (n.p.role === 'radiogroup' && picks.length > 1 && picks.every((k) => k.p.kind === 'option')) {
     return (
-      <div {...attrs} role="radiogroup" aria-label={n.p.label as string | undefined} data-control="choice" style={{ ...flexStyle(n), ...style }}>
+      <Box n={n} attrs={{ ...attrs, 'data-control': 'choice' }} style={style} role="radiogroup">
         <span className="mkp-choice-label">
           <Kids nodes={kids.filter((k) => k.t !== 'press')} />
         </span>
         {options(picks, {}, undefined)}
-      </div>
+      </Box>
     );
   }
   return (
-    <div {...attrs} role={flexRole(n)} aria-label={n.p.label as string | undefined} style={{ ...flexStyle(n), ...style }}>
+    <Box n={n} attrs={attrs} style={style} role={rowRole(n)}>
       <Kids nodes={n.kids} />
-    </div>
+    </Box>
   );
 }
 
@@ -432,22 +443,23 @@ export function shadcnComponents(kit: Kit): MkpComponents {
     );
   };
   return {
-    stack: ({ n, attrs, style }) => (
-      <div {...attrs} role={n.p.role as string | undefined} aria-label={n.p.label as string | undefined} style={{ ...stackStyle(n), ...style }}>
+    column: ({ n, attrs, style }) => (
+      <Box n={n} attrs={attrs} style={style}>
         <Kids nodes={n.kids} />
-      </div>
+      </Box>
     ),
-    flex: (h) => flex(h, kit),
+    row: (h) => row(h, kit),
     grid: ({ n, attrs, style }) => (
-      <div {...attrs} style={{ ...gridStyle(n), ...style }}>
+      <Box n={n} attrs={attrs} style={style}>
         <Kids nodes={n.kids} />
-      </div>
+      </Box>
     ),
-    text: ({ n, attrs, style }) => (
-      <div {...attrs} role={n.p.role as string | undefined} style={{ ...textStyle(n), ...style }}>
-        <Runs runs={n.p.runs as VRun[]} />
-      </div>
+    stack: ({ n, attrs, style }) => (
+      <Box n={n} attrs={attrs} style={style}>
+        <Kids nodes={n.kids} />
+      </Box>
     ),
+    text: ({ n, attrs, style }) => <TextBlock n={n} attrs={attrs} style={style} />,
     image: ({ n, attrs, style }) => <img {...attrs} src={String(n.p.src)} alt={String(n.p.alt)} style={{ maxWidth: n.p.size && n.p.size !== 'none' ? size(n.p.size) : '100%', ...style }} />,
     press: (h) => press(h, kit),
     range: ({ n, attrs, style, dispatch }) => {
@@ -458,20 +470,22 @@ export function shadcnComponents(kit: Kit): MkpComponents {
       const max = Number(n.p.max) > 0 ? Number(n.p.max) : 1;
       return <kit.Progress {...attrs} value={Math.max(0, Math.min(1, Number(n.p.value) / max)) * 100} aria-label={words(n.p.label) ?? 'progress'} style={{ width: size(n.p.size), ...style }} />;
     },
-    field: ({ n, attrs, style, dispatch }) => (
-      <kit.Input
-        {...attrs}
-        inputMode={n.p.kind === 'number' ? 'decimal' : undefined}
-        value={String(n.p.value ?? '')}
-        placeholder={String(n.p.placeholder ?? '')}
-        aria-label={words(n.p.label) ?? words(n.p.placeholder) ?? 'entry'}
-        style={{ width: n.p.width && n.p.width !== 'none' ? size(n.p.width) : undefined, ...style }}
-        onChange={(e: { currentTarget: { value: string } }) => dispatch(n.key, 'change', { value: e.currentTarget.value })}
-        onKeyDown={(e: { key: string; currentTarget: { value: string } }) => {
-          if (e.key === 'Enter') dispatch(n.key, 'submit', { value: e.currentTarget.value });
-        }}
-      />
-    ),
+    field: ({ n, attrs, style, dispatch }) => {
+      const lines = Number(n.p.lines) || 1;
+      const tone = fieldTone(n.p);
+      const shared = {
+        ...attrs,
+        ...tone.attrs,
+        value: String(n.p.value ?? ''),
+        placeholder: String(n.p.placeholder ?? ''),
+        'aria-label': words(n.p.label) ?? words(n.p.placeholder) ?? 'entry',
+        style: { width: n.p.width && n.p.width !== 'none' ? size(n.p.width) : undefined, ...tone.style, ...style },
+        onChange: (e: { currentTarget: { value: string } }) => dispatch(n.key, 'change', { value: e.currentTarget.value }),
+        onKeyDown: fieldKeys(n, dispatch),
+      };
+      if (lines > 1) return kit.Textarea ? <kit.Textarea {...shared} rows={lines} /> : <textarea {...shared} rows={lines} className="mkp-field" />;
+      return <kit.Input {...shared} inputMode={n.p.kind === 'number' ? 'decimal' : undefined} />;
+    },
     overlay: (h) => overlay(h, kit),
     canvas: ({ n }) => <Canvas n={n} />,
     paragraph: ({ n, attrs }) => (
@@ -495,12 +509,18 @@ export function shadcnComponents(kit: Kit): MkpComponents {
           <Kids nodes={n.kids} />
         </kit.Quote>
       ),
-    code: ({ n, attrs, style }) => <kit.CodeBlock {...attrs} style={style} language={String(n.p.lang || '')} code={String(n.p.src)} line={Number(n.p.line) || 0} marks={(n.p.marks as CodeMark[] | undefined) ?? undefined} />,
-    math: ({ n, attrs }) => (
-      <div {...attrs}>
-        <MathSpan m={n.p as { tex: string }} display />
-      </div>
+    code: ({ n, attrs, style, dispatch }) => (
+      <kit.CodeBlock
+        {...attrs}
+        style={style}
+        language={String(n.p.lang || '')}
+        code={String(n.p.src)}
+        line={Number(n.p.line) || 0}
+        marks={(n.p.marks as CodeMark[] | undefined) ?? undefined}
+        onPick={n.p.pickable && n.ev?.includes('pick') ? (line: number) => dispatch(n.key, 'pick', { line }) : undefined}
+      />
     ),
+    math: ({ n, attrs, style }) => <MathBlock n={n} attrs={attrs} style={style} />,
     divider: ({ attrs }) => <kit.Separator {...attrs} />,
     table: (h) => table(h, kit),
     frame: (h) => frame(h, kit, ShellButton),
