@@ -592,6 +592,7 @@ export class Runtime {
     const kids = this.renderNodes(this.bundle.doc.body, root.env, root, 'doc');
     const bar = this.bar(root, 'doc');
     this.tree = bar ? [...kids] : kids;
+    numberFootnotes(this.tree);
     // drop instances that were not rendered: their state resets when they return
     for (const [k, i] of this.instances) if (i.seen !== this.generation) this.instances.delete(k);
     this.dirty = false;
@@ -1608,6 +1609,42 @@ function quantize(v: number, min: number, max: number, step: number): number {
 function toKey(v: V): string | number {
   if (typeof v === 'string' || typeof v === 'number') return v;
   return JSON.stringify(toJson(v));
+}
+
+/**
+ * Footnotes are numbered by the order of their first reference, as GitHub numbers them (GAPS 34):
+ * each reference run and each footnote gets n.
+ */
+function numberFootnotes(tree: VNode[]): void {
+  const order = new Map<string, number>();
+  const runs = (rs: unknown): void => {
+    if (!Array.isArray(rs)) return;
+    for (const r of rs as VRun[]) {
+      if (r.t !== 'fnref') continue;
+      if (!order.has(r.label)) order.set(r.label, order.size + 1);
+      r.n = order.get(r.label);
+    }
+  };
+  const visit = (ns: VNode[] | undefined): void => {
+    for (const n of ns ?? []) {
+      runs(n.p.runs);
+      runs(n.p.title);
+      if (Array.isArray(n.p.rows)) for (const row of n.p.rows as unknown[][]) for (const c of row) runs(c);
+      if (Array.isArray(n.p.head)) for (const c of n.p.head as unknown[]) runs(c);
+      visit(n.kids);
+      for (const s of Object.values(n.slots ?? {})) visit(s);
+      visit(n.body);
+    }
+  };
+  visit(tree);
+  let next = order.size + 1;
+  const notes = (ns: VNode[] | undefined): void => {
+    for (const n of ns ?? []) {
+      if (n.t === 'footnote') n.p.n = order.get(String(n.p.label)) ?? next++;
+      notes(n.kids);
+    }
+  };
+  notes(tree);
 }
 
 /** Whether two scopes bind the same values (each makes a new scope per item on every render). */

@@ -12,6 +12,8 @@ require('mathjax-full/js/input/tex/newcommand/NewcommandConfiguration.js');
 require('mathjax-full/js/input/tex/boldsymbol/BoldsymbolConfiguration.js');
 require('mathjax-full/js/input/tex/cancel/CancelConfiguration.js');
 require('mathjax-full/js/input/tex/mathtools/MathtoolsConfiguration.js');
+// \class{…}{…}, which \mark{id}{…} becomes: a formula's marked parts (GAPS 163)
+require('mathjax-full/js/input/tex/html/HtmlConfiguration.js');
 const sre = require('speech-rule-engine/js/common/system.js');
 
 module.exports = {

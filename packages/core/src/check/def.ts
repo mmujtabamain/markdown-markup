@@ -456,6 +456,14 @@ export class DefChecker {
    * expected, and there the token always wins, so a slot can still be called body.
    */
   shadow(name: string, p: Pos): void {
+    try {
+      this.shadow1(name, p);
+    } catch (e) {
+      this.err(e);
+    }
+  }
+
+  private shadow1(name: string, p: Pos): void {
     // the base set's externs name their props as they are drawn (field width, a box's line)
     if (this.prog.packs.get(this.entry.pack)?.builtin) return;
     if (GLOBALS[name]) this.fail(p, `"${name}" is the reader's ${name === 'width' ? 'width (narrow, medium or wide)' : 'answers switch'}, which every definition reads; name this something else`, 'mkp.shadow');
@@ -699,6 +707,8 @@ export class DefChecker {
           this.fail(p, `"${w}" is not a ${t.kind} token${didYouMean(w, this.opts.tokenNames(t.kind))}`, 'mkp.unknown-token');
         }
         if (v.v !== 'expr') return this.fail(p, `style props take token names; found ${v.src}`, 'mkp.style-token');
+        // a colour written out ("#ff0000") is never a token: themes and dark mode would not hold
+        if (v.e.k === 'str' && !this.opts.tokenNames(t.kind).has(v.e.v) && v.e.v !== 'none') this.fail(p, `style props take token names, such as ${[...this.opts.tokenNames(t.kind)].slice(0, 4).join(', ')}; found ${v.src}`, 'mkp.style-token');
         // a computed style: an expression giving a token name (checked against the tokens at runtime)
         const c = this.x.check(v.e, scope, t);
         const ct = resolve(c.type, this.env);

@@ -1,0 +1,3 @@
+pack badges@1 "Badges."
+  requires core@1
+  provides badge

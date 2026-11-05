@@ -328,7 +328,7 @@ export type FileItem =
   | { macro: string; tex: string; comment?: string[] }
   | { tokens: IRTokenSet; comment?: string[] }
   | { iface: InterfaceSyn }
-  | { pack: { kind: string; name: string; version: number; about?: string; requires: string[]; depends: string[]; provides: string[]; front: { name: string; type: Type; def?: string; about?: string }[]; attrs: { name: string; type: Type; about?: string }[]; roles: string[]; rules: { rule: string; path: string; args: string[]; message?: string }[] }; comment?: string[] };
+  | { pack: { kind: string; name: string; version: number; about?: string; requires: string[]; depends: string[]; provides: string[]; front: { name: string; type: Type; def?: string; about?: string }[]; attrs: { name: string; type: Type; about?: string }[]; roles: string[]; rules: { rule: string; path: string; args: string[]; message?: string }[]; unpublished?: boolean }; comment?: string[] };
 
 export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string, tokenIR: (name: string) => IRTokenSet | undefined): FileItem[] {
   const norm = canonical;
@@ -364,6 +364,7 @@ export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string,
             attrs: it.attrs.map((a) => ({ name: a.name, type: a.type, about: a.about })),
             roles: it.roles,
             rules: it.rules.map((r) => ({ rule: r.rule, path: r.path, args: r.args.map((a) => a.value.src), message: r.message })),
+            ...(it.unpublished ? { unpublished: true } : {}),
           },
           ...cm(it.comments),
         };
@@ -418,6 +419,7 @@ export function printFile(items: FileItem[], ctx: PrintContext): string {
     for (const a of m.attrs) lines.push(`  attr ${a.name} ${showType(a.type)}${a.about !== undefined ? ' ' + encodeText(a.about) : ''}`);
     if (m.roles.length) lines.push(`  roles ${m.roles.join(' ')}`);
     for (const r of m.rules) lines.push(`  rule ${r.rule} ${r.path}${r.args.length ? ' ' + r.args.join(' ') : ''}${r.message !== undefined ? ' ' + encodeText(r.message) : ''}`);
+    if (m.unpublished) lines.push('  unpublished');
     return lines.join('\n');
   });
   return blocks.join('\n\n') + '\n';

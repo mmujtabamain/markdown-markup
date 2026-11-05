@@ -122,6 +122,8 @@ export interface ManifestSyn {
   attrs: { name: string; type: Type; about?: string; p: Pos }[];
   roles: string[];
   rules: { rule: string; path: string; args: Arg[]; message?: string; p: Pos }[];
+  /** not published yet: its definitions may change without a new @N (GAPS 15) */
+  unpublished?: boolean;
   p: Pos;
   comments: string[];
 }
@@ -194,7 +196,7 @@ export function parseMkp(src: string, file: string, diags: Diagnostics, opts: Pa
     const ctx = new LineCtx(l, file);
     try {
       const word = firstWord(l.text);
-      if (lastManifest && ['requires', 'depends', 'provides', 'front', 'attr', 'roles', 'rule'].includes(word)) {
+      if (lastManifest && ['requires', 'depends', 'provides', 'front', 'attr', 'roles', 'rule', 'unpublished'].includes(word)) {
         packLine(ctx, lastManifest);
         continue;
       }
@@ -388,6 +390,10 @@ function packLine(ctx: LineCtx, m: ManifestSyn): void {
     case 'roles':
       m.roles.push(...cs.slice(1).map((c) => c.text));
       return;
+    case 'unpublished':
+      if (cs.length > 1) ctx.fail('unpublished takes nothing after it');
+      m.unpublished = true;
+      return;
     case 'front': {
       const name = cs[1]?.text;
       if (!name || !IDENT_RE.test(name)) ctx.fail('expected "front name type [= value] ["about"]"');
@@ -414,7 +420,7 @@ function packLine(ctx: LineCtx, m: ManifestSyn): void {
       return;
     }
     default:
-      ctx.fail(`a manifest line is requires, depends, provides, front, attr, roles or rule; found "${cs[0].text}"`);
+      ctx.fail(`a manifest line is requires, depends, provides, front, attr, roles, rule or unpublished; found "${cs[0].text}"`);
   }
 }
 
@@ -716,6 +722,8 @@ function stateLine(ctx: LineCtx, name: string, at: number, diags: Diagnostics): 
 export function nodeLine(ctx: LineCtx, diags: Diagnostics): NodeSyn {
   const cs = chunks(ctx.text);
   const head = cs[0].text;
+  // name=value at the start of an indented line: the writer meant to go on with the line above (GAPS 136)
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(head)) ctx.fail(`this line goes on with the one above, which works only inside an open bracket: put ${head.split('=')[0]}=… on the line above, or break the line inside its (…)`, 0, 'mkp.continuation');
   if (!NAME_RE.test(head) && head !== 'else') ctx.fail(`"${head}" is not a valid element name`, 0);
   const args = cs.slice(1).map((c) => arg(ctx, c));
   const children: NodeSyn[] = [];

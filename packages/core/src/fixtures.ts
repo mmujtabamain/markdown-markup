@@ -1,6 +1,7 @@
 // Fixtures (spec 11): name.fixture.json beside definitions. Each case is exactly what a document
 // block compiles to; it feeds the playground, the tests and the conformance suite.
 
+import YAML from 'yaml';
 import type { Compiled } from './build';
 import { Diagnostics } from './diag';
 import type { IRBundle } from './ir';
@@ -82,7 +83,8 @@ export function caseDocument(fc: FixtureCase): string {
     }
   }
   const state = vars.length ? `\`\`\`state\n${vars.join('\n')}\n\`\`\`\n\n` : '';
-  return `${state}\`\`\`${fc.pack}:${fc.widget}\n${JSON.stringify(body, null, 1)}\n\`\`\`\n`;
+  // YAML, as a document writes it (GAPS 168)
+  return `${state}\`\`\`${fc.pack}:${fc.widget}\n${YAML.stringify(body, { lineWidth: 0 }).trimEnd()}\n\`\`\`\n`;
 }
 
 export interface CaseResult {

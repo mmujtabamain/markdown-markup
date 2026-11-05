@@ -1,0 +1,7 @@
+{
+  "widget": "distance@1",
+  "cases": {
+    "marathon": { "props": { "km": 42.195, "label": "A marathon" }, "summary": "A marathon's distance." },
+    "negative": { "props": { "km": "far" }, "expect": { "errors": ["mkp.input-type"] } }
+  }
+}

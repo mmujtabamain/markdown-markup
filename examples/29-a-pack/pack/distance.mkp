@@ -1,0 +1,9 @@
+distance@1 "A distance in kilometres, with its miles beside it."
+  in km num "the distance in kilometres"
+  in label text = "" "what the distance is"
+  miles = km / 1.609344
+  row gap=s align=baseline
+    text label tone=muted if=(label != "")
+    text "\val{format(km, 1)} km" font=mono weight=bold
+    text "(\val{format(miles, 1)} mi)" tone=muted
+  project md = (if(label != "", label + ": ", "")) + format(km, 1) + " km (" + format(miles, 1) + " mi)"

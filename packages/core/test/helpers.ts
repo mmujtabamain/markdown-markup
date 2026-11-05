@@ -20,8 +20,15 @@ export function folder(dir: string): PackSource {
   return { files, label: relative(ROOT, dir) };
 }
 
-export function allPacks(): PackSource[] {
-  const packs = readdirSync(join(ROOT, 'packs')).map((n) => folder(join(ROOT, 'packs', n)));
-  const examples = readdirSync(join(ROOT, 'examples')).map((n) => folder(join(ROOT, 'examples', n)));
-  return [...packs, ...examples];
+/** The test-only packs under conformance/packs: MKP ships no packs of its own. */
+export function testPacks(): PackSource[] {
+  const dir = join(ROOT, 'conformance', 'packs');
+  try {
+    return readdirSync(dir).filter((n) => statSync(join(dir, n)).isDirectory()).map((n) => folder(join(dir, n)));
+  } catch {
+    return [];
+  }
 }
+
+/** @deprecated the packs are gone; kept for tests not yet moved to examples and test packs */
+export const allPacks = testPacks;

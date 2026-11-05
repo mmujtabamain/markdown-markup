@@ -1,0 +1,3 @@
+pack units@1 "Distances shown in kilometres and miles."
+  requires core@1
+  provides distance

@@ -1,0 +1,10 @@
+# a fraction as words, for readers without the bar
+fn said(got: int, of: int): text = format(got, 0) + " out of " + format(of, 0)
+
+tally@1 "Marks out of a total, as a bar and a fraction."
+  in got int "marks earned"
+  in of int = 10 "marks available"
+  row gap=s align=center
+    meter value=got max=of grow basis=m
+    text "\val{got}/\val{of}" font=mono
+  project md = said(got, of)

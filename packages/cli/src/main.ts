@@ -6,9 +6,12 @@
 //             [--diagnostics json]
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
-//   mkp check --pack …            packs, fixtures and the section-18 rules (every definition has a valid case)
+//   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
+//             valid case), or documents with their own definitions; json: one diagnostic a line
 //   mkp index --pack …            one line per widget: the catalog an agent keeps in context
-//   mkp show <name> --pack …      the full signature and the first valid fixture case
+//   mkp show <name> --pack … [--source [--as new-name]]   the full signature and the first valid
+//             fixture case; --source prints its source with the private parts and fns it uses,
+//             ready to paste into a document and edit
 //   mkp schema <name|ir/…|fixture> [--pack …]   JSON Schema of a widget's inputs, or of the IR
 //   mkp fmt <file.mkp|file.mkp.md…> --pack … [--write]   canonical form
 //   mkp pack <folder> [-o name.mkpack]           a pack folder as a .mkpack zip
@@ -18,6 +21,7 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import {
   canonicalJson,
   caseDocument,
+  copySource,
   compile,
   compileCase,
   Diagnostics,
@@ -60,7 +64,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -105,11 +109,36 @@ function report(d: Diagnostics, quiet = false): boolean {
   return d.ok;
 }
 
+/**
+ * The lock a build reads and writes (GAPS 14): --lock, or the nearest mkp.lock at or above the
+ * first document's folder, or a new one beside it.
+ */
+function lockPath(a: Args): string {
+  if (typeof a.opts.lock === 'string') return a.opts.lock;
+  const first = a.pos.find((p) => p !== '-');
+  let dir = first ? resolve(statSync(first, { throwIfNoEntry: false })?.isDirectory() ? first : dirname(first)) : process.cwd();
+  const start = dir;
+  for (;;) {
+    if (existsSync(join(dir, 'mkp.lock'))) return relative(process.cwd(), join(dir, 'mkp.lock')) || 'mkp.lock';
+    const up = dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return relative(process.cwd(), join(start, 'mkp.lock')) || 'mkp.lock';
+}
+
 function compiled(a: Args): Compiled {
   let lock: IRLock | undefined;
-  const lockPath = typeof a.opts.lock === 'string' ? a.opts.lock : 'mkp.lock';
-  if (existsSync(lockPath)) lock = JSON.parse(readFileSync(lockPath, 'utf8')) as IRLock;
+  const lp = lockPath(a);
+  // --relock: record what the packs are now, refusing nothing the old lock pinned
+  if (existsSync(lp) && !a.opts.relock) lock = JSON.parse(readFileSync(lp, 'utf8')) as IRLock;
   return compile({ packs: a.packs.map(packSource), lock, profile: typeof a.opts.profile === 'string' ? a.opts.profile : undefined });
+}
+
+/** The document's own file, name.mkp beside name.mkp.md (6.25), when there is one. */
+function docFileOf(file: string): { text: string; file: string } | undefined {
+  const p = file.replace(/\.mkp\.md$/, '.mkp');
+  return p !== file && existsSync(p) ? { text: readFileSync(p, 'utf8'), file: relative(process.cwd(), p) || p } : undefined;
 }
 
 function docFiles(paths: string[]): string[] {
@@ -138,7 +167,7 @@ async function build(a: Args): Promise<number> {
     : docFiles(a.pos).map((file) => ({ file: relative(process.cwd(), file), text: readFileSync(file, 'utf8') }));
   for (const { file, text: src } of docs) {
     const d = new Diagnostics();
-    const bundle = c.document(src, file, d);
+    const bundle = c.document(src, file, d, { docFile: a.pos.includes('-') ? undefined : docFileOf(file) });
     if (bundle && maths) prerender(bundle, maths, d);
     ok = report(d) && ok;
     if (!bundle || !d.ok) continue;
@@ -148,7 +177,8 @@ async function build(a: Args): Promise<number> {
       let ext: string;
       const files = new Map<string, string>();
       if (target === 'md') {
-        const r = writeMarkdown(bundle, { toggles, maths: maths ?? undefined, imageBase: stem });
+        // --no-answers: what a reader sees before answering, for search and previews (GAPS 166)
+        const r = writeMarkdown(bundle, { toggles, maths: maths ?? undefined, imageBase: stem, answers: !a.opts['no-answers'] });
         text = r.md;
         ext = '.md';
         for (const [k, v] of r.files) files.set(k, v);
@@ -164,13 +194,14 @@ async function build(a: Args): Promise<number> {
       } else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'));
     }
   }
-  // the lock: written on every successful build, pinning versions and digests (6.17)
-  if (ok && !a.opts['no-lock']) writeFileSync(typeof a.opts.lock === 'string' ? a.opts.lock : 'mkp.lock', JSON.stringify(c.lock, null, 1) + '\n');
+  // the lock: written on every successful build that used packs, pinning versions and digests (6.17)
+  if (ok && !a.opts['no-lock'] && a.packs.length) writeFileSync(lockPath(a), JSON.stringify(c.lock, null, 1) + '\n');
   return ok ? 0 : 1;
 }
 
 async function check(a: Args): Promise<number> {
   const c = compiled(a);
+  if (a.pos.length) return checkDocs(a, c);
   let ok = report(c.diags);
   const cases = fixtureCases(c);
   // maths is checked with the same engine that renders it (6.15)
@@ -196,6 +227,23 @@ async function check(a: Args): Promise<number> {
   return ok ? 0 : 1;
 }
 
+/**
+ * Documents, checked with their own definitions and maths: the loop an agent runs until it is
+ * clean (--format json gives one diagnostic a line, with file, line, column and a fix).
+ */
+async function checkDocs(a: Args, c: Compiled): Promise<number> {
+  let ok = report(c.diags, true);
+  const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: false });
+  for (const file of docFiles(a.pos)) {
+    const d = new Diagnostics();
+    const b = c.document(readFileSync(file, 'utf8'), relative(process.cwd(), file), d, { docFile: docFileOf(file) });
+    if (b && maths) prerender(b, maths, d);
+    ok = report(d) && ok;
+  }
+  if (!jsonDiagnostics) process.stderr.write(ok ? 'ok\n' : '');
+  return ok ? 0 : 1;
+}
+
 function findDef(c: Compiled, name: string) {
   const [bare, ver] = name.split('@');
   const hits = [...c.defs.values()].filter((d) => (d.name === bare || `${d.pack}:${d.name}` === bare) && (!ver || d.version === Number(ver)) && d.pack !== '$doc');
@@ -214,6 +262,11 @@ function index(a: Args): number {
 function show(a: Args): number {
   const c = compiled(a);
   const d = findDef(c, a.pos[0] ?? '');
+  if (a.opts.source) {
+    // a copy to edit, never a link: the agent changes a widget by copying it (doc #1129 §3.3)
+    process.stdout.write(copySource(c, d, typeof a.opts.as === 'string' ? a.opts.as : d.name));
+    return 0;
+  }
   process.stdout.write(signatureText(d, c.prog.typeEnv(d.pack)) + '\n');
   const first = fixtureCases(c).find((fc) => fc.pack === d.pack && fc.widget === `${d.name}@${d.version}` && !fc.expect?.errors?.length);
   if (first) process.stdout.write(`\nexample (fixture ${first.name}):\n${caseDocument(first)}`);
@@ -291,9 +344,9 @@ const HELP = `mkp ${VERSION}: Markdown Markup
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
             [--target ir|ir-expanded|md[,…]] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
             [--diagnostics json]
-  mkp check --pack …
+  mkp check [docs…] --pack … [--format json]
   mkp index --pack …
-  mkp show <name> --pack …
+  mkp show <name> --pack … [--source [--as new-name]]
   mkp schema <name | ir/bundle | ir/definition | ir/node | ir/expr | ir/tokens | fixture> [--pack …]
   mkp fmt <files…> --pack … [--write]
   mkp pack <folder> [-o name.mkpack]
@@ -301,7 +354,7 @@ const HELP = `mkp ${VERSION}: Markdown Markup
 
 export async function main(argv: string[]): Promise<number> {
   const a = parseArgs(argv);
-  jsonDiagnostics = a.opts.diagnostics === 'json';
+  jsonDiagnostics = a.opts.diagnostics === 'json' || a.opts.format === 'json';
   try {
     switch (a.cmd) {
       case 'build':

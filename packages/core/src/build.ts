@@ -377,7 +377,9 @@ function makeLock(c: Compiled, prev: IRLock | undefined, diags: Diagnostics): IR
       if (now && now.digest !== p.digest && p.pack !== 'core') diags.warn('mkp.pack-changed', `${p.pack}@${p.version} changed since the lock was written; a published version must not change`);
     }
     for (const [id, dg] of Object.entries(prev.defs)) {
-      if (defs[id] && defs[id] !== dg && !id.startsWith(`${DOC_PACK}:`)) diags.error('mkp.version-changed', `${id} changed since it was locked; a behaviour change is a new version (@N+1)`);
+      // an unpublished pack may still change under the same @N (GAPS 15)
+      if (c.prog.packs.get(id.slice(0, id.indexOf(':')))?.manifest.unpublished) continue;
+      if (defs[id] && defs[id] !== dg && !id.startsWith(`${DOC_PACK}:`)) diags.error('mkp.version-changed', `${id} changed since it was locked; a behaviour change is a new version (@N+1), or build with --relock while the pack is unpublished`);
     }
   }
   return { packs, defs };

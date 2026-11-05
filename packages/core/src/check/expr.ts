@@ -137,6 +137,10 @@ export class ExprChecker {
       case 'list': {
         const elemExp = ex && ex.t === 'list' ? ex.of : undefined;
         const items = e.items.map((x) => this.check(x, scope, elemExp));
+        // where the element type is known, each item converts to it (a vec2 where points go)
+        if (elemExp && !hasUnknown(elemExp) && items.length) {
+          return { ast: { t: 'list', items: items.map((it, i) => this.coerce(it, elemExp, e.items[i].p).ast) }, type: T.list(elemExp) };
+        }
         let et: Type = T.unknown;
         for (const it of items) {
           const j = join(et, it.type, this.env);

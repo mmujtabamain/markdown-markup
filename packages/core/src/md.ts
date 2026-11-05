@@ -13,6 +13,9 @@ import { fmtNum } from './eval';
 export type MdToggle = 'gfm' | 'math' | 'mermaid' | 'html' | 'images';
 
 export interface MdOptions {
+  /** false: answers are left out (GAPS 166) — `answers` reads false, and a widget with answer
+   * inputs and no project md writes only its summary */
+  answers?: boolean;
   toggles?: MdToggle[];
   maths?: MathsRenderer;
   /** the base name for image files (images toggle) */
@@ -30,7 +33,8 @@ const ALERT_TITLE: Record<string, string> = { note: 'Note', tip: 'Tip', importan
 export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
   const t = new Set(opts.toggles ?? []);
   // the images toggle draws gfx content from its CPU fallback; otherwise no fallback is needed
-  const rt = new Runtime(b, { snapshot: true, maths: opts.maths, now: () => 0, capabilities: t.has('images') ? ['core@1'] : ['core@1', 'gfx@1'] });
+  const answers = opts.answers !== false;
+  const rt = new Runtime(b, { snapshot: true, maths: opts.maths, now: () => 0, capabilities: t.has('images') ? ['core@1'] : ['core@1', 'gfx@1'], answers });
   const tokens = new TokenTable(b.tokens);
   const files = new Map<string, string>();
   let imageNo = 0;
@@ -242,6 +246,8 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
       out.push(details(String(rt.evalExpr(project.md, inst!.env as Env, inst!))));
       return out.join('\n\n');
     }
+    // without answers, a widget that holds one and says nothing of its own writes its summary only
+    if (!answers && def?.inputs.some((i) => i.answer)) return out.join('\n\n');
     later.push([]);
     out.push(...blocks(n.kids));
     const after = later.pop()!;

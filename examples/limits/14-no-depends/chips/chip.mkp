@@ -1,0 +1,5 @@
+chip@1 "A word on a pill."
+  fields word
+  in word text
+  row pad=xs radius=pill fill=muted
+    text word size=small

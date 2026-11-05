@@ -41,6 +41,14 @@ function load(): Promise<void> {
 
 let speechReady: Promise<void> | null = null;
 
+/**
+ * \mark{id}{…} marks a part of a formula (GAPS 163): it becomes \class{mkp-mark-id}{…}, a group a
+ * provider colours by the math block's marks.
+ */
+export function marks(tex: string): string {
+  return tex.replace(/\\mark\{([A-Za-z][A-Za-z0-9_-]*)\}/g, '\\class{mkp-mark-$1}');
+}
+
 export class MathsEngine implements MathsRenderer {
   private readonly adaptor = engine.liteAdaptor();
   private readonly doc: any;
@@ -52,7 +60,7 @@ export class MathsEngine implements MathsRenderer {
   private constructor(_macros: Record<string, string>) {
     engine.RegisterHTMLHandler(this.adaptor);
     const tex = new engine.TeX({
-      packages: ['base', 'ams', 'newcommand', 'boldsymbol', 'cancel', 'mathtools'],
+      packages: ['base', 'ams', 'newcommand', 'boldsymbol', 'cancel', 'mathtools', 'html'],
       formatError: (_jax: unknown, err: Error) => {
         throw err;
       },
@@ -78,7 +86,7 @@ export class MathsEngine implements MathsRenderer {
   /** The error MathJax reports for a formula, or null. \val{} holes are checked as placeholders. */
   check(tex: string, display = false): string | null {
     try {
-      this.doc.convert(tex.replace(/\\val\{(?:[^{}]|\{[^{}]*\})*\}/g, '{\\square}'), { display, end: engine.STATE.CONVERT });
+      this.doc.convert(marks(tex.replace(/\\val\{(?:[^{}]|\{[^{}]*\})*\}/g, '{\\square}')), { display, end: engine.STATE.CONVERT });
       return null;
     } catch (e) {
       return (e as Error).message;
@@ -90,7 +98,7 @@ export class MathsEngine implements MathsRenderer {
     if (this.svgCache.has(key)) return this.svgCache.get(key)!;
     let out: Rendered | null = null;
     try {
-      const node = this.doc.convert(tex, { display });
+      const node = this.doc.convert(marks(tex), { display });
       const html: string = this.adaptor.outerHTML(node);
       const m = /<svg[\s\S]*<\/svg>/.exec(html);
       if (m) {
@@ -116,7 +124,7 @@ export class MathsEngine implements MathsRenderer {
     if (hit !== undefined) return hit;
     let s: string;
     try {
-      const mml = this.visitor.visitTree(this.doc.convert(tex, { display, end: engine.STATE.CONVERT }));
+      const mml = this.visitor.visitTree(this.doc.convert(marks(tex), { display, end: engine.STATE.CONVERT }));
       s = engine.sre.toSpeech(mml);
     } catch {
       s = tex;

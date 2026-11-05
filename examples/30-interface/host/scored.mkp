@@ -1,0 +1,4 @@
+interface scored@1 "A widget whose score a host can add up."
+  in of int
+  signal scored {got: int}
+  project md

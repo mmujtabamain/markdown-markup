@@ -25,6 +25,6 @@ export { MathsEngine, prerender } from './maths';
 export { MkpPrinter, DocPrinter, printFile, fileItems, valSrc, yamlText, type FileItem, type PrintContext } from './print';
 export { canonical } from './syntax/canon';
 export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
-export { indexLine, signatureText } from './catalog';
+export { indexLine, signatureText, copySource } from './catalog';
 export { checkDocument } from './check/doc';
 export { ICON_GLYPHS, ICON_NAMES } from './icons';

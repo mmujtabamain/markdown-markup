@@ -181,20 +181,14 @@ function scanState(text: string): ScanState {
 /** Index just after a "…" literal starting at i (text mode escapes; maths inside is raw). */
 export function skipString(text: string, i: number): number {
   let j = i + 1;
-  let maths = false;
   while (j < text.length) {
     const c = text[j];
     if (c === '\\') {
       j += 2;
       continue;
     }
-    if (c === '$') maths = !maths;
-    if (c === '"' && !maths) return j + 1;
-    if (c === '"' && maths) {
-      // a quote inside maths still ends the literal if nothing else closes it
-      const rest = text.indexOf('$', j);
-      if (rest < 0) return j + 1;
-    }
+    // a quote always ends the literal, in maths too: "… $x^" + n + "$" is two strings, never one
+    if (c === '"') return j + 1;
     j++;
   }
   return j;

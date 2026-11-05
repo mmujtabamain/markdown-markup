@@ -334,16 +334,18 @@ class DocChecker {
       this.diags.error('mkp.missing-summary', `the ${sig.name} block needs a summary: line (what it shows, for readers without the widget and for Markdown output)`, p);
     } else (node.meta ??= {}).summary = summary;
     if (it.id) (node.meta ??= {}).anchor = it.id;
+    const failed = new Set<string>();
     for (const [k, v] of Object.entries(obj)) {
       if (k === 'summary') continue;
       try {
         this.setProp(node, sig, k, v, this.p(this.lineOf(it, k)));
       } catch (e) {
+        failed.add(k);
         this.dc.err(e);
       }
     }
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
-    this.requireInputs(node, sig, p);
+    this.requireInputs(node, sig, p, failed);
     this.yamlAt = null;
     return node;
   }
@@ -383,9 +385,9 @@ class DocChecker {
     return it.line + 1 + Math.max(0, i);
   }
 
-  private requireInputs(node: IRNode, sig: Sig, p: Pos): void {
+  private requireInputs(node: IRNode, sig: Sig, p: Pos, failed = new Set<string>()): void {
     for (const [name, inp] of sig.inputs) {
-      if (inp.hasDefault || node.props?.[name] !== undefined) continue;
+      if (inp.hasDefault || node.props?.[name] !== undefined || failed.has(name)) continue;
       if (resolve(inp.type, this.prog.typeEnv(sig.pack)).t === 'records' && node.records?.length) continue;
       this.diags.error('mkp.missing-input', `${sig.name} needs ${name} (${showType(inp.type)})`, p);
     }
@@ -457,6 +459,7 @@ class DocChecker {
         return { lit: v };
       }
       case 'bool':
+        if (typeof v === 'string' && /^(yes|no|on|off|y|n)$/i.test(v)) throw new MkpError('mkp.input-type', `${what} is true or false; "${v}" is text in YAML 1.2: write ${/^(yes|on|y)$/i.test(v) ? 'true' : 'false'}`, this.at(what, p));
         return typeof v === 'boolean' ? { lit: v } : bad('true or false');
       case 'text':
         if (typeof v === 'number') return { text: String(v) };

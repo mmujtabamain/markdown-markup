@@ -47,8 +47,13 @@ export function markdownToNodes(src: string, line0 = 1, warnings: MdWarning[] = 
     switch (n.type) {
       case 'heading':
         return [{ node: 'heading', def: 'core:heading@1', props: { level: { lit: n.depth as number }, text: { text: inline(n) } }, pos: p }];
-      case 'paragraph':
+      case 'paragraph': {
+        // a paragraph that is only $$…$$ is a display formula, as GitHub draws it
+        const only = n.children?.length === 1 && n.children[0].type === 'inlineMath' ? n.children[0] : null;
+        const raw = inline(n).trim();
+        if (only && /^\$\$[\s\S]*\$\$$/.test(raw)) return [{ node: 'math', def: 'core:math@1', props: { tex: { tex: only.value ?? '', display: true } }, pos: p }];
         return [{ node: 'paragraph', def: 'core:paragraph@1', props: { text: { text: inline(n) } }, pos: p }];
+      }
       case 'thematicBreak':
         return [{ node: 'divider', def: 'core:divider@1', props: {}, pos: p }];
       case 'code':
@@ -112,7 +117,8 @@ export type Run =
   | { t: 'math'; tex: string; display?: true }
   | { t: 'br' }
   | { t: 'img'; src: string; alt: string }
-  | { t: 'fnref'; label: string };
+  /** n: its number, by the order of first references in the document (GAPS 34) */
+  | { t: 'fnref'; label: string; n?: number };
 
 const runCache = new Map<string, Run[]>();
 
