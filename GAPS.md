@@ -114,22 +114,10 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `ω³` overlaps its dot (bottom left). The other labels clear theirs. *Open.*
 24. **MKP (mkp-learn): a theorem's ∎ sits alone in a wide band.** Below the proof, the end-of-proof
     mark has a line to itself and a large empty space under it. *Open*, minor.
-25. **Provider: the inline select's chosen option was a solid black button.** That isn't ui's
-    convention. Mujtaba spotted it. *Fixed:* a row of options is ui's joined outline ToggleGroup with
-    the chosen one in `--accent`. Options stacked one per line keep the Question-row look (chosen =
-    foreground border).
-26. **Provider: in dark, the button fill reached answer rows and joined groups.** ui gives dark
-    buttons `bg-input/30`. The skin's rule for that had the same specificity as the row rules and
-    came later, so option rows and ToggleGroup items were filled. *Fixed:* answer rows sit on the
-    background, as ui's Question rows do, and group items are transparent.
-27. **Provider: the lesson dropped its web sources.** `lessonOf` passed `webSources: []` whatever the
-    front matter said. *Fixed:* they're carried over, with empty optional fields left out as the
-    lesson schema has them. There's a test.
-28. **Provider (playground): `npm run shot -- --width 390` drew fixtures at their frame width.**
-    FixtureView fixed a fixture's frame at `frame.width` (900 here). The case's `<section>` and the
-    page's `<main>` are grids, whose auto tracks grew to that min-content, so every "phone" shot was
-    900px. *Fixed* in `playground/FixtureView.tsx`: frames are `max-width: 100%`, and the case is a
-    `min-w-0` flex column. `--width` now works for every fixture.
+25. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+26. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+27. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+28. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
 29. **MKP (mkp-data, mkp-cs): side-by-side columns never stacked on a phone.** `grow` is `flex: 1 1 0`,
     a basis of 0, so a row of grown stacks never wraps. Grid columns are `minmax(0, 1fr)`, so they
     clip instead: the join's depts table cut "Engineering" off, and the trace squeezed its code until
@@ -162,13 +150,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     clamps the depth at 3 and hangs a skipped level on the nearest open parent. The rest stays the
     host's validation. *Open:* structure rules in profiles (heading depth, content before the first
     heading), and a cross-field check (an id in one field must appear in another).
-36. **Provider: duplicate DOM ids.** A widget block's wrapper took the block's anchor as its id, and
-    MKP's renderer already gives the widget's scope that same id. So every anchored widget's id
-    appeared twice, which broke `#anchor` links and anything that looks an id up. *Fixed:* the
-    wrapper takes the id only when MKP's node doesn't carry the anchor. The whole-lesson test
-    checks that ids are unique and that every block's anchor resolves.
-
-*Entries 37–55 are from the diagrams subagent (#7909). 55 was checked and fixed afterwards.*
+36. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
 
 37. **MKP: `arrow` had no waypoints.** It could only join two outlines with a line or one bend, and
     the compute layer can't know where flex rows put the boxes, so no expression could steer an edge
@@ -197,9 +179,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 45. **Environment (DevBench): the gatekeeper refuses shell text containing a dot followed by `key`**
     (it reads it as a secret file), which MKP code like `c.key` hits. *Worked around:* the field is
     named `id`, and such code is edited with the editor tools.
-46. **Provider: `build:mkp` built the CLI only when it was missing.** After a core change the lessons
-    were built with a stale CLI. *Fixed:* it rebuilds when any core or CLI source is newer than
-    `dist/mkp.cjs`.
+46. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
 47. **MKP: a provided name is visible to every pack, depended on or not** (`program.ts:131`
     `visible()`). An undeclared dependency compiles whenever the other pack happens to be loaded.
     *Open.*
@@ -235,10 +215,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `@mkp/shadcn` maps the eight glyphs the packs use to lucide icons. An `icon` base widget with a
     fixed set of names would say what is meant. *Fixed:* `icon@1` (SN 108), drawn by the provider's
     own icon set (lucide in `@mkp/shadcn`).
-58. **Provider: MKP drew its own controls.** Found by Mujtaba: "that package has defined buttons,
-    tabs, checkboxes etc, i though mkp was suppoesd to route it there, not makes its own". The first
-    provider was a stylesheet copying the ui package's look over MKP's own elements. *Fixed:* a
-    provider defines every base widget (SN 103), and the stylesheet goes.
+58. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
 59. **MKP: packs hand-drew controls a design system has.** A switch was a track of boxes, a tick was ☑
     in text, a progress bar a canvas, and a select's arrow a "▾". None could reach a real component.
     *Fixed:* `press kind=switch|check|radio`, `overlay mode=menu` and `meter` (SN 105).
