@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the packages a host installs, as ordinary npm packages: built JavaScript, type declarations
-// and a package.json with real dependencies, under the @markdown-markup scope, published to GitHub
-// Packages (npm.pkg.github.com), which needs the repo to belong to the GitHub org of that name. The workspace's own @mkp/* names stay as they are; the
+// and a package.json with real dependencies, under the repo owner's scope (@mmujtabamain), published to
+// GitHub Packages (npm.pkg.github.com), which takes a scope only from the repo's owner. The workspace's own @mkp/* names stay as they are; the
 // built files import each other by their published names.
 //   node scripts/release.mjs [--version 0.3.0] [--only core,react] [--pack] [--out dir]
 // Writes release/<name>/ (or <dir>/<name>/) for each package, and its .tgz with --pack. Prints what
@@ -17,10 +17,10 @@ const args = process.argv.slice(2);
 const opt = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : undefined);
 const out = resolve(opt('--out') ?? join(root, 'release'));
 
-const SCOPE = '@markdown-markup';
+const SCOPE = '@mmujtabamain';
 const REPO = 'https://github.com/mmujtabamain/markdown-markup';
-/** The published name of a workspace package: @mkp/core → @markdown-markup/core. */
-const published = (name) => name.replace(/^@mkp\//, `${SCOPE}/`);
+/** The published name of a workspace package: @mkp/core → @mmujtabamain/mkp-core. */
+const published = (name) => name.replace(/^@mkp\//, `${SCOPE}/mkp-`);
 
 // what each package is built from; cli is one bundled file with core inside it
 const PACKAGES = {

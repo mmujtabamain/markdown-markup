@@ -1,9 +1,9 @@
-# Publishing MKP's packages to GitHub Packages (npm.pkg.github.com, scope @markdown-markup), and attaching
+# Publishing MKP's packages to GitHub Packages (npm.pkg.github.com, scope @mmujtabamain), and attaching
 # each package's .tgz to the GitHub Release. Publishing a release on GitHub (Releases → Draft a new
 # release → a tag like v0.3.0 → Publish) runs it; the tag is the version.
 # Which packages go out: PACKAGES below (any of core, react, shadcn, react-native, cli).
-# GitHub Packages takes a scope only from the repo's owner, so this repo must belong to the GitHub
-# org markdown-markup (github.com/markdown-markup/markdown-markup).
+# GitHub Packages takes a scope only from the repo's owner: @mmujtabamain while the repo is
+# github.com/mmujtabamain/markdown-markup.
 name: Release
 
 on:
@@ -38,7 +38,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
           registry-url: https://npm.pkg.github.com
-          scope: '@markdown-markup'
+          scope: '@mmujtabamain'
       - run: pnpm install --frozen-lockfile
       - name: Types and tests
         run: |
