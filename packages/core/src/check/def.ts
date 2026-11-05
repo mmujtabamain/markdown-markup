@@ -220,7 +220,7 @@ export class DefChecker {
       name: s.name,
       version: s.version,
       pack: entry.pack,
-      file: entry.file,
+      file: this.prog.stableFile(entry.pack, entry.file),
       about: s.about,
       inputs: [],
       pos: pos(s.p),

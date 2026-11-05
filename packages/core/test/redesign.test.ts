@@ -165,6 +165,16 @@ describe('containers (8)', () => {
   });
 });
 
+describe('a bundle is the same wherever its packs were read from', () => {
+  it("records a pack file as the pack's name and its path in the pack", () => {
+    const lib = (label: string) => ({ ...pack('lib', { 'w.mkp': 'fn hi(n: text): text = "hi " + n\nw@1 "w"\n  text (hi("a"))\n  project md = "w"', 'w.fixture.json': JSON.stringify({ widget: 'w@1', cases: { one: { props: {}, summary: 's' } } }) }, '  provides w\n'), label });
+    const built = ['../../home/someone/repo/packs/lib', 'packs/lib'].map((label) => doc(block('w', 'summary: s'), { packs: [lib(label)] }).b!);
+    expect(built.map((b) => b.defs['lib:w@1'].file)).toEqual(['lib/w.mkp', 'lib/w.mkp']);
+    // and so does a function the definition calls
+    expect(built.map((b) => Object.values(b.fns).map((f) => f.file))).toEqual([['lib/w.mkp'], ['lib/w.mkp']]);
+  });
+});
+
 describe('interfaces (6.24)', () => {
   const host = pack('host', { 'scored.mkp': 'interface scored@1 "A widget whose score a host can add up."\n  in of int\n  signal scored {got: int}\n  project md\n' }, '  provides scored\n');
   const stars = (signal: string) =>

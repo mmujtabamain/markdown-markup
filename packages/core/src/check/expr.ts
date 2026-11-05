@@ -511,7 +511,7 @@ export class ExprChecker {
         local: local || undefined,
         op: f.op,
         pos: [f.syn.p.line, f.syn.p.col],
-        file: f.file,
+        file: this.prog.stableFile(f.pack, f.file),
       };
     } finally {
       this.inProgress.delete(f.id);
@@ -548,7 +548,7 @@ export class ExprChecker {
           local: local || undefined,
           generic: f.id,
           pos: [f.syn.p.line, f.syn.p.col],
-          file: f.file,
+          file: this.prog.stableFile(f.pack, f.file),
         };
       } finally {
         this.inProgress.delete(id);

@@ -169,6 +169,7 @@ export function loadPack(pf: PackFiles, diags: Diagnostics): PackInfo | null {
     assets: new Map(),
     documents: [],
     digest: '',
+    label: pf.label,
   };
   if (manifest.name !== 'core' && !manifest.requires.some((r) => r.startsWith('core@'))) diags.warn('mkp.pack-requires', `${manifest.name}: the manifest should say "requires core@1"`, where);
   const listing: Record<string, string> = {};

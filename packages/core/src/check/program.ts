@@ -21,6 +21,8 @@ export interface PackInfo {
   documents: { path: string; text: string }[];
   digest: string;
   builtin?: boolean;
+  /** where the pack was read from, as diagnostics name its files (a folder relative to the CLI's cwd) */
+  label?: string;
 }
 
 export interface DefEntry {
@@ -60,6 +62,13 @@ export interface IfaceEntry {
 
 export class Program {
   readonly packs = new Map<string, PackInfo>();
+
+  /** A pack file's name as a bundle records it: the pack's name and the file's path in it, the same
+   *  wherever the pack was read from (diagnostics keep the path as given, to open it). */
+  stableFile(pack: string, file: string): string {
+    const label = this.packs.get(pack)?.label;
+    return label !== undefined && file.startsWith(`${label}/`) ? `${pack}/${file.slice(label.length + 1)}` : file;
+  }
   readonly ifaces = new Map<string, IfaceEntry>();
   /** token names by kind: every checker reads token words with them (GAPS 117) */
   tokenNames?: (kind: string) => Set<string>;
