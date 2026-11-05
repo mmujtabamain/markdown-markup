@@ -332,8 +332,10 @@ function fmt(a: Args): number {
 }
 
 /** Every valid fixture case compiled to its bundle, a file per definition, for a host to draw. */
-function cases(a: Args): number {
+async function cases(a: Args): Promise<number> {
   const c = compiled(a);
+  // maths drawn at build, as mkp build draws it, so a host needs no maths engine to show a case
+  const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
   if (!report(c.diags, true)) return 1;
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
   if (!outDir) throw new Error('mkp cases needs --out <dir>');
@@ -348,6 +350,7 @@ function cases(a: Args): number {
       for (const d of r.diags.errors) process.stderr.write(formatDiagnostic(d) + '\n');
       continue;
     }
+    if (maths) prerender(r.bundle, maths, r.diags);
     const key = `${fc.pack}.${fc.widget.replace(/@\d+$/, '')}`;
     const list = byDef.get(key) ?? [];
     list.push({ case: fc.name, summary: fc.summary ?? '', bundle: stripPos(r.bundle) });
@@ -409,7 +412,7 @@ export async function main(argv: string[]): Promise<number> {
       case 'pack':
         return pack(a);
       case 'cases':
-        return cases(a);
+        return await cases(a);
       case 'version':
       case '--version':
         process.stdout.write(VERSION + '\n');
