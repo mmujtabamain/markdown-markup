@@ -1,243 +1,331 @@
 # Writing MKP: a guide for agents
 
-MKP (Markdown Markup) is Markdown plus widgets. You write **documents** (`name.mkp.md`) that use
-widgets, and **definitions** (`name.mkp`) that make widgets out of a small base set. You never write
-HTML, JavaScript or CSS. This guide is the working subset you need, with the mistakes the compiler
-will catch you making. The full rules are the spec; `mkp index` and `mkp show` tell you what exists.
+MKP (Markdown Markup) is Markdown plus widgets. A document (`name.mkp.md`) is Markdown, with
+widget blocks where the reader should do or see more than text. MKP itself ships only the
+**base set**: the Markdown blocks, four containers, a few controls, the host's shells and a
+canvas. Everything else is **composed** from them, the way JSX composes components: in the
+document itself (an ```` ```mkp ```` fence), in a file beside it, or in a pack a host loads.
+You never write HTML, JavaScript or CSS.
+
+This guide is the working subset, with the mistakes the compiler catches. The examples in
+`examples/` are the reference: read them in order, and copy from them.
 
 ## The loop
 
 ```sh
-mkp index --pack packs/mkp-ui --pack packs/mkp-math …     # one line per widget: keep this in context
-mkp show orbit --pack …                                   # full signature + a working example
-mkp check --pack ./my-pack --pack …                       # compile everything; every fixture case
-mkp build doc.mkp.md --pack … --target md --md gfm,math   # the Markdown a reader without widgets gets
+mkp check lesson.mkp.md --pack … --format json   # every error: code, file, line, column, a fix
+mkp build lesson.mkp.md --pack … --target md     # the Markdown a reader without MKP gets
+mkp index --pack …                               # the widgets a host's packs give, one a line
+mkp show walk --pack …                           # one widget's inputs and an example
+mkp show walk --pack … --source --as my-walk     # its source, renamed, to copy and edit
 ```
 
-Errors look like `roots.mkp:14:9 error mkp.unknown-prop: canvas has no prop "colour" (did you mean
-"color"?)` followed by the element path. Fix what the message says; it names the rule.
+Repeat `mkp check` until it is clean. Errors name their rule and say how to fix it:
 
-## Documents
+```text
+lesson.mkp.md:17:5 error mkp.input-type: xs[1] is a number; found "four"
+```
 
+## Decide in this order
+
+1. **Plain Markdown**, when the reader only reads.
+2. **A widget the host gives** (`mkp index`), filled in with YAML.
+3. **A copy of one** (`mkp show <w> --source --as <new>`), edited, when it shows nearly everything.
+4. **Your own**, composed from the base set, when nothing is close.
+
+## A document
+
+Markdown first. Headings, lists, task lists, tables, quotes, alerts (`> [!TIP]`), code, maths
+(`$…$`, `$$…$$`), footnotes and images are the base set's own blocks and come out as themselves.
+A widget block is a fence named after the widget, with YAML inputs and a `summary:` (one sentence:
+what the reader sees).
+
+- **Quote text in YAML** when it could read as something else: `on: no` is the text "no" in
+  YAML 1.2, not false. LaTeX goes in single quotes (`'\theta'`): in double quotes `\t` is a tab.
+- **Shared state**: a ```` ```state ```` block (`t = slider 0..1 "turn"`) and `t: {ref: t}` in each
+  block that reads it (example 07).
+- **A container** puts Markdown into a widget's slot: `:::box` … `:::`; `:::fill name` fills another.
+
+## Your own widget
+
+<!-- example 04-hello -->
 ````markdown
----
-title: Roots of unity
----
-# Roots of unity
+# Hello
 
-:::callout tip
-Every root lies on the unit circle.
-:::
+```mkp
+greeting "A line of welcome with a name in it."
+  in name text = "world" "who to greet"
+  text "Hello, **\val{name}**!"
+  project md = "Hello, **" + name + "**!"
+```
 
-```roots #fifth
-n: 5
-summary: The five fifth roots of unity.
+```greeting
+name: reader
+summary: A greeting for the reader.
 ```
 ````
 
-- A widget block is a fenced block whose info string is the widget's name (optionally `name@N` and
-  `#id`), with **YAML** inputs and a required `summary:` (one sentence: what the reader sees).
-- Text inputs are Markdown strings with `$…$` maths. **Write LaTeX in single quotes** (`'\theta'`);
-  in double quotes `\t` becomes a tab and the build rejects it.
-- Expressions (inputs typed `expr(z)`) are strings: `f: z^3 - 1`.
-- Points are `[x, y]`; records are mappings; record lists are lists of mappings; a record's or
-  widget's slot is a Markdown string.
-- Containers put Markdown into a widget's first slot: `:::callout warning` … `:::`. Inside,
-  `:::fill name` fills another slot, and record kinds nest: `::::tabs` holding `:::tab "Title"` blocks
-  (the outer one has more colons).
-- Shared state: a ```` ```state ```` block (`t = slider 0..1 step=.01 "turn"`) and `t: {ref: t}` in
-  the widget blocks that read it.
+- A fence with `mkp` holds definitions; it draws nothing. They belong to the document: any block
+  may use them, before or after the fence. No `@N`: the document is the version.
+- **Every widget you define has a `project md`**: the Markdown a reader without MKP reads instead
+  (a widget that holds content in a slot writes that content, and needs none).
+- A name a pack or core already gives is refused (`mkp.shadow`): copy one with `--as`.
+- Moved out of the document, the same definitions go in `name.mkp` beside it (example 27).
+
+<!-- example 05-counter -->
+````markdown
+# A counter
+
+```mkp
+counter "A number the reader steps up or down."
+  in start int = 0 "where it begins"
+  var n int = start
+  row gap=s align=center
+    press label="one less"
+      icon name=minus
+      @click set n=(n - 1)
+    text "\val{n}" font=heading
+    press label="one more"
+      icon name=plus
+      @click set n=(n + 1)
+  project md = "Count: " + format(n, 0)
+```
+
+```counter
+start: 3
+summary: A counter that starts at 3.
+```
+````
 
 ## Definitions
 
-```text
-roots@1 "The n-th roots of unity on the unit circle."
-  in n int 2..12 = 5 "how many roots"
-  in labels bool = true
-  k = slider 0..(n-1) step=1 play=8s loop=repeat "which root"
-  w = exp(2 pi i k/n)
-  canvas x=-1.6..1.6 y=-1.6..1.6 size=m label="the roots"
-    layer
-      circle (0, 0) 1 stroke=muted
-      each j in 0..(n-1)
-        circle (exp(2 pi i j/n)) 0.04 fill=ink
-        label (1.18 exp(2 pi i j/n)) if=labels $\omega^{\val{j}}$
-  text "Multiplying by $\omega^{\val{k}}$ turns the plane by $\val{k}/\val{n}$ of a turn."
-```
+One statement per line, children indented **two spaces**. A long expression may break inside an
+open bracket; anywhere else a deeper line is a child (`mkp.continuation`).
 
-- One statement per line, children indented **two spaces**. Long expressions may break inside open
-  brackets.
-- `name@N "about"` is a widget (documents use it); `part name@N` is only for other definitions;
-  `extern` is implemented by providers.
-- Members: `in` (inputs), `name = control …` (reader state: `slider a..b`, `toggle`, `choice(a|b)`,
-  `steps n`, `drag x=a..b y=c..d`), `var` (internal state), `name = expression` (derived, in order:
-  a value sees only what is declared above it), `fn`, `out`/`emit` (events to the caller), `signal`/
-  `send` (to the host), `host` (host data), `command` (host calls), `project md|mermaid = expr`.
-- Strings are always quoted. Maths is `$…$`. `\val{expr}` shows a live value in text or maths.
-- Every widget with state gets a **bar** of its controls automatically; `controls a b` places some
-  elsewhere.
+- `name "about"` is a widget; `part name "about"` is only for other definitions; `name of T "about"`
+  takes a type parameter. In a pack the name has a version: `walk@1`.
+- Members, in order:
+  - `in name type [answer] [= default] ["about"]`: inputs. `answer` marks one that holds the answer
+    (below).
+  - `var name type = value`: the widget's own state.
+  - `name = control …`: reader state with its control in the widget's bar: `slider a..b [step=]`,
+    `toggle`, `choice(a|b)`, `steps n [none=true] [track=true]`, `drag x=a..b y=c..d`, `clock`.
+    `play=8s` plays it through in that time, `play=500ms/step` a step at a time; `loop=repeat|bounce`.
+  - `name = expression`: derived values; each sees only what is declared above it.
+  - `fn name(x: type, …): type = expression`: every fn types its parameters and its result.
+  - `out name {payload}` / `emit`: events to the caller; `signal name {payload}` / `send`: to the host.
+  - `host name type = default`: data the host sets; `implements name@N`: an interface (below).
+  - `project md = expression`, `project mermaid = expression`.
+- Strings are quoted, maths is `$…$`, and `\val{expr}` shows a live value inside either. **A `"`
+  always ends a string**, in maths too: build maths with holes (`"$e^{\val{k}i}$"`), never by
+  joining pieces of `$…$`. `\$` is a dollar sign.
+- Style props take **token names only**: colours `surface ink muted line accent info ok warn bad`
+  and the categorical `c1`–`c6`; spaces `xs s m l xl`; sizes `s m l fill`; fonts `body heading
+  mono`; radius `card pill`; shadow `raised`. A written-out colour is refused (`mkp.style-token`).
+- **A name may not hide a colour token** (`ok = …` is `mkp.shadow`: `if(ok, ok, bad)` couldn't mean
+  both), an option of the definition's own choices, or `width` and `answers`.
 
 ### Arguments: how a line fills props
 
-`circle (p w) 0.05 if=spin fill=accent` — the rules, in order:
+`circle (p w) 0.05 if=spin fill=accent` — in order:
 
-1. `key=value` sets that prop. Meta: `id=name`, `id=(expr)`, `if=(expr)`, `hidden`, `grow`,
-   `basis=size`, `span=n`.
-2. A bare word naming a **boolean** prop sets it (`curve`, `wrap`, `dash`).
-3. A bare word that is an **option** of exactly one choice prop sets it (`callout tip`).
+1. `key=value` sets that prop. Meta on any element: `id=name` (`id=(expr)` for a computed one),
+   `if=(expr)`, `hidden`, `grow`, `basis=size`, `span=n`, `self=start|center|end|stretch`, `keep=(expr)`.
+2. A bare word naming a **boolean** prop sets it (`wrap`, `dash`, `halo`).
+3. A bare word that is an **option** of exactly one choice prop sets it (`press kind=tab` or `tab`).
 4. A bare word naming a **token** fills the style prop of that kind (`text "x" muted`).
-5. Anything else fills the **positional fields** in order (`fields` of the definition, or a
-   record's field order).
+5. Anything else fills the **positional fields** in order.
 
-**Spaces end an argument.** `circle p w 0.05` is three arguments; write `circle (p w) 0.05`.
-
-### Children: prop lines, records, slots
-
-Under a widget, a line is read as:
-
-1. a **prop line** if its head is an input: `question "What is $\omega^n$?"`;
-2. a **record** if its head is one of the widget's record kinds: `tab "Roots"`, `wrong -1 "why"`,
-   `layer`, `circle …`; a record's indented lines are its slot;
-3. otherwise an **element** in the widget's first slot. `fill name` fills another slot.
+**Spaces end an argument**: write `circle (p w) 0.05`, not `circle p w 0.05`.
 
 ### Expressions
 
-Precedence, tightest first: calls and `a.b`, `d[k]`; `^` (right-assoc, `x^-1` works); unary `-`;
-**juxtaposition** (`2 pi i k`, binds tighter than `*` `/`: `1/2x` is `1/(2x)`); `* /`; `+ -`;
-comparisons; `not`; `and`; `or`; lambdas `x => …`. There is no `|x|`: use `abs(x)`.
+Precedence, tightest first: calls, `a.b`, `xs[i]`, `row[path]`; `^`; unary `-`; **juxtaposition**
+(`2 pi k`, tighter than `*` and `/`: `1/2x` is `1/(2x)`); `* /`; `+ -`; comparisons; `not`; `and`;
+`or`; lambdas `x => …`.
 
-Built-ins: maths (`exp ln log sqrt sin cos tan atan2 abs floor ceil round sign mod fact min max`),
-`sum(a, b, k => …)`, `if(c, a, b)` (lazy), lists (`len map filter sort fold group index find indexof
-range zip flatten first last slice at sum min max mean`), dicts (`put get keys has`), `format(x, d)`,
-`join(xs, sep)`, `iterate(init, n, step)` and `scan(…)`, `rand(seed, k)`, `parse(text, vars)` and
-`equivalent(a, b, vars)` for answer checking.
+Built-ins: maths (`exp ln log sqrt sin cos tan atan2 abs floor ceil round sign mod min max …`);
+lists (`len map filter sort reverse fold group index find indexof range zip flatten first last
+slice at sum mean`); dicts (`put get keys has`); text (`lower upper trim replace split contains
+startswith endswith number format join`, and `slice`/`indexof`/`len` on text); `if(c, a, b)`;
+`iterate`, `scan`, `rand(seed, k)`, `equivalent(a, b, vars)` for checking an answer.
 
-- `xs[i]` and `d[k]` out of range are **runtime errors**; use `at(xs, i, default)` and
-  `get(d, k, default)`.
-- `1/0` is `inf`, `sqrt(-1)` is `nan`; `\val{}` shows `∞` and `—`.
-- Every evaluation has a budget (1,000,000 operations; `budget 20000000` at most). A force layout of
-  n nodes costs about 5·n² per step.
-
-### Types with operators (mkp-math)
-
-`complex` is a pack type: `1 + 0.5i`, `exp(2 pi i k/n)`, `p w + 0.15` all work, because `+ - * / ^`
-are declared for it and a number is promoted (`op from`). Where a point is expected (canvas shapes),
-a complex value converts (`op point`). Give your own types the same treatment.
+- `xs[i]` out of range is a runtime error; `at(xs, i, default)` gives the default for any index out
+  of range (never wrapping `-1`); `last(xs)` is the last item.
+- Every evaluation has a budget of 1,000,000 operations (`budget 20000000` at most); lists hold at
+  most 10,000 items; calls nest at most 64 deep.
 
 ### Events and actions
 
 ```text
 press
   text "Check"
-  @click set tries=(tries + 1) result=pass send answered correct=true value=got emit correct
+  @click set tries=(tries + 1) send answered correct=right
+  @click emit solved if=(right)
 ```
 
-Actions: `set a=expr`, `play x`, `pause x`, `reset [x…]`, `reveal id`, `hide id`, `open id`,
-`close id`, `emit name f=expr`, `send name f=expr`. There are no conditional actions: show two
-presses with complementary `if=` when the outcome depends on state.
+Actions: `set a=expr`, `play x`, `pause x`, `reset x…`, `reveal id`, `hide id`, `open id`,
+`close id`, `emit name f=expr`, `send name f=expr`. `if=(…)` on an event line runs that line only
+while it holds; several lines for one event run in order. Events: `@click` (on a press, or on a
+container's background), `@enter`/`@leave` (pointer or focus), `@change` and `@submit` on fields,
+`@pick` on a pressable `code`, and a part's own `out` events.
 
-### Layout and style
+## Layout
 
-Base widgets: `stack` (column), `flex` (row, wraps), `grid cols=n`, `text`, `image`, `press`
-(`kind=button|tab|option|toggle|switch|check|radio`), `range`, `meter`, `field`, `overlay`
-(`mode=popover|tooltip|dialog|menu`), `canvas` (with `layer`s of `rect line circle path curve label image place handle`),
-and the Markdown ones (`paragraph heading list quote code math divider table`).
+<!-- example 08-containers -->
+````markdown
+# Four containers
 
-Style props take **token names only**: colours `surface ink muted accent info ok warn bad`, spaces
-`xs s m l xl` (pad, gap), sizes `s m l fill`, radius `card`, shadow `raised`, fonts `body heading
-mono`. No pixel values anywhere: sizes come from tokens and canvas ranges.
+```mkp
+part box "A labelled tile."
+  fields label
+  in label text
+  in tone color = surface
+  column pad=m fill=tone stroke=line radius=card width=fit
+    text label
 
-### A widget's shell: frame, pane, zoom, icon
-
-A widget draws in a `frame`: what kind of thing it is and its title on top, its stage, and its
-controls in the frame's bar, which the runtime puts there for you. `status=` is one line in the bar
-saying what is happening now. `fill actions` puts the widget's own switches right of the title, and
-`fill about` and `fill details` are drawers (assumptions; everything at once).
-
-```text
-frame kind="Trace" title=title status=(now.note)
-  flex align=stretch
-    pane title="Code" grow basis=m
-      code src line=(now.line)
-    pane title="Variables" grow basis=m
-      …
-      fill footer
-        text "output"
+containers "The same three boxes in each of MKP's four containers."
+  grid cols=[auto, 1fr] gap=l align=center
+    text "column" font=mono
+    column gap=s
+      box "one"
+      box "two"
+      box "three"
+    text "row" font=mono
+    row gap=s justify=between
+      box "one"
+      box "two" self=end
+      box "three"
+    text "grid" font=mono
+    grid cols=[1fr, 1fr] gap=s
+      box "one"
+      box "two"
+      box "three" span=2
+    text "stack" font=mono
+    stack
+      box "one" tone=muted
+      box "two" self=center
+      box "three" self=end tone=accent
+  project md = "The same three boxes, in a column, a row, a grid and a stack."
 ```
 
-`pane` is a titled column whose body scrolls on its own; `zoom` puts what it holds behind a view
-lock; `icon name=…` is a symbol from the provider's own set. `dim` and `blur` fade a box back or blur
-it until it is revealed, `line=dashed|dotted` draws a box's border so, `caps` makes a caption, and
-`emphasis` on a press says how much it stands out. A frame's `statuslines=2` (up to 3) keeps room for
-a status that wraps, such as a verdict and its reason.
+```containers
+summary: The four containers side by side.
+```
+````
 
-### Relations: arrow
+- `column` stacks, `row` wraps (or scrolls with `wrap=false scroll=x`), `grid cols=[auto, 1fr, 6ch]`
+  takes tracks (or `cols=3`), `stack` layers its children, last on top.
+- On a phone: `width` is `narrow`, `medium` or `wide`; a grown child in a wrapping row needs a
+  `basis` (example 09). `minwidth=` with `scroll=x` scrolls what can't shrink.
+- Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
+- The host's shell: `frame` (kind, title, `status`, `fill actions`, `fill about`, `fill details`),
+  `pane` side by side, `zoom` behind its lock (example 18). A widget's controls go in its frame's bar.
 
-`arrow from=a to=b ["label"] [curve] [via=(ids)] [route=down|right]` joins two elements by their
-outlines; ids can be computed: `arrow from=(node.id) to=(k.id)`. Arrows find ids in their own
-instance and in instances nested in it, which is how a recursive tree joins parent to child. An
-arrow from an element to itself is a loop on its side.
+## Canvas and arrows
 
-`route=down` (rows) or `route=right` (columns) draws only level and upright runs, the way a
-diagram's lines are usually drawn. Arrows that leave one element leave on one trunk and arrows that
-reach one arrive as one line; other arrows keep off each other's runs.
+A `canvas x=a..b y=c..d` draws `layer`s of `circle`, `path` (lines, polygons, curves as point lists;
+`head=arrow`), `label` (`halo`, `size`, `dx`/`dy`), `image`, `place` (elements at a point) and
+`handle` (a `drag` state the reader moves) — example 19. `gfx@1` adds `pixels` and `mesh`, with the
+widget's Markdown shown where it is missing (example 21).
 
-An arrow's look: `tone=`, `line=solid|dashed|dotted`, `bold=` and `dim=`, and what sits at each end,
-`head=` and `tail=`: `arrow`, `hollow` (a kind of), `one` and `many` (a bar and a crow's foot),
-`cross` (it never arrived: the line stops short of the element, the cross in the bad tone) or `none`.
+`arrow from=a to=b ["label"]` joins two elements by id, inside the instance or the instances
+nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`), `line=`,
+`layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20).
 
-`via=(ids)` routes an arrow through other elements, in order, so it goes round what is between its
-ends instead of straight through it. The path runs along each via element's longer side (top to
-bottom through a tall one, side to side through a wide one) and through the centre of an empty
-one, with rounded corners. The usual via element is a **lane**: an empty `stack id=…` placed in
-the layout like one more box, which an `align=stretch` row stretches to the row's height, so the
-arrow passes the row between its boxes (each box sits in a `flex align=center` there, so it keeps
-its own height). A layered diagram gives an edge a lane in every row it crosses
-(`mkp-diagrams/route.mkp` does this, labels included):
+## Types
 
-```text
-flex gap=l justify=center align=stretch
-  each c in row key=c.id
-    flex align=center wrap=false if=(c.kind == "node")
-      stack id=(c.id) pad=s stroke=ink radius=card
-        text c.label
-    stack id=(c.id) if=(c.kind == "lane")
-arrow from=(e.from) to=(e.to) via=(e.lanes)
+Named records with defaults (`type task = {title: text, tone: color = muted}`) fill what a literal
+leaves out; a literal is typed by where it goes, so `{tone: ok}` reads `ok` as a colour; `none`
+is a value of every token kind; `iconname` is the icons' type; types may be recursive (example 23).
+A record kind of an input (`list(record mark {…})`) is a type its definition's fns can take.
+
+<!-- example 24-type-parameters -->
+````markdown
+# A list of anything
+
+```mkp
+picklist of T "Records the reader steps through, showing two of their fields."
+  in items list(T) "the records"
+  in title path(T, text) "the field shown in bold"
+  in note path(T, text) "the field shown under it"
+  at = steps (len(items)) "item"
+  column gap=s
+    each k in 0..(len(items) - 1) key=k
+      column pad=s radius=card stroke=(if(k == at, accent, line))
+        text (items[k][title]) weight=bold
+        text (items[k][note]) tone=muted
+  project md = join(map(items, it => "- **" + it[title] + "**: " + it[note]), "\n")
 ```
 
-Put a label that must not overlap anything in the layout too (beside a lane in a row of its own)
-rather than on the arrow: an arrow's own label sits halfway along the path, wherever that is.
-
-### Repetition and conditions
-
-- `each x in list key=x.id` — always give `key=` for lists, so items keep their identity and state.
-- `if=(expr)` shows an element while true (it fades; its state resets when it returns).
-- `switch on=expr` / `case v` / `else`.
-- `hidden` + `reveal id` keeps state while hidden.
-
-## Fixtures (`name.fixture.json`)
-
-```json
-{ "widget": "roots@1", "cases": {
-  "fifth": { "props": {"n": 5}, "summary": "The five fifth roots.", "play": [{"press": "k.play"}, {"wait": 8000}] },
-  "too-many": { "props": {"n": 20}, "expect": {"errors": ["mkp.input-range"]} } } }
+```picklist
+items:
+  - {city: Lisbon, fact: Built on seven hills.}
+  - {city: Oslo, fact: Has a ski jump inside the city.}
+  - {city: Quito, fact: Sits almost on the equator.}
+title: city
+note: fact
+summary: Three cities, one at a time.
 ```
 
-Every definition needs at least one valid case. `props` are exactly a document block's YAML;
-`{"state": v}` gives a part's `ref` input state of its own. Play steps: `press` (an element id, or a
-control's button: `k.play`, `tour.next`), `set`, `command`, `wait`.
+The same widget takes records of another shape:
 
-## Markdown output
+```picklist
+items:
+  - {word: brioche, meaning: a rich bread with eggs and butter}
+  - {word: focaccia, meaning: a flat bread with olive oil}
+title: word
+note: meaning
+summary: Two breads and what they are.
+```
+````
 
-Every widget writes Markdown: its summary, then its content as text (state at its initial value,
-steps as numbered lists, hidden content in `<details>`). When a widget says more as a table or a
-diagram, give it `project md = …` (Markdown text; `:::details "Answer"` … `:::` becomes `<details>`)
-or `project mermaid = …`.
+`T` is told from the YAML: every item has the same fields of the same types, and a path names a
+field that exists, with the type it needs; each is checked at its own YAML line. An optional path
+defaults to `""` (test `path != ""` before reading it).
+
+## What a host relies on
+
+A host declares **interfaces** in its pack; a widget that `implements` one must have its inputs,
+host inputs, signals and `project md`, with the same types (`mkp.interface` names what is
+missing). A host finds blocks by interface, never by a widget's name, inside other widgets too
+(`meta.implements`, `meta.within`) — example 30.
+
+**Answers**: an input marked `answer` holds one. `project md` may show it only inside
+`if(answers, …)`, so Markdown built with `--no-answers` gives nothing away (`mkp.answer-leak`) —
+examples 14 and 31.
+
+## Packs and copies
+
+A pack is a folder: `manifest.mkp` (`pack name@N`, `requires core@1`, `depends other@N`,
+`provides …`, `unpublished` while it may still change), `.mkp` files, and a
+`name.fixture.json` with valid cases for every definition (example 29). A pack sees another's names
+only through `depends`. To change a pack's widget, copy it (example 28): nothing links the copy to
+it, and the `# from …` line is only for review.
+
+## What the compiler refuses, on purpose
+
+The examples in `examples/limits` each fail, with these codes:
+
+| Code | What it means |
+|---|---|
+| `mkp.input-type` | a value of the wrong type, at its exact key or list item; YAML's `no` is text |
+| `mkp.unknown-prop` | a misspelt prop, with what was meant |
+| `mkp.shadow` | a name that hides a colour, an option, a global, or a pack's or core's widget |
+| `mkp.untyped` | a fn without its types |
+| `mkp.missing-summary` | a block without its summary |
+| `mkp.no-project` | a document's widget without its Markdown |
+| `mkp.budget`, `mkp.list-size`, `mkp.depth` | too much work, too long a list, too deep |
+| `mkp.continuation` | a line that goes on with the one above outside brackets |
+| `mkp.unknown-function` | a built-in that doesn't exist |
+| `mkp.style-token` | a written-out colour |
+| `mkp.unknown-widget` | a pack's name used without `depends` |
+| `mkp.interface` | an interface not met |
 
 ## Checklist before you hand in
 
-- [ ] `mkp check` is clean (no errors; warnings read and fixed or justified).
-- [ ] Every definition has a valid fixture case with a real summary.
-- [ ] Presses that hold only symbols have `label="…"`; canvases have `label="…"`.
-- [ ] No colours, sizes or fonts other than token names; nothing product-specific.
-- [ ] The Markdown output (`--target md`) reads well without the widget.
+- [ ] `mkp check --format json` is clean.
+- [ ] Every block has a real `summary:`; every widget of your own has a `project md`.
+- [ ] Presses that hold only an icon have a `label=`; canvases have a `label=`.
+- [ ] Token names only; nothing specific to one host in a definition meant for any.
+- [ ] The Markdown (`--target md`, and `--no-answers`) reads well without the widgets.
