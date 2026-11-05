@@ -8,7 +8,7 @@ export const CORE_MKP = String.raw`pack core@1 "The base set every provider impl
   provides column row grid stack text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote frame pane zoom icon rgb iconname track
 
 type rgb = {r: num, g: num, b: num}
-type iconname = choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|sliders|trash|copy|download|upload|expand|lightbulb|book)
+type iconname = choice(none|play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|sliders|trash|copy|download|upload|expand|lightbulb|book)
 type track = text
 
 extern column@1 "Children one below another."
@@ -262,7 +262,7 @@ extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scroll
 
 extern icon@1 "A symbol from a fixed set, drawn in the provider's own icon style."
   fields name
-  in name iconname
+  in name iconname "which symbol; none draws nothing"
   in tone color = none "its colour; none: the text's"
   in size choice(small|normal|large) = normal
   in label text = "" "what it means, when it stands for words"

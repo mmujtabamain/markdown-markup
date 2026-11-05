@@ -590,7 +590,13 @@ function members(ctx: LineCtx, diags: Diagnostics): Member[] {
   for (const c of ctx.line.children) {
     const lc = new LineCtx(c, ctx.map.file);
     try {
-      out.push(member(lc, diags));
+      const m = member(lc, diags);
+      out.push(m);
+      // only an element, a state line and a command take indented lines: anything else under a line is lost (GAPS 136)
+      const under = c.children[0];
+      if (under && m.m !== 'node' && m.m !== 'state' && m.m !== 'command') {
+        new LineCtx(under, ctx.map.file).fail(`a ${m.m === 'derived' ? 'value' : m.m === 'project' ? 'projection' : `"${m.m}" line`} takes no indented lines: to go on with its expression, break the line inside an open bracket (…)`, 0, 'mkp.continuation');
+      }
     } catch (e) {
       report(e, diags);
     }

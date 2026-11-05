@@ -92,12 +92,30 @@ describe('static types and nothing silent (6.5, GAPS 42, 43)', () => {
     expect(r.all).toEqual([]);
     expect(texts(new Runtime(r.b!).view())).toEqual(['OS 2.5 9 2 2']);
   });
+  it('types flow where they are plain: lists of ints and nums, if branches, call arguments, options', () => {
+    // [0] + nums is a list of nums
+    const r1 = def('  xs = [1.5, 2.5]\n  m = max([0] + map(xs, x => x / 2))\n  text "\\val{m}"');
+    expect(r1.all).toEqual([]);
+    expect(texts(new Runtime(r1.b!).view())).toEqual(['1.25']);
+    // a colour token takes its type from the other branch, and from a function's parameter
+    expect(def('  in t color = none\n  hue = if(t == none, muted, t)\n  text "a" tone=hue').all).toEqual([]);
+    expect(def('  fn pick(t: color): color = t\n  text "a" tone=(pick(muted))').all).toEqual([]);
+    // a line indented under a value or a projection is an error, never dropped (GAPS 136)
+    expect(def('  v = "one"\n    + " two"\n  text (v)').errors).toEqual(['mkp.continuation']);
+    expect(doc(fence('w "w"\n  text "a"\n  project md = "one"\n    + " two"') + block('w', 'summary: s')).errors).toEqual(['mkp.continuation']);
+    // an option word is the option where a choice is expected, whatever else has that name
+    expect(def('  plain = "x"\n  press kind=plain\n    text (plain)').all).toEqual([]);
+  });
   it('a named type fills the fields a literal leaves out', () => {
     const r = doc(fence('type item = {label: text, tone: color = muted}\nw "w"\n  xs = [{label: "a"} : item]\n  text "a"\n  project md = "w"'));
     // the cast syntax isn't the language: a literal is typed by where it goes
     expect(r.errors).toContain('mkp.syntax');
     const r2 = doc(fence('type item = {label: text, tone: color = muted}\nfn one(l: text): item = {label: l}\nw "w"\n  x = one("a")\n  text x.label tone=(x.tone)\n  project md = "w"') + block('w', 'summary: s'));
     expect(r2.all).toEqual([]);
+    // from YAML too, a default written as an expression: a point
+    const r3 = doc(fence('type spot = {id: text, at: point = (1, 2)}\nw "w"\n  in items list(spot)\n  text "\\val{items[0].at.y}"\n  project md = "w"') + block('w', 'items:\n  - {id: b}\nsummary: s'));
+    expect(r3.all).toEqual([]);
+    expect(texts(new Runtime(r3.b!).view())).toEqual(['2']);
   });
 });
 
@@ -108,7 +126,19 @@ describe('containers (8)', () => {
     const grids: VNode[] = [];
     walk(new Runtime(r.b!).view(), (n) => n.t === 'grid' && grids.push(n));
     expect(grids.map((g) => g.p.cols)).toEqual([['auto', '1fr', '6ch'], ['1fr', '1fr', '1fr']]);
-    expect(doc(fence('w "w"\n  grid cols=[auto, wide]\n    text "a"\n  project md = "w"')).errors).toContain('mkp.input-type');
+    expect(doc(fence('w "w"\n  grid cols=[auto, wide]\n    text "a"\n  project md = "w"')).errors).toContain('mkp.input-type');    // worked out: a list of track words
+    const r2 = doc(fence('w "w"\n  fn autos(n: int): list(track) = map(range(1, n), k => "auto")\n  grid cols=(autos(2))\n    text "a"\n  project md = "w"') + block('w', 'summary: s'));
+    expect(r2.all).toEqual([]);
+    const g2: VNode[] = [];
+    walk(new Runtime(r2.b!).view(), (n) => n.t === 'grid' && g2.push(n));
+    expect(g2[0].p.cols).toEqual(['auto', 'auto']);
+  });
+  it('an icon named none draws nothing', () => {
+    const r = doc(fence('w "w"\n  in i iconname = none\n  row\n    icon name=i\n    icon name=star\n  project md = "w"') + block('w', 'summary: s'));
+    expect(r.all).toEqual([]);
+    const icons: VNode[] = [];
+    walk(new Runtime(r.b!).view(), (n) => n.t === 'icon' && icons.push(n));
+    expect(icons.map((n) => n.p.name)).toEqual(['star']);
   });
   it('a child says how it sits across its container', () => {
     const r = doc(fence('w "w"\n  row\n    text "a" self=end\n  project md = "w"') + block('w', 'summary: s'));
@@ -124,6 +154,14 @@ describe('containers (8)', () => {
     expect(texts(rt.view())).toEqual(['wide']);
     rt.setWidth('narrow');
     expect(texts(rt.view())).toEqual(['narrow', 'phone']);
+  });
+  it('a snapshot (the Markdown) draws the branch for its width only', () => {
+    // the narrow branch would fail (a key twice): the wide snapshot never draws it
+    const r = doc(fence('w "w"\n  switch on=(if(width == narrow, "a", "b"))\n    case "a"\n      each x in [1, 1] key=x\n        text "x"\n    case "b"\n      text "wide"\n  project md = "w"') + block('w', 'summary: s'));
+    expect(r.all).toEqual([]);
+    const rt = new Runtime(r.b!, { snapshot: true });
+    expect(texts(rt.view())).toEqual(['wide']);
+    expect(rt.warnings).toEqual([]);
   });
 });
 

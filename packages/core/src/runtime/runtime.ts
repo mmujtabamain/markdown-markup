@@ -231,7 +231,8 @@ export class Runtime {
     readonly opts: RuntimeOptions = {},
   ) {
     this.prog = new Programme(bundle.fns, bundle.consts);
-    this.widthCell = new Cell(opts.width ?? 'wide', true);
+    // the host's width is data, not state: a snapshot (the Markdown) draws the branch for its width, not every one
+    this.widthCell = new Cell(opts.width ?? 'wide');
     const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
     if (!docDef) throw new Error('the bundle has no document definition');
     this.root = new Inst(this, docDef, 'doc', null, null, null, 0, null);
@@ -1087,6 +1088,11 @@ export class Runtime {
       case 'pane': {
         const p = this.props(n, env, inst);
         return { t: 'pane', key, p: { title: this.runs(String(p.title ?? '')), note: this.runs(String(p.note ?? '')) }, kids: kids(), slots: { footer: this.renderNodes(n.fills?.footer ?? [], env, inst, `${key}.footer`) } };
+      }
+      case 'icon': {
+        const p = this.props(n, env, inst);
+        // name=none: no icon, so a widget can leave one out by data (graph's items)
+        return p.name === 'none' ? null : { t: 'icon', key, p, kids: kids() };
       }
       default:
         // a transitional extern a provider implements: pass its props through

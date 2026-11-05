@@ -804,8 +804,11 @@ export class DefChecker {
       if (!words.length) this.fail(p, 'a grid needs at least one column', 'mkp.input-type');
       return { lit: words };
     }
-    const c = this.x.check(v.e, scope, T.int);
-    if (resolve(c.type, this.env).t !== 'int') this.fail(p, `cols takes a whole number or tracks such as [auto, 1fr]; found ${showType(c.type)}`, 'mkp.input-type');
+    const c = this.x.check(v.e, scope);
+    const ct = resolve(c.type, this.env);
+    // tracks worked out: a list of track words (checked as they are drawn)
+    if (ct.t === 'list' && resolve(ct.of, this.env).t === 'text') return this.irExpr(c, v.src, p);
+    if (ct.t !== 'int') this.fail(p, `cols takes a whole number or tracks such as [auto, 1fr]; found ${showType(c.type)}`, 'mkp.input-type');
     if (c.ast.t === 'num') {
       if (c.ast.v < 1) this.fail(p, 'a grid needs at least one column', 'mkp.input-range');
       return { lit: Array.from({ length: c.ast.v }, () => '1fr') };

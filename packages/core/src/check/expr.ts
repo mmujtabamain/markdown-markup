@@ -258,7 +258,9 @@ export class ExprChecker {
           if (b0 && !a0) return this.binary(e.op, this.check(e.a, scope, b0.type), b0, e.p);
         }
         const a = this.check(e.a, scope);
-        const b = this.check(e.b, scope, e.op === '+' && this.r(a.type).t === 'list' ? a.type : undefined);
+        // a list joined to a list is typed by the first (records, empty lists), unless it holds ints: [0] + nums is nums
+        const al = this.r(a.type);
+        const b = this.check(e.b, scope, e.op === '+' && al.t === 'list' && this.r(al.of).t !== 'int' ? a.type : undefined);
         return this.binary(e.op, a, b, e.p);
       }
       case 'lam': {
@@ -293,6 +295,8 @@ export class ExprChecker {
     // where a font, space, size, radius or shadow is expected, its token wins over a name in scope
     if (ex && ex.t === 'token' && ex.kind !== 'color' && this.tokenNames?.(ex.kind).has(name)) return { ast: { t: 'str', v: name }, type: ex };
     if (!b && name === 'none' && ex && ex.t === 'token') return { ast: { t: 'str', v: 'none' }, type: ex };
+    // where a choice is expected, its option wins over a name that is not of that choice (kind=plain beside a value plain)
+    if (b && ex && ex.t === 'choice' && ex.opts.includes(name) && this.r(b.type).t !== 'choice') return { ast: { t: 'str', v: name }, type: ex };
     if (b) {
       if (b.from === 'const') return { ast: { t: 'var', name: b.id!, from: 'const' }, type: b.type };
       return { ast: { t: 'var', name, from: b.from }, type: b.type.t === 'ref' ? b.type.of : b.type };
@@ -589,7 +593,9 @@ export class ExprChecker {
     const typedUser = user.filter((f) => f.sig);
     const builtinSig = builtinSignature(name, args.length);
     if (typedUser.length || builtinSig) {
-      const checked = args.map((a) => this.check(a, scope));
+      // one function of this name and arity: its parameters type the arguments (a colour token, a record literal)
+      const only = !builtinSig && typedUser.filter((f) => f.sig!.length === args.length);
+      const checked = args.map((a, i) => this.check(a, scope, only && only.length === 1 ? only[0].sig![i] : undefined));
       const cands = [...typedUser];
       // builtin numeric signatures take part as candidates
       if (builtinSig) {
@@ -875,8 +881,17 @@ const SPECIAL: Record<string, Special> = {
     arity(c, 'if', a, p, 3);
     const cond = c.check(a[0], s, T.bool);
     if (c.r(cond.type).t !== 'bool') return c.fail(a[0].p, `if needs a boolean condition; found ${showType(cond.type)}`);
-    const x = c.check(a[1], s, ex);
-    const y = c.check(a[2], s, ex ?? x.type);
+    // a bare word (a colour token, an option) takes its type from the other branch: if(t == none, muted, t)
+    const bare = (e: Ex): boolean => e.k === 'id' && !s.get(e.name) && !GLOBALS[e.name];
+    let x: Checked;
+    let y: Checked;
+    if (!ex && bare(a[1]) && !bare(a[2])) {
+      y = c.check(a[2], s);
+      x = c.check(a[1], s, y.type);
+    } else {
+      x = c.check(a[1], s, ex);
+      y = c.check(a[2], s, ex ?? x.type);
+    }
     let t = join(x.type, y.type, c.env);
     let xa = x.ast;
     let ya = y.ast;

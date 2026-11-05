@@ -4,7 +4,8 @@
 
 import YAML from 'yaml';
 import { Diagnostics, MkpError, Pos, didYouMean } from '../diag';
-import type { IRDef, IRNode, IRVal } from '../ir';
+import { compileAst, Env, type Programme } from '../eval';
+import type { IRDef, IRExpr, IRNode, IRVal } from '../ir';
 import { markdownToNodes } from '../markdown';
 import { chunks } from '../syntax/lexer';
 import { parseDoc, type DocItem, type DocSyn } from '../syntax/doc';
@@ -13,6 +14,15 @@ import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn, typ
 import { fits, resolve, showType, T, Type } from '../types';
 import { DefChecker, instantiate, pos, signatureOf, unify, yamlType, type Sig, type DefCheckOptions } from './def';
 import type { PackInfo, Program } from './program';
+
+/** A record field's default written as an expression, such as a point (1, 2), as the data it stands for. */
+function constant(e: IRExpr, what: string, p: Pos): unknown {
+  try {
+    return compileAst(e.ast)(new Env(null, null, null, {} as Programme));
+  } catch {
+    throw new MkpError('mkp.missing-field', `${what}'s default (${e.expr}) reads something YAML data can't: give it in the data`, p);
+  }
+}
 
 export const DOC_PACK = '$doc';
 
@@ -581,7 +591,7 @@ class DocChecker {
             const d = t.defaults?.[k];
             if (d !== undefined) {
               const dv = this.dc.staticValue(parseValueString(d), ft, p) as Record<string, unknown>;
-              o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : dv.lit;
+              o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : 'ast' in dv ? constant(dv as unknown as IRExpr, `${what}.${k}`, this.at(what, p)) : dv.lit;
               continue;
             }
             throw new MkpError('mkp.missing-field', `${what} needs ${k} (${showType(ft)})`, this.at(what, p));
