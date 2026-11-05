@@ -1,237 +1,369 @@
-// The MKP playground (spec 12): loads the packs and documents, shows every fixture case live with
-// its IR and its Markdown output beside it.
+// The MKP playground (doc #1129 §7.1): a place to see the language working, and where it stops.
+// Source | Preview | Output side by side on a wide screen, as tabs on a phone; the examples, the
+// limits and the conformance cases in the sidebar. It compiles as you type, and the URL carries
+// the example and any edits, so a document can be shared by link.
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { compile, compileCase, fixtureCases, formatDiagnostic, MathsEngine, prerender, Runtime, stripPos, writeMarkdown, expand, type Compiled, type FixtureCase, type IRBundle, type MdToggle } from '@mkp/core';
-import { MkpDocument } from '@mkp/react';
-import { shadcnTokens } from '@mkp/shadcn';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { BookOpen, Check, FolderOpen, Link2, Menu, PanelLeft } from 'lucide-react';
+import { MathsEngine } from '@mkp/core';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { packFolders } from './catalog';
-import { components } from './kit';
+import { cn } from '@/lib/utils';
+import { assetUrl, withAssets } from './assets';
+import { build, jsonLine, type DrawnError } from './build';
+import { catalog, type ConfCase, type Entry, type SourceFile } from './catalog';
+import { openedDoc, openFiles, type Opened } from './opened';
+import type { DiagItem } from './panes/DiagList';
+import { OutputPane, type MdSettings } from './panes/OutputPane';
+import { PreviewPane, type PreviewSettings, type WidthPreset } from './panes/PreviewPane';
+import { Sidebar } from './panes/Sidebar';
+import { SourcePane } from './panes/SourcePane';
+import { packFiles, readHash, unpackFiles, writeHash, type HashState } from './share';
+import type { Jump } from './editor/Editor';
 
 declare const __PG_COMMIT__: string;
 
-interface Entry {
-  id: string;
-  group: string;
-  title: string;
-  kind: 'case' | 'doc';
-  fc?: FixtureCase;
-  doc?: { label: string; path: string; text: string };
+type Pane = 'source' | 'preview' | 'output';
+const PANES: { id: Pane; label: string }[] = [
+  { id: 'source', label: 'Source' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'output', label: 'Output' },
+];
+
+const prefersDark = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
+
+/** The files with the edits made to them. */
+function applyEdits(files: SourceFile[], edits?: Record<string, string>): SourceFile[] {
+  if (!edits) return files;
+  return files.map((f) => (edits[f.path] !== undefined ? { ...f, text: edits[f.path] } : f));
 }
 
-const TOGGLES: MdToggle[] = ['gfm', 'math', 'mermaid', 'html', 'images'];
-
-function readHash(): Record<string, string> {
-  return Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+/** The edits worth carrying in a link: the files that differ (all of an opened document's). */
+function changed(entry: Entry, files: SourceFile[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of files) {
+    const orig = entry.files.find((x) => x.path === f.path);
+    if (entry.kind === 'opened' || !orig || orig.text !== f.text) out[f.path] = f.text;
+  }
+  return out;
 }
 
 export function App(): ReactNode {
+  const [hash, setHash] = useState<HashState>(readHash);
   const [maths, setMaths] = useState<MathsEngine | null>(null);
-  const [hash, setHash] = useState(readHash);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => (readHash().theme === 'dark' ? 'dark' : 'light'));
-  const [reduced, setReduced] = useState(() => readHash().reduced === '1');
-  const [toggles, setToggles] = useState<Set<MdToggle>>(new Set(['gfm', 'math', 'mermaid', 'html']));
-  const [tab, setTab] = useState(() => readHash().tab ?? 'md');
+  const [mathsError, setMathsError] = useState<string | null>(null);
+  const [opened, setOpened] = useState<Opened>({ entries: [], packs: [] });
+  const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
+  const [activeFile, setActiveFile] = useState<Record<string, string>>({});
+  const [jump, setJump] = useState<Jump | null>(null);
+  const [sheet, setSheet] = useState(false);
+  const [side, setSide] = useState(true);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [md, setMd] = useState<MdSettings>({ toggles: ['gfm', 'math', 'mermaid', 'html'], answers: true });
+  const [copied, setCopied] = useState(false);
+  const lastSrc = useRef<string | undefined>(undefined);
+  const [unpacking, setUnpacking] = useState(false);
+
   useEffect(() => {
-    MathsEngine.create().then(setMaths);
+    MathsEngine.create().then(setMaths, (e: Error) => setMathsError(e.message));
     const f = (): void => setHash(readHash());
     addEventListener('hashchange', f);
     return () => removeEventListener('hashchange', f);
   }, []);
-  // packs and documents opened from disk join the repository's own
-  const [opened, setOpened] = useState<{ packs: { label: string; zip: Uint8Array }[]; docs: { label: string; path: string; text: string }[] }>({ packs: [], docs: [] });
-  const compiled = useMemo<Compiled>(() => compile({ packs: [...packFolders().map((p) => ({ label: p.label, files: p.files })), ...opened.packs] }), [opened]);
-  const open = async (files: FileList | null): Promise<void> => {
-    const next = { packs: [...opened.packs], docs: [...opened.docs] };
-    for (const f of Array.from(files ?? [])) {
-      if (f.name.endsWith('.mkpack')) next.packs.push({ label: f.name, zip: new Uint8Array(await f.arrayBuffer()) });
-      else if (f.name.endsWith('.md')) next.docs.push({ label: 'opened', path: f.name, text: await f.text() });
-    }
-    setOpened(next);
-  };
-  const entries = useMemo<Entry[]>(() => {
-    const out: Entry[] = [];
-    for (const p of packFolders()) {
-      for (const [path, bytes] of p.files) {
-        if (path.endsWith('.mkp.md')) out.push({ id: `doc:${p.label}/${path}`, group: p.label, title: path, kind: 'doc', doc: { label: p.label, path, text: new TextDecoder().decode(bytes) } });
-      }
-    }
-    for (const d of opened.docs) out.push({ id: `doc:opened/${d.path}`, group: 'opened', title: d.path, kind: 'doc', doc: d });
-    for (const fc of fixtureCases(compiled)) out.push({ id: `case:${fc.pack}/${fc.widget}/${fc.name}`, group: fc.pack, title: `${fc.widget} · ${fc.name}`, kind: 'case', fc });
-    return out;
-  }, [compiled, opened]);
-  const selected = entries.find((e) => e.id === hash.e) ?? entries.find((e) => e.kind === 'doc') ?? entries[0];
-  const result = useMemo(() => {
-    if (!selected || !maths) return null;
-    if (selected.kind === 'case') {
-      const r = compileCase(compiled, selected.fc!);
-      if (r.bundle) prerender(r.bundle, maths, r.diags);
-      return { bundle: r.bundle, diags: r.diags.items, negative: !!selected.fc!.expect?.errors?.length, ok: r.ok };
-    }
-    const diags = new (compiled.diags.constructor as new () => typeof compiled.diags)();
-    const bundle = compiled.document(selected.doc!.text, `${selected.doc!.label}/${selected.doc!.path}`, diags);
-    if (bundle) prerender(bundle, maths, diags);
-    return { bundle, diags: diags.items, negative: false, ok: diags.ok };
-  }, [selected, maths, compiled]);
-  const select = (id: string): void => {
-    location.hash = new URLSearchParams({ ...hash, e: id }).toString();
-  };
-  const groups = [...new Set(entries.map((e) => e.group))];
+
+  const entries = useMemo(() => [...catalog(), ...opened.entries], [opened]);
+  const selected = entries.find((e) => e.id === hash.e) ?? entries[0];
+
+  // a link with src=: the edited files (or a whole document opened from disk)
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
+    const src = hash.src;
+    if (!src || src === lastSrc.current) return;
+    lastSrc.current = src;
+    const id = hash.e ?? '';
+    setUnpacking(true);
+    void unpackFiles(src).then((files) => {
+      setUnpacking(false);
+      if (!files) return setNotes((n) => [...n, 'The link’s source could not be read.']);
+      if (id.startsWith('open:') && !entries.some((e) => e.id === id)) {
+        const e = openedDoc(id.slice(5), files);
+        if (e) setOpened((o) => ({ ...o, entries: [...o.entries.filter((x) => x.id !== e.id), e] }));
+      }
+      setEdits((m) => ({ ...m, [id]: files }));
+    });
+  }, [hash.src, hash.e]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const settings: PreviewSettings = {
+    theme: hash.theme ?? (prefersDark() ? 'dark' : 'light'),
+    reduced: hash.motion === 'reduced',
+    gfx: hash.gfx !== '0',
+    width: (hash.w as WidthPreset) ?? 'desktop',
+  };
+  const pane: Pane = hash.pane ?? 'preview';
+  const outTab = hash.out ?? 'md';
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+    document.documentElement.style.colorScheme = settings.theme;
+  }, [settings.theme]);
+
+  /** Changes the URL: a new entry is a new history step, a setting is not. */
+  const update = useCallback((patch: Partial<HashState>, push = false): void => {
+    const next = { ...readHash(), ...patch };
+    const h = writeHash(next);
+    if (push) location.hash = h;
+    else {
+      history.replaceState(null, '', `${location.pathname}${location.search}#${h}`);
+      setHash(readHash());
+    }
+  }, []);
+
+  const select = (id: string): void => {
+    setSheet(false);
+    if (id === selected.id) return;
+    lastSrc.current = undefined;
+    update({ e: id, src: undefined }, true);
+  };
+  const hrefFor = (id: string): string => `#${writeHash({ ...hash, e: id, src: undefined })}`;
+
+  const files = useMemo(() => applyEdits(selected.files, edits[selected.id]), [selected, edits]);
+  const editedPaths = useMemo(() => new Set(selected.kind === 'opened' ? [] : Object.keys(changed(selected, files))), [selected, files]);
+  const editedEntries = useMemo(() => new Set(Object.entries(edits).filter(([id, e]) => {
+    const en = entries.find((x) => x.id === id);
+    return en && en.kind !== 'opened' && Object.keys(changed(en, applyEdits(en.files, e))).length > 0;
+  }).map(([id]) => id)), [edits, entries]);
+
+  // the URL follows the edits, a moment after typing stops
+  useEffect(() => {
+    if (selected.kind === 'case' || unpacking) return;
+    const t = setTimeout(() => {
+      const c = edits[selected.id] || selected.kind === 'opened' ? changed(selected, files) : {};
+      if (!Object.keys(c).length) {
+        if (readHash().src) {
+          lastSrc.current = undefined;
+          update({ src: undefined });
+        }
+        return;
+      }
+      void packFiles(c).then((src) => {
+        if (readHash().e !== selected.id) return;
+        lastSrc.current = src;
+        update({ src });
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [files, selected, edits, update, unpacking]);
+
+  // compile as you type, after a short pause (a new entry compiles at once)
+  const [input, setInput] = useState<{ id: string; files: SourceFile[] } | null>(null);
+  useEffect(() => {
+    if (selected.kind === 'case') return;
+    const now = input?.id !== selected.id;
+    const t = setTimeout(() => setInput({ id: selected.id, files }), now ? 0 : 250);
+    return () => clearTimeout(t);
+  }, [files, selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  const result = useMemo(() => {
+    if (!input || !maths) return null;
+    const entry = entries.find((e) => e.id === input.id);
+    return { id: input.id, ...build(input.files, { maths, extraPacks: entry?.kind === 'opened' ? opened.packs : undefined, ...entry?.build }) };
+  }, [input, maths]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // a conformance case: its bundle, loaded when picked
+  const [conf, setConf] = useState<{ id: string; c: ConfCase } | null>(null);
+  useEffect(() => {
+    if (selected.kind !== 'case' || conf?.id === selected.id) return;
+    let live = true;
+    void selected.load!().then((c) => live && setConf({ id: selected.id, c }));
+    return () => {
+      live = false;
+    };
+  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isCase = selected.kind === 'case';
+  const caseReady = isCase && conf?.id === selected.id ? conf.c : null;
+  const current = isCase ? (caseReady ? { id: selected.id, bundle: caseReady.bundle, diags: [], ms: 0 } : null) : result?.id === selected.id ? result : null;
+  const shownEntry = entries.find((e) => e.id === current?.id) ?? selected;
+  const drawBundle = useMemo(() => (current?.bundle ? withAssets(current.bundle, shownEntry.assets) : null), [current?.bundle, shownEntry]);
+
+  const [drawn, setDrawn] = useState<{ bundle: unknown; errors: DrawnError[] } | null>(null);
+  const onDrawn = useCallback((errors: DrawnError[]) => setDrawn({ bundle: drawBundle, errors }), [drawBundle]);
+  const diags: DiagItem[] = useMemo(() => {
+    const out: DiagItem[] = (current?.diags ?? []).map((d) => ({ severity: d.severity, code: d.code, message: d.message, file: d.pos?.file, line: d.pos?.line, col: d.pos?.col, path: d.path, stage: 'compile' }));
+    if (drawn && drawn.bundle === drawBundle) for (const e of drawn.errors) out.push({ severity: 'error', code: e.code, message: `${e.name ? `${e.name}: ` : ''}${e.message}`, file: e.pos?.file, line: e.pos?.line, col: e.pos?.col, stage: 'draw' });
+    return out;
+  }, [current, drawn, drawBundle]);
+  const json = useMemo(() => (current?.diags ?? []).map(jsonLine), [current]);
+
+  const onJump = (d: DiagItem): void => {
+    if (!d.line) return;
+    const target = files.find((f) => f.path === d.file) ?? (d.file ? undefined : files[0]);
+    if (!target) return;
+    setActiveFile((a) => ({ ...a, [selected.id]: target.path }));
+    setJump({ line: d.line, col: d.col ?? 1, n: Date.now() });
+    if (!matchMedia('(min-width: 1024px)').matches) update({ pane: 'source' });
+  };
+
+  const active = activeFile[selected.id] ?? files[0]?.path ?? '';
+  const pending = !isCase && (input?.id !== selected.id || input.files !== files);
+  const errors = diags.filter((d) => d.severity === 'error').length;
+  const status = isCase ? (
+    <span>a conformance case: its bundle, read only</span>
+  ) : !maths ? (
+    <span>loading the maths engine…</span>
+  ) : pending ? (
+    <span>compiling…</span>
+  ) : current ? (
+    <span data-pg-compiled={current.ms.toFixed(0)}>
+      {errors ? <span className="text-destructive">{errors} {errors === 1 ? 'error' : 'errors'}</span> : <span className="text-ok">compiles</span>} · {current.ms.toFixed(0)} ms
+    </span>
+  ) : null;
+
+  const share = async (): Promise<void> => {
+    const c = isCase ? {} : changed(selected, files);
+    const src = Object.keys(c).length ? await packFiles(c) : undefined;
+    lastSrc.current = src;
+    update({ src });
+    const url = location.href;
+    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const onOpen = async (list: FileList | null): Promise<void> => {
+    if (!list?.length) return;
+    const r = await openFiles(Array.from(list), opened);
+    setOpened(r.opened);
+    setNotes(r.notes);
+    if (r.first) select(r.first);
+  };
+
+  const image = useCallback((href: string) => assetUrl(shownEntry.assets, href), [shownEntry]);
+  const loading = mathsError ? `The maths engine didn't load: ${mathsError}` : !maths ? 'Loading the maths engine…' : isCase && !caseReady ? 'Loading the case…' : !current ? 'Compiling…' : undefined;
+  const sidebar = <Sidebar entries={entries} selected={selected.id} hrefFor={hrefFor} onSelect={select} edited={editedEntries} />;
+
   return (
     <TooltipProvider>
-      <div className="grid min-h-svh md:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="pg-side max-h-56 overflow-y-auto border-b p-3 text-sm md:sticky md:top-0 md:max-h-svh md:border-r md:border-b-0" aria-label="cases">
-          <h1 className="text-base font-semibold">MKP playground</h1>
-          <p className="text-xs text-muted-foreground">
-            {compiled.defs.size} definitions · {entries.filter((e) => e.kind === 'case').length} fixture cases
-            {__PG_COMMIT__ ? ` · ${__PG_COMMIT__}` : ''}
+      <div className="pg-app flex h-svh flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+          <Button variant="ghost" size="icon-sm" className="xl:hidden" aria-label="Examples" onClick={() => setSheet(true)} data-pg-menu="">
+            <Menu />
+          </Button>
+          <Button variant="ghost" size="icon-sm" className="hidden xl:inline-flex" aria-label={side ? 'Hide the examples' : 'Show the examples'} aria-pressed={side} onClick={() => setSide(!side)}>
+            <PanelLeft />
+          </Button>
+          <BookOpen className="hidden size-4 text-muted-foreground sm:block xl:hidden" aria-hidden />
+          <h1 className="shrink-0 text-sm font-semibold">
+            MKP playground
+            {__PG_COMMIT__ ? <span className="ml-1.5 font-mono text-xs font-normal text-muted-foreground">{__PG_COMMIT__}</span> : null}
+          </h1>
+          <span className="hidden text-muted-foreground sm:inline" aria-hidden>
+            /
+          </span>
+          <p className="min-w-0 flex-1 truncate text-sm" data-pg-title="">
+            {selected.num ? <span className="mr-1.5 font-mono text-xs text-muted-foreground">{selected.num}</span> : null}
+            {selected.title}
           </p>
-          {compiled.diags.errors.length ? <p className="text-destructive">{compiled.diags.errors.length} build errors</p> : null}
-          {groups.map((g) => (
-            <section key={g} className="mt-3">
-              <h2 className="px-2 text-xs font-medium text-muted-foreground">{g}</h2>
-              <ul>
-                {entries
-                  .filter((e) => e.group === g)
-                  .map((e) => (
-                    <li key={e.id}>
-                      <a
-                        className="block truncate rounded-md px-2 py-1 hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:font-medium"
-                        href={`#${new URLSearchParams({ ...hash, e: e.id }).toString()}`}
-                        aria-current={e === selected ? 'page' : undefined}
-                        onClick={(ev) => (ev.preventDefault(), select(e.id))}
-                      >
-                        {e.title}
-                      </a>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          ))}
-        </aside>
-        <main className="min-w-0 space-y-4 p-4 md:p-6">
-          <header className="pg-head flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <strong className="font-semibold">{selected?.title}</strong>
-              <span className="text-sm text-muted-foreground"> {selected?.group}</span>
+          <Button variant="outline" size="sm" asChild>
+            <label className="cursor-pointer has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50" title="Open a .mkp.md (with its .mkp) or a .mkpack">
+              <FolderOpen /> <span className="hidden sm:inline">Open</span>
+              <input className="sr-only" type="file" accept=".mkpack,.md,.mkp" multiple data-pg-open="" onChange={(e) => void onOpen(e.currentTarget.files)} />
+            </label>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void share()} title="Copy a link to this document, with your edits" data-pg-share="">
+            {copied ? <Check /> : <Link2 />} <span className="hidden sm:inline">{copied ? 'Copied' : 'Share'}</span>
+          </Button>
+        </header>
+        {notes.length ? (
+          <div className="flex shrink-0 items-start gap-2 border-b bg-warn/10 px-3 py-1.5 text-xs" role="status">
+            <span className="flex-1">{notes.join(' · ')}</span>
+            <Button variant="ghost" size="xs" onClick={() => setNotes([])}>
+              Dismiss
+            </Button>
+          </div>
+        ) : null}
+        <div className="flex min-h-0 flex-1">
+          <aside className={cn('hidden w-68 shrink-0 flex-col border-r pt-3', side && 'xl:flex')} aria-label="Examples, limits and cases">
+            {sidebar}
+          </aside>
+          <Sheet open={sheet} onOpenChange={setSheet}>
+            <SheetContent side="left" className="pt-3">
+              <SheetTitle className="px-4 pb-1 text-sm">Examples</SheetTitle>
+              <SheetDescription className="sr-only">Pick an example, a limit or a conformance case.</SheetDescription>
+              {sidebar}
+            </SheetContent>
+          </Sheet>
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div className="flex shrink-0 border-b lg:hidden" role="tablist" aria-label="Panes">
+              {PANES.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={pane === p.id}
+                  data-pg-pane-tab={p.id}
+                  className={cn('flex flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent py-2 text-sm text-muted-foreground', pane === p.id && 'border-foreground font-medium text-foreground')}
+                  onClick={() => update({ pane: p.id })}
+                >
+                  {p.label}
+                  {p.id === 'source' && errors ? <span className="rounded-full bg-destructive px-1.5 text-[10px] leading-4 text-white">{errors}</span> : null}
+                </button>
+              ))}
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <Button variant="outline" size="sm" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                {theme === 'light' ? 'Dark' : 'Light'}
-              </Button>
-              <Label>
-                <Checkbox checked={reduced} onCheckedChange={(c) => setReduced(c === true)} /> Reduced motion
-              </Label>
-              <Button variant="outline" size="sm" asChild>
-                <label>
-                  Open .mkpack or .mkp.md <input className="sr-only" type="file" accept=".mkpack,.md" multiple onChange={(e) => void open(e.currentTarget.files)} />
-                </label>
-              </Button>
+            <div className="pg-panes min-h-0 flex-1">
+              <section className="pg-pane" data-active={pane === 'source' || undefined} aria-label="Source">
+                <h2 className="pg-pane-title">Source</h2>
+                <SourcePane
+                  files={files}
+                  active={active}
+                  onActive={(path) => setActiveFile((a) => ({ ...a, [selected.id]: path }))}
+                  onEdit={(path, text) => setEdits((m) => ({ ...m, [selected.id]: { ...m[selected.id], [path]: text } }))}
+                  diags={diags}
+                  jump={jump}
+                  onJump={onJump}
+                  edited={editedPaths}
+                  onReset={() => {
+                    setEdits((m) => {
+                      const n = { ...m };
+                      delete n[selected.id];
+                      return n;
+                    });
+                  }}
+                  status={status}
+                  readOnly={caseReady ? { path: `conformance/cases/${caseReady.id}.json`, text: JSON.stringify({ id: caseReady.id, steps: caseReady.steps, hosts: caseReady.hosts, bundle: caseReady.bundle }, null, 1) } : undefined}
+                  expect={selected.expect}
+                />
+              </section>
+              <section className="pg-pane" data-active={pane === 'preview' || undefined} aria-label="Preview">
+                <h2 className="pg-pane-title">Preview</h2>
+                <PreviewPane
+                  entry={shownEntry}
+                  builtFor={current?.id ?? ''}
+                  bundle={loading ? null : (drawBundle ?? null)}
+                  maths={maths}
+                  diags={diags}
+                  onJump={onJump}
+                  settings={settings}
+                  onSettings={(s) =>
+                    update({
+                      ...(s.theme ? { theme: s.theme } : {}),
+                      ...(s.reduced !== undefined ? { motion: s.reduced ? 'reduced' : undefined } : {}),
+                      ...(s.gfx !== undefined ? { gfx: s.gfx ? undefined : '0' } : {}),
+                      ...(s.width ? { w: s.width === 'desktop' ? undefined : s.width } : {}),
+                    })
+                  }
+                  conf={caseReady}
+                  onDrawn={onDrawn}
+                  loading={loading}
+                />
+              </section>
+              <section className="pg-pane" data-active={pane === 'output' || undefined} aria-label="Output">
+                <h2 className="pg-pane-title">Output</h2>
+                <OutputPane bundle={current?.bundle ?? null} maths={maths} diags={diags} json={json} onJump={onJump} tab={outTab} onTab={(t) => update({ out: t === 'md' ? undefined : t })} md={md} onMd={setMd} image={image} docFile={files[0]?.path} />
+              </section>
             </div>
-          </header>
-          {!maths ? <p className="text-sm text-muted-foreground">Loading the maths engine…</p> : null}
-          {result && selected ? <Shown key={selected.id + theme + String(reduced)} entry={selected} bundle={result.bundle} maths={maths} theme={theme} reduced={reduced} negative={result.negative} ok={result.ok} diags={result.diags.map(formatDiagnostic)} /> : null}
-          {result?.bundle ? (
-            <section>
-              <Tabs value={tab} onValueChange={setTab}>
-                <div className="flex flex-wrap items-center gap-3">
-                  <TabsList>
-                    {['md', 'ir', 'expanded', 'diagnostics'].map((t) => (
-                      <TabsTrigger key={t} value={t}>
-                        {t === 'md' ? 'Markdown' : t === 'ir' ? 'IR (bundle)' : t === 'expanded' ? 'IR (expanded)' : `Diagnostics (${result.diags.length})`}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                  {tab === 'md' ? (
-                    <div className="flex flex-wrap gap-3 text-sm">
-                      {TOGGLES.map((t) => (
-                        <Label key={t}>
-                          <Checkbox
-                            checked={toggles.has(t)}
-                            onCheckedChange={(c) => {
-                              const s = new Set(toggles);
-                              if (c === true) s.add(t);
-                              else s.delete(t);
-                              setToggles(s);
-                            }}
-                          />
-                          {t}
-                        </Label>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </Tabs>
-              <pre className="pg-code" data-pg-out={tab}>
-                {tab === 'md' ? writeMarkdown(result.bundle, { toggles: [...toggles] }).md : tab === 'ir' ? JSON.stringify(stripPos(result.bundle), null, 1).slice(0, 60000) : tab === 'expanded' ? JSON.stringify(stripPos(expand(result.bundle)).doc, null, 1).slice(0, 60000) : result.diags.map(formatDiagnostic).join('\n') || 'No diagnostics.'}
-              </pre>
-            </section>
-          ) : null}
-        </main>
+          </main>
+        </div>
       </div>
     </TooltipProvider>
-  );
-}
-
-function Shown({ entry, bundle, maths, theme, reduced, negative, ok, diags }: { entry: Entry; bundle: IRBundle | null; maths: MathsEngine | null; theme: 'light' | 'dark'; reduced: boolean; negative: boolean; ok: boolean; diags: string[] }): ReactNode {
-  const runtime = useMemo(() => (bundle ? new Runtime(bundle, { capabilities: ['core@1', 'gfx@1'], maths: maths ?? undefined, reducedMotion: reduced, hosts: entry.fc?.hosts ? { '0': entry.fc.hosts } : undefined }) : null), [bundle, maths, reduced, entry]);
-  const [log, setLog] = useState<string[]>([]);
-  useEffect(() => {
-    if (!runtime) return;
-    (runtime.opts as { onSignal?: (e: { name: string; payload: unknown }) => void }).onSignal = (e) => setLog((l) => [...l.slice(-6), `${e.name} ${JSON.stringify(e.payload)}`]);
-  }, [runtime]);
-  // fixture play steps (provider-neutral): run them with real time when asked
-  const play = async (): Promise<void> => {
-    if (!runtime || !entry.fc?.play) return;
-    for (const s of entry.fc.play) {
-      if (s.press) runtime.press(s.press);
-      if (s.set) runtime.set(s.set);
-      if (s.command) runtime.widget(0).command(s.command, s.args);
-      if (s.wait) await new Promise((r) => setTimeout(r, s.wait));
-    }
-  };
-  useEffect(() => {
-    if (readHash().play === '1') void play();
-  }, [runtime]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (negative) {
-    return (
-      <section className="pg-view" data-mkp-ready="1" data-pg-negative={ok ? 'ok' : 'unexpected'}>
-        <p className="mb-2 text-sm">
-          <strong>Negative case.</strong> {ok ? 'It fails as expected:' : 'It did not fail as expected.'}
-        </p>
-        <pre className="pg-code">{diags.join('\n')}</pre>
-      </section>
-    );
-  }
-  if (!bundle || !runtime) {
-    return (
-      <section className="pg-view" data-mkp-ready="1" data-pg-failed="1">
-        <pre className="pg-code text-destructive">{diags.join('\n')}</pre>
-      </section>
-    );
-  }
-  return (
-    <section className="pg-view" data-mkp-ready="1">
-      {entry.fc?.play ? (
-        <Button variant="outline" size="sm" className="mb-2" onClick={() => void play()}>
-          Run the play steps
-        </Button>
-      ) : null}
-      <Card className="pg-stage py-0" data-pg-stage="1">
-        <CardContent className="p-5">
-          <MkpDocument bundle={bundle} runtime={runtime} theme={theme} reducedMotion={reduced} components={components} tokens={shadcnTokens} />
-        </CardContent>
-      </Card>
-      {log.length ? <pre className="pg-code mt-2">{log.join('\n')}</pre> : null}
-    </section>
   );
 }
