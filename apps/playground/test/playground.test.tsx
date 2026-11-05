@@ -46,6 +46,9 @@ describe('the catalog', () => {
     expect(cases.length).toBeGreaterThan(30);
     const c = await cases[0].load!();
     expect(c.bundle.level).toBe('bundle');
+    // with the pictures beside what it was made from
+    expect(Object.keys(cases.find((e) => e.id === 'case:base.shapes.1.moved')!.assets)).toContain('dot.svg');
+    expect(Object.keys(cases.find((e) => e.id === 'case:examples.18-frame-pane-zoom')!.assets)).toContain('plan.svg');
   });
 
   it('reads titles and front matter loosely', () => {

@@ -5,7 +5,8 @@
 import { HighlightStyle, StreamLanguage, type StreamParser } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { tags as t } from '@lezer/highlight';
-import type { Extension } from '@codemirror/state';
+import { RangeSetBuilder, type Extension, type Text } from '@codemirror/state';
+import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 
 const KEYWORDS = new Set([
   'in', 'var', 'fn', 'type', 'state', 'interface', 'implements', 'signal', 'project', 'pack', 'requires', 'provides', 'depends',
@@ -53,7 +54,8 @@ const mkp: StreamParser<MkpState> = {
     }
     if (stream.peek() === '$') {
       stream.next();
-      stream.skipTo('$') ? stream.next() : stream.skipToEnd();
+      if (stream.skipTo('$')) stream.next();
+      else stream.skipToEnd();
       st.head = false;
       return 'string-2';
     }
@@ -109,10 +111,42 @@ const yaml: StreamParser<{ value: boolean }> = {
 export const mkpLanguage = StreamLanguage.define(mkp);
 export const yamlLanguage = StreamLanguage.define(yaml);
 
+const frontLine = Decoration.line({ class: 'cm-frontmatter' });
+
+/** The front matter's lines (--- … ---), which Markdown alone would read as a heading. */
+function frontDecorations(doc: Text): DecorationSet {
+  const b = new RangeSetBuilder<Decoration>();
+  if (doc.lines > 1 && doc.line(1).text === '---') {
+    for (let n = 2; n <= doc.lines; n++) {
+      if (doc.line(n).text === '---') {
+        for (let k = 1; k <= n; k++) b.add(doc.line(k).from, doc.line(k).from, frontLine);
+        break;
+      }
+    }
+  }
+  return b.finish();
+}
+
+const frontMatter = [
+  ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      constructor(view: EditorView) {
+        this.decorations = frontDecorations(view.state.doc);
+      }
+      update(u: ViewUpdate): void {
+        if (u.docChanged) this.decorations = frontDecorations(u.state.doc);
+      }
+    },
+    { decorations: (v) => v.decorations },
+  ),
+  EditorView.baseTheme({ '.cm-frontmatter, .cm-frontmatter span': { color: 'var(--pg-hl-comment) !important', fontWeight: 'normal !important', textDecoration: 'none !important' } }),
+];
+
 /** The highlighting for a file, by its name. */
 export function languageFor(path: string): Extension {
   // a document, or a pack's fixture case written as one (pack/file.fixture.json#case)
-  if (path.endsWith('.md') || path.includes('#')) return markdown({ codeLanguages: (info) => (info.trim().split(/\s+/)[0] === 'mkp' ? mkpLanguage : info.trim() ? yamlLanguage : null) });
+  if (path.endsWith('.md') || path.includes('#')) return [frontMatter, markdown({ codeLanguages: (info) => (info.trim().split(/\s+/)[0] === 'mkp' ? mkpLanguage : info.trim() ? yamlLanguage : null) })];
   if (path.endsWith('.mkp')) return mkpLanguage;
   return [];
 }

@@ -11,7 +11,7 @@ const ROOT = '../../../';
 // every text file of every example and limit, but not the committed exported Markdown (doc.md)
 const texts = import.meta.glob(['../../../examples/**/*.{mkp,md,json}', '!../../../examples/**/doc.md'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 // pictures a document links to, served beside the site
-const pictures = import.meta.glob('../../../examples/**/*.{svg,png,jpg,jpeg,webp,gif}', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+const pictures = import.meta.glob(['../../../examples/**/*.{svg,png,jpg,jpeg,webp,gif}', '../../../conformance/packs/**/*.{svg,png,jpg,jpeg,webp,gif}'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 const caseIndex = import.meta.glob('../../../conformance/index.json', { import: 'default', eager: true }) as Record<string, { cases: string[] }>;
 const caseFiles = import.meta.glob('../../../conformance/cases/*.json', { import: 'default' }) as Record<string, () => Promise<ConfCase>>;
 
@@ -176,7 +176,9 @@ function cases(): Entry[] {
   return index.flatMap((id) => {
     const load = caseFiles[`${ROOT}conformance/cases/${id}.json`];
     if (!load) return [];
-    return [{ id: `case:${id}`, kind: 'case' as const, group: 'Cases', num: '', title: id, files: [], assets: {}, load }];
+    // its pictures are beside the example, or in the test pack, it was made from
+    const from = id.startsWith('examples.') ? `examples/${id.slice('examples.'.length)}` : `conformance/packs/${id.split('.')[0]}`;
+    return [{ id: `case:${id}`, kind: 'case' as const, group: 'Cases', num: '', title: id, files: [], assets: assetsIn(from), load }];
   });
 }
 

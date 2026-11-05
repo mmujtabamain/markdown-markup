@@ -105,7 +105,7 @@ function Stage({ bundle, maths, settings, conf, onDrawn, onSignal }: { bundle: I
       {conf?.steps.length ? (
         <div className="mb-3 flex items-center gap-2 text-sm">
           <Button variant="outline" size="sm" onClick={() => void play()}>
-            <Play /> Play the case's {conf.steps.length} steps
+            <Play /> Play the case's {conf.steps.length === 1 ? 'step' : `${conf.steps.length} steps`}
           </Button>
         </div>
       ) : null}

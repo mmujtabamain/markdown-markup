@@ -40,6 +40,8 @@ for (const width of [390, 1280]) {
         const nodes = await stage.locator('.mkp-error').allInnerTexts();
         if (nodes.length) failures.push(`${id}: error nodes: ${nodes.join(' | ')}`);
         if (await page.locator('[data-pg-render-error]').count()) failures.push(`${id}: the renderer stopped`);
+        const broken = await stage.locator('img').evaluateAll((imgs) => (imgs as HTMLImageElement[]).filter((i) => i.complete && !i.naturalWidth).map((i) => i.getAttribute('src')));
+        if (broken.length) failures.push(`${id}: pictures that don't load: ${broken.join(', ')}`);
         if ((await page.getAttribute('[data-pg-preview]', 'data-pg-theme')) !== theme) failures.push(`${id}: not ${theme}`);
         const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
         if (dark !== (theme === 'dark')) failures.push(`${id}: the page is not ${theme}`);
@@ -73,6 +75,27 @@ test('gfx@1 off: the gfx example shows its Markdown instead, and still draws wit
   await expect(page.locator('[data-pg-stage] .mkp-root > *').first()).toBeVisible();
   expect(await page.locator('[data-pg-stage] .mkp-error[role=alert]').count()).toBe(0);
   expect(errors).toEqual([]);
+});
+
+test('every conformance case draws, with no error node and its pictures', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page, { e: ids[0] });
+  await page.getByRole('button', { name: /^Cases/ }).click();
+  const cases = await page.$$eval('aside a[data-pg-entry^="case:"]', (as) => as.map((a) => a.getAttribute('data-pg-entry')!));
+  const failures: string[] = [];
+  for (const id of cases) {
+    errors.length = 0;
+    await go(page, { e: id });
+    await page.waitForTimeout(80);
+    const stage = page.locator('[data-pg-stage]');
+    if (!(await stage.locator('.mkp-root > *').count())) failures.push(`${id}: drew nothing`);
+    const nodes = await stage.locator('.mkp-error').allInnerTexts();
+    if (nodes.length) failures.push(`${id}: error nodes: ${nodes.join(' | ')}`);
+    const broken = await stage.locator('img').evaluateAll((imgs) => (imgs as HTMLImageElement[]).filter((i) => i.complete && !i.naturalWidth).map((i) => i.getAttribute('src')));
+    if (broken.length) failures.push(`${id}: pictures that don't load: ${broken.join(', ')}`);
+    if (errors.length) failures.push(`${id}: ${errors.join(' | ')}`);
+  }
+  expect(failures).toEqual([]);
 });
 
 test('a conformance case draws its bundle, and plays its steps', async ({ page }) => {

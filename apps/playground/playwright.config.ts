@@ -5,7 +5,7 @@ const port = Number(process.env.PG_PORT) || 5182;
 
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 600_000,
+  timeout: 180_000,
   workers: 1,
   reporter: [['list']],
   use: { baseURL: `http://localhost:${port}`, viewport: { width: 1280, height: 900 }, launchOptions: { args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] } },
