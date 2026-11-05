@@ -13,12 +13,12 @@ egg "A timer for a boiled egg: soft, medium or hard."
   mins = floor(left / 60)
   secs = mod(floor(left), 60)
   pad = if(secs < 10, "0", "")
-  column gap=s
+  column gap=m
     text "\val{mins}:\val{pad}\val{secs} left" font=heading if=(not done)
     text "Done: into cold water." tone=ok font=heading if=done
     meter value=(min(t, minutes 60)) max=(minutes 60) label="how far along" tone=(if(done, ok, accent))
     # the clock's own control (pause, go on, the time) here rather than in a bar of its own
-    row gap=s align=center
+    row gap=s align=center pad=none
       controls t
       press
         icon name=reset size=small

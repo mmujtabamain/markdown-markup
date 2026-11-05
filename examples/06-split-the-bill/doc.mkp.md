@@ -14,7 +14,7 @@ split "A bill shared between friends, with a tip."
   share = amount (1 + tip/100) / people
   column gap=m
     # a label, its control and its value in three columns, so the tracks line up
-    grid cols=[auto, auto, 4ch] gap=s align=center width=fit
+    grid cols=[auto, auto, 4ch] gap=m align=center width=fit
       text "Bill"
       field value=total label="the bill" kind=text width=s
       text ""

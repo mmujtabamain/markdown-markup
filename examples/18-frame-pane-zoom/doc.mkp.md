@@ -25,7 +25,7 @@ plan "A flat's floor plan beside the list of its rooms, in a frame."
         zoom max=3
           column gap=s pad=m
             image "plan.svg" "the flat from above" size=m
-            grid cols=3 gap=xs
+            grid cols=3 gap=s
               each k in 0..(len(rooms) - 1) key=k
                 column pad=s stroke=(if(k == at, accent, line)) radius=card
                   text (rooms[k].name) size=small

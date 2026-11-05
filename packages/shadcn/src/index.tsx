@@ -134,6 +134,9 @@ export const shadcnTokens: TokenMap = {
     c6: shade('--chart-6', '#0891b2'),
   },
   radius: { card: { value: 'var(--radius, 0.625rem)' }, pill: { value: 999 } },
+  // shadcn's spacing steps (Tailwind's 1, 2, 3, 4, 6): core@1's own are tighter than its controls,
+  // so a pill or a card padded s would hug its text
+  space: { xs: { value: 4 }, s: { value: 8 }, m: { value: 12 }, l: { value: 16 }, xl: { value: 24 } },
 };
 
 /** icon@1's names in lucide. */
