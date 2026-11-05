@@ -180,6 +180,20 @@ describe('the containers', () => {
   });
 });
 
+describe('a zoom’s height', () => {
+  it('is its content’s, between its minheight (none: room for its tools) and its maxheight (l by default)', () => {
+    const { container } = draw(doc(['column gap=s', '  zoom', '    text "a"', '  zoom minheight=s maxheight=m', '    text "b"', '  zoom maxheight=none', '    text "c"']));
+    const zooms = [...container.querySelectorAll<HTMLElement>('.mkp-zoom')];
+    expect(zooms.map((z) => [z.style.minHeight, z.style.maxHeight])).toEqual([
+      ['', 'var(--mkp-size-l)'],
+      ['var(--mkp-size-s)', 'var(--mkp-size-m)'],
+      ['', ''],
+    ]);
+    // with no minheight, the stylesheet keeps room for the tools
+    expect(SHELL_CSS).toContain('.mkp-zoom { position: relative; overflow: hidden; min-height: calc(var(--mkp-space-s) * 2 + 40px); }');
+  });
+});
+
 describe('keep=true (GAPS 150)', () => {
   it('scrolls the nearest scrolling ancestor, and only it, to show the element', () => {
     const outer = document.createElement('div');

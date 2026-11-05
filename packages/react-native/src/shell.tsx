@@ -160,8 +160,11 @@ export function Zoom({ n }: { n: VNode }): ReactNode {
   const [locked, setLocked] = useState(true);
   const [scale, setScale] = useState(1);
   const max = Number(n.p.max) > 1 ? Number(n.p.max) : 4;
+  // as tall as its content, between its minheight (none: room for its tools) and its maxheight
+  const lo = theme.size(n.p.minheight) ?? (theme.space('s') ?? 4) * 2 + 40;
+  const hi = theme.size(n.p.maxheight);
   return (
-    <View style={{ overflow: 'hidden' }}>
+    <View style={{ overflow: 'hidden', minHeight: lo, ...(hi !== undefined ? { maxHeight: hi } : {}) }}>
       <View style={scale !== 1 ? { transform: [{ scale }] } : undefined}>
         <Kids nodes={n.kids} />
       </View>

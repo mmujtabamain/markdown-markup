@@ -9,7 +9,7 @@ import { SHELL_CSS } from './shell';
 export { Node, Kids, Runs, MathSpan, MathBlock, TextBlock, Box, CodeLines, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, boxStyle, flowStyle, gridTracks, rowRole, textStyle, hoverEvents, fieldTone, fieldKeys, keepInView, type BaseWidget, type CodeMark, type MathMark, type HostProps, type HostRoute, type MkpComponents } from './nodes';
 export { Arrows, curve, placeLabels, MIN_BEND, type Drawn } from './arrows';
 export { Canvas, placeCanvasLabels, pathHead } from './canvas';
-export { Frame, Pane, Zoom, FitBox, fitsWidth, Icon, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
+export { Frame, Pane, Zoom, FitBox, fitsWidth, zoomBounds, Icon, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
 export { tokenCss, layer, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {

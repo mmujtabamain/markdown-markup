@@ -596,3 +596,6 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      xs, s, m, l, xl; found 2`), a choice's options with the nearest one (`align takes one of start,
      center, end, stretch, baseline; found centre (did you mean "center"?)`), a number's range, and a
      required input left out (`image needs alt: text`).
+133. **A zoom's height.** *Extension (zoom@1).* A zoom is as tall as what it holds, never shorter than
+     `minheight` (none, the default: room for its own tools) and never taller than `maxheight` (`l`
+     by default; none: unbounded). What is taller is clipped, to pan once unlocked.

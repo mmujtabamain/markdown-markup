@@ -7,7 +7,7 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import * as L from 'lucide-react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, SkipBack, type LucideIcon } from 'lucide-react';
 import { walkView, type VNode, type VRun } from '@mkp/core';
-import { Box, Canvas, color, fieldKeys, fieldTone, fitsWidth, Frame, hoverEvents, Kids, MathBlock, nodeAttrs, Pane, rowRole, Runs, size, TextBlock, Zoom, type HostProps, type MkpComponents, type ShellButtonProps, type TokenMap } from '@mkp/react';
+import { Box, Canvas, color, fieldKeys, fieldTone, fitsWidth, zoomBounds, Frame, hoverEvents, Kids, MathBlock, nodeAttrs, Pane, rowRole, Runs, size, TextBlock, Zoom, type HostProps, type MkpComponents, type ShellButtonProps, type TokenMap } from '@mkp/react';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- kits differ in their exact props; these pass only what shadcn's take
 type C = ComponentType<any>;
@@ -540,7 +540,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
     pane: (h) => pane(h, kit),
     zoom: ({ n, attrs, style }) =>
       kit.Zoom ? (
-        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} fit={fitsWidth(n)} style={style}>
+        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} fit={fitsWidth(n)} style={{ minHeight: 'calc(var(--mkp-space-s) * 2 + 40px)', ...zoomBounds(n), ...style }}>
           <Kids nodes={n.kids} />
         </kit.Zoom>
       ) : (

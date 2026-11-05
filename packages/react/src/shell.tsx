@@ -200,6 +200,14 @@ export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNo
   );
 }
 
+/** A zoom's height: as tall as its content, never less than its minheight (none: room for its tools,
+ *  the stylesheet's own) and never more than its maxheight. */
+export function zoomBounds(n: VNode): CSSProperties {
+  const lo = size(n.p.minheight);
+  const hi = size(n.p.maxheight);
+  return { ...(lo ? { minHeight: lo } : {}), ...(hi ? { maxHeight: hi } : {}) };
+}
+
 /** Whether a zoom has something to fit: a canvas is drawn to its width already, so it never needs it. */
 export function fitsWidth(n: VNode): boolean {
   const canvas = (ns: VNode[] | undefined): boolean => (ns ?? []).some((k) => k.t === 'canvas' || canvas(k.kids));
@@ -283,7 +291,7 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
       className="mkp-zoom"
       data-locked={locked || undefined}
       data-nudged={nudged || undefined}
-      style={style}
+      style={{ ...zoomBounds(n), ...style }}
       onPointerDown={onPointerDown}
       onDoubleClick={(e) => {
         if ((e.target as Element).closest(OWN_DRAG)) return;
@@ -366,7 +374,7 @@ export const SHELL_CSS = layer(`
 .mkp-pane-note { font-size: 0.8em; color: var(--mkp-color-muted); }
 .mkp-pane-body { position: relative; min-height: 0; overflow: auto; flex: 1 1 auto; }
 .mkp-pane-foot { padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-color-line); font-size: 0.85em; color: var(--mkp-color-muted); }
-.mkp-zoom { position: relative; overflow: hidden; min-height: 0; }
+.mkp-zoom { position: relative; overflow: hidden; min-height: calc(var(--mkp-space-s) * 2 + 40px); }
 .mkp-zoom[data-nudged] { outline: 2px solid var(--mkp-color-accent); outline-offset: -2px; }
 .mkp-zoom-content { position: relative; transform-origin: 0 0; }
 /* its own width never comes from what it holds, so a wide drawing can't widen the column it sits in */

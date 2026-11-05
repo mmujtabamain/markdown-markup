@@ -258,6 +258,8 @@ extern pane@1 "A titled column of a stage: its title stays put while its body sc
 extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scrolling the page past it is never caught by it. It starts locked; a try to zoom or pan then points at the lock."
   in max num = 4 "how far it zooms in"
   in fit bool = true "at rest, what is wider than the view is shrunk to fit it (never enlarged)"
+  in minheight size = none "never shorter than this; none: room for its own tools"
+  in maxheight size = l "never taller than this: what is taller is clipped, to pan once unlocked; none: as tall as its content"
   in body slot
 
 extern icon@1 "A symbol from a fixed set, drawn in the provider's own icon style."

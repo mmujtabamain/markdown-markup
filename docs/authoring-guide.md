@@ -223,7 +223,8 @@ summary: The four containers side by side.
   `basis` (example 09). `minwidth=` with `scroll=x` scrolls what can't shrink.
 - Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
 - The host's shell: `frame` (kind, title, `status`, `fill actions`, `fill about`, `fill details`),
-  `pane` side by side, `zoom` behind its lock (example 18). A widget's controls go in its frame's bar.
+  `pane` side by side, `zoom` behind its lock (example 18), as tall as its content between `minheight` (by
+  default, room for its tools) and `maxheight` (by default `l`). A widget's controls go in its frame's bar.
 
 ## Canvas and arrows
 
