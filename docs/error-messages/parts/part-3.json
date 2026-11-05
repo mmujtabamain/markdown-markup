@@ -1,0 +1,617 @@
+[
+ {
+  "id": "E003",
+  "message": "an extern has no view, state or values; providers implement it in code",
+  "block": "--- manifest.mkp ---\npack gauges@1\nrequires core@1\n--- probe.mkp ---\nextern probe@1 \"A reading from the device.\"\n  in label text = \"\"\n  text label"
+ },
+ {
+  "id": "E006",
+  "message": "fn twice must type its parameter x",
+  "block": "# Doubling\n\n```mkp\ndoubler \"Shows a number and its double.\"\n  in n num = 2 \"the number\"\n  fn twice(x): num = x * 2\n  text \"\\val{twice(n)}\"\n  project md = format(twice(n), 0)\n```\n\n```doubler\nsummary: A number and its double.\n```"
+ },
+ {
+  "id": "E009",
+  "message": "324 elements; a definition may have at most 300",
+  "block": "# Times table\n\n```mkp\ntimes \"A times table, written out.\"\n  column gap=xs\n    row gap=s\n      text \"1\" font=mono\n      text \"2\" font=mono\n      text \"3\" font=mono\n      text \"4\" font=mono\n      text \"5\" font=mono\n      text \"6\" font=mono\n      text \"7\" font=mono\n      text \"8\" font=mono\n      text \"9\" font=mono\n      text \"10\" font=mono\n      text \"11\" font=mono\n      text \"12\" font=mono\n      text \"13\" font=mono\n      text \"14\" font=mono\n      text \"15\" font=mono\n      text \"16\" font=mono\n    row gap=s\n      text \"2\" font=mono\n      text \"4\" font=mono\n      text \"6\" font=mono\n      text \"8\" font=mono\n      text \"10\" font=mono\n      text \"12\" font=mono\n      text \"14\" font=mono\n      text \"16\" font=mono\n      text \"18\" font=mono\n      text \"20\" font=mono\n      text \"22\" font=mono\n      text \"24\" font=mono\n      text \"26\" font=mono\n      text \"28\" font=mono\n      text \"30\" font=mono\n      text \"32\" font=mono\n    row gap=s\n      text \"3\" font=mono\n      text \"6\" font=mono\n      text \"9\" font=mono\n      text \"12\" font=mono\n      text \"15\" font=mono\n      text \"18\" font=mono\n      text \"21\" font=mono\n      text \"24\" font=mono\n      text \"27\" font=mono\n      text \"30\" font=mono\n      text \"33\" font=mono\n      text \"36\" font=mono\n      text \"39\" font=mono\n      text \"42\" font=mono\n      text \"45\" font=mono\n      text \"48\" font=mono\n    row gap=s\n      text \"4\" font=mono\n      text \"8\" font=mono\n      text \"12\" font=mono\n      text \"16\" font=mono\n      text \"20\" font=mono\n      text \"24\" font=mono\n      text \"28\" font=mono\n      text \"32\" font=mono\n      text \"36\" font=mono\n      text \"40\" font=mono\n      text \"44\" font=mono\n      text \"48\" font=mono\n      text \"52\" font=mono\n      text \"56\" font=mono\n      text \"60\" font=mono\n      text \"64\" font=mono\n    row gap=s\n      text \"5\" font=mono\n      text \"10\" font=mono\n      text \"15\" font=mono\n      text \"20\" font=mono\n      text \"25\" font=mono\n      text \"30\" font=mono\n      text \"35\" font=mono\n      text \"40\" font=mono\n      text \"45\" font=mono\n      text \"50\" font=mono\n      text \"55\" font=mono\n      text \"60\" font=mono\n      text \"65\" font=mono\n      text \"70\" font=mono\n      text \"75\" font=mono\n      text \"80\" font=mono\n    row gap=s\n      text \"6\" font=mono\n      text \"12\" font=mono\n      text \"18\" font=mono\n      text \"24\" font=mono\n      text \"30\" font=mono\n      text \"36\" font=mono\n      text \"42\" font=mono\n      text \"48\" font=mono\n      text \"54\" font=mono\n      text \"60\" font=mono\n      text \"66\" font=mono\n      text \"72\" font=mono\n      text \"78\" font=mono\n      text \"84\" font=mono\n      text \"90\" font=mono\n      text \"96\" font=mono\n    row gap=s\n      text \"7\" font=mono\n      text \"14\" font=mono\n      text \"21\" font=mono\n      text \"28\" font=mono\n      text \"35\" font=mono\n      text \"42\" font=mono\n      text \"49\" font=mono\n      text \"56\" font=mono\n      text \"63\" font=mono\n      text \"70\" font=mono\n      text \"77\" font=mono\n      text \"84\" font=mono\n      text \"91\" font=mono\n      text \"98\" font=mono\n      text \"105\" font=mono\n      text \"112\" font=mono\n    row gap=s\n      text \"8\" font=mono\n      text \"16\" font=mono\n      text \"24\" font=mono\n      text \"32\" font=mono\n      text \"40\" font=mono\n      text \"48\" font=mono\n      text \"56\" font=mono\n      text \"64\" font=mono\n      text \"72\" font=mono\n      text \"80\" font=mono\n      text \"88\" font=mono\n      text \"96\" font=mono\n      text \"104\" font=mono\n      text \"112\" font=mono\n      text \"120\" font=mono\n      text \"128\" font=mono\n    row gap=s\n      text \"9\" font=mono\n      text \"18\" font=mono\n      text \"27\" font=mono\n      text \"36\" font=mono\n      text \"45\" font=mono\n      text \"54\" font=mono\n      text \"63\" font=mono\n      text \"72\" font=mono\n      text \"81\" font=mono\n      text \"90\" font=mono\n      text \"99\" font=mono\n      text \"108\" font=mono\n      text \"117\" font=mono\n      text \"126\" font=mono\n      text \"135\" font=mono\n      text \"144\" font=mono\n    row gap=s\n      text \"10\" font=mono\n      text \"20\" font=mono\n      text \"30\" font=mono\n      text \"40\" font=mono\n      text \"50\" font=mono\n      text \"60\" font=mono\n      text \"70\" font=mono\n      text \"80\" font=mono\n      text \"90\" font=mono\n      text \"100\" font=mono\n      text \"110\" font=mono\n      text \"120\" font=mono\n      text \"130\" font=mono\n      text \"140\" font=mono\n      text \"150\" font=mono\n      text \"160\" font=mono\n    row gap=s\n      text \"11\" font=mono\n      text \"22\" font=mono\n      text \"33\" font=mono\n      text \"44\" font=mono\n      text \"55\" font=mono\n      text \"66\" font=mono\n      text \"77\" font=mono\n      text \"88\" font=mono\n      text \"99\" font=mono\n      text \"110\" font=mono\n      text \"121\" font=mono\n      text \"132\" font=mono\n      text \"143\" font=mono\n      text \"154\" font=mono\n      text \"165\" font=mono\n      text \"176\" font=mono\n    row gap=s\n      text \"12\" font=mono\n      text \"24\" font=mono\n      text \"36\" font=mono\n      text \"48\" font=mono\n      text \"60\" font=mono\n      text \"72\" font=mono\n      text \"84\" font=mono\n      text \"96\" font=mono\n      text \"108\" font=mono\n      text \"120\" font=mono\n      text \"132\" font=mono\n      text \"144\" font=mono\n      text \"156\" font=mono\n      text \"168\" font=mono\n      text \"180\" font=mono\n      text \"192\" font=mono\n    row gap=s\n      text \"13\" font=mono\n      text \"26\" font=mono\n      text \"39\" font=mono\n      text \"52\" font=mono\n      text \"65\" font=mono\n      text \"78\" font=mono\n      text \"91\" font=mono\n      text \"104\" font=mono\n      text \"117\" font=mono\n      text \"130\" font=mono\n      text \"143\" font=mono\n      text \"156\" font=mono\n      text \"169\" font=mono\n      text \"182\" font=mono\n      text \"195\" font=mono\n      text \"208\" font=mono\n    row gap=s\n      text \"14\" font=mono\n      text \"28\" font=mono\n      text \"42\" font=mono\n      text \"56\" font=mono\n      text \"70\" font=mono\n      text \"84\" font=mono\n      text \"98\" font=mono\n      text \"112\" font=mono\n      text \"126\" font=mono\n      text \"140\" font=mono\n      text \"154\" font=mono\n      text \"168\" font=mono\n      text \"182\" font=mono\n      text \"196\" font=mono\n      text \"210\" font=mono\n      text \"224\" font=mono\n    row gap=s\n      text \"15\" font=mono\n      text \"30\" font=mono\n      text \"45\" font=mono\n      text \"60\" font=mono\n      text \"75\" font=mono\n      text \"90\" font=mono\n      text \"105\" font=mono\n      text \"120\" font=mono\n      text \"135\" font=mono\n      text \"150\" font=mono\n      text \"165\" font=mono\n      text \"180\" font=mono\n      text \"195\" font=mono\n      text \"210\" font=mono\n      text \"225\" font=mono\n      text \"240\" font=mono\n    row gap=s\n      text \"16\" font=mono\n      text \"32\" font=mono\n      text \"48\" font=mono\n      text \"64\" font=mono\n      text \"80\" font=mono\n      text \"96\" font=mono\n      text \"112\" font=mono\n      text \"128\" font=mono\n      text \"144\" font=mono\n      text \"160\" font=mono\n      text \"176\" font=mono\n      text \"192\" font=mono\n      text \"208\" font=mono\n      text \"224\" font=mono\n      text \"240\" font=mono\n      text \"256\" font=mono\n    row gap=s\n      text \"17\" font=mono\n      text \"34\" font=mono\n      text \"51\" font=mono\n      text \"68\" font=mono\n      text \"85\" font=mono\n      text \"102\" font=mono\n      text \"119\" font=mono\n      text \"136\" font=mono\n      text \"153\" font=mono\n      text \"170\" font=mono\n      text \"187\" font=mono\n      text \"204\" font=mono\n      text \"221\" font=mono\n      text \"238\" font=mono\n      text \"255\" font=mono\n      text \"272\" font=mono\n    row gap=s\n      text \"18\" font=mono\n      text \"36\" font=mono\n      text \"54\" font=mono\n      text \"72\" font=mono\n      text \"90\" font=mono\n      text \"108\" font=mono\n      text \"126\" font=mono\n      text \"144\" font=mono\n      text \"162\" font=mono\n      text \"180\" font=mono\n      text \"198\" font=mono\n      text \"216\" font=mono\n      text \"234\" font=mono\n      text \"252\" font=mono\n      text \"270\" font=mono\n      text \"288\" font=mono\n    row gap=s\n      text \"19\" font=mono\n      text \"38\" font=mono\n      text \"57\" font=mono\n      text \"76\" font=mono\n      text \"95\" font=mono\n      text \"114\" font=mono\n      text \"133\" font=mono\n      text \"152\" font=mono\n      text \"171\" font=mono\n      text \"190\" font=mono\n      text \"209\" font=mono\n      text \"228\" font=mono\n      text \"247\" font=mono\n      text \"266\" font=mono\n      text \"285\" font=mono\n      text \"304\" font=mono\n  project md = \"A times table.\"\n```\n\n```times\nsummary: A times table.\n```"
+ },
+ {
+  "id": "E012",
+  "message": "pixels need the gfx@1 capability; add \"requires gfx@1\" to hills@1",
+  "block": "# Hills\n\n```mkp\nhills \"A hilly landscape as a heat map.\"\n  canvas x=-3..3 y=-3..3 size=m label=\"heights from above\"\n    layer\n      pixels (hsl(0.6 - 0.3 sin(x), 0.7, 0.5)) res=128\n  project md = \"Heights over $[-3, 3]^2$.\"\n```\n\n```hills\nsummary: Four hills seen from above.\n```"
+ },
+ {
+  "id": "E015",
+  "message": "stars implements scored@1 but has no signal scored {got: int}",
+  "block": "--- doc.mkp.md ---\n# Rating\n\n```mkp\nstars \"Rate out of five by pressing a star.\"\n  implements scored@1\n  in of int = 5 \"how many stars\"\n  var got int = 0\n  row gap=xs\n    each k in 1..of key=k\n      press kind=plain label=(format(k, 0) + \" of \" + format(of, 0))\n        icon name=star tone=(if(k <= got, warn, muted))\n        @click set got=k\n  project md = format(got, 0) + \" of \" + format(of, 0) + \" stars\"\n```\n\n```stars\nsummary: A five star rating.\n```\n--- manifest.mkp ---\npack scoreboard@1 \"A made-up host that adds up the scores of every widget that offers one.\"\n  requires core@1\n  provides scored\n--- scored.mkp ---\ninterface scored@1 \"A widget whose score a host can add up.\"\n  in of int\n  signal scored {got: int}\n  project md"
+ },
+ {
+  "id": "E018",
+  "message": "\"true\" is a value of the language; name this something else",
+  "block": "# Reader\n\n```mkp\nreveal \"Shows a line, with a marker.\"\n  var true int = 0\n  text \"\\val{true}\"\n  project md = \"Reader\"\n```\n\n```reveal\nsummary: A line.\n```"
+ },
+ {
+  "id": "E021",
+  "message": "there is no type \"Measure\"",
+  "block": "# Sizes\n\n```mkp\nsizer \"Shows a size.\"\n  in count int = 1\n  in size Measure = 1\n  text \"\\val{count}\"\n  project md = \"x\"\n```\n\n```sizer\nsummary: A size.\n```"
+ },
+ {
+  "id": "E024",
+  "message": "loop is once, repeat or bounce",
+  "block": "# Dial\n\n```mkp\ndial \"Something the reader sets.\"\n  var n int = 0\n  t = slider 0..1 play=8s loop=forever \"turn\"\n  text \"\\val{n}\"\n  project md = \"Dial: \" + format(n, 0)\n```\n\n```dial\nsummary: A dial.\n```"
+ },
+ {
+  "id": "E027",
+  "message": "none is true or false, written",
+  "block": "# Dial\n\n```mkp\ndial \"Something the reader steps through.\"\n  var on bool = false\n  k = steps 4 none=on \"item\"\n  text \"\\val{k}\"\n  project md = \"Dial: \" + format(k, 0)\n```\n\n```dial\nsummary: A dial.\n```"
+ },
+ {
+  "id": "E030",
+  "message": "unexpected value for toggle",
+  "block": "# Dial\n\n```mkp\ndial \"Something the reader sets.\"\n  var n int = 0\n  t = toggle 3 \"on\"\n  text \"\\val{n}\"\n  project md = \"Dial: \" + format(n, 0)\n```\n\n```dial\nsummary: A dial.\n```"
+ },
+ {
+  "id": "E033",
+  "message": "a state line raises change and end, not \"click\"",
+  "block": "# Dial\n\n```mkp\ndial \"Something the reader sets.\"\n  var n int = 0\n  t = slider 0..1 \"turn\"\n    @click set n=1\n  text \"\\val{n}\"\n  project md = \"Dial: \" + format(n, 0)\n```\n\n```dial\nsummary: A dial.\n```"
+ },
+ {
+  "id": "E036",
+  "message": "expected a duration such as 6s or 500ms, found 5",
+  "block": "# Page\n\n```mkp\npart pause \"A pause.\"\n  in wait duration = 2s \"how long\"\n  text \"pause\"\n\npage \"A page.\"\n  pause wait=5\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E039",
+  "message": "\"total\" is not state, a var or a ref here; a ref input needs settable state",
+  "block": "# Page\n\n```mkp\npart cell \"A cell.\"\n  in count ref int \"the count\"\n  text \"\\val{count}\"\n\npage \"A page.\"\n  cell count=total\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E042",
+  "message": "tone takes a color token: none, surface, ink, muted, line, accent, info, ok, warn, bad, c1, c2, c3, c4, c5, c6; found 1..2",
+  "block": "# Page\n\n```mkp\n\n\npage \"A page.\"\n  text \"hello\" tone=1..2\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E045",
+  "message": "expected a field name, found 1..2",
+  "block": "# Page\n\n```mkp\npart picklist of T \"Records shown by one field.\"\n  in items list(T) \"the records\"\n  in title path(T, text) \"the field shown\"\n  text \"list\"\n\npage \"A page.\"\n  picklist items=[{city: \"Oslo\"}] title=1..2\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E048",
+  "message": "expected an expression in x",
+  "block": "# Page\n\n```mkp\npart plot \"A plot of a rule.\"\n  in rule expr(x): num \"the rule\"\n  text \"plot\"\n\npage \"A page.\"\n  plot rule=1..2\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E051",
+  "message": "expected text, found 1..2",
+  "block": "# Page\n\n```mkp\npart tag \"A tag.\"\n  in name text = \"x\" \"the words\"\n  text name\n\npage \"A page.\"\n  tag name=1..2\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E054",
+  "message": "align takes one of start, center, end, stretch, baseline; found 1..2",
+  "block": "# Page\n\n```mkp\n\n\npage \"A page.\"\n  column align=1..2\n    text \"hi\"\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E057",
+  "message": "expected int, found 1..2",
+  "block": "# Page\n\n```mkp\npart counter2 \"A count.\"\n  in count int = 1 \"how many\"\n  text \"count\"\n\npage \"A page.\"\n  counter2 count=1..2\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E060",
+  "message": "a grid needs at least one column",
+  "block": "# Page\n\n```mkp\n\n\npage \"A page.\"\n  grid cols=[]\n    text \"a\"\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E063",
+  "message": "\"cty\" isn't a field of the items (they have city) (did you mean \"city\"?)",
+  "block": "# Page\n\n```mkp\npart picklist of T \"Records shown by one field.\"\n  in items list(T) \"the records\"\n  in title path(T, text) \"the field shown\"\n  text \"list\"\n\npage \"A page.\"\n  picklist items=[{city: \"Oslo\"}] title=cty\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E066",
+  "message": "the id \"one\" is used twice in this definition",
+  "block": "# Page\n\n```mkp\n\n\npage \"A page.\"\n  column\n    text \"a\" id=one\n    text \"b\" id=one\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E069",
+  "message": "T is int in one place and text in another",
+  "block": "# Page\n\n```mkp\npart pair of T \"Two of a kind.\"\n  in first T \"the first\"\n  in second T \"the second\"\n  text \"pair\"\n\npage \"A page.\"\n  pair first=1 second=\"x\"\n  project md = \"A page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E072",
+  "message": "slot needs a slot value; found text",
+  "block": "# Layout\n\n```mkp\npanel \"A panel with a body.\"\n  in body slot\n  in note text = \"\"\n  column pad=m\n    slot note\n  project md = \"A panel.\"\n```\n\n```panel\nsummary: A panel.\n```"
+ },
+ {
+  "id": "E075",
+  "message": "fill belongs directly under a widget, to fill one of its slots",
+  "block": "# Menu\n\n```mkp\nsizes \"A menu of sizes.\"\n  in names list(text)\n  overlay mode=menu label=\"size\"\n    text \"pick\"\n    each n in names key=n\n      fill body\n        text n\n  project md = \"Sizes.\"\n```\n\n```sizes\nnames: [small, large]\nsummary: Sizes.\n```"
+ },
+ {
+  "id": "E078",
+  "message": "the prop line \"title\" cannot have indented lines",
+  "block": "# Entries\n\n```mkp\npart entry \"One entry.\"\n  in title text\n  in note text = \"\"\n  text title\n\nentries \"Two entries.\"\n  column\n    entry\n      title \"One\"\n        text \"more\"\n  project md = \"Entries.\"\n```\n\n```entries\nsummary: Two entries.\n```"
+ },
+ {
+  "id": "E081",
+  "message": "title is set twice",
+  "block": "# Entries\n\n```mkp\npart entry \"One entry.\"\n  in title text\n  text title\n\nentries \"An entry.\"\n  column\n    entry title=\"One\"\n      title \"Two\"\n  project md = \"Entries.\"\n```\n\n```entries\nsummary: An entry.\n```"
+ },
+ {
+  "id": "E084",
+  "message": "panel has no slot \"sidebar\"",
+  "block": "# Panels\n\n```mkp\npart panel \"A panel with a side note.\"\n  in body slot\n  in aside slot\n  row\n    column\n      slot body\n    column\n      slot aside\n\npage \"A page.\"\n  panel\n    text \"main\"\n    fill sidebar\n      text \"side\"\n  project md = \"Page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E087",
+  "message": "panel raises no \"opened\" event; it raises closed",
+  "block": "# Panels\n\n```mkp\npart panel \"A panel with a title.\"\n  in title text = \"Untitled\"\n  out closed\n  in body slot\n  column\n    text title weight=bold\n    slot body\n\npage \"A page.\"\n  panel\n    @opened emit closed\n    text \"main\"\n  project md = \"Page.\"\n```\n\n```page\nsummary: A page.\n```"
+ },
+ {
+  "id": "E090",
+  "message": "unexpected value \"One\" for entry (it takes no positional values)",
+  "block": "# Entries\n\n```mkp\npart entry \"One entry.\"\n  in title text\n  in note text = \"\"\n  text title\n\nentries \"Entries.\"\n  column\n    entry \"One\" \"Two\" note=\"Three\"\n  project md = \"Entries.\"\n```\n\n```entries\nsummary: Entries.\n```"
+ },
+ {
+  "id": "E093",
+  "message": "\"small\" is an option of size and weight; write size=small",
+  "block": "# Tags\n\n```mkp\npart tag \"A tag.\"\n  in label text\n  in size choice(small|large) = small\n  in weight choice(small|bold) = bold\n  text label\n\ntags \"Tags.\"\n  row\n    tag label=\"new\" small\n  project md = \"Tags.\"\n```\n\n```tags\nsummary: Tags.\n```"
+ },
+ {
+  "id": "E096",
+  "message": "\"small\" matches more than one rule (a size option, a name in scope); write key=value",
+  "block": "# Tags\n\n```mkp\npart tag \"A tag.\"\n  in label text\n  in size choice(small|large) = small\n  text label\n\ntags \"Tags.\"\n  in small bool = false\n  row\n    tag label=\"new\" small\n  project md = \"Tags.\"\n```\n\n```tags\nsummary: Tags.\n```"
+ },
+ {
+  "id": "E099",
+  "message": "if needs a boolean; found int",
+  "block": "# Tally\n\n```mkp\ntally \"A tally.\"\n  in n int = 2\n  column\n    text \"n\" if=(n + 1)\n  project md = \"Tally.\"\n```\n\n```tally\nsummary: A tally.\n```"
+ },
+ {
+  "id": "E102",
+  "message": "self takes start, center, end or stretch",
+  "block": "# Tally\n\n```mkp\ntally \"A tally.\"\n  in n int = 2\n  row\n    text \"n\" self=(if(n > 1, start, end))\n  project md = \"Tally.\"\n```\n\n```tally\nsummary: A tally.\n```"
+ },
+ {
+  "id": "E105",
+  "message": "each has no events",
+  "block": "# Tally\n\n```mkp\ntally \"A tally.\"\n  in names list(text) = [\"a\", \"b\"]\n  column\n    each n in names key=n\n      text n\n      @click set x=1\n  project md = \"Tally.\"\n```\n\n```tally\nsummary: A tally.\n```"
+ },
+ {
+  "id": "E108",
+  "message": "case takes one value",
+  "block": "# Tally\n\n```mkp\ntally \"A tally.\"\n  in n int = 2\n  column\n    switch on=n\n      case 1 2\n        text \"one\"\n  project md = \"Tally.\"\n```\n\n```tally\nsummary: A tally.\n```"
+ },
+ {
+  "id": "E111",
+  "message": "under switch, only case and else; found \"text\"",
+  "block": "# Tally\n\n```mkp\ntally \"A tally.\"\n  in n int = 2\n  column\n    switch on=n\n      case 1\n        text \"one\"\n      text \"stray\"\n  project md = \"Tally.\"\n```\n\n```tally\nsummary: A tally.\n```"
+ },
+ {
+  "id": "E114",
+  "message": "an id is a name or (an expression)",
+  "block": "# Flow\n\n```mkp\nflow \"Two boxes and a line.\"\n  row gap=l\n    column id=a pad=s stroke=line\n      text \"first\"\n    column id=b pad=s stroke=line\n      text \"second\"\n    arrow from=1..2 to=b\n  project md = \"Two boxes.\"\n```\n\n```flow\nsummary: Two boxes.\n```"
+ },
+ {
+  "id": "E117",
+  "message": "reset takes names here",
+  "block": "# Counter\n\n```mkp\ncounter \"A counter.\"\n  var n int = 0\n  level = slider 1..5 step=1 = 2 \"level\"\n  out answered {correct: bool}\n  signal seen {page: int}\n  column\n    press\n      text \"go\"\n      @click reset 1\n    column id=extra hidden\n      text \"more\"\n    overlay mode=popover label=\"help\" id=help\n      text \"?\"\n      fill body\n        text \"Help.\"\n\n  project md = \"Counter.\"\n```\n\n```counter\nsummary: A counter.\n```"
+ },
+ {
+  "id": "E120",
+  "message": "\"total\" is not state here",
+  "block": "# Counter\n\n```mkp\ncounter \"A counter.\"\n  var n int = 0\n  level = slider 1..5 step=1 = 2 \"level\"\n  out answered {correct: bool}\n  signal seen {page: int}\n  column\n    press\n      text \"go\"\n      @click reset total\n    column id=extra hidden\n      text \"more\"\n    overlay mode=popover label=\"help\" id=help\n      text \"?\"\n      fill body\n        text \"Help.\"\n\n  project md = \"Counter.\"\n```\n\n```counter\nsummary: A counter.\n```"
+ },
+ {
+  "id": "E123",
+  "message": "extra is not an overlay",
+  "block": "# Counter\n\n```mkp\ncounter \"A counter.\"\n  var n int = 0\n  level = slider 1..5 step=1 = 2 \"level\"\n  out answered {correct: bool}\n  signal seen {page: int}\n  column\n    press\n      text \"go\"\n      @click open extra\n    column id=extra hidden\n      text \"more\"\n    overlay mode=popover label=\"help\" id=help\n      text \"?\"\n      fill body\n        text \"Help.\"\n\n  project md = \"Counter.\"\n```\n\n```counter\nsummary: A counter.\n```"
+ },
+ {
+  "id": "E126",
+  "message": "counter declares no signal \"viewed\"",
+  "block": "# Counter\n\n```mkp\ncounter \"A counter.\"\n  var n int = 0\n  out answered {correct: bool, tries: int}\n  signal seen {page: int}\n  column\n    press\n      text \"go\"\n      @click send viewed page=1\n  project md = \"Counter.\"\n```\n\n```counter\nsummary: A counter.\n```"
+ },
+ {
+  "id": "E129",
+  "message": "emit answered needs tries",
+  "block": "# Counter\n\n```mkp\ncounter \"A counter.\"\n  var n int = 0\n  out answered {correct: bool, tries: int}\n  signal seen {page: int}\n  column\n    press\n      text \"go\"\n      @click emit answered correct=true\n  project md = \"Counter.\"\n```\n\n```counter\nsummary: A counter.\n```"
+ },
+ {
+  "id": "E132",
+  "message": "\"chip\" is provided by several packs (chips, pills); write pack:chip",
+  "block": "# Shop\n\n```mkp\nshelf \"A shelf with a label.\"\n  chip \"new\"\n  project md = \"new\"\n```\n\n```shelf\nsummary: A shelf.\n```\n\n--- pack/chip.mkp ---\nchip@1 \"A word on a pill.\"\n  fields word\n  in word text\n  row pad=xs radius=pill fill=muted\n    text word size=small\n  project md = word\n\n--- pack/manifest.mkp ---\npack chips@1 \"Chips.\"\n  requires core@1\n  provides chip\n\n--- pack2/chip.mkp ---\nchip@1 \"A word in a square.\"\n  fields word\n  in word text\n  row pad=xs stroke=line\n    text word size=small\n  project md = word\n\n--- pack2/manifest.mkp ---\npack pills@1 \"Pills.\"\n  requires core@1\n  provides chip"
+ },
+ {
+  "id": "E135",
+  "message": "#setup is already the anchor of the block on line 1; give this one another",
+  "block": "# Setup\n{#setup}\n\nInstall it.\n\n# Setup again\n{#setup}\n\nInstall it twice.\n"
+ },
+ {
+  "id": "E138",
+  "message": "front matter is not valid YAML: front matter holds a control character (\\t); a backslash in \"double quotes\" is an escape, so write LaTeX in 'single quotes' (e.g. '\\theta')",
+  "block": "---\nteaches: \"angle \\theta in a triangle\"\n---\n# Notes\n\nText.\n"
+ },
+ {
+  "id": "E141",
+  "message": "raw HTML is shown as text; MKP content has no HTML (use a widget)",
+  "block": "# Notes\n\n<div>See the guide.</div>\n"
+ },
+ {
+  "id": "E144",
+  "message": "the panel block must be a YAML mapping of its inputs",
+  "block": "```mkp\npanel \"A titled box holding some content.\"\n  in title text \"the heading\"\n  in size int 1..5 = 3 \"how big it is\"\n  in lit bool = false \"whether it is marked\"\n  in tone color = none \"a wash behind it\"\n  in mode choice(plain|bold) = plain \"how the title looks\"\n  in body slot\n  column\n    text title weight=(if(lit, bold, normal))\n    slot body\n  project md = title\n```\n\n```panel\n- Hello\n- world\n```\n"
+ },
+ {
+  "id": "E147",
+  "message": "body is a slot: give it a Markdown string",
+  "block": "```mkp\npanel \"A titled box holding some content.\"\n  in title text \"the heading\"\n  in size int 1..5 = 3 \"how big it is\"\n  in lit bool = false \"whether it is marked\"\n  in tone color = none \"a wash behind it\"\n  in mode choice(plain|bold) = plain \"how the title looks\"\n  in body slot\n  column\n    text title weight=(if(lit, bold, normal))\n    slot body\n  project md = title\n```\n\n```panel\ntitle: Hello\nbody:\n  - first\n  - second\nsummary: A box.\n```\n"
+ },
+ {
+  "id": "E150",
+  "message": "lit is true or false; \"yes\" is text in YAML 1.2: write true",
+  "block": "```mkp\npanel \"A titled box holding some content.\"\n  in title text \"the heading\"\n  in size int 1..5 = 3 \"how big it is\"\n  in lit bool = false \"whether it is marked\"\n  in tone color = none \"a wash behind it\"\n  in mode choice(plain|bold) = plain \"how the title looks\"\n  in body slot\n  column\n    text title weight=(if(lit, bold, normal))\n    slot body\n  project md = title\n```\n\n```panel\ntitle: Hello\nlit: yes\nsummary: A box.\n```\n"
+ },
+ {
+  "id": "E153",
+  "message": "\"volume\" is not declared in a state block of this document",
+  "block": "# Notes\n\n```mkp\ngauge \"A bar showing a level.\"\n  in level ref num \"the level\"\n  meter value=level max=10\n  project md = \"level \" + format(level, 0)\n```\n\n```gauge\nlevel: {ref: volume}\nsummary: A level bar.\n```\n"
+ },
+ {
+  "id": "E156",
+  "message": "each pane is an object of its fields",
+  "block": "# Gallery\n\n```mkp\ngallery \"Panes listed one after another, with scores.\"\n  in panes list(record pane {title: text, count: int, tone: color = accent} slot)\n  in lead slot\n  in aside slot\n  in scores list(int 1..5) = []\n  in marks list(color) = []\n  in spot {x: num, y: num = 0} = {x: 0}\n  in notes list(record note {text: text, links: list(record link {label: text, to: text})})\n  column\n    slot lead\n    each k in 0..(len(scores) - 1) key=k\n      text \"\\val{scores[k]}\"\n  project md = \"gallery\"\n```\n\n```gallery\npanes:\n  - first\n  - second\nsummary: A gallery.\n```\n"
+ },
+ {
+  "id": "E159",
+  "message": "links is a list of link records",
+  "block": "# Gallery\n\n```mkp\ngallery \"Panes listed one after another, with scores.\"\n  in panes list(record pane {title: text, count: int, tone: color = accent} slot)\n  in lead slot\n  in aside slot\n  in scores list(int 1..5) = []\n  in marks list(color) = []\n  in spot {x: num, y: num = 0} = {x: 0}\n  in notes list(record note {text: text, links: list(record link {label: text, to: text})})\n  column\n    slot lead\n    each k in 0..(len(scores) - 1) key=k\n      text \"\\val{scores[k]}\"\n  project md = \"gallery\"\n```\n\n```gallery\nnotes:\n  - text: Intro\n    links: https://example.org\nsummary: A gallery.\n```\n"
+ },
+ {
+  "id": "E162",
+  "message": "scores[1] is 7, outside 1..5",
+  "block": "# Gallery\n\n```mkp\ngallery \"Panes listed one after another, with scores.\"\n  in panes list(record pane {title: text, count: int, tone: color = accent} slot)\n  in lead slot\n  in aside slot\n  in scores list(int 1..5) = []\n  in marks list(color) = []\n  in spot {x: num, y: num = 0} = {x: 0}\n  in notes list(record note {text: text, links: list(record link {label: text, to: text})})\n  column\n    slot lead\n    each k in 0..(len(scores) - 1) key=k\n      text \"\\val{scores[k]}\"\n  project md = \"gallery\"\n```\n\n```gallery\npanes: []\nscores: [1, 7]\nsummary: A gallery.\n```\n"
+ },
+ {
+  "id": "E165",
+  "message": "spot needs x (num)",
+  "block": "# Gallery\n\n```mkp\ngallery \"Panes listed one after another, with scores.\"\n  in panes list(record pane {title: text, count: int, tone: color = accent} slot)\n  in lead slot\n  in aside slot\n  in scores list(int 1..5) = []\n  in marks list(color) = []\n  in spot {x: num, y: num = 0} = {x: 0}\n  in notes list(record note {text: text, links: list(record link {label: text, to: text})})\n  column\n    slot lead\n    each k in 0..(len(scores) - 1) key=k\n      text \"\\val{scores[k]}\"\n  project md = \"gallery\"\n```\n\n```gallery\npanes: []\nspot: {y: 2}\nsummary: A gallery.\n```\n"
+ },
+ {
+  "id": "E168",
+  "message": "badge has no project md: a document's widget says in Markdown what it shows, for readers without it",
+  "block": "# Notes\n\n```mkp\nbadge \"A short label.\"\n  in label text \"what it says\"\n  text label\n```\n\n```badge\nlabel: New\nsummary: A badge.\n```\n"
+ },
+ {
+  "id": "E171",
+  "message": "items[1] is {city: text, fact: text}, but the items before it are {city: text, fact: int}: every item has the same fields of the same types",
+  "block": "# Gallery\n\n```mkp\npicklist of T \"Records the reader steps through.\"\n  in items list(T) \"the records\"\n  in title path(T, text) \"the field shown in bold\"\n  column\n    each k in 0..(len(items) - 1) key=k\n      text (items[k][title])\n  project md = \"list\"\n```\n\n```picklist\nitems:\n  - {city: Lisbon, fact: 3}\n  - {city: Oslo, fact: Skis}\ntitle: city\nsummary: Two cities.\n```\n"
+ },
+ {
+  "id": "E174",
+  "message": "iconname is already a base widget or type; give this one its own name",
+  "block": "# Notes\n\n```mkp\ntype iconname = {label: text}\n\nbadge \"A short label.\"\n  in label text \"what it says\"\n  text label\n  project md = label\n```\n"
+ },
+ {
+  "id": "E177",
+  "message": "gallery has no slot \"sidebar\"",
+  "block": "# Gallery\n\n```mkp\ngallery \"Panes listed one after another, with scores.\"\n  in panes list(record pane {title: text, count: int, tone: color = accent} slot)\n  in lead slot\n  in aside slot\n  in scores list(int 1..5) = []\n  in marks list(color) = []\n  in spot {x: num, y: num = 0} = {x: 0}\n  in notes list(record note {text: text, links: list(record link {label: text, to: text})})\n  column\n    slot lead\n    each k in 0..(len(scores) - 1) key=k\n      text \"\\val{scores[k]}\"\n  project md = \"gallery\"\n```\n\n:::gallery\n:::fill sidebar\nSome words.\n:::\n:::\n"
+ },
+ {
+  "id": "E180",
+  "message": "badge has no slot to hold the container's Markdown",
+  "block": "# Notes\n\n```mkp\nbadge \"A short label.\"\n  in label text \"what it says\"\n  text label\n  project md = label\n```\n\n:::badge label=\"New\"\nExtra words.\n:::\n"
+ },
+ {
+  "id": "E183",
+  "message": "T is {city: text} in one place and {year: int} in another",
+  "block": "# Gallery\n\n```mkp\npicklist of T \"Records the reader steps through.\"\n  in items list(T) \"the records\"\n  in more list(T) \"more records\"\n  column\n    each k in 0..(len(items) - 1) key=k\n      text \"item\"\n  project md = \"list\"\n```\n\n```picklist\nitems:\n  - {city: Lisbon}\nmore:\n  - {year: 1755}\nsummary: Two lists.\n```\n"
+ },
+ {
+  "id": "E186",
+  "message": "expected a number in the range",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in x int 1..x\n  text \"\\val{x}\"\n  project md = \"reading\"\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E189",
+  "message": "expected an option in choice(\u2026)",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in x choice(a|1)\n  text \"\\val{x}\"\n  project md = \"reading\"\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E192",
+  "message": "color brand: value must be a hex colour such as \"#2563eb\"",
+  "block": "--- look.mkp ---\ntokens look@1 \"Newsletter colours.\"\n  color brand \"blue\"\n--- manifest.mkp ---\npack brand@1 \"Colours for a school newsletter.\"\n  requires core@1\n  provides look\n  unpublished\n"
+ },
+ {
+  "id": "E195",
+  "message": "list items must share one type; found int and text",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = [1, \"two\"]\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E198",
+  "message": "list(int) has no fields; \"len\" can't be read from it",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = xs.len\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E201",
+  "message": "dict keys are text; found int",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = d[n]\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E204",
+  "message": "\"and\" needs booleans; found int",
+  "block": "# Notes\n\n```mkp\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = n and on\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E207",
+  "message": "\"bound\" is not defined here",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = bound + 1\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E210",
+  "message": "can't compare int with text",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = n == label\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E213",
+  "message": "blend is ambiguous for (int, int): $doc:blend#0 and $doc:blend#1 fit equally",
+  "block": "# Notes\n\n```mkp\nfn blend(a: num, b: int): int = b\nfn blend(a: int, b: num): int = 1\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = blend(1, 2)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E216",
+  "message": "int is not a function",
+  "block": "# Notes\n\n```mkp\nfn twice(a: int): int = a * 2\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = twice(1)(2)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E219",
+  "message": "pad is defined more than once with 2 parameter(s); give the parameters types so calls can be dispatched",
+  "block": "# Notes\n\n```mkp\nfn pad(a, b) = a + b\nfn pad(c, d) = c * d\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = pad(1, 2)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E222",
+  "message": "\\val{sw} is swatch, which has no written form; show one of its fields, or give its type a show fn",
+  "block": "# Notes\n\n```mkp\ntype swatch = {name: text}\nconst sw: swatch = {name: \"sky\"}\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n  s = sw\n  text \"\\\\val{sw}\"\n  r = n\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E225",
+  "message": "len takes 1 argument(s), not 2",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = len(xs, xs)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E228",
+  "message": "filter needs a function that returns a boolean",
+  "block": "# Notes\n\n```mkp\nfn twice(a: int): int = a * 2\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = filter(xs, twice)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E231",
+  "message": "mean needs a list of numbers",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = mean([\"a\", \"b\"])\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E234",
+  "message": "put needs a dict; found list(int)",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = put(xs, \"a\", 1)\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E237",
+  "message": "the default must be int",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = get(d, \"a\", \"none\")\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E240",
+  "message": "join needs a list of text",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = join([[1], [2]], \",\")\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E243",
+  "message": "min needs numbers",
+  "block": "# Notes\n\n```mkp\n\ngauge \"A reading.\"\n  in n int = 2\n  in label text = \"a\"\n  in on bool = true\n  in xs list(int) = [1, 2, 3]\n  in d dict(int) = {}\n  in c choice(low|high) = low\n\n  r = min([\"a\", \"b\"])\n  text \"\\val{n}\"\n  project md = \"Reading: \" + format(n, 0)\n```\n\n```gauge\nsummary: A small widget.\n```\n"
+ },
+ {
+  "id": "E246",
+  "message": "there is no profile \"lesson\" among the packs given",
+  "block": "# Notes\n\nA plain paragraph.\n\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E249",
+  "message": "\"warmup\" is not a section role of lesson (intro, example)",
+  "block": "--- doc.mkp.md ---\n---\ntitle: Limits\n---\n# Limits\n\n## Warm up\n{role=warmup}\n\n--- manifest.mkp ---\nprofile lesson@1 \"Shape of a lesson.\"\n  requires core@1\n  front title text\n  \n  roles intro example\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E252",
+  "message": "a lesson starts with a heading",
+  "block": "--- doc.mkp.md ---\n---\ntitle: Limits\n---\nA limit is where a function heads.\n\n# Limits\n\n--- manifest.mkp ---\nprofile lesson@1 \"Shape of a lesson.\"\n  requires core@1\n  front title text\n  \n  front scope text = topic\n  front course text = \"\"\n  front sources list(text)\n  roles example\n  rule first body heading \"a lesson starts with a heading\"\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E255",
+  "message": "course ids are kebab-case",
+  "block": "--- doc.mkp.md ---\n---\ntitle: Limits\ncourse: Calculus 1\n---\n# Limits\n\n--- manifest.mkp ---\nprofile lesson@1 \"Shape of a lesson.\"\n  requires core@1\n  front title text\n  \n  front scope text = topic\n  front course text = \"\"\n  front sources list(text)\n  roles example\n  rule pattern front.course \"^[a-z-]+$\" \"course ids are kebab-case\"\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E258",
+  "message": "exactly two examples",
+  "block": "--- doc.mkp.md ---\n---\ntitle: Limits\n---\n# Limits\n\n## One\n{role=example}\n\n--- manifest.mkp ---\nprofile lesson@1 \"Shape of a lesson.\"\n  requires core@1\n  front title text\n  \n  front scope text = topic\n  front course text = \"\"\n  front sources list(text)\n  roles example\n  rule count roles.example 2 \"exactly two examples\"\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E261",
+  "message": "unknown rule \"length\"; rules are required, one-of, pattern, max-length, count, depth and first",
+  "block": "--- doc.mkp.md ---\n# Notes\n\nA plain paragraph.\n\n--- manifest.mkp ---\nprofile lesson@1 \"Shape of a lesson.\"\n  requires core@1\n  front title text\n  \n  rule length front.title 10 \"short titles\"\n--- checked with ---\n--profile lesson"
+ },
+ {
+  "id": "E264",
+  "message": "op + must type every parameter; dispatch uses them (6.22)",
+  "block": "--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\ntype vec2 = {x: num, y: num}\nop +(a: vec2, b): vec2 = {x: a.x + b.x, y: a.y}\n"
+ },
+ {
+  "id": "E267",
+  "message": "notes depends on chips@1, which this build was not given (pass it with --pack)",
+  "block": "--- doc.mkp.md ---\n# Notes\n\n```note\nlabel: Remember the units\nsummary: A note.\n```\n\n--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  depends chips@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- note.fixture.json ---\n{\"widget\":\"note@1\",\"cases\":{\"basic\":{\"props\":{\"label\":\"Hello\"},\"summary\":\"Hello\"}}}"
+ },
+ {
+  "id": "E270",
+  "message": "notes depends on chips@2; this build has chips@1",
+  "block": "--- doc.mkp.md ---\n# Notes\n\n```note\nlabel: Remember the units\nsummary: A note.\n```\n\n--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  depends chips@2\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- note.fixture.json ---\n{\"widget\":\"note@1\",\"cases\":{\"basic\":{\"props\":{\"label\":\"Hello\"},\"summary\":\"Hello\"}}}\n--- manifest.mkp  (second pack) ---\npack chips@1 \"Chips.\"\n  requires core@1\n  provides chip\n\n--- chip.mkp  (second pack) ---\nchip@1 \"A small chip.\"\n  in label text\n  text label\n  project md = label\n"
+ },
+ {
+  "id": "E273",
+  "message": "column is a base widget name and is reserved",
+  "block": "--- manifest.mkp ---\npack extras@1 \"Extra layouts.\"\n  requires core@1\n  provides column\n\n--- column.mkp ---\ncolumn@1 \"A column with a heading.\"\n  in title text\n  text title\n  project md = title\n"
+ },
+ {
+  "id": "E276",
+  "message": "level1 nests definitions 13 deep; at most 12",
+  "block": "--- manifest.mkp ---\npack outline@1 \"A nested outline.\"\n  requires core@1\n  provides level1 level2 level3 level4 level5 level6 level7 level8 level9 level10 level11 level12 level13\n\n--- levels.mkp ---\nlevel1@1 \"Level 1 of the outline.\"\n  in label text\n  column\n    level2 label=label\n  project md = label\nlevel2@1 \"Level 2 of the outline.\"\n  in label text\n  column\n    level3 label=label\n  project md = label\nlevel3@1 \"Level 3 of the outline.\"\n  in label text\n  column\n    level4 label=label\n  project md = label\nlevel4@1 \"Level 4 of the outline.\"\n  in label text\n  column\n    level5 label=label\n  project md = label\nlevel5@1 \"Level 5 of the outline.\"\n  in label text\n  column\n    level6 label=label\n  project md = label\nlevel6@1 \"Level 6 of the outline.\"\n  in label text\n  column\n    level7 label=label\n  project md = label\nlevel7@1 \"Level 7 of the outline.\"\n  in label text\n  column\n    level8 label=label\n  project md = label\nlevel8@1 \"Level 8 of the outline.\"\n  in label text\n  column\n    level9 label=label\n  project md = label\nlevel9@1 \"Level 9 of the outline.\"\n  in label text\n  column\n    level10 label=label\n  project md = label\nlevel10@1 \"Level 10 of the outline.\"\n  in label text\n  column\n    level11 label=label\n  project md = label\nlevel11@1 \"Level 11 of the outline.\"\n  in label text\n  column\n    level12 label=label\n  project md = label\nlevel12@1 \"Level 12 of the outline.\"\n  in label text\n  column\n    level13 label=label\n  project md = label\nlevel13@1 \"Level 13 of the outline.\"\n  in label text\n  text label\n  project md = label\n"
+ },
+ {
+  "id": "E279",
+  "message": "notes@1 changed since the lock was written; a published version must not change",
+  "block": "--- mkp.lock ---\n{\n \"packs\": [\n  {\n   \"pack\": \"notes\",\n   \"version\": 1,\n   \"digest\": \"sha256:f241199810fa8566dc89334f17d879eb89a3dbb4e4d3433266524fcf335b16f9\"\n  }\n ],\n \"defs\": {\n  \"notes:note@1\": \"sha256:d756add7afb1d1b33b50ce977e7673675400b351c7d088672d2cec763213d92e\"\n }\n}\n--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- note.fixture.json ---\n{\"widget\":\"note@1\",\"cases\":{\"basic\":{\"props\":{\"label\":\"Hello\"},\"summary\":\"Hello\"}}}\n--- checked with ---\n--lock mkp.lock"
+ },
+ {
+  "id": "E282",
+  "message": "pack.mkpack has a damaged central directory",
+  "block": "(a zip of the three files above whose central directory was damaged by a byte flip: the archive was cut and re-joined)"
+ },
+ {
+  "id": "E285",
+  "message": "pack.mkpack: \"banner.png\" is 11.0 MB; files may be at most 10 MB",
+  "block": "pack.mkpack (a zip) holding:\n--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- note.fixture.json ---\n{\"widget\":\"note@1\",\"cases\":{\"basic\":{\"props\":{\"label\":\"Hello\"},\"summary\":\"Hello\"}}}\n--- banner.png ---\n<11 MB of zero bytes>"
+ },
+ {
+  "id": "E288",
+  "message": "notes: the manifest should say \"requires core@1\"",
+  "block": "--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n"
+ },
+ {
+  "id": "E291",
+  "message": "logo.svg is not a safe SVG (DOCTYPE, entities or no <svg> root)",
+  "block": "--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- logo.svg ---\n<!DOCTYPE svg SYSTEM \"svg.dtd\">\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><circle cx=\"5\" cy=\"5\" r=\"4\"/></svg>\n"
+ },
+ {
+  "id": "E294",
+  "message": "case317/pack holds 27.0 MB; a pack may be at most 25 MB",
+  "block": "--- manifest.mkp ---\npack notes@1 \"Small notes for lessons.\"\n  requires core@1\n  provides note\n\n--- note.mkp ---\nnote@1 \"A short note with a label.\"\n  in label text \"the label\"\n  text label\n  project md = label\n\n--- a.png ---\n<9 MB of random bytes>\n--- b.png ---\n<9 MB of random bytes>\n--- c.png ---\n<9 MB of random bytes>"
+ },
+ {
+  "id": "E297",
+  "message": "a \"\"\" long text is never closed; end it with a line holding \"\"\"",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  text \"\"\"\n    Steps taken so far\n```\n"
+ },
+ {
+  "id": "E300",
+  "message": "indentation must be a multiple of two spaces",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  row\n    text \"a\"\n     text \"b\"\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E303",
+  "message": "comparisons do not chain; join them with \"and\"",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  ok = 1 < n < 5\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E306",
+  "message": "expected a field name in the record",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  x = {1: n}\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E309",
+  "message": "the expression ends too early",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  x = n +\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E312",
+  "message": "attributes must follow a block",
+  "block": "{#intro}\n\n# Notes\n\nSome words here.\n"
+ },
+ {
+  "id": "E315",
+  "message": "expected a quoted description, found kilometres",
+  "block": "--- manifest.mkp ---\npack units@1 \"Distances in kilometres.\"\n  requires core@1\n  provides distance\n\n--- distance.mkp ---\npart distance@1 kilometres\n  in km num \"the distance\"\n"
+ },
+ {
+  "id": "E318",
+  "message": "\"tally/count\" is not a valid name (letters, digits, \".\", \"-\" and \"_\")",
+  "block": "# Tally\n\n```mkp\npart tally/count \"A running count.\"\n  var n int = 0\n```\n"
+ },
+ {
+  "id": "E321",
+  "message": "unexpected \"\"per click\"\" after the description",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\" \"per click\"\n  var n int = 0\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E324",
+  "message": "a document cannot declare an extern; externs are what a provider draws",
+  "block": "# Tally\n\n```mkp\nextern gauge \"A dial.\"\n  in level num\n```\n"
+ },
+ {
+  "id": "E327",
+  "message": "\"2d\" is not a valid type name",
+  "block": "# Tally\n\n```mkp\ntype 2d = {x: num, y: num}\ntally \"A running count.\"\n  var n int = 0\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E330",
+  "message": "\"2x\" is not a valid name",
+  "block": "# Tally\n\n```mkp\nconst 2x = 3\ntally \"A running count.\"\n  var n int = 0\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E333",
+  "message": "expected an expression",
+  "block": "# Tally\n\n```mkp\nconst limit =\ntally \"A running count.\"\n  var n int = 0\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E336",
+  "message": "\"2w\" is not a valid parameter name",
+  "block": "# Tally\n\n```mkp\nfn area(2w, h) = w * h\ntally \"A running count.\"\n  var n int = 0\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E339",
+  "message": "unexpected \"extra\" after the type",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  in start int extra = 3\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E342",
+  "message": "a value takes no indented lines: to go on with its expression, break the line inside an open bracket (\u2026)",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  double = n * 2\n    + 1\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E345",
+  "message": "implements names an interface: implements scored@1",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  implements\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E348",
+  "message": "expected \"in name type \u2026\"",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  in\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E351",
+  "message": "expected \"out name \u2026\"",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  out\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E354",
+  "message": "an event belongs under the element or state line it handles; indent it below that line",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  @click set n=(n + 1)\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E357",
+  "message": "only events (@name action \u2026) may be indented under a state line",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  speed = slider 0..10\n    text \"fast\"\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E360",
+  "message": "expected \"@event action \u2026\"",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  press label=\"more\"\n    @ set n=(n + 1)\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E363",
+  "message": "\"bump\" is not an action; actions are set, play, pause, reset, reveal, hide, open, close, emit, send",
+  "block": "# Tally\n\n```mkp\ntally \"A running count.\"\n  var n int = 0\n  press label=\"more\"\n    @click bump n=(n + 1)\n  project md = \"Count\"\n```\n"
+ },
+ {
+  "id": "E366",
+  "message": "expected \"front name type [= value] [\"about\"]\"",
+  "block": "pack units@1 \"Distances in kilometres.\"\n  requires core@1\n  front\n"
+ },
+ {
+  "id": "E369",
+  "message": "expected \"rule name path [args] [\"message\"]\"",
+  "block": "pack units@1 \"Distances in kilometres.\"\n  requires core@1\n  rule unique\n"
+ }
+]
