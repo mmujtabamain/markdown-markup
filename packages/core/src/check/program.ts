@@ -4,7 +4,7 @@
 import { Diagnostics, Pos } from '../diag';
 import type { IRFn, IRExpr, IRTokenSet } from '../ir';
 import type { DefSyn, FnSyn, InterfaceSyn, ManifestSyn, MkpFile, TokensSyn } from '../syntax/mkp';
-import { Type, TypeEnv } from '../types';
+import { showType, Type, TypeEnv } from '../types';
 
 export interface PackInfo {
   name: string;
@@ -23,6 +23,8 @@ export interface PackInfo {
   builtin?: boolean;
   /** where the pack was read from, as diagnostics name its files (a folder relative to the CLI's cwd) */
   label?: string;
+  /** the manifest as written, so a diagnostic can point at its requires, depends or provides line */
+  manifestText?: string;
 }
 
 export interface DefEntry {
@@ -89,11 +91,18 @@ export class Program {
 
   constructor(readonly diags: Diagnostics) {}
 
+  /** Where an entry already is, as the author reads it: the file in its pack and the line. */
+  private placeOf(pack: string, file: string, line: number): string {
+    const label = this.packs.get(pack)?.label;
+    return `${label !== undefined && file.startsWith(`${label}/`) ? file.slice(label.length + 1) : file}:${line}`;
+  }
+
   addPack(p: PackInfo): void {
     if (this.packs.has(p.name)) {
       const other = this.packs.get(p.name)!;
       if (other.version === p.version) {
-        this.diags.error('mkp.pack-duplicate', `pack ${p.name}@${p.version} is given twice`);
+        const from = other.label === p.label ? `from ${p.label} both times` : `from ${other.label ?? other.name} and ${p.label ?? p.name}`;
+        this.diags.error('mkp.pack-duplicate', `pack ${p.name}@${p.version} is given to this build twice; found it ${from}. Give it once (remove one --pack), or, if they are different packs, give one a new name or version (pack ${p.name}@${p.version + 1})`, { ...p.manifest.p, col: 1 });
         return;
       }
       // keep the higher version; dependencies say which they need
@@ -105,13 +114,15 @@ export class Program {
         switch (it.item) {
           case 'def': {
             const id = `${p.name}:${it.name}@${it.version}`;
-            if (this.defs.has(id)) this.diags.error('mkp.duplicate-definition', `${it.name}@${it.version} is defined twice in pack ${p.name}`, it.p);
+            const prev = this.defs.get(id);
+            if (prev) this.diags.error('mkp.duplicate-definition', `${it.name}@${it.version} is defined twice in pack ${p.name}; found a second definition here, the first is at ${this.placeOf(p.name, prev.file, prev.syn.p.line)}. Remove one of them, or give this one another name or a new version (${it.name}@${it.version + 1})`, it.p);
             this.defs.set(id, { id, pack: p.name, file: f.file, syn: it });
             break;
           }
           case 'type': {
             const key = `${p.name}:${it.name}`;
-            if (this.types.has(key)) this.diags.error('mkp.duplicate-type', `type ${it.name} is declared twice in pack ${p.name}`, it.p);
+            const prevType = this.types.get(key);
+            if (prevType) this.diags.error('mkp.duplicate-type', `type ${it.name} is defined twice in pack ${p.name}; found a second type ${it.name} here, the first is at ${this.placeOf(p.name, prevType.p.file, prevType.p.line)}. Remove one of them, or rename this one`, it.p);
             const t = it.type.t === 'rec' ? { ...it.type, name: it.name } : it.type;
             this.types.set(key, { pack: p.name, name: it.name, type: t, p: it.p });
             break;
@@ -123,9 +134,18 @@ export class Program {
             const name = isOp ? (it as { symbol: string }).symbol : it.name;
             const list = table.get(name) ?? [];
             const sig = it.params.every((q) => q.type) ? it.params.map((q) => q.type!) : undefined;
-            if (isOp && !sig) this.diags.error('mkp.op-untyped', `op ${name} must type every parameter; dispatch uses them (6.22)`, it.p);
+            // an example signature: the types given, and a likely one (another parameter's, or num) where one is missing
+            const guess = it.params.find((q) => q.type)?.type;
+            const shownType = (t: Type | undefined): string => (t ? showType(t) : guess && isOp ? showType(guess) : 'num');
+            const example = `${isOp ? 'op' : 'fn'} ${name}(${it.params.map((q) => `${q.name}: ${shownType(q.type)}`).join(', ')}): ${it.ret ? showType(it.ret) : shownType(undefined)} = …`;
+            const untyped = it.params.filter((q) => !q.type).map((q) => q.name);
+            const noTypes = untyped.length ? `${untyped.join(', ')} with no type` : '';
+            if (isOp && !sig) this.diags.error('mkp.op-untyped', `op ${name} must give every parameter a type, since the types of the arguments decide which op ${name} is used; found ${noTypes}. Write each as name: type, e.g. ${example}`, it.p);
             // every fn says what it takes and gives, so a mistake is a compile error (GAPS 43)
-            else if (!p.builtin && (!sig || !it.ret)) this.diags.error('mkp.untyped', `${isOp ? 'op' : 'fn'} ${name} must type every parameter and its result: fn ${name}(x: num): num = …`, it.p);
+            else if (!p.builtin && (!sig || !it.ret)) {
+              const found = [noTypes, it.ret ? '' : 'no result type'].filter(Boolean).join(', and ');
+              this.diags.error('mkp.untyped', `${isOp ? 'op' : 'fn'} ${name} must give a type to every parameter and to its result (after the closing bracket); found ${found}. Write it as ${example}`, it.p);
+            }
             const id = `${p.name}:${isOp ? 'op' : ''}${name}#${list.length}`;
             list.push({ id, pack: p.name, file: f.file, syn: it, op: isOp ? name : undefined, sig });
             table.set(name, list);
@@ -145,7 +165,8 @@ export class Program {
             break;
           case 'interface': {
             const id = `${p.name}:${it.name}@${it.version}`;
-            if (this.ifaces.has(id)) this.diags.error('mkp.duplicate-definition', `interface ${it.name}@${it.version} is declared twice in pack ${p.name}`, it.p);
+            const prevIface = this.ifaces.get(id);
+            if (prevIface) this.diags.error('mkp.duplicate-definition', `interface ${it.name}@${it.version} is defined twice in pack ${p.name}; found a second interface ${it.name}@${it.version} here, the first is at ${this.placeOf(p.name, prevIface.file, prevIface.syn.p.line)}. Remove one of them, or give this one a new version (${it.name}@${it.version + 1})`, it.p);
             this.ifaces.set(id, { id, pack: p.name, file: f.file, syn: it });
             break;
           }

@@ -5,7 +5,7 @@
 import type { A, IRAction, IRBundle, IRDef, IRExpr, IRFn, IRMaths, IRNode, IRState, IRVal } from '../ir';
 import { inlineRuns } from '../markdown';
 import { Env, EvalError, EVAL_LIMITS, fromJson, Fun, Programme, toJson, V, withBudget, deepEqual, rec, fmtNum } from '../eval';
-import { resolve, Type } from '../types';
+import { resolve, showType, Type } from '../types';
 import type { VArrow, VLayer, VNode, VRun, VShape } from './view';
 import { compilePixels, sampleMesh } from '../gfx/compile';
 
@@ -98,7 +98,7 @@ class Memo {
       if (tracking) for (const [c] of this.deps) tracking.add(c);
       return this.value!;
     }
-    if (this.busy) throw new EvalError('mkp.cycle', `${this.name} depends on itself`);
+    if (this.busy) throw new EvalError('mkp.cycle', `the value ${this.name} depends on itself, through values that lead back to it, so it has no value; found a loop while working it out. Break the loop: make one value in it a state or an input instead of reading the others`);
     const outer = tracking;
     const mine = new Set<Cell>();
     tracking = mine;
@@ -190,7 +190,7 @@ export class Inst {
           return { __slot: true, nodes: b.nodes, env: this.callerEnv ?? this.env, inst: this.caller ?? this } as unknown as V;
       }
     }
-    throw new EvalError('mkp.unbound', `"${name}" has no value in ${this.def.name}`);
+    throw new EvalError('mkp.unbound', `${name} has no value in ${this.def.name}: it is not an input, state, var or value there; found ${name} used in ${this.def.name}. Declare it in ${this.def.name}, or correct the name`);
   }
 
   /** The cell behind a settable name (state, var or a ref input). */
@@ -234,7 +234,7 @@ export class Runtime {
     // the host's width is data, not state: a snapshot (the Markdown) draws the branch for its width, not every one
     this.widthCell = new Cell(opts.width ?? 'wide');
     const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
-    if (!docDef) throw new Error('the bundle has no document definition');
+    if (!docDef) throw new Error(`this bundle has no document definition, so there is nothing to draw; found only ${Object.keys(bundle.defs).length} pack definitions. Build the bundle from a document (mkp build doc.mkp.md --pack …), not from a pack alone`);
     this.root = new Inst(this, docDef, 'doc', null, null, null, 0, null);
     this.setupInst(this.root);
     this.primeMaths(bundle);
@@ -290,7 +290,10 @@ export class Runtime {
   /** The instance of a top-level widget block, by index or #anchor. */
   widget(block: number | string): WidgetHandle {
     const inst = [...this.instances.values()].find((i) => i.block === block && i.caller === this.root);
-    if (!inst) throw new Error(`no widget block ${block}`);
+    if (!inst) {
+      const have = [...this.instances.values()].filter((i) => i.caller === this.root && i.block !== null).map((i) => String(i.block));
+      throw new Error(`there is no widget block ${block} in this document; found ${have.length ? `the blocks ${have.join(', ')}` : 'no widget blocks'}. Pass a block's index (0 for the first) or its #anchor`);
+    }
     return new WidgetHandle(this, inst);
   }
 
@@ -325,7 +328,10 @@ export class Runtime {
       const pool = slash >= 0 ? [...this.instances.values()].filter((i) => i.def.name === k0.slice(0, slash)) : [...this.blocks(), this.root];
       const owner = inst ?? pool.find((i) => i.cellOf(k));
       const c = owner?.cellOf(k);
-      if (!owner || !c) throw new Error(`no state "${k0}" in any widget block`);
+      if (!owner || !c) {
+        const names = [...new Set(pool.flatMap((i) => [...i.states.keys()]))];
+        throw new Error(`no widget block has a state named ${k0}; found ${names.length ? `the states ${names.join(', ')}` : 'no states at all'}. Set one of those, or write part/name for a state of a part inside the block`);
+      }
       this.setCell(owner, k, fromJson(v));
     }
     this.changed();
@@ -441,12 +447,12 @@ export class Runtime {
       }
       if (given && 'ref' in given) {
         const name = (given as { ref: string }).ref;
-        inst.inputs.set(inp.name, { k: 'ref', cell: () => inst.caller!.cellOf(name) ?? this.fail('mkp.not-state', `${name} is not state in ${inst.caller!.label()}`) });
+        inst.inputs.set(inp.name, { k: 'ref', cell: () => inst.caller!.cellOf(name) ?? this.fail('mkp.not-state', `the input ${inp.name} of ${def.name} is bound to ${name} by reference, so ${name} must be a state or var of ${inst.caller!.label()}; found no state or var ${name} there. Declare it there, or bind the input to a state that exists`) });
         continue;
       }
       const val = given ?? inp.default;
       if (val === undefined) {
-        inst.inputs.set(inp.name, { k: 'value', get: () => this.fail('mkp.missing-input', `${def.name} was not given ${inp.name}`) });
+        inst.inputs.set(inp.name, { k: 'value', get: () => this.fail('mkp.missing-input', `${def.name} needs its input ${inp.name}, which has no default; found no ${inp.name} where ${def.name} is used. Give it there (${inp.name}=…), or give the input a default in ${def.name} (in ${inp.name} ${showType(inp.type)} = …)`) });
         continue;
       }
       const constEnv = new Env(null, null, null, this.prog);
@@ -475,7 +481,7 @@ export class Runtime {
           let init = this.valueOf(v.default, env, inst);
           if (given !== undefined) {
             const err = checkValue(given, v.type, (n) => this.bundle.types[n] ?? findType(this.bundle, n));
-            if (err) this.warn('mkp.host-input', `host input ${v.name}: ${err}; the default is used`);
+            if (err) this.warn('mkp.host-input', `the host's value for host input ${v.name} of ${def.name} has the wrong type, so its default is used; found ${err.includes('found ') ? err.slice(err.lastIndexOf('found ') + 6) : 'a value of another type'} (${err.replace(/, found .*$/, '')}). Send a value of type ${showType(v.type)}`);
             else init = fromJson(given);
           }
           inst.cells.set(v.name, new Cell(init));
@@ -621,7 +627,7 @@ export class Runtime {
   private count(inst: Inst): void {
     if (++this.nodeCount > EVAL_LIMITS.list / 2) {
       // 5,000 rendered nodes per widget instance (6.18), counted per document here
-      if (this.nodeCount > 5000 * Math.max(1, this.instances.size)) throw new EvalError('mkp.nodes', `more than 5,000 rendered nodes in ${inst.label()}`);
+      if (this.nodeCount > 5000 * Math.max(1, this.instances.size)) throw new EvalError('mkp.nodes', `a widget may draw at most 5,000 elements; found more than that in ${inst.label()}. Draw fewer: show a long list a page at a time, or cut an each short`);
     }
   }
 
@@ -648,14 +654,14 @@ export class Runtime {
       if (Array.isArray(v)) items.push(...v);
     }
     // the list limit; the rendered-node count and the budget are what bound a large each (GAPS 112)
-    if (items.length > EVAL_LIMITS.list) throw new EvalError('mkp.each', `each over ${items.length} items; at most ${EVAL_LIMITS.list}`);
+    if (items.length > EVAL_LIMITS.list) throw new EvalError('mkp.each', `an each may go over at most ${EVAL_LIMITS.list} items; found ${items.length > EVAL_LIMITS.list && isRange ? `more than ${EVAL_LIMITS.list}` : items.length} in ${inst.label()}. Give it a shorter list or range, e.g. one page of it at a time`);
     const seen = new Set<string>();
     return items.map((item, idx) => {
       const e = env.child({ [n.var!]: item });
       let k: string;
       if (n.key) k = String(toKey(this.evalExpr(n.key, e, inst)));
       else k = isRange ? String(item) : String(idx);
-      if (seen.has(k)) throw new EvalError('mkp.duplicate-key', `each produced the key "${k}" twice; keys must be unique`);
+      if (seen.has(k)) throw new EvalError('mkp.duplicate-key', `each item of an each needs its own key; found the key ${k} twice in ${inst.label()}. Make key= read something unique to each item, e.g. its index or an id field`);
       seen.add(k);
       return { env: e, key: k };
     });
@@ -738,7 +744,7 @@ export class Runtime {
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
       // a snapshot draws every branch whose condition reads state, so exclusive branches may share an id
-      if (inst.ids.has(id) && !this.opts.snapshot) throw new EvalError('mkp.duplicate-id', `the id "${id}" appears twice in ${inst.label()}`);
+      if (inst.ids.has(id) && !this.opts.snapshot) throw new EvalError('mkp.duplicate-id', `ids must be unique within a widget; found id ${id} on two elements in ${inst.label()}. Rename one, or inside an each compute it from the item, e.g. id=(…) with the item's index in it`);
       inst.ids.set(id, v.key);
       v.id = id;
       if (n.meta?.hidden) v.hidden = !inst.revealed.get(id);
@@ -768,7 +774,7 @@ export class Runtime {
     const depth = inst.depth + 1;
     const path = `${key}#${def.name}`;
     if (depth > 13 || (inst.def.id === def.id && depth > 12)) {
-      this.warn('mkp.recursion', `${def.name} goes deeper than 12 levels; the deepest level shows …`);
+      this.warn('mkp.recursion', `widgets may be nested at most 12 levels deep while the page runs; found ${def.name} at level ${depth}, so it shows "…" there instead. Stop the recursion sooner, e.g. with if= on a level input or by passing a shorter list each time`);
       return { t: 'text', key: path, p: { runs: [{ t: 'text', v: '…' }], tone: 'muted' } };
     }
     let child = this.instances.get(path);
@@ -837,7 +843,7 @@ export class Runtime {
       const from = this.findId(inst, fromId);
       const to = this.findId(inst, toId);
       if (!from || !to) {
-        this.warn('mkp.arrow-missing', `arrow ${fromId} → ${toId}: no element with id ${!from ? fromId : toId}; nothing is drawn`);
+        this.warn('mkp.arrow-missing', `the arrow from ${fromId} to ${toId} is not drawn, since each end must be an element's id; found no element with id ${!from ? fromId : toId} in ${inst.label()} or the widgets inside it. Give that element id=${!from ? fromId : toId}, or correct ${!from ? 'from=' : 'to='}`);
         continue;
       }
       const a: VArrow = { key: `${key}:${fromId}>${toId}`, from, to };
@@ -862,7 +868,7 @@ export class Runtime {
         for (const v of this.valueOf(n.via, env, inst) as V[]) {
           const k = this.findId(inst, String(v));
           if (k) via.push(k);
-          else this.warn('mkp.arrow-missing', `arrow ${fromId} → ${toId}: no element with id ${String(v)} to pass through; the path goes on without it`);
+          else this.warn('mkp.arrow-missing', `the arrow from ${fromId} to ${toId} goes via ${String(v)}, so the path skips that point; found no element with id ${String(v)} in ${inst.label()} or the widgets inside it. Give that element id=${String(v)}, or remove it from via=`);
         }
         if (via.length) a.via = via;
       }
@@ -884,7 +890,7 @@ export class Runtime {
       }
     };
     walk(inst);
-    if (hits.length > 1) throw new EvalError('mkp.duplicate-id', `the arrow id "${id}" is found in ${hits.length} nested instances`);
+    if (hits.length > 1) throw new EvalError('mkp.duplicate-id', `an arrow end must name one element; found id ${id} in ${hits.length} widgets nested in ${inst.label()}, so it is unclear which is meant. Give the element you mean an id of its own, and use that`);
     return hits[0];
   }
 
@@ -1551,7 +1557,7 @@ export class Runtime {
       case 'reveal':
       case 'hide': {
         const id = typeof a.id === 'string' ? a.id : String(this.evalExpr(a.id, env, inst));
-        if (!inst.ids.has(id) && typeof a.id !== 'string') this.warn('mkp.action-target', `${a.a} ${id}: no such element; nothing happens`);
+        if (!inst.ids.has(id) && typeof a.id !== 'string') this.warn('mkp.action-target', `${a.a} did nothing, since it names an element by id; found no element with id ${id} in ${inst.label()} (the id was worked out when it ran). Give an element id=${id}, or correct the expression that makes the id`);
         inst.revealed.set(id, a.a === 'reveal');
         break;
       }
@@ -1586,11 +1592,11 @@ export class Runtime {
     // rate limit: at most 30 signals per second per runtime; payloads capped at 16 KB
     this.signalTimes = this.signalTimes.filter((t) => now - t < 1000);
     if (this.signalTimes.length >= 30) {
-      this.warn('mkp.signal-rate', `signal ${name} dropped: more than 30 a second`);
+      this.warn('mkp.signal-rate', `signal ${name} was dropped: a page may send at most 30 signals a second; found more than 30 in the last second. Send it less often, e.g. on a press rather than on every change`);
       return;
     }
     if (JSON.stringify(payload).length > 16384) {
-      this.warn('mkp.signal-size', `signal ${name} dropped: its payload is over 16 KB`);
+      this.warn('mkp.signal-size', `signal ${name} was dropped: a signal's payload may be at most 16 KB; found ${(JSON.stringify(payload).length / 1024).toFixed(1)} KB. Send less, e.g. an id or a count instead of whole records`);
       return;
     }
     this.signalTimes.push(now);
@@ -1604,10 +1610,13 @@ export class Runtime {
 
   command(inst: Inst, name: string, args: unknown): void {
     const c = inst.def.commands?.find((x) => x.name === name);
-    if (!c) throw new Error(`${inst.label()} declares no command "${name}"`);
+    if (!c) {
+      const have = (inst.def.commands ?? []).map((x) => x.name);
+      throw new Error(`${inst.label()} has no command ${name}; found ${have.length ? `the commands ${have.join(', ')}` : 'no commands'}. Send one of those${have.length ? '' : ', or declare the command in the definition'}`);
+    }
     if (c.payload) {
       const err = checkValue(args ?? {}, c.payload, (n) => findType(this.bundle, n));
-      if (err) throw new Error(`command ${name}: ${err}`);
+      if (err) throw new Error(`the arguments of command ${name} of ${inst.label()} have the wrong shape (${err}). Send them as ${showType(c.payload)}`);
     }
     const fields = c.payload && args && typeof args === 'object' ? Object.fromEntries(Object.entries(args as Record<string, unknown>).map(([k, v]) => [k, fromJson(v)])) : {};
     this.runActions(c.actions, inst.env.child(fields), inst);
@@ -1616,10 +1625,14 @@ export class Runtime {
 
   setHost(inst: Inst, name: string, value: unknown): void {
     const h = (inst.def.values ?? []).find((v) => v.k === 'host' && v.name === name);
-    if (!h || h.k !== 'host') throw new Error(`${inst.label()} declares no host input "${name}"`);
+    if (!h || h.k !== 'host') {
+      const have = (inst.def.values ?? []).filter((v) => v.k === 'host').map((v) => v.name);
+      throw new Error(`${inst.label()} has no host input ${name}; found ${have.length ? `the host inputs ${have.join(', ')}` : 'no host inputs'}. Set one of those${have.length ? '' : ', or declare it in the definition (host name type = default)'}`);
+    }
     const err = checkValue(value, h.type, (n) => findType(this.bundle, n));
-    if (err) throw new Error(`host input ${name}: ${err}`);
-    if (JSON.stringify(value).length > 65536) throw new Error(`host input ${name} is over 64 KB`);
+    if (err) throw new Error(`the value for host input ${name} of ${inst.label()} has the wrong type (${err}). Send a value of type ${showType(h.type)}`);
+    const size = JSON.stringify(value).length;
+    if (size > 65536) throw new Error(`a host input's value may be at most 64 KB; found ${(size / 1024).toFixed(1)} KB for host input ${name} of ${inst.label()}. Send a smaller value, e.g. fewer items`);
     inst.cells.get(name)!.set(fromJson(value));
     this.changed();
   }

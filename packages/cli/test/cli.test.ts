@@ -82,7 +82,7 @@ describe('mkp CLI', () => {
     writeFileSync(join(dir, 'bad.mkp.md'), '```distance\nkm: far\nsummary: too far\n```\n');
     const r = run(['build', join(dir, 'bad.mkp.md'), ...units, '--no-maths', '--no-lock']);
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/bad\.mkp\.md:2:1 error mkp\.input-type: km is a number/);
+    expect(r.stderr).toMatch(/bad\.mkp\.md:2:1 error mkp\.input-type: km takes a number; found "far"\. Replace it, e\.g\. with km: 1/);
   });
   it('check --format json gives an agent one diagnostic a line, at the exact item', () => {
     const r = run(['check', join(root, 'examples/limits/01-yaml-item-type.mkp.md'), '--format', 'json', '--no-maths']);

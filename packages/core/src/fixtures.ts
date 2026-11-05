@@ -3,7 +3,7 @@
 
 import YAML from 'yaml';
 import type { Compiled } from './build';
-import { Diagnostics } from './diag';
+import { closest, Diagnostics } from './diag';
 import type { IRBundle } from './ir';
 
 export interface PlayStep {
@@ -34,22 +34,51 @@ export interface FixtureFile {
   cases: Record<string, Omit<FixtureCase, 'pack' | 'file' | 'widget' | 'name'>>;
 }
 
+/** A JSON value as a message shows it: "a list ([…])", "the text "x"". */
+function kindOf(v: unknown): string {
+  const brief = (x: unknown): string => {
+    const j = JSON.stringify(x) ?? String(x);
+    return j.length > 40 ? j.slice(0, 40) + '…' : j;
+  };
+  if (v === undefined) return 'nothing';
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return `a list (${brief(v)})`;
+  if (typeof v === 'string') return `the text ${brief(v)}`;
+  if (typeof v === 'number' || typeof v === 'boolean') return `the value ${String(v)}`;
+  return `an object (${brief(v)})`;
+}
+
+const CASE_KEYS = ['props', 'summary', 'play', 'expect', 'hosts'];
+const STEP_KEYS = ['press', 'set', 'command', 'args', 'wait', 'open'];
+
 /** Problems with a fixture file's shape (fixture.schema.json says the same). */
-export function fixtureShape(json: unknown): string | null {
-  if (!json || typeof json !== 'object' || Array.isArray(json)) return 'a fixture file is an object with "widget" and "cases"';
+export function fixtureShape(json: unknown, file = 'the fixture file'): string | null {
+  const widget = /([A-Za-z_][\w.-]*)\.fixture\.json$/.exec(file)?.[1] ?? 'note';
+  const shape = `{"widget": "${widget}@1", "cases": {"basic": {"props": {…}, "summary": "…"}}}`;
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return `${file} must hold one JSON object with "widget" and "cases"; found ${kindOf(json)}. Write it as ${shape}`;
   const f = json as Record<string, unknown>;
-  if (typeof f.widget !== 'string' || !/^[A-Za-z_][\w.:-]*@\d+$/.test(f.widget)) return '"widget" names the definition as name@N';
-  if (!f.cases || typeof f.cases !== 'object' || Array.isArray(f.cases)) return '"cases" is an object of named cases';
+  if (typeof f.widget !== 'string' || !/^[A-Za-z_][\w.:-]*@\d+$/.test(f.widget)) {
+    const fix = typeof f.widget === 'string' && /^[A-Za-z_][\w.:-]*$/.test(f.widget) ? `Add its version: "widget": "${f.widget}@1"` : `Write e.g. "widget": "${widget}@1"`;
+    return `"widget" in ${file} must name the definition the cases are for, as name@N; found ${f.widget === undefined ? 'no "widget" key' : kindOf(f.widget)}. ${fix}`;
+  }
+  if (!f.cases || typeof f.cases !== 'object' || Array.isArray(f.cases)) return `"cases" in ${file} must be an object of named cases; found ${f.cases === undefined ? 'no "cases" key' : kindOf(f.cases)}. Write e.g. "cases": {"basic": {"props": {…}, "summary": "…"}}`;
   for (const [n, c] of Object.entries(f.cases as Record<string, unknown>)) {
-    if (!c || typeof c !== 'object') return `case ${n} is not an object`;
+    if (!c || typeof c !== 'object') return `case ${n} in ${file} must be an object; found ${kindOf(c)}. Write e.g. "${n}": {"props": {…}, "summary": "…"}`;
     const cc = c as Record<string, unknown>;
-    for (const k of Object.keys(cc)) if (!['props', 'summary', 'play', 'expect', 'hosts'].includes(k)) return `case ${n} has an unknown key "${k}"`;
-    if (cc.props !== undefined && (typeof cc.props !== 'object' || Array.isArray(cc.props))) return `case ${n}: props is an object`;
+    for (const k of Object.keys(cc)) {
+      if (CASE_KEYS.includes(k)) continue;
+      const hint = closest(k, CASE_KEYS);
+      return `case ${n} in ${file} has a key a case does not take; found "${k}". ${hint ? `Rename it to "${hint}", or remove it` : `Remove it, or move it into "props" if it is an input`}; a case takes ${CASE_KEYS.join(', ')}`;
+    }
+    if (cc.props !== undefined && (typeof cc.props !== 'object' || Array.isArray(cc.props))) return `props of case ${n} in ${file} must be an object of input values; found ${kindOf(cc.props)}. Write e.g. "props": {"label": "Hello"}`;
     if (cc.play !== undefined) {
-      if (!Array.isArray(cc.play)) return `case ${n}: play is a list of steps`;
+      if (!Array.isArray(cc.play)) return `play of case ${n} in ${file} must be a list of steps; found ${kindOf(cc.play)}. Write e.g. "play": [{"press": "next"}]`;
       for (const s of cc.play) {
-        const keys = Object.keys(s ?? {});
-        if (!keys.length || !keys.every((k) => ['press', 'set', 'command', 'args', 'wait', 'open'].includes(k))) return `case ${n}: a play step is press, set, command (with args), wait or open`;
+        const keys = s && typeof s === 'object' && !Array.isArray(s) ? Object.keys(s) : [];
+        if (keys.length && keys.every((k) => STEP_KEYS.includes(k))) continue;
+        const bad = keys.find((k) => !STEP_KEYS.includes(k));
+        const hint = bad ? closest(bad, STEP_KEYS) : undefined;
+        return `a play step of case ${n} in ${file} must be press, set, command (with args), wait or open; found ${bad ? `the key "${bad}"` : kindOf(s)}. ${hint ? `Rename it to "${hint}"` : 'Write e.g. {"press": "next"}, {"set": {"count": 2}} or {"wait": 500}'}`;
       }
     }
   }
@@ -60,9 +89,10 @@ export function fixtureCases(c: Compiled, diags = c.diags): FixtureCase[] {
   const out: FixtureCase[] = [];
   for (const p of c.prog.packs.values()) {
     for (const f of p.fixtures) {
-      const err = fixtureShape(f.json);
+      const err = fixtureShape(f.json, f.path);
       if (err) {
-        diags.error('mkp.fixture-shape', err, { file: `${p.name}/${f.path}`, line: 1, col: 1 });
+        // the file as the pack was given (a folder path), so it can be opened
+        diags.error('mkp.fixture-shape', err, { file: `${p.label ?? p.name}/${f.path}`, line: 1, col: 1 });
         continue;
       }
       const ff = f.json as FixtureFile;

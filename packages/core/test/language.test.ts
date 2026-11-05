@@ -50,7 +50,7 @@ describe('errors (6.19)', () => {
     const r = build('w@1 "w"\n  in count int = 2\n  r = cuont + 1\n', '');
     expect(r.all[0]).toMatch(/"cuont" is not defined here \(did you mean "count"\?\)/);
     expect(build('w@1 "w"\n  r = 1 + true\n', '').errors).toContain('mkp.no-operator');
-    expect(build('w@1 "w"\n  r = |1|\n', '').all.join()).toMatch(/write abs\(x\)/);
+    expect(build('w@1 "w"\n  r = |1|\n', '').all.join()).toMatch(/MKP has no `\|x\|` for absolute value; found `\|`\. Write `abs\(x\)` instead/);
   });
   it('refuse two blocks with one anchor, at the second one', () => {
     const src = 'w@1 "w"\n  text "a"\n';
@@ -217,7 +217,7 @@ describe('the host interface (15.1–15.3)', () => {
     for (let k = 0; k < 5; k++) w.command('push', { t: k, v: k * k });
     expect(w.state().n).toBe(3);
     expect(() => w.command('push', { t: 'x', v: 1 })).toThrow(/expected a number/);
-    expect(() => w.command('nope')).toThrow(/declares no command/);
+    expect(() => w.command('nope')).toThrow(/live@1 has no command nope; found the commands push, clear\. Send one of those/);
     w.command('clear');
     expect(w.state().n).toBe(0);
     expect(w.state().seed).toBe(42);
@@ -230,7 +230,7 @@ describe('the host interface (15.1–15.3)', () => {
     for (const name of ['controls', 'each', 'slot', 'arrow']) {
       const { errors, all } = build(`${name}@1 "w"\n  text "x"\n`, '');
       expect(errors, name).toContain('mkp.reserved');
-      expect(all.join('\n')).toMatch(/built-in node name/);
+      expect(all.join('\n')).toMatch(/is a word MKP itself uses in views .* so a widget may not be called \w+; .* Rename the widget/);
     }
     expect(build('panel@1 "w"\n  text "x"\n', '').errors).toEqual([]);
   });

@@ -25,10 +25,30 @@ export type Ex =
 const KEYWORDS = new Set(['and', 'or', 'not']);
 const CMP = new Set(['==', '!=', '<', '<=', '>', '>=']);
 
+/** What a token looks like in a message: `x`, `"text"`, `$maths$`, or "the end of the expression". */
+function shown(t: Tok): string {
+  if (t.k === 'eof') return 'the end of the expression';
+  const v = t.k === 'str' ? `"${t.v}"` : t.k === 'tex' ? (t.display ? `$$${t.v}$$` : `$${t.v}$`) : t.v;
+  return `\`${v.length > 40 ? `${v.slice(0, 37)}…` : v}\``;
+}
+
+/** A piece of source, short enough for a message. */
+function clip(s: string, max = 40): string {
+  const t = s.trim().replace(/\s+/g, ' ');
+  return t.length > max ? `…${t.slice(t.length - max + 1)}` : t;
+}
+
+const OPENER: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+
 export class ExprParser {
   private i = 0;
   private readonly toks: Tok[];
-  constructor(text: string, from: number, to: number, private readonly map: PosMap) {
+  constructor(
+    private readonly text: string,
+    private readonly from: number,
+    to: number,
+    private readonly map: PosMap,
+  ) {
     this.toks = tokenize(text, from, to);
   }
 
@@ -36,8 +56,29 @@ export class ExprParser {
     const p = new ExprParser(text, from, to, map);
     const e = p.expr();
     const t = p.peek();
-    if (t.k !== 'eof') p.fail(t, `unexpected "${t.v}" after the expression`);
+    if (t.k !== 'eof') p.trailing(t);
     return e;
+  }
+
+  /** The source read so far, up to the token t. */
+  private before(t: Tok): string {
+    return clip(this.text.slice(this.from, t.at));
+  }
+
+  /** A complete expression is followed by more: say what to do with it. */
+  private trailing(t: Tok): never {
+    const done = this.before(t);
+    if (t.k === 'op' && OPENER[t.v]) {
+      this.fail(t, `the expression has a \`${t.v}\` with no \`${OPENER[t.v]}\` to match it; found \`${t.v}\` after \`${done}\`. Remove the \`${t.v}\`, or add the \`${OPENER[t.v]}\` it closes`);
+    }
+    if (t.k === 'op' && t.v === '=') {
+      this.fail(t, `an expression can't hold \`=\`; found \`=\` after \`${done}\`. To compare two values, write \`==\`; to set a value, use \`set name=(…)\` in an event`);
+    }
+    if (t.k === 'op' && t.v === ',') {
+      this.fail(t, `the expression \`${done}\` is followed by a comma, which only separates items inside brackets; found \`,\`. Remove it, or bracket the items: \`[a, b]\` for a list, \`(x, y)\` for a point`);
+    }
+    const join = t.k === 'str' || t.k === 'tex' ? 'To join texts, put `+` between them' : 'Put an operator between them (`+`, `*`, `and`, …)';
+    this.fail(t, `the expression \`${done}\` is complete, so ${shown(t)} can't follow it; found ${shown(t)} after it. ${join}, or remove ${shown(t)}`);
   }
 
   private peek(o = 0): Tok {
@@ -56,9 +97,11 @@ export class ExprParser {
     const t = this.peek(o);
     return t.k === 'op' && t.v === v;
   }
-  private expect(v: string): Tok {
+  /** Takes the operator v, or fails with the message what(found) builds. */
+  private expect(v: string, what: (found: string) => string, atEnd?: Tok): Tok {
     const t = this.next();
-    if (t.k !== 'op' || t.v !== v) this.fail(t, `expected "${v}"${t.k === 'eof' ? ' before the end' : ` but found "${t.v}"`}`);
+    // at the end of the expression, an opener is a better place to point than past the last token
+    if (t.k !== 'op' || t.v !== v) this.fail(t.k === 'eof' && atEnd ? atEnd : t, what(shown(t)));
     return t;
   }
 
@@ -122,17 +165,34 @@ export class ExprParser {
     return this.cmp();
   }
   private cmp(): Ex {
+    const start = this.peek();
     const a = this.sum();
     const t = this.peek();
     if (t.k === 'op' && CMP.has(t.v)) {
       this.next();
       const b = this.sum();
       const u = this.peek();
-      if (u.k === 'op' && CMP.has(u.v)) this.fail(u, 'comparisons do not chain; join them with "and"');
+      if (u.k === 'op' && CMP.has(u.v)) this.chained(start, t, u);
       return { k: 'bin', op: t.v as BinOp, a, b, p: this.pos(t) };
     }
     return a;
   }
+  /** a < b < c: show it as two comparisons joined with and. */
+  private chained(start: Tok, t: Tok, u: Tok): never {
+    const a = this.text.slice(start.at, t.at).trim();
+    const b = this.text.slice(t.at + t.v.length, u.at).trim();
+    let c = '…';
+    try {
+      this.next();
+      this.sum();
+      c = this.text.slice(u.at + u.v.length, this.peek().at).trim() || '…';
+    } catch {
+      // the rest doesn't parse: show it as …
+    }
+    const first = clip(`${a} ${t.v} ${b}`);
+    this.fail(u, `comparisons can't be chained; found a second \`${u.v}\` after \`${first}\`. Write two comparisons joined with \`and\`: \`${clip(`${a} ${t.v} ${b} and ${b} ${u.v} ${c}`, 60)}\``);
+  }
+
   private sum(): Ex {
     let a = this.product();
     for (;;) {
@@ -208,23 +268,27 @@ export class ExprParser {
       const t = this.peek();
       if (t.k === 'op' && t.v === '(' && !t.sp && a.k !== 'num' && !(bracketed && steps === 0 && a.k !== 'lam')) {
         this.next();
-        const args = this.list(')');
+        const args = this.list(')', `the arguments of ${a.k === 'id' ? `${a.name}(…)` : 'the call'}`, 'argument');
         a = a.k === 'id' ? { k: 'call', f: a.name, args, p: a.p } : { k: 'apply', f: a, args, p: this.pos(t) };
         steps++;
       } else if (t.k === 'op' && t.v === '[' && !t.sp) {
         this.next();
         const i = this.expr();
-        this.expect(']');
+        this.expect(']', (f) => `the index opened with \`[\` is not closed; found ${f} where \`]\` should end it. Add \`]\` after the index, e.g. \`xs[i]\``);
         a = { k: 'index', o: a, i, p: this.pos(t) };
       } else if (t.k === 'op' && t.v === '.' && !t.sp) {
         this.next();
         const n = this.next();
-        if (n.k !== 'id') this.fail(n, 'expected a field name after "."');
+        if (n.k !== 'id') {
+          const of = this.before(t);
+          this.fail(n, `\`.\` after \`${of}\` must be followed by a field name; found ${shown(n)}. Write the field's name, e.g. \`${of}.x\` (a point's parts are \`.x\` and \`.y\`), or use \`${of}[i]\` for an item of a list`);
+        }
         a = { k: 'field', o: a, name: n.v, p: this.pos(t) };
       } else return a;
     }
   }
-  private list(close: string): Ex[] {
+  /** Items up to close; of names what is being listed, e.g. `the arguments of format(…)`. */
+  private list(close: string, of: string, item: string): Ex[] {
     const out: Ex[] = [];
     if (this.isOp(close)) {
       this.next();
@@ -236,7 +300,7 @@ export class ExprParser {
         this.next();
         continue;
       }
-      this.expect(close);
+      this.expect(close, (f) => `${of} must be separated by \`,\` and end with \`${close}\`; found ${f} after ${item} ${out.length}. Add \`,\` before the next ${item}, or \`${close}\` to end the list there`);
       return out;
     }
   }
@@ -251,7 +315,7 @@ export class ExprParser {
       case 'tex':
         return { k: 'tex', v: t.v, display: !!t.display, p };
       case 'id':
-        if (KEYWORDS.has(t.v)) this.fail(t, `"${t.v}" cannot start a value here`);
+        if (KEYWORDS.has(t.v)) this.keywordAsValue(t);
         return { k: 'id', name: t.v, p };
       case 'op':
         if (t.v === '(') {
@@ -259,13 +323,17 @@ export class ExprParser {
           if (this.isOp(',')) {
             this.next();
             const y = this.expr();
-            this.expect(')');
+            this.expect(')', (f) =>
+              this.peek(-1).v === ','
+                ? 'a point `(x, y)` has exactly two parts; found a third after the second comma. Remove it, or write a list in square brackets: `[a, b, c]`'
+                : `the point opened with \`(\` is not closed; found ${f} after its second part. Add \`)\` after it: \`(x, y)\``,
+            );
             return { k: 'point', x: e, y, p };
           }
-          this.expect(')');
+          this.expect(')', (f) => `the bracket \`(\` opened before \`${clip(this.text.slice(t.at + 1, this.peek(-1).at), 30)}\` is not closed; found ${f} where \`)\` should be. Add \`)\` where the bracketed part ends`, t);
           return e;
         }
-        if (t.v === '[') return { k: 'list', items: this.list(']'), p };
+        if (t.v === '[') return { k: 'list', items: this.list(']', 'the items of a list', 'item'), p };
         if (t.v === '{') {
           const fields: [string, Ex][] = [];
           if (this.isOp('}')) {
@@ -274,22 +342,62 @@ export class ExprParser {
           }
           for (;;) {
             const n = this.next();
-            if (n.k !== 'id' && n.k !== 'str') this.fail(n, 'expected a field name in the record');
-            this.expect(':');
+            if (n.k !== 'id' && n.k !== 'str') {
+              if (n.k === 'op' && n.v === '}' && fields.length) this.fail(n, 'a record can\'t end with a comma; found `,` before `}`. Remove the last comma, e.g. `{a: 1, b: 2}`');
+              this.fail(n, `a record field's name must be a word or a quoted text; found ${shown(n)}. Write e.g. \`{a: …}\`${n.k === 'num' ? `, or quote it: \`{"${n.v}": …}\`` : ''}`);
+            }
+            const name = n.k === 'str' ? `"${n.v}"` : n.v;
+            this.expect(':', (f) => {
+              const nx = this.peek(-1);
+              const v = nx.k === 'num' || nx.k === 'id' ? nx.v : '…';
+              return `the record field \`${name}\` needs \`:\` between its name and its value; found ${f}. Write \`{${name}: ${v}}\``;
+            });
             fields.push([n.v, this.expr()]);
             if (this.isOp(',')) {
               this.next();
               continue;
             }
-            this.expect('}');
+            this.expect('}', (f) => `the fields of a record must be separated by \`,\` and end with \`}\`; found ${f} after the field \`${name}\`. Add \`,\` before the next field, or \`}\` to end the record: \`{a: 1, b: 2}\``);
             return { k: 'rec', fields, p };
           }
         }
-        if (t.v === '|') this.fail(t, 'there is no |x|; write abs(x)');
-        return this.fail(t, `unexpected "${t.v}"`);
+        if (t.v === '|') this.fail(t, 'MKP has no `|x|` for absolute value; found `|`. Write `abs(x)` instead, e.g. `abs(n - 3)`');
+        return this.needValue(t);
       default:
-        return this.fail(t, 'the expression ends too early');
+        return this.needValue(t);
     }
+  }
+
+  /** "and", "or" or "not" where a value goes. */
+  private keywordAsValue(t: Tok): never {
+    const where = this.before(t);
+    const at = where ? `after \`${where}\`` : 'at the start of the expression';
+    if (t.v === 'not') this.fail(t, `a value is needed ${at}; found \`not\`, which can't sit inside arithmetic without brackets. Bracket it, e.g. \`(not done)\``);
+    this.fail(t, `a value is needed ${at}; found \`${t.v}\`, which only joins two conditions (\`a ${t.v} b\`). Put a value here, such as a number or a name, or remove the \`${t.v}\``);
+  }
+
+  /** A value was due at t (an operator, a closing bracket, or the end). */
+  private needValue(t: Tok): never {
+    const where = this.before(t);
+    const prev = this.peek(-1 - 1);
+    if (t.k === 'eof') {
+      if (!where) this.fail(t, 'the expression is empty; found nothing where a value should be. Write a value, such as a number, a name or a quoted text');
+      // point at the last thing written: that is what wants finishing
+      const last = this.toks[this.i - 2] ?? t;
+      this.fail(last, `the expression \`${where}\` stops before its last value; found the end of the expression after ${shown(last)}. Finish it, e.g. \`${clip(where, 30)} ${last.v === 'not' ? 'done' : '1'}\`, or remove the trailing ${shown(last)}`);
+    }
+    const at = where ? `after \`${where}\`` : 'at the start of the expression';
+    let fix: string;
+    if (t.k === 'op' && OPENER[t.v]) fix = prev?.k === 'op' && prev.v === ',' ? `Remove the comma before \`${t.v}\`` : `Put a value before \`${t.v}\`, or remove the brackets`;
+    else if (t.v === ',') fix = 'Remove the extra comma, or put a value before it';
+    else if (t.v === '=') fix = 'To compare two values, write `==`';
+    else if (t.v === '..') fix = 'A range has a start and an end: `0..10`';
+    else if (t.v === '=>') fix = 'A function value names its parameter first: `x => x + 1`';
+    else if (t.v === '.') fix = 'A field is read from a value: `p.x`';
+    else if (['*', '/', '^', '+', '<', '>', '<=', '>=', '==', '!='].includes(t.v)) {
+      fix = prev && prev.k === 'op' && !OPENER[prev.v] && prev.v !== '(' ? 'Remove one of the two operators' : `\`${t.v}\` goes between two values: write one before it, e.g. \`2 ${t.v} 3\``;
+    } else fix = `Remove ${shown(t)}`;
+    this.fail(t, `a value is needed ${at}, such as a number, a name, a quoted text or a bracket; found ${shown(t)}. ${fix}`);
   }
 }
 

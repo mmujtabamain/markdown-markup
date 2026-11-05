@@ -146,6 +146,35 @@ export class MathsEngine implements MathsRenderer {
   }
 }
 
+/** Where a formula's $…$ (or $$…$$) starts in a paragraph's text, or -1. */
+function findMaths(text: string, tex: string): number {
+  for (const d of ['$$', '$']) {
+    const i = text.indexOf(d + tex + d);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+/** A fix for the TeX errors authors meet most, keyed by the engine's wording. */
+function mathsFix(err: string): string {
+  let m: RegExpExecArray | null;
+  if (/Missing close brace|Extra open brace or missing close brace/.test(err)) return 'Add the missing "}" so every "{" is closed';
+  if (/Extra close brace or missing open brace/.test(err)) return 'Remove the extra "}", or add the "{" it closes';
+  if ((m = /Undefined control sequence (\\\S+)/.exec(err))) return `Check the spelling of ${m[1]}, or define it in an mkp block: macro ${m[1].slice(1)} = $…$`;
+  if ((m = /Missing argument for (\\\S+)/.exec(err))) return `Give ${m[1]} all its arguments in braces, e.g. \\frac{1}{2}`;
+  if (/Misplaced &/.test(err)) return 'Use & only inside an environment such as \\begin{aligned}…\\end{aligned}';
+  if (/Missing superscript or subscript argument/.test(err)) return 'Give the ^ or _ what it raises or lowers, e.g. x^{2} or x_{1}';
+  if (/Double exponent|Double subscripts?/.test(err)) return 'Group with braces, e.g. x^{a^b} or {x^a}^b';
+  if (/Missing \\right|Extra \\right|Missing \\left|Extra \\left/.test(err)) return 'Pair every \\left with a \\right';
+  if (/Missing \$ inserted|Math mode/i.test(err)) return 'Remove the nested $ inside the formula';
+  return 'Fix the LaTeX so it typesets';
+}
+
+function mathsMessage(tex: string, err: string): string {
+  const shown = tex.length > 80 ? tex.slice(0, 79) + '…' : tex;
+  return `the maths \`${shown}\` can't be typeset; found this LaTeX error: ${err.replace(/\s+/g, ' ').trim().replace(/\.$/, '')}. ${mathsFix(err)}`;
+}
+
 function expand(tex: string, macros: Record<string, string>): string {
   let out = tex;
   for (const [k, v] of Object.entries(macros)) out = out.replace(new RegExp(`\\\\${k}(?![A-Za-z])`, 'g'), () => v);
@@ -158,14 +187,26 @@ function expand(tex: string, macros: Record<string, string>): string {
  */
 export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): void {
   const macros = b.macros;
-  const report = (tex: string, err: string, pos: [number, number] | undefined, file: string): void => {
-    diags?.error('mkp.maths', `$${tex}$: ${err}`, { file, line: pos?.[0] ?? 1, col: pos?.[1] ?? 1 });
+  const report = (tex: string, err: string, pos: [number, number] | undefined, file: string, para?: string): void => {
+    let line = pos?.[0] ?? 1;
+    let col = pos?.[1] ?? 1;
+    // in a paragraph the text is the source from its first line on: point at the formula itself
+    const at = para ? findMaths(para, tex) : -1;
+    if (at >= 0) {
+      const before = para!.slice(0, at);
+      const nl = before.lastIndexOf('\n');
+      line += before.split('\n').length - 1;
+      col = nl < 0 ? col + at : at - nl;
+    }
+    diags?.error('mkp.maths', mathsMessage(tex, err), { file, line, col });
   };
-  const visit = (v: unknown, pos: [number, number] | undefined, file: string): void => {
+  const visit = (v: unknown, pos: [number, number] | undefined, file: string, inPara = false): void => {
     if (!v || typeof v !== 'object') return;
-    if (Array.isArray(v)) return v.forEach((x) => visit(x, pos, file));
+    if (Array.isArray(v)) return v.forEach((x) => visit(x, pos, file, inPara));
     const o = v as Record<string, unknown>;
     const here = (Array.isArray(o.pos) ? (o.pos as [number, number]) : pos) ?? pos;
+    // a Markdown paragraph's text is its source; a node of another kind holds text from elsewhere
+    const para = typeof o.node === 'string' ? o.node === 'paragraph' : inPara;
     if (typeof o.tex === 'string' && !('ast' in o)) {
       const tex = expand(o.tex, macros);
       const err = m.check(tex, !!o.display);
@@ -177,7 +218,7 @@ export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): voi
       for (const t of inlineMaths(o.text)) {
         const tex = expand(t, macros);
         const err = m.check(tex);
-        if (err) report(t, err, here, file);
+        if (err) report(t, err, here, file, para ? o.text : undefined);
         else if (!t.includes('\\val{')) maths.push({ ...m.full(tex, false), tex: t });
       }
       if (maths.length) o.maths = maths;
@@ -191,7 +232,7 @@ export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): voi
         if (err) report(t, err, here, file);
       }
     }
-    for (const [k, x] of Object.entries(o)) if (k !== 'svg' && x && typeof x === 'object') visit(x, here, file);
+    for (const [k, x] of Object.entries(o)) if (k !== 'svg' && x && typeof x === 'object') visit(x, here, file, para);
   };
   visit(b.doc.body, undefined, b.doc.file);
   for (const d of Object.values(b.defs)) visit(d, d.pos, d.file ?? d.id);

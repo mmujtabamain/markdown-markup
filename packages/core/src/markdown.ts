@@ -92,10 +92,13 @@ export function markdownToNodes(src: string, line0 = 1, warnings: MdWarning[] = 
       case 'footnoteDefinition':
         return [{ node: 'footnote', def: 'core:footnote@1', props: { label: { text: String(n.label ?? n.identifier ?? '') } }, children: (n.children ?? []).flatMap(conv), pos: p }];
       case 'html':
-        warnings.push({ line: p[0], message: 'raw HTML is shown as text; MKP content has no HTML (use a widget)' });
+        {
+          const h = slice(n).trim().split('\n')[0];
+          warnings.push({ line: p[0], message: `raw HTML is shown as plain text, since MKP content has no HTML; found ${h.length > 60 ? h.slice(0, 57) + '…' : h}. Write it as Markdown (**bold**, *italic*, [text](url)), or use a widget for anything more` });
+        }
         return [{ node: 'paragraph', def: 'core:paragraph@1', props: { text: { text: escapeMd(slice(n)) } }, pos: p }];
       case 'definition':
-        warnings.push({ line: p[0], message: 'link reference definitions are not supported; write links inline' });
+        warnings.push({ line: p[0], message: `link reference definitions like [${String(n.label ?? n.identifier ?? '')}]: ${String(n.url ?? '')} are not supported, so links that use them stay plain text. Write each link inline instead: [text](${String(n.url ?? 'url')}), and remove this line` });
         return [];
       default:
         return [];

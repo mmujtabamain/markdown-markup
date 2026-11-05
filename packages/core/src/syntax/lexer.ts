@@ -45,7 +45,8 @@ export function readLines(src: string, file: string, diags: Diagnostics): LLine[
     if (/^\s*$/.test(raw)) continue;
     const tabAt = raw.search(/^[ ]*\t/);
     if (tabAt >= 0) {
-      diags.error('mkp.tab', 'tabs are not allowed in indentation; indent with two spaces', { file, line: lineNo, col: raw.indexOf('\t') + 1 });
+      const col = raw.indexOf('\t') + 1;
+      diags.error('mkp.tab', `this line is indented with a tab, but MKP indents with spaces only; found a tab at column ${col}. Replace the tab with spaces, two for each level of nesting`, { file, line: lineNo, col });
       continue;
     }
     const indent = raw.length - raw.trimStart().length;
@@ -76,7 +77,7 @@ export function readLines(src: string, file: string, diags: Diagnostics): LLine[
           lines.push(l);
         }
         if (!closed) {
-          diags.error('mkp.unclosed-text', 'a """ long text is never closed; end it with a line holding """', { file, line: lineNo, col: indent + st.longOpen + 1 });
+          diags.error('mkp.unclosed-text', 'the long text opened with """ on this line is never closed; found the end of the block before a closing """. Add a line holding only """ where the text ends', { file, line: lineNo, col: indent + st.longOpen + 1 });
         }
         const lit = encodeLongText(dedent(lines));
         text = text.slice(0, st.longOpen) + lit + after;
@@ -91,7 +92,15 @@ export function readLines(src: string, file: string, diags: Diagnostics): LLine[
         continue;
       }
       if (st.depth > 0) {
-        diags.error('mkp.unclosed-bracket', 'a bracket is never closed', { file, line: lineNo, col: indent + 1 });
+        // point at the innermost bracket left open: its partner is the one missing first
+        const o = st.open[st.open.length - 1];
+        const close = CLOSER[o.ch];
+        const where = new PosMap(file, segs).at(o.at);
+        diags.error(
+          'mkp.unclosed-bracket',
+          `the \`${o.ch}\` here is never closed, so every line after it was read as part of this one; found no matching \`${close}\` before the end of the block. Add \`${close}\` where the bracketed part ends`,
+          where,
+        );
       }
       break;
     }
@@ -109,16 +118,34 @@ function buildTree(lines: LLine[], file: string, diags: Diagnostics): LLine[] {
     const parent = stack[stack.length - 1];
     const want = parent.indent + 2;
     if (l.indent !== want && !(parent === root && l.indent === 0)) {
-      if (l.indent > want) {
-        diags.error('mkp.indent', `this line is indented ${l.indent} spaces; children are indented two spaces below their parent (${want})`, { file, line: l.line, col: 1 });
+      if (parent === root) {
+        diags.error('mkp.indent', `this line is indented ${l.indent} spaces, but it is not under any line, so it must start at the margin; found ${l.indent} spaces. Remove the indentation, or indent the line above it less`, { file, line: l.line, col: 1 });
+      } else if (l.indent > want) {
+        diags.error(
+          'mkp.indent',
+          `this line is indented ${l.indent} spaces, but a line goes at most two spaces deeper than the line it sits under (\`${headOf(parent)}\`, at ${parent.indent}); found ${l.indent}. Indent it ${want} spaces to put it under \`${headOf(parent)}\`, or ${parent.indent} to line it up with it`,
+          { file, line: l.line, col: 1 },
+        );
       } else if (l.indent % 2 !== 0) {
-        diags.error('mkp.indent', 'indentation must be a multiple of two spaces', { file, line: l.line, col: 1 });
+        diags.error(
+          'mkp.indent',
+          `indentation must be a multiple of two spaces; found ${l.indent} spaces on this line. Indent it ${l.indent - 1} spaces, or ${want} to put it under \`${headOf(parent)}\``,
+          { file, line: l.line, col: 1 },
+        );
       }
     }
     parent.children.push(l);
     stack.push(l);
   }
   return root.children;
+}
+
+const CLOSER: Record<string, string> = { '(': ')', '[': ']', '{': '}' };
+
+/** The start of a line, short enough to name it in a message. */
+function headOf(l: LLine): string {
+  const t = l.text.trim();
+  return t.length > 30 ? `${t.slice(0, 27)}…` : t;
 }
 
 function dedent(lines: string[]): string {
@@ -149,18 +176,21 @@ function encodeLongText(t: string): string {
 interface ScanState {
   depth: number;
   longOpen: number;
+  /** the brackets still open at the end, outermost first */
+  open: { ch: string; at: number }[];
 }
 
 /** Bracket depth at the end of a line, and where an unclosed """ starts (or -1). */
 function scanState(text: string): ScanState {
   let depth = 0;
+  const open: { ch: string; at: number }[] = [];
   let i = 0;
   while (i < text.length) {
     const c = text[i];
     if (c === '"') {
       if (text.startsWith('"""', i)) {
         const close = text.indexOf('"""', i + 3);
-        if (close < 0) return { depth, longOpen: i };
+        if (close < 0) return { depth, longOpen: i, open };
         i = close + 3;
         continue;
       }
@@ -171,11 +201,16 @@ function scanState(text: string): ScanState {
       i = skipMaths(text, i);
       continue;
     }
-    if (c === '(' || c === '[' || c === '{') depth++;
-    else if (c === ')' || c === ']' || c === '}') depth = Math.max(0, depth - 1);
+    if (c === '(' || c === '[' || c === '{') {
+      depth++;
+      open.push({ ch: c, at: i });
+    } else if (c === ')' || c === ']' || c === '}') {
+      depth = Math.max(0, depth - 1);
+      open.pop();
+    }
     i++;
   }
-  return { depth, longOpen: -1 };
+  return { depth, longOpen: -1, open };
 }
 
 /** Index just after a "…" literal starting at i (text mode escapes; maths inside is raw). */

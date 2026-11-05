@@ -119,7 +119,7 @@ describe('arrow via= in the checker and the runtime', () => {
     expect(back.curve).toBe(true);
     expect(plain.via).toBeUndefined();
     expect(rt.warnings.map((w) => w.code)).toContain('mkp.arrow-missing');
-    expect(rt.warnings.map((w) => w.message).join('\n')).toMatch(/nope to pass through/);
+    expect(rt.warnings.map((w) => w.message).join('\n')).toMatch(/goes via nope, so the path skips that point; found no element with id nope .* Give that element id=nope, or remove it from via=/);
   });
 
   it('checks via as a list of ids', () => {

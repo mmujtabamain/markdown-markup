@@ -3,7 +3,7 @@
 // blocks and {ref: name} bindings work like any definition's state.
 
 import YAML from 'yaml';
-import { Diagnostics, MkpError, Pos, didYouMean } from '../diag';
+import { Diagnostics, MkpError, Pos, closest } from '../diag';
 import { compileAst, Env, type Programme } from '../eval';
 import type { IRDef, IRExpr, IRNode, IRVal } from '../ir';
 import { markdownToNodes } from '../markdown';
@@ -11,7 +11,7 @@ import { chunks } from '../syntax/lexer';
 import { parseDoc, type DocItem, type DocSyn } from '../syntax/doc';
 import { yamlPositions, type YamlAt } from '../syntax/yamlpos';
 import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn, type MkpFile } from '../syntax/mkp';
-import { fits, resolve, showType, T, Type } from '../types';
+import { fits, join, resolve, showType, T, Type, type TypeEnv } from '../types';
 import { DefChecker, instantiate, pos, signatureOf, unify, yamlType, type Sig, type DefCheckOptions } from './def';
 import type { PackInfo, Program } from './program';
 
@@ -20,9 +20,221 @@ function constant(e: IRExpr, what: string, p: Pos): unknown {
   try {
     return compileAst(e.ast)(new Env(null, null, null, {} as Programme));
   } catch {
-    throw new MkpError('mkp.missing-field', `${what}'s default (${e.expr}) reads something YAML data can't: give it in the data`, p);
+    const dot = what.lastIndexOf('.');
+    const field = what.slice(dot + 1);
+    const parent = dot > 0 ? what.slice(0, dot) : 'the block';
+    throw new MkpError('mkp.missing-field', `${what} is left out, and its default ${e.expr} is a calculation that YAML data can't work out. Write ${field} yourself in ${parent}, e.g. {…, ${field}: 4}, or make the default a plain value in the type`, p);
   }
 }
+
+// ---- wording helpers: what a value is, what was written, a short example ----
+
+/** A value as the author wrote it, short: "big", [a, b], nothing. */
+function shown(v: unknown): string {
+  if (v === null || v === undefined) return 'nothing';
+  const s = typeof v === 'string' ? JSON.stringify(v) : Array.isArray(v) || typeof v === 'object' ? JSON.stringify(v).replace(/"([A-Za-z_][\w]*)":/g, '$1: ') : String(v);
+  return s.length > 60 ? s.slice(0, 57) + '…' : s;
+}
+
+/** What sort of YAML value this is: a list, text, a number… */
+function sortOf(v: unknown): string {
+  if (v === null || v === undefined) return 'nothing';
+  if (Array.isArray(v)) return 'a list';
+  if (typeof v === 'object') return 'a mapping';
+  if (typeof v === 'string') return `the text ${shown(v)}`;
+  if (typeof v === 'boolean') return `${v}`;
+  return `the number ${v}`;
+}
+
+/** Names joined for a message, cut short when there are many. */
+function names(xs: Iterable<string>, max = 12): string {
+  const a = [...xs];
+  return a.length > max ? a.slice(0, max).join(', ') + ', …' : a.join(', ');
+}
+
+/** A type in plain words: "a whole number from 1 to 5", "true or false", "a list of text". */
+function words(type: Type, env: TypeEnv): string {
+  const t = resolve(type, env);
+  switch (t.t) {
+    case 'num':
+    case 'int': {
+      const n = t.t === 'int' ? 'a whole number' : 'a number';
+      return t.lo !== undefined && t.hi !== undefined ? `${n} from ${t.lo} to ${t.hi}` : n;
+    }
+    case 'bool':
+      return 'true or false';
+    case 'text':
+      return 'text';
+    case 'latex':
+      return 'maths';
+    case 'choice':
+      return `one of ${t.opts.join(', ')}`;
+    case 'token':
+      return `a ${t.kind} token`;
+    case 'point':
+      return 'a point [x, y]';
+    case 'duration':
+      return 'a duration such as 6s';
+    case 'range':
+      return 'a range [a, b]';
+    case 'slot':
+      return 'Markdown';
+    case 'list':
+      return `a list of ${words(t.of, env).replace(/^an? /, '')}`;
+    case 'ref':
+      return `a reference to ${words(t.of, env).replace(/^an? /, '')} state`;
+    case 'records':
+      return `a list of ${t.kind} records`;
+    case 'rec':
+      return t.name ? `a ${t.name}` : `a record {${t.fields.map((f) => f[0]).join(', ')}}`;
+    default:
+      return showType(type);
+  }
+}
+
+/** A short example value of a type, as YAML (or, with arg, as a ::: line argument). */
+function example(type: Type, env: TypeEnv, tokens: (kind: string) => Set<string>, arg = false, depth = 0): string {
+  const t = resolve(type, env);
+  switch (t.t) {
+    case 'num':
+    case 'int':
+      return String(t.lo ?? 1);
+    case 'bool':
+      return 'true';
+    case 'text':
+      return arg ? '"Some text"' : 'Some text';
+    case 'latex':
+      return `'$x^2$'`;
+    case 'choice':
+      return t.opts[0];
+    case 'token':
+      return [...tokens(t.kind)][0] ?? 'none';
+    case 'point':
+      return '[0, 1]';
+    case 'duration':
+      return '6s';
+    case 'range':
+      return '[0, 10]';
+    case 'slot':
+      return arg ? '"Some words."' : 'Some words.';
+    case 'records':
+    case 'rec': {
+      if (depth > 1) return '{…}';
+      const req = t.fields.filter(([n]) => t.defaults?.[n] === undefined);
+      const body = `{${(req.length ? req : t.fields).map(([n, f]) => `${n}: ${example(f, env, tokens, false, depth + 1)}`).join(', ')}}`;
+      return t.t === 'records' ? `[${body}]` : body;
+    }
+    case 'list':
+      return depth > 1 ? '[…]' : `[${example(t.of, env, tokens, false, depth + 1)}]`;
+    case 'ref':
+      return '{ref: name}';
+    default:
+      return '…';
+  }
+}
+
+/** "Write … e.g. size: 3" for a top-level key, "e.g. 3" inside a list or record. */
+function eg(what: string, value: string): string {
+  return /[.[]/.test(what) ? value : `${what}: ${value}`;
+}
+
+/** A control for a state line of this type, for an example declaration. */
+function controlFor(type: Type, env: TypeEnv): string {
+  const t = resolve(type, env);
+  if (t.t === 'bool') return 'toggle';
+  if (t.t === 'choice') return `choice(${t.opts.join('|')})`;
+  if (t.t === 'num' || t.t === 'int') return `slider ${t.lo ?? 0}..${t.hi ?? 10}`;
+  return `slider 0..10`;
+}
+
+/**
+ * A YAML library error in plain words, at its place in the file: what is wrong on which line, what
+ * was written, and how to fix it (often: quote the value).
+ */
+function yamlProblem(e: unknown, text: string, firstLine: number, file: string, where: string): { message: string; pos: Pos } {
+  const err = e as { code?: string; message?: string; linePos?: { line: number; col: number }[] };
+  const raw = String(err.message ?? e).split('\n')[0];
+  const lib = raw.replace(/ at line \d+, column \d+:?$/, '');
+  const lines = text.split('\n');
+  let line = err.linePos?.[0]?.line ?? 1;
+  let col = err.linePos?.[0]?.col ?? 1;
+  const src = (n: number): string => lines[n - 1] ?? '';
+  const here = (): string => src(line).trim();
+  const keyOf = (s: string): string | undefined => /^\s*(?:-\s+)?([^\s:#'"][^:]*?|"[^"]*"|'[^']*'):(?:\s|$)/.exec(s)?.[1];
+  let message: string;
+  if (err.code === 'BLOCK_AS_IMPLICIT_KEY' && /Nested mappings/.test(lib)) {
+    const l = src(line);
+    const key = keyOf(l);
+    const value = l.slice(col - 1).trim();
+    if (key && /:(\s|$)/.test(value)) {
+      message = `${where} has a value with ": " (a colon and a space) in it, which YAML reads as a second key; found ${key}: ${value}. Quote the value: ${key}: "${value.replace(/"/g, '\\"')}"`;
+    } else {
+      message = `${where} has a line indented under ${key ?? 'a key'}: ${value}, which YAML reads as a nested key inside that value. Indent it like the lines around it, or quote the value if the colon is part of the text`;
+    }
+  } else if (err.code === 'BLOCK_AS_IMPLICIT_KEY') {
+    message = `${where} has a list item where YAML expects key: value; found ${here()}. Indent the item under the key it belongs to, e.g. items: and then   ${here()} on the next line`;
+  } else if (err.code === 'DUPLICATE_KEY') {
+    const key = /^["']?([^:"',}\s]+)/.exec(src(line).slice(col - 1))?.[1] ?? 'a key';
+    message = `${where} gives ${key} twice, and each key may appear once; found a second ${key}: here. Remove one of them, or rename it`;
+  } else if (err.code === 'MISSING_CHAR' && /^Missing closing ["']quote/.test(lib)) {
+    const q = lib.includes('"') ? '"' : "'";
+    // the line that opens the quote: the first one, up to the error, with an odd number of them
+    for (let n = 1; n <= Math.min(line, lines.length); n++) {
+      const count = q === '"' ? (src(n).match(/(?<!\\)"/g) ?? []).length : (src(n).replace(/''/g, '').match(/'/g) ?? []).length;
+      if (count % 2) {
+        line = n;
+        col = src(n).indexOf(q) + 1;
+        break;
+      }
+    }
+    message = `${where} has a value that opens with ${q} but never closes it; found ${here()}. Add the closing ${q} at the end of the value, e.g. ${here()}${q}`;
+  } else if (err.code === 'BAD_INDENT' && /^Flow (sequence|map)/.test(lib)) {
+    const open = lib.startsWith('Flow sequence') ? '[' : '{';
+    const close = open === '[' ? ']' : '}';
+    for (let n = line - 1; n >= 1; n--) {
+      if (src(n).includes(open)) {
+        line = n;
+        col = src(n).indexOf(open) + 1;
+        break;
+      }
+    }
+    message = `${where} opens a ${open === '[' ? 'list' : 'mapping'} with ${open} that is never closed; found ${here()}. Close it with ${close} on the same line, e.g. ${here()}${close}`;
+  } else if (err.code === 'BAD_INDENT') {
+    message = `${where} has a line indented differently from the ${/sequence/.test(lib) ? 'list items' : 'keys'} around it; found ${here()}. Line it up with the others, using the same number of spaces`;
+  } else if (err.code === 'BAD_DQ_ESCAPE') {
+    const seq = /sequence (\S+)/.exec(lib)?.[1] ?? 'a backslash';
+    const fixed = src(line).trim().replace(/"((?:[^"\\]|\\.)*)"/, (_, s: string) => `'${s.replace(/'/g, "''")}'`);
+    message = `${where} has ${seq} inside "double quotes", where a backslash starts an escape and ${seq} is not one. Write LaTeX in 'single quotes': ${fixed}`;
+  } else if (err.code === 'TAB_AS_INDENT') {
+    message = `${where} indents a line with a tab; found a tab before ${src(line).trim() || 'an empty line'}. Replace the tab with spaces: YAML indents with spaces only`;
+  } else if (err.code === 'BAD_SCALAR_START') {
+    const l = src(line);
+    const value = l.slice(col - 1).trim();
+    const key = keyOf(l);
+    message = `${where} has a value starting with ${value[0]}, which YAML reserves; found ${value}. Quote it: ${key ? `${key}: ` : ''}'${value.replace(/'/g, "''")}'`;
+  } else if (err.code === 'MULTILINE_IMPLICIT_KEY' || /^Implicit map keys need/.test(lib)) {
+    message = `${where} has a line that is not key: value; found ${here()}. Write it as key: value, or indent it under the key above if it continues that value`;
+  } else if (err.code === 'UNEXPECTED_TOKEN' && /at node end/.test(lib)) {
+    const rest = src(line).slice(col - 1).trim();
+    message = `${where} has text after a value has ended; found ${rest} after ${src(line).slice(0, col - 1).trim()}. Remove it, or quote the whole value`;
+  } else if (err.code === 'MISSING_CHAR' && /^Missing ,/.test(lib)) {
+    message = `${where} has two items in [ … ] or { … } with no comma between them; found ${here()}. Add a comma between the items, or quote an item that holds a colon`;
+  } else if (err.code === 'MISSING_CHAR' && /^Comments must be separated/.test(lib)) {
+    message = `${where} has a # straight after other text; found ${here()}. Quote the value if # is part of it, or put a space before the # of a comment`;
+  } else if (/^Unresolved alias/.test(lib)) {
+    const name = /: (\S+)$/.exec(lib)?.[1] ?? '';
+    const n = lines.findIndex((l) => l.includes('*' + name));
+    if (n >= 0) {
+      line = n + 1;
+      col = lines[n].indexOf('*' + name) + 1;
+    }
+    message = `${where} has *${name}, which YAML reads as a reference to an anchor &${name} that isn't set. Quote the value if it is text, e.g. '*${name}'`;
+  } else {
+    message = `${where} is not valid YAML here: ${lib.replace(/\.$/, '')}; found ${here() || 'an empty line'}. Check the quoting on this line: quote a value that holds : # [ ] { } or starts with a special character`;
+  }
+  return { message, pos: { file, line: firstLine + line - 1, col } };
+}
+
 
 export const DOC_PACK = '$doc';
 
@@ -93,12 +305,17 @@ function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, dia
     lines += opts.docFile.text.split('\n').filter((l) => l.trim()).length;
   }
   const at = (p?: Pos): Pos => p ?? { file, line: fs[0]?.line ?? 1, col: 1 };
-  if (lines > DOC_DEF_LINES) diags.error('mkp.doc-size', `the document's own definitions are ${lines} lines; at most ${DOC_DEF_LINES} — a definition used this much belongs in a pack`, at());
+  if (lines > DOC_DEF_LINES) {
+    const where = [fs.length ? 'its mkp fences' : '', opts.docFile ? opts.docFile.file.split('/').pop() : ''].filter(Boolean).join(' and ');
+    diags.error('mkp.doc-size', `the document's own definitions (${where}, blank lines not counted) are ${lines} lines, over the limit of ${DOC_DEF_LINES}. Move the larger definitions into a pack and use them from there, or shorten them`, at());
+  }
   const names = new Set<string>();
   for (const f of files) {
     f.items = f.items.filter((it) => {
       if (it.item === 'def' || it.item === 'type' || it.item === 'fn' || it.item === 'op' || it.item === 'const') return true;
-      diags.error('mkp.doc-item', `a document defines widgets, parts, types and fns; ${it.item === 'manifest' ? 'a manifest' : it.item === 'tokens' ? 'tokens' : it.item === 'macro' ? 'a macro' : 'an interface'} belongs in a pack`, at(it.p));
+      const what = it.item === 'manifest' ? 'a manifest' : it.item === 'tokens' ? 'a tokens set' : it.item === 'macro' ? 'a maths macro' : 'an interface';
+      const name = (it as { name?: string }).name;
+      diags.error('mkp.doc-item', `a document's mkp fence may define widgets, parts, types, fns and consts, but not ${what}; found ${it.item}${name ? ' ' + name : ''}. Move it into a pack, or Remove it from the fence`, at(it.p));
       return false;
     });
     for (const it of f.items) {
@@ -106,12 +323,18 @@ function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, dia
       if (it.item !== 'op') names.add(name);
       if (it.item !== 'def' && it.item !== 'type') continue;
       if (DOC_RESERVED.has(name)) {
-        diags.error('mkp.shadow', `"${name}" is reserved for the document itself; name the definition something else`, it.p);
+        diags.error('mkp.shadow', `the name "${name}" is reserved for the document itself, so this ${it.item === 'type' ? 'type' : 'definition'} can't use it. Rename it, e.g. my_${name}, and use the new name in its blocks too`, it.p);
         continue;
       }
       // a pack's or core's name: a copy must be renamed (mkp show --source --as)
       const hit = it.item === 'def' ? prog.lookupDefs(name, DOC_PACK)[0] : prog.lookupType(name, DOC_PACK);
-      if (hit) diags.error('mkp.shadow', `${name} is already ${hit.pack === 'core' ? 'a base widget or type' : `provided by ${hit.pack}`}; give this one its own name${it.item === 'def' ? ' (mkp show --source --as copies one renamed)' : ''}`, it.p);
+      if (hit) {
+        const isDef = it.item === 'def';
+        const which = isDef ? 'widget' : 'type';
+        const owner = hit.pack === 'core' ? `a base ${which}` : `a ${which} of the pack ${hit.pack}`;
+        const copy = isDef ? `; to change the existing one, copy it under a new name with mkp show ${name} --source --as my_${name}` : '';
+        diags.error('mkp.shadow', `${name} is already ${owner}, so this ${which} needs a name of its own. Rename it, e.g. my_${name}${copy}`, it.p);
+      }
     }
   }
   const info: PackInfo = {
@@ -143,7 +366,10 @@ function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, dia
       // a document's widget is read without it by any reader of the Markdown (6.25); one that holds
       // content (a slot) writes that content, so it needs none of its own
       const holds = ir.inputs.some((i) => i.type.t === 'slot' || (i.type.t === 'records' && i.type.slot));
-      if (d.syn.kind === 'widget' && !ir.project?.md && !holds) diags.error('mkp.no-project', `${d.syn.name} has no project md: a document's widget says in Markdown what it shows, for readers without it`, d.syn.p);
+      if (d.syn.kind === 'widget' && !ir.project?.md && !holds) {
+        const ex = ir.inputs.find((i) => i.type.t === 'text')?.name ?? '"what it shows"';
+        diags.error('mkp.no-project', `${d.syn.name} has no project md line, which every widget defined in a document needs: it is the Markdown readers without MKP see in its place. Add one at the end of the definition, e.g. project md = ${ex}`, d.syn.p);
+      }
       defs.push(ir);
       checkers.push(dc);
     } catch (e) {
@@ -180,13 +406,19 @@ export function checkDocument(prog0: Program, src: string, file: string, diags: 
   const mk = parseMkp(srcLines.join('\n'), file, diags);
   const defSyn = (mk.items[0] as DefSyn) ?? { item: 'def', kind: 'widget', name: 'document', version: 1, members: [], p: { file, line: 1, col: 1 }, comments: [] };
   for (const m of defSyn.members) {
-    if (m.m !== 'state' && m.m !== 'var') diags.error('mkp.doc-state', 'a state block holds state lines only (name = control …)', m.m === 'node' ? m.node.p : m.p);
+    if (m.m !== 'state' && m.m !== 'var') {
+      const at = m.m === 'node' ? m.node.p : m.p;
+      const kind = m.m === 'node' ? 'a widget line' : m.m === 'derived' ? 'a derived value' : m.m === 'fn' ? 'a fn' : m.m === 'in' ? 'an input' : m.m === 'project' ? 'a project line' : `a ${m.m} line`;
+      const found = (srcLines[at.line - 1] ?? '').trim();
+      diags.error('mkp.doc-state', `a state block holds only var lines and state lines, name = control (slider, toggle, choice, steps, drag or clock), e.g. n = slider 0..10 "how many"; found ${kind}${found ? `, ${found}` : ''}. Move it out of the state block, or Remove it`, at);
+    }
   }
   defSyn.members = defSyn.members.filter((m) => m.m === 'state' || m.m === 'var');
   const entry = { id: `${DOC_PACK}:document@1`, pack: DOC_PACK, file, syn: defSyn };
   const dc = new DefChecker(prog, entry, diags, opts);
   const def = dc.check();
   const d = new DocChecker(prog, dc, diags, file);
+  d.declaredState = states.flatMap((s) => stateLineNames(s.body));
   const body = d.items(syn.items, true);
   dc.runDeferred();
   duplicateAnchors(body, file, diags);
@@ -208,7 +440,7 @@ function duplicateAnchors(body: IRNode[], file: string, diags: Diagnostics): voi
       if (id) {
         const first = seen.get(id);
         if (first === undefined) seen.set(id, line);
-        else diags.error('mkp.duplicate-anchor', `#${id} is already the anchor of the block on line ${first}; give this one another`, { file, line, col: n.pos?.[1] ?? 1 });
+        else diags.error('mkp.duplicate-anchor', `#${id} is already the anchor of the block on line ${first}, and an anchor names one block only; found {#${id}} again here. Rename this one, e.g. {#${id}-2}`, { file, line, col: n.pos?.[1] ?? 1 });
       }
       walk(n.children ?? []);
       for (const kids of Object.values(n.fills ?? {})) walk(kids);
@@ -217,9 +449,19 @@ function duplicateAnchors(body: IRNode[], file: string, diags: Diagnostics): voi
   walk(body);
 }
 
+/** The names a state block's lines declare. */
+function stateLineNames(body: string): string[] {
+  return body
+    .split('\n')
+    .map((l) => /^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:=|[a-z(])/.exec(l)?.[1])
+    .filter((x): x is string => !!x);
+}
+
 class DocChecker {
   /** the block being checked: where its YAML starts, and where each key and item is in it */
   private yamlAt: { line: number; map: Map<string, YamlAt> } | null = null;
+  /** the names the document's state blocks declare, for messages about {ref: name} */
+  declaredState: string[] = [];
 
   constructor(
     readonly prog: Program,
@@ -243,33 +485,52 @@ class DocChecker {
 
   front(syn: DocSyn): Record<string, unknown> {
     if (syn.front === null) return {};
+    let v: unknown;
     try {
-      const v = YAML.parse(syn.front, { strict: true, uniqueKeys: true });
-      if (v === null || v === undefined) return {};
-      if (typeof v !== 'object' || Array.isArray(v)) {
-        this.diags.error('mkp.front-matter', 'front matter must be a YAML mapping', this.p(syn.frontLine));
-        return {};
-      }
-      this.guard(v, this.p(syn.frontLine), 'front matter');
-      return v as Record<string, unknown>;
+      v = YAML.parse(syn.front, { strict: true, uniqueKeys: true });
     } catch (e) {
-      this.diags.error('mkp.front-matter', `front matter is not valid YAML: ${(e as Error).message.split('\n')[0]}`, this.p(syn.frontLine));
+      const { message, pos } = yamlProblem(e, syn.front, syn.frontLine, this.file, 'the front matter');
+      this.diags.error('mkp.front-matter', message, pos);
       return {};
     }
+    if (v === null || v === undefined) return {};
+    if (typeof v !== 'object' || Array.isArray(v)) {
+      this.diags.error('mkp.front-matter', `the front matter must be a YAML mapping of key: value lines; found ${sortOf(v)}. Write each entry as key: value, e.g. title: Notes`, this.p(syn.frontLine));
+      return {};
+    }
+    const fp = yamlPositions(syn.front);
+    try {
+      this.guard(v, this.p(syn.frontLine), 'the front matter', (path) => {
+        const hit = fp.get(path);
+        return hit ? this.p(syn.frontLine + hit.line - 1, hit.col) : this.p(syn.frontLine);
+      });
+    } catch (e) {
+      // the same maths guard as a block's, reported under the front matter's own code
+      const d = (e as MkpError).diagnostic;
+      if (!d) throw e;
+      this.diags.error('mkp.front-matter', d.message, d.pos);
+      return {};
+    }
+    return v as Record<string, unknown>;
   }
 
   /** The YAML maths guard (5): control characters in text mean a backslash was eaten by "…". */
-  guard(v: unknown, p: Pos, where: string): void {
+  guard(v: unknown, p: Pos, where: string, locate: (path: string) => Pos = () => p, path = ''): void {
     if (typeof v === 'string') {
       // eslint-disable-next-line no-control-regex
       const m = /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/.exec(v);
       if (m) {
-        const names: Record<string, string> = { '\t': '\\t', '\b': '\\b', '\f': '\\f', '\v': '\\v', '\r': '\\r' };
-        const c = names[m[0]] ?? `U+${m[0].charCodeAt(0).toString(16).padStart(4, '0')}`;
-        throw new MkpError('mkp.yaml-control-char', `${where} holds a control character (${c}); a backslash in "double quotes" is an escape, so write LaTeX in 'single quotes' (e.g. '\\theta')`, p);
+        // the escape YAML read: its name, and the text as written, backslash put back
+        const names: Record<string, [string, string]> = { '\t': ['tab', '\\t'], '\b': ['backspace', '\\b'], '\f': ['form feed', '\\f'], '\v': ['vertical tab', '\\v'], '\r': ['carriage return', '\\r'], '\u0007': ['bell', '\\a'], '\u001b': ['escape', '\\e'] };
+        const [name, c] = names[m[0]] ?? ['control character', `U+${m[0].charCodeAt(0).toString(16).padStart(4, '0')}`];
+        let written = v;
+        for (const [ch, [, esc]] of Object.entries(names)) written = written.split(ch).join(esc);
+        if (written.length > 50) written = written.slice(0, 47) + '…';
+        const fix = `'${written.replace(/'/g, "''")}'`;
+        throw new MkpError('mkp.yaml-control-char', `${where} has a ${name} (${c})${path ? ` in ${path}` : ''}, where a backslash was meant: in "double quotes" ${c} is an escape, so the backslash is lost. Write LaTeX in 'single quotes' instead: ${path ? eg(path, fix) : fix}`, locate(path));
       }
-    } else if (Array.isArray(v)) v.forEach((x) => this.guard(x, p, where));
-    else if (v && typeof v === 'object') Object.values(v).forEach((x) => this.guard(x, p, where));
+    } else if (Array.isArray(v)) v.forEach((x, i) => this.guard(x, p, where, locate, `${path}[${i}]`));
+    else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => this.guard(x, p, where, locate, path ? `${path}.${k}` : k));
   }
 
   items(items: DocItem[], top: boolean): IRNode[] {
@@ -316,15 +577,12 @@ class DocChecker {
   }
 
   private stateNames(body: string): string[] {
-    return body
-      .split('\n')
-      .map((l) => /^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:=|[a-z(])/.exec(l)?.[1])
-      .filter((x): x is string => !!x);
+    return stateLineNames(body);
   }
 
   private widgetSig(name: string, p: Pos): Sig {
     const sig = this.dc.resolveDef(name, p);
-    if (sig.kind === 'part' && !this.dc.opts.allowParts) throw new MkpError('mkp.part-in-document', `${sig.name} is a part; parts are used inside definitions, not in documents`, p);
+    if (sig.kind === 'part' && !this.dc.opts.allowParts) throw new MkpError('mkp.part-in-document', `${sig.name} is a part, which only other definitions can use, so it can't be a block in a document. Use it inside a widget in an mkp fence, or drop "part" from its definition (and give it a project md) to use it here`, p);
     this.dc.uses.add(sig.id);
     return sig;
   }
@@ -335,7 +593,9 @@ class DocChecker {
     const bare = it.name.replace(/@\d+$/, '');
     if (!this.prog.lookupDefs(bare, DOC_PACK).length) {
       if (it.id || it.name.includes('@') || /[.:]/.test(it.name) === false && this.looksLikeWidget(it.yaml)) {
-        this.diags.error('mkp.unknown-widget', `there is no widget "${bare}"${didYouMean(bare, [...this.prog.defs.values()].filter((d) => d.syn.kind !== 'part').map((d) => d.syn.name))}`, p);
+        const near = closest(bare, [...this.prog.defs.values()].filter((d) => d.syn.kind !== 'part').map((d) => d.syn.name));
+        const fix = near ? `Did you mean "${near}"? Write \`\`\`${near}` : 'Correct the name after the opening ```, or define the widget in an mkp fence';
+        this.diags.error('mkp.unknown-widget', `the fence names a widget "${bare}", but no widget of that name is defined in this document or its packs. ${fix}`, p);
         return null;
       }
       return { node: 'code', def: 'core:code@1', props: { src: { text: it.yaml }, lang: { text: it.info } }, pos: [it.line, 1] };
@@ -345,18 +605,25 @@ class DocChecker {
     try {
       data = it.yaml.trim() ? YAML.parse(it.yaml, { strict: true, uniqueKeys: true }) : {};
     } catch (e) {
-      throw new MkpError('mkp.yaml', `the ${sig.name} block is not valid YAML: ${(e as Error).message.split('\n')[0]}`, this.p(it.line + 1));
+      const { message, pos } = yamlProblem(e, it.yaml, it.line + 1, this.file, `the ${sig.name} block`);
+      throw new MkpError('mkp.yaml', message, pos);
     }
     if (data === null || data === undefined) data = {};
     this.yamlAt = { line: it.line + 1, map: yamlPositions(it.yaml) };
-    if (typeof data !== 'object' || Array.isArray(data)) throw new MkpError('mkp.yaml', `the ${sig.name} block must be a YAML mapping of its inputs`, p);
+    if (typeof data !== 'object' || Array.isArray(data)) {
+      const first = sig.order.find((n) => sig.inputs.has(n)) ?? [...sig.inputs.keys()][0];
+      const ex = first ? `${first}: ${example(sig.inputs.get(first)!.type, this.prog.typeEnv(sig.pack), this.dc.opts.tokenNames)}` : 'summary: What it shows.';
+      throw new MkpError('mkp.yaml', `the ${sig.name} block must be a YAML mapping of its inputs, one name: value line each; found ${sortOf(data)}. Write each input on its own line, e.g. ${ex}`, this.p(it.line + 1));
+    }
     const obj = data as Record<string, unknown>;
-    this.guard(obj, this.p(it.line + 1), `the ${sig.name} block`);
+    this.guard(obj, this.p(it.line + 1), `the ${sig.name} block`, (path) => this.at(path, this.p(it.line + 1)));
     if (sig.params?.length) sig = this.bindYaml(sig, obj, it);
     const node: IRNode = { node: sig.name, def: sig.id, props: {}, pos: [it.line, 1] };
     const summary = obj.summary;
     if (typeof summary !== 'string' || !summary.trim()) {
-      this.diags.error('mkp.missing-summary', `the ${sig.name} block needs a summary: line (what it shows, for readers without the widget and for Markdown output)`, p);
+      const found = summary === undefined ? 'no summary: line' : summary === null || typeof summary === 'string' ? 'an empty summary' : `summary: ${shown(summary)}, which is not a sentence`;
+      const where = summary === undefined ? p : this.at('summary', p);
+      this.diags.error('mkp.missing-summary', `the ${sig.name} block needs a summary: line, one sentence of what it shows, for readers without the widget and for Markdown output; found ${found}. Add one, e.g. summary: A short sentence on what it shows.`, where);
     } else (node.meta ??= {}).summary = summary;
     if (it.id) (node.meta ??= {}).anchor = it.id;
     const failed = new Set<string>();
@@ -381,12 +648,29 @@ class DocChecker {
     const bound: Record<string, Type> = {};
     const env = this.prog.typeEnv(sig.pack);
     // only data tells a parameter (rows: list(R)); a path or an expression in R only reads it
-    const holds = (t: Type): boolean => {
-      if ((t.t === 'named' || t.t === 'param') && params.includes(t.name)) return true;
-      if (t.t === 'list' || t.t === 'dict') return holds(t.of);
-      if (t.t === 'rec') return t.fields.some(([, f]) => holds(f));
+    const holdsParam = (t: Type, name?: string): boolean => {
+      if ((t.t === 'named' || t.t === 'param') && params.includes(t.name)) return name === undefined || t.name === name;
+      if (t.t === 'list' || t.t === 'dict') return holdsParam(t.of, name);
+      if (t.t === 'rec') return t.fields.some(([, f]) => holdsParam(f, name));
       return false;
     };
+    const holds = (t: Type): boolean => holdsParam(t);
+    // the part of a given type that stands where the parameter is in the input's declared type
+    const partFor = (w: Type, g: Type, name: string): Type | undefined => {
+      if ((w.t === 'named' || w.t === 'param') && w.name === name) return g;
+      const rg = resolve(g, env);
+      if ((w.t === 'list' || w.t === 'dict') && rg.t === w.t) return partFor(w.of, rg.of, name);
+      if (w.t === 'rec' && rg.t === 'rec') {
+        for (const [n, t] of w.fields) {
+          const f = rg.fields.find(([m]) => m === n);
+          const r = f && partFor(t, f[1], name);
+          if (r) return r;
+        }
+      }
+      return undefined;
+    };
+    const firstBy: Record<string, string> = {};
+    const tStands = (name: string): string => `${name} stands for the kind of items it holds, read from the data`;
     for (const [k, v] of Object.entries(obj)) {
       const inp = sig.inputs.get(k);
       if (!inp || !holds(inp.type)) continue;
@@ -394,14 +678,86 @@ class DocChecker {
       try {
         got = yamlType(v, k);
       } catch (e) {
-        throw new MkpError('mkp.input-type', (e as Error).message, this.p(this.lineOf(it, k)));
+        throw this.shapeProblem(v, k, true, sig) ?? new MkpError('mkp.input-type', (e as Error).message, this.p(this.lineOf(it, k)));
       }
+      const before = { ...bound };
       const err = unify(inp.type, got, params, bound, env);
-      if (err) throw new MkpError('mkp.input-type', err, this.p(this.lineOf(it, k)));
+      if (err) {
+        // which parameter the two inputs disagree on, and what each gives it
+        const name = params.find((x) => before[x] && partFor(inp.type, got, x) && !join(before[x], partFor(inp.type, got, x)!, env));
+        if (name && firstBy[name]) {
+          const other = firstBy[name];
+          throw new MkpError('mkp.input-type', `${k} and ${other} must hold the same kind of items, since ${sig.name} uses one type ${name} for both (${tStands(name)}); found ${showType(partFor(inp.type, got, name)!)} in ${k} but ${showType(before[name])} in ${other}. Give the items of both the same fields with the same kinds of value`, this.p(this.lineOf(it, k)));
+        }
+        throw new MkpError('mkp.input-type', err, this.p(this.lineOf(it, k)));
+      }
+      for (const x of params) if (bound[x] && !before[x]) firstBy[x] = k;
     }
     const missing = params.filter((x) => !bound[x]);
-    if (missing.length) throw new MkpError('mkp.input-type', `${sig.name} can't tell what ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'}: give the inputs that hold ${missing.length > 1 ? 'them' : 'it'}`, this.p(it.line));
+    if (missing.length) {
+      const holders = [...sig.inputs].filter(([, i]) => missing.some((x) => holdsParam(i.type, x)));
+      const given = Object.keys(obj).filter((k) => k !== 'summary');
+      const ex = holders.length ? `${holders[0][0]}: ${resolve(holders[0][1].type, env).t === 'list' ? '[{city: Lisbon}]' : '{city: Lisbon}'}` : '';
+      const what = missing.join(' and ');
+      const are = missing.length > 1 ? 'are' : 'is';
+      const fix = holders.length ? `Add ${names(holders.map(([n, i]) => `${n} (${showType(i.type)})`))}, e.g. ${ex}` : `Give the inputs that hold ${missing.length > 1 ? 'them' : 'it'}`;
+      throw new MkpError('mkp.input-type', `${sig.name} can't tell what ${what} ${are} (${what} ${missing.length > 1 ? 'stand' : 'stands'} for the kind of items it holds, read from the data), since no input that holds ${what} is given; found ${given.length ? `only ${given.join(', ')}` : 'no inputs'}. ${fix}`, this.p(it.line));
+    }
     return instantiate(sig, bound);
+  }
+
+  /**
+   * Why a block's data has no single type (yamlType refused it), said with the item at fault:
+   * an empty list, an empty entry, or an item unlike the ones before it. Null when nothing is found.
+   */
+  private shapeProblem(v: unknown, what: string, top: boolean, sig: Sig): MkpError | null {
+    const at = (w: string): Pos => this.at(w, this.p(this.yamlAt?.line ?? 1));
+    if (v === null || v === undefined) return new MkpError('mkp.input-type', `${what} has no value; found an empty entry. Write a value after it, or Remove it`, at(what));
+    if (Array.isArray(v)) {
+      if (!v.length && top) return new MkpError('mkp.input-type', `${what} is an empty list, so ${sig.name} can't tell what kind of items it holds; found []. Give at least one item, e.g. ${what}: [{city: Lisbon}]`, at(what));
+      let t: Type | null = null;
+      for (let i = 0; i < v.length; i++) {
+        let u: Type;
+        try {
+          u = yamlType(v[i], `${what}[${i}]`, false);
+        } catch {
+          return this.shapeProblem(v[i], `${what}[${i}]`, false, sig);
+        }
+        if (t) {
+          const j = join(t, u, () => undefined);
+          if (!j) return new MkpError('mkp.input-type', `${what}[${i}] is not like the items before it: ${this.shapeDiff(t, u, what)}`, at(`${what}[${i}]`));
+          t = j;
+        } else t = u;
+      }
+      return null;
+    }
+    if (typeof v === 'object') {
+      for (const [k, x] of Object.entries(v)) {
+        const r = this.shapeProblem(x, `${what}.${k}`, false, sig);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+  /** How an item's shape differs from the items before it, and the fix. */
+  private shapeDiff(a: Type, b: Type, what: string): string {
+    const none = (): undefined => undefined;
+    if (a.t === 'rec' && b.t === 'rec') {
+      const an = a.fields.map((f) => f[0]);
+      const bn = b.fields.map((f) => f[0]);
+      const missing = an.filter((n) => !bn.includes(n));
+      const extra = bn.filter((n) => !an.includes(n));
+      if (missing.length || extra.length) {
+        const fix = [missing.length ? `Add ${missing.join(', ')}` : '', extra.length ? `${missing.length ? 'remove' : 'Remove'} ${extra.join(', ')}` : ''].filter(Boolean).join(' and ');
+        return `it has the fields ${bn.join(', ') || 'none'}, where the items before it have ${an.join(', ')}; every item of ${what} needs the same fields. ${fix}, or give the others the same fields`;
+      }
+      for (const [n, ft] of a.fields) {
+        const g = b.fields.find((f) => f[0] === n)![1];
+        if (!join(ft, g, none)) return `its ${n} is ${words(g, none)}, but in the items before it ${n} is ${words(ft, none)}. Write ${n} as ${words(ft, none)} here too, or as ${words(g, none)} in every item`;
+      }
+    }
+    return `it is ${words(b, none)}, but the items before it are ${words(a, none)}. Write it like the others`;
   }
 
   private looksLikeWidget(yaml: string): boolean {
@@ -415,21 +771,45 @@ class DocChecker {
     return it.line + 1 + Math.max(0, i);
   }
 
-  private requireInputs(node: IRNode, sig: Sig, p: Pos, failed = new Set<string>()): void {
+  /** Every input without a default is given; container is the ::: line when the block is one. */
+  private requireInputs(node: IRNode, sig: Sig, p: Pos, failed = new Set<string>(), container?: string): void {
+    const env = this.prog.typeEnv(sig.pack);
     for (const [name, inp] of sig.inputs) {
       if (inp.hasDefault || node.props?.[name] !== undefined || failed.has(name)) continue;
-      if (resolve(inp.type, this.prog.typeEnv(sig.pack)).t === 'records' && node.records?.length) continue;
-      this.diags.error('mkp.missing-input', `${sig.name} needs ${name}: ${this.dc.takes(inp.type)}`, p);
+      const t = resolve(inp.type, env);
+      if (t.t === 'records' && node.records?.length) continue;
+      const takes = this.takes(inp.type, sig.pack);
+      if (container === undefined) {
+        this.diags.error('mkp.missing-input', `the ${sig.name} block is missing ${name}, which takes ${takes}. Add a line ${name}: ${example(inp.type, env, this.dc.opts.tokenNames)}`, p);
+      } else if (t.t === 'records') {
+        const ex = example(T.text, env, this.dc.opts.tokenNames, true);
+        this.diags.error('mkp.missing-input', `the :::${sig.name} container is missing ${name}, which takes ${takes}. Add ${t.kind} records inside it, e.g. a :::${t.kind} ${ex} line, its Markdown, and a closing :::`, p);
+      } else {
+        this.diags.error('mkp.missing-input', `the :::${sig.name} container is missing ${name}, which takes ${takes}. Add it to the ::: line, e.g. ${container} ${name}=${example(inp.type, env, this.dc.opts.tokenNames, true)}`, p);
+      }
     }
+  }
+
+  /** A record kind's fields, slot included, for a message. */
+  private fieldList(t: Extract<Type, { t: 'records' }>): string {
+    return names([...t.fields.map((f) => f[0]), ...(t.slot ? ['slot'] : [])]);
+  }
+
+  /** A name given to a widget that has no input of that name: its inputs, a near one, the fix. */
+  private unknownInput(sig: Sig, k: string, found: string, fix: string, p: Pos): MkpError {
+    const near = closest(k, [...sig.inputs.keys(), 'summary']);
+    const list = [...sig.inputs.keys()];
+    const its = list.length ? `its inputs are ${names(list)}` : 'it takes no inputs';
+    return new MkpError('mkp.unknown-prop', `${sig.name} has no input "${k}"; found ${found}${near ? `. Did you mean "${near}"? ${fix.replace(/ to one of them/, '')}` : `, and ${its}. ${fix}`}`, p);
   }
 
   private setProp(node: IRNode, sig: Sig, k: string, v: unknown, p: Pos): void {
     const inp = sig.inputs.get(k);
-    if (!inp) throw new MkpError('mkp.unknown-prop', `${sig.name} has no input "${k}"${didYouMean(k, [...sig.inputs.keys(), 'summary'])}`, p);
+    if (!inp) throw this.unknownInput(sig, k, `${k}: ${typeof v === 'string' && v.length < 40 ? v : shown(v)}`, 'Rename the key to one of them, or Remove the line', p);
     const env = this.prog.typeEnv(sig.pack);
     const t = resolve(inp.type, env);
     if (t.t === 'slot') {
-      if (typeof v !== 'string') throw new MkpError('mkp.input-type', `${k} is a slot: give it a Markdown string`, p);
+      if (typeof v !== 'string') throw new MkpError('mkp.input-type', `${k} is a slot, which takes Markdown written as one piece of text; found ${sortOf(v)}. Write it as text, e.g. ${k}: "Some words.", or as ${k}: | with the Markdown indented on the lines below`, p);
       // a slot may hold a fragment of a document, widget blocks and containers too (GAPS 88)
       const fragment = /^(`{3,}|~{3,}|:{3,})/m.test(v);
       const nodes = fragment ? this.items(parseDoc('\n'.repeat(Math.max(0, p.line)) + v, this.file, this.diags).items, false) : markdownToNodes(v, p.line);
@@ -438,7 +818,7 @@ class DocChecker {
       return;
     }
     if (t.t === 'records') {
-      if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${t.kind} records: give a YAML list of objects`, p);
+      if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${t.kind} records, each written as its fields (${this.fieldList(t)}); found ${sortOf(v)}. Write it as a YAML list, e.g. ${k}: ${example(t, env, this.dc.opts.tokenNames)}`, p);
       v.forEach((r, i) => (node.records = [...(node.records ?? []), this.yamlRecord(r, t, sig, this.at(`${k}[${i}]`, p), k, `${k}[${i}]`)]));
       return;
     }
@@ -446,21 +826,25 @@ class DocChecker {
   }
 
   private yamlRecord(r: unknown, t: Extract<Type, { t: 'records' }>, sig: Sig, p: Pos, input: string, path = input): IRNode {
-    if (!r || typeof r !== 'object' || Array.isArray(r)) throw new MkpError('mkp.input-type', `each ${t.kind} is an object of its fields`, p);
+    const env = this.prog.typeEnv(sig.pack);
+    if (!r || typeof r !== 'object' || Array.isArray(r)) throw new MkpError('mkp.input-type', `${path} must be one ${t.kind} record, written as its fields (${this.fieldList(t)}); found ${sortOf(r)}. Write it as - ${example({ ...t, t: 'rec' } as Type, env, this.dc.opts.tokenNames)}`, p);
     const obj = r as Record<string, unknown>;
     const props: Record<string, IRVal> = {};
     const out: IRNode = { node: '$record', record: t.kind, input, props, pos: [p.line, p.col] };
     for (const [k, v] of Object.entries(obj)) {
       if (k === 'slot' && t.slot) {
-        if (typeof v !== 'string') throw new MkpError('mkp.input-type', `the ${t.kind} slot is a Markdown string`, p);
+        if (typeof v !== 'string') throw new MkpError('mkp.input-type', `slot in ${path} is the ${t.kind}'s Markdown content, written as one piece of text; found ${sortOf(v)}. Write it as text, e.g. slot: "Some words."`, this.at(`${path}.slot`, p));
         out.children = markdownToNodes(v, p.line);
         continue;
       }
       const f = t.fields.find((x) => x[0] === k);
-      if (!f) throw new MkpError('mkp.unknown-field', `${t.kind} has no field "${k}"${didYouMean(k, t.fields.map((x) => x[0]))}`, this.at(`${path}.${k}`, p));
+      if (!f) {
+        const near = closest(k, t.fields.map((x) => x[0]).filter((n) => !(n in obj)));
+        throw new MkpError('mkp.unknown-field', `${path} has no field "${k}"; a ${t.kind}'s fields are ${this.fieldList(t)}${near ? `. Did you mean "${near}"? Rename it` : '. Rename it to one of them, or Remove it'}`, this.at(`${path}.${k}`, p));
+      }
       const ft = resolve(f[1], this.prog.typeEnv(sig.pack));
       if (ft.t === 'records') {
-        if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${ft.kind} records`, this.at(`${path}.${k}`, p));
+        if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} in ${path} is a list of ${ft.kind} records, each written as its fields (${this.fieldList(ft)}); found ${sortOf(v)}. Write it as a YAML list, e.g. ${k}: ${example(ft, env, this.dc.opts.tokenNames)}`, this.at(`${path}.${k}`, p));
         v.forEach((x, i) => (out.records ??= []).push(this.yamlRecord(x, ft, sig, this.at(`${path}.${k}[${i}]`, p), k, `${path}.${k}[${i}]`)));
         continue;
       }
@@ -469,29 +853,58 @@ class DocChecker {
     for (const [k, ft] of t.fields) {
       if (props[k] !== undefined || resolve(ft, this.prog.typeEnv(sig.pack)).t === 'records') continue;
       const d = t.defaults?.[k];
-      if (d === undefined) throw new MkpError('mkp.missing-input', `${t.kind} needs ${k} (${showType(ft)})`, p);
+      if (d === undefined) {
+        const given = Object.keys(obj);
+        throw new MkpError('mkp.missing-input', `${path} (a ${t.kind}) is missing ${k}, which takes ${this.takes(ft, sig.pack)}; found ${given.length ? `only ${given.join(', ')}` : 'no fields'}. Add it, e.g. ${k}: ${example(ft, env, this.dc.opts.tokenNames)}`, p);
+      }
       props[k] = this.dc.staticValue(parseValueString(d, this.file, p.line, p.col), ft, p);
     }
     return out;
+  }
+
+  /** What a value of this type can be, in words: a token's names in full, otherwise words(). */
+  private takes(type: Type, pack: string): string {
+    const t = resolve(type, this.prog.typeEnv(pack));
+    return t.t === 'token' ? this.dc.takes(t) : words(t, this.prog.typeEnv(pack));
+  }
+
+  /** A value of the wrong kind: what it takes, what was written, an example to write instead. */
+  private wrong(what: string, v: unknown, takes: string, ex: string, p: Pos): never {
+    const quote = typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) && /^a (whole )?number/.test(takes) ? ' (a number in quotes is text: remove the quotes)' : '';
+    throw new MkpError('mkp.input-type', `${what} takes ${takes}; found ${shown(v)}${quote}. Replace it, e.g. with ${eg(what, quote ? String(v) : ex)}`, this.at(what, p));
+  }
+
+  /** A number outside its range. */
+  private outside(what: string, v: number, lo: number, hi: number, p: Pos): MkpError {
+    return new MkpError('mkp.input-range', `${what} must be from ${lo} to ${hi}; found ${v}. Write a number in that range, e.g. ${eg(what, String(v < lo ? lo : hi))}`, this.at(what, p));
+  }
+
+  /** A token name that is not one of its kind's. */
+  private badToken(what: string, v: unknown, t: Extract<Type, { t: 'token' }>, p: Pos): MkpError {
+    const near = closest(String(v), this.dc.opts.tokenNames(t.kind));
+    const all = this.dc.opts.tokenNames(t.kind);
+    const ex = near ?? (all.has('accent') ? 'accent' : [...all][0] ?? 'none');
+    return new MkpError('mkp.unknown-token', `${what} takes ${this.dc.takes(t)}; found ${shown(v)}, which is not a ${t.kind} token name. ${near ? `Did you mean ${near}? ` : ''}Write one of those names, e.g. ${eg(what, ex)}`, this.at(what, p));
   }
 
   /** A YAML value as an IR value of the given type (5: inputs are type-checked everywhere). */
   yamlValue(v: unknown, type: Type, pack: string, p: Pos, what: string): IRVal {
     const env = this.prog.typeEnv(pack);
     const t = resolve(type, env);
-    const bad = (want: string): never => {
-      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, this.at(what, p));
-    };
+    const bad = (want: string, ex?: string): never => this.wrong(what, v, want, ex ?? example(t, env, this.dc.opts.tokenNames), p);
     switch (t.t) {
       case 'num':
       case 'int': {
-        if (typeof v !== 'number') return bad(t.t === 'int' ? 'a whole number' : 'a number');
-        if (t.t === 'int' && !Number.isInteger(v)) return bad('a whole number');
-        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, this.at(what, p));
+        if (typeof v !== 'number') return bad(this.dc.takes(t));
+        if (t.t === 'int' && !Number.isInteger(v)) return bad(this.dc.takes(t), String(Math.round(v)));
+        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw this.outside(what, v, t.lo, t.hi!, p);
         return { lit: v };
       }
       case 'bool':
-        if (typeof v === 'string' && /^(yes|no|on|off|y|n)$/i.test(v)) throw new MkpError('mkp.input-type', `${what} is true or false; "${v}" is text in YAML 1.2: write ${/^(yes|on|y)$/i.test(v) ? 'true' : 'false'}`, this.at(what, p));
+        if (typeof v === 'string' && /^(yes|no|on|off|y|n)$/i.test(v)) {
+          const b = /^(yes|on|y)$/i.test(v) ? 'true' : 'false';
+          throw new MkpError('mkp.input-type', `${what} takes true or false; found ${v}, which YAML 1.2 reads as text, not as yes or no. Write ${eg(what, b)}`, this.at(what, p));
+        }
         return typeof v === 'boolean' ? { lit: v } : bad('true or false');
       case 'text':
         if (typeof v === 'number') return { text: String(v) };
@@ -503,7 +916,10 @@ class DocChecker {
       }
       case 'choice':
         if (typeof v === 'string' && t.opts.includes(v)) return { lit: v };
-        throw new MkpError('mkp.enum', `${what} is one of ${t.opts.join(', ')}; found ${JSON.stringify(v)}`, this.at(what, p));
+        {
+          const near = closest(String(v), t.opts);
+          throw new MkpError('mkp.enum', `${what} takes one of ${t.opts.join(', ')}; found ${shown(v)}. ${near ? `Did you mean ${near}? Write ${eg(what, near)}` : `Write one of them, e.g. ${eg(what, t.opts[0])}`}`, this.at(what, p));
+        }
       case 'point':
         if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number')) return { lit: v };
         return bad('a point [x, y]');
@@ -521,25 +937,35 @@ class DocChecker {
       }
       case 'token':
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return { tok: v, kind: t.kind };
-        throw new MkpError('mkp.unknown-token', `"${String(v)}" is not a ${t.kind} token${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}; ${what} takes ${this.dc.takes(t)}`, this.at(what, p));
+        throw this.badToken(what, v, t, p);
       case 'ref': {
         const r = v as { ref?: unknown };
-        if (!r || typeof r !== 'object' || typeof r.ref !== 'string') return bad('{ref: name} of a state line in a state block');
+        const declared = this.declaredState.filter((n) => this.dc.scope.get(n));
+        const refName = declared[0] ?? 'name';
+        if (!r || typeof r !== 'object' || typeof r.ref !== 'string') return bad(`a reference to ${words(t.of, env).replace(/^an? /, '')} state, written {ref: name} with the name of a line in a state block`, `{ref: ${refName}}`);
         const b = this.dc.scope.get(r.ref);
-        if (!b || (b.kind !== 'state' && b.kind !== 'var')) throw new MkpError('mkp.not-state', `"${r.ref}" is not declared in a state block of this document`, this.at(what, p));
-        if (!fits(b.type, t.of, env)) throw new MkpError('mkp.input-type', `${what} is ${showType(t.of)}, but ${r.ref} is ${showType(b.type)}`, this.at(what, p));
+        if (!b || (b.kind !== 'state' && b.kind !== 'var')) {
+          const decl = `${r.ref} = ${controlFor(t.of, env)} "${r.ref}"`;
+          const known = declared.length ? `; the state declared here is ${names(declared)}` : '';
+          const near = closest(r.ref, declared);
+          throw new MkpError('mkp.not-state', `${what} refers to the state "${r.ref}", but no state block of this document declares it${known}. ${near ? `Did you mean {ref: ${near}}? Or declare` : 'Declare'} it in a \`\`\`state block, e.g. ${decl}`, this.at(what, p));
+        }
+        if (!fits(b.type, t.of, env)) {
+          const want = words(t.of, env);
+          throw new MkpError('mkp.input-type', `${what} takes state that is ${want}, but the state ${r.ref} is ${words(b.type, env)}. Refer to state that is ${want}, or declare ${r.ref} with another control, e.g. ${r.ref} = ${controlFor(t.of, env)} "${r.ref}"`, this.at(what, p));
+        }
         return { ref: r.ref };
       }
       case 'path':
-        if (typeof v !== 'string') return bad('a field name');
+        if (typeof v !== 'string') return bad('the name of a field of the items', 'name');
         return this.dc.pathTo(v, t, this.at(what, p), env);
       case 'expr': {
-        if (typeof v !== 'string' && typeof v !== 'number') return bad(`an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
+        if (typeof v !== 'string' && typeof v !== 'number') return bad(`an expression${t.vars.length ? ` in ${t.vars.map((x) => x[0]).join(', ')}` : ''}, written as text`, `"${t.vars[0]?.[0] ?? 'x'} * 2"`);
         const e = parseExprString(String(v), this.file, p.line, p.col);
         return this.dc.value({ v: 'expr', e, src: String(v), p }, type, this.dc.scope, p);
       }
       case 'list': {
-        if (!Array.isArray(v)) return bad(`a list of ${showType(t.of)}`);
+        if (!Array.isArray(v)) return bad(words(t, env));
         const items = v.map((x, i) => this.yamlData(x, t.of, env, p, `${what}[${i}]`));
         return { lit: items };
       }
@@ -551,14 +977,12 @@ class DocChecker {
   /** Plain data values (inside lists and records): the runtime representation. */
   private yamlData(v: unknown, type: Type, env: (n: string) => Type | undefined, p: Pos, what: string): unknown {
     const t = resolve(type, env);
-    const bad = (want: string): never => {
-      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, this.at(what, p));
-    };
+    const bad = (want: string, ex?: string): never => this.wrong(what, v, want, ex ?? example(t, env, this.dc.opts.tokenNames), p);
     switch (t.t) {
       case 'num':
       case 'int':
-        if (typeof v !== 'number' || (t.t === 'int' && !Number.isInteger(v))) return bad(t.t === 'int' ? 'a whole number' : 'a number');
-        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, this.at(what, p));
+        if (typeof v !== 'number' || (t.t === 'int' && !Number.isInteger(v))) return bad(this.dc.takes(t), typeof v === 'number' ? String(Math.round(v)) : undefined);
+        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw this.outside(what, v, t.lo, t.hi!, p);
         return v;
       case 'bool':
         return typeof v === 'boolean' ? v : bad('true or false');
@@ -566,26 +990,32 @@ class DocChecker {
       case 'latex':
         return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : bad('text');
       case 'choice':
-        return typeof v === 'string' && t.opts.includes(v) ? v : bad(`one of ${t.opts.join(', ')}`);
+        return typeof v === 'string' && t.opts.includes(v) ? v : bad(`one of ${t.opts.join(', ')}`, closest(String(v), t.opts) ?? t.opts[0]);
       case 'token':
         // a colour in a YAML record is a token name (GAPS 155)
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return v;
-        throw new MkpError('mkp.unknown-token', `"${String(v)}" is not a ${t.kind} token${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}; ${what} takes ${this.dc.takes(t)}`, this.at(what, p));
+        throw this.badToken(what, v, t, p);
       case 'point':
         return Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number') ? v : bad('a point [x, y]');
       case 'list':
-        return Array.isArray(v) ? v.map((x, i) => this.yamlData(x, t.of, env, p, `${what}[${i}]`)) : bad('a list');
+        return Array.isArray(v) ? v.map((x, i) => this.yamlData(x, t.of, env, p, `${what}[${i}]`)) : bad(words(t, env));
       case 'dict': {
-        if (!v || typeof v !== 'object' || Array.isArray(v)) return bad('a mapping');
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return bad('a mapping of name: value pairs', '{a: …, b: …}');
         const o: Record<string, unknown> = {};
         for (const [k, x] of Object.entries(v)) o[k] = this.yamlData(x, t.of, env, p, `${what}.${k}`);
         return o;
       }
       case 'rec': {
-        if (!v || typeof v !== 'object' || Array.isArray(v)) return bad(`a record {${t.fields.map((f) => f[0]).join(', ')}}`);
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return bad(`a record with the fields ${t.fields.map((f) => f[0]).join(', ')}`);
         const o: Record<string, unknown> = {};
         const src = v as Record<string, unknown>;
-        for (const k of Object.keys(src)) if (!t.fields.some((f) => f[0] === k)) throw new MkpError('mkp.unknown-field', `${what} has no field "${k}"${didYouMean(k, t.fields.map((f) => f[0]))}`, this.at(what, p));
+        for (const k of Object.keys(src)) {
+          if (t.fields.some((f) => f[0] === k)) continue;
+          // a near name not already given: z next to x and y means y
+          const near = closest(k, t.fields.map((f) => f[0]).filter((n) => !(n in src)));
+          const all = t.fields.map((f) => f[0]).join(', ');
+          throw new MkpError('mkp.unknown-field', `${what} has no field "${k}"; its fields are ${all}${near ? `. Did you mean "${near}"? Rename it` : '. Rename it to one of them, or Remove it'}`, this.at(`${what}.${k}`, this.at(what, p)));
+        }
         for (const [k, ft] of t.fields) {
           if (!(k in src)) {
             const d = t.defaults?.[k];
@@ -594,14 +1024,16 @@ class DocChecker {
               o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : 'ast' in dv ? constant(dv as unknown as IRExpr, `${what}.${k}`, this.at(what, p)) : dv.lit;
               continue;
             }
-            throw new MkpError('mkp.missing-field', `${what} needs ${k} (${showType(ft)})`, this.at(what, p));
+            const given = Object.keys(src);
+            const keep = given.map((g) => `${g}: ${typeof src[g] === 'string' || typeof src[g] === 'number' ? String(src[g]) : '…'}`);
+            throw new MkpError('mkp.missing-field', `${what} is missing the field ${k}, which takes ${words(ft, env)}; found only ${given.length ? given.join(', ') : 'an empty record'}. Add it, e.g. ${eg(what, `{${[`${k}: ${example(ft, env, this.dc.opts.tokenNames)}`, ...keep].join(', ')}}`)}`, this.at(what, p));
           }
           o[k] = this.yamlData(src[k], ft, env, p, `${what}.${k}`);
         }
         return o;
       }
       default:
-        return bad(`a ${showType(type)} (which YAML can't give)`);
+        throw new MkpError('mkp.input-type', `${what} takes ${showType(type)}, which a value written in YAML can't be; found ${shown(v)}. Pass ${what} from a widget definition instead, or give it a type YAML can write (text, a number, a list, a record)`, this.at(what, p));
     }
   }
 
@@ -617,7 +1049,14 @@ class DocChecker {
     for (const inner of it.items) {
       if (inner.k === 'container' && inner.name === 'fill') {
         const nm = inner.args.trim();
-        if (!sig.slots.includes(nm)) throw new MkpError('mkp.unknown-slot', `${sig.name} has no slot "${nm}"${didYouMean(nm, sig.slots)}`, this.p(inner.line));
+        if (!sig.slots.includes(nm)) {
+          const near = closest(nm, sig.slots.slice(1)) ?? closest(nm, sig.slots);
+          const other = near ?? sig.slots[1] ?? sig.slots[0];
+          const msg = !sig.slots.length
+            ? `${sig.name} has no slots, so :::fill ${nm} has nothing to fill. Remove the :::fill container, or use a widget that holds Markdown`
+            : `${sig.name} has no slot "${nm}"; its slots are ${sig.slots.join(', ')} (the Markdown written straight inside :::${sig.name} goes to ${sig.slots[0]}). ${near ? `Did you mean "${near}"? ` : ''}Write :::fill ${other}`;
+          throw new MkpError('mkp.unknown-slot', msg, this.p(inner.line));
+        }
         (node.fills ??= {})[nm] = this.items(inner.items, false);
         continue;
       }
@@ -630,7 +1069,11 @@ class DocChecker {
         for (const [f, ft] of t.fields) {
           if (filled.props[f] !== undefined || resolve(ft, this.prog.typeEnv(sig.pack)).t === 'records') continue;
           const d = t.defaults?.[f];
-          if (d === undefined) throw new MkpError('mkp.missing-input', `the ${t.kind} record needs ${f}`, this.p(inner.line));
+          if (d === undefined) {
+            const head = `:::${inner.name}${inner.args.trim() ? ' ' + inner.args.trim() : ''}`;
+            const env = this.prog.typeEnv(sig.pack);
+            throw new MkpError('mkp.missing-input', `the ${head} record is missing ${f}, which takes ${this.takes(ft, sig.pack)}; its fields, in order, are ${order.join(', ')}. Add it on the ::: line, by position or by name, e.g. ${head} ${f}=${example(ft, env, this.dc.opts.tokenNames, true)}`, this.p(inner.line));
+          }
           filled.props[f] = this.dc.staticValue(parseValueString(d), ft, this.p(inner.line));
         }
         const r: IRNode = { node: '$record', record: t.kind, input: rec.input, props: filled.props, pos: [inner.line, 1] };
@@ -643,11 +1086,16 @@ class DocChecker {
     }
     const content = this.items(plain, false);
     if (content.length) {
-      if (!sig.slots.length) throw new MkpError('mkp.no-slot', `${sig.name} has no slot to hold the container's Markdown`, p);
+      if (!sig.slots.length) {
+        const md = plain.find((x) => x.k === 'md') as Extract<DocItem, { k: 'md' }> | undefined;
+        const first = md?.text.split('\n').find((l) => l.trim())?.trim();
+        const found = first ? `found ${JSON.stringify(first.length > 40 ? first.slice(0, 37) + '…' : first)}` : 'found content';
+        throw new MkpError('mkp.no-slot', `${sig.name} has no slot, so the Markdown inside :::${sig.name} … ::: has nowhere to go; ${found}. Remove the Markdown between the ::: lines, or write the widget as a \`\`\`${sig.name} block instead`, p);
+      }
       node.children = content;
     }
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
-    this.requireInputs(node, sig, p);
+    this.requireInputs(node, sig, p, new Set(), `:::${it.name}${it.args.trim() ? ' ' + it.args.trim() : ''}`);
     return node;
   }
 
@@ -676,11 +1124,13 @@ class DocChecker {
           (node.meta ??= {}).role = v.replace(/^"|"$/g, '');
           continue;
         }
-        this.diags.warn('mkp.attrs', `attribute ${k} on a Markdown block is ignored; only #id, role= (on headings) and the profile's block attributes apply`, p);
+        const extra = [...(this.dc.opts.blockAttrs ?? [])];
+        const allowed = `an anchor {#id}, role= on a heading${extra.length ? `, and this profile's block attributes ${names(extra)}` : ''}`;
+        this.diags.warn('mkp.attrs', `the attribute ${k}=${v} on a Markdown block is ignored; a Markdown block takes only ${allowed}. Remove it, or move it to a widget block that has a ${k} input`, p);
         continue;
       }
       const inp = sig.inputs.get(k);
-      if (!inp) throw new MkpError('mkp.unknown-prop', `${sig.name} has no input "${k}"`, p);
+      if (!inp) throw this.unknownInput(sig, k, `{${k}=${v}} under the block`, 'Rename the attribute to one of them, or Remove it', p);
       node.props![k] = this.dc.value(parseValueString(v, this.file, line, 1), inp.type, this.dc.scope, p);
     }
     void pos;

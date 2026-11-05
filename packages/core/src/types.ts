@@ -52,9 +52,27 @@ export const T = {
   fn: (params: Type[], ret: Type): Type => ({ t: 'fn', params, ret }),
 };
 
+/** A token as the author wrote it, for "found …" in messages. */
+function tokText(t: Tok): string {
+  if (t.k === 'eof') return 'the end of the type';
+  if (t.k === 'str') return `"${t.v}"`;
+  return t.v;
+}
+
+const TYPE_EXAMPLES = 'int, num, text, bool, list(int), dict(text) or a record such as {name: text}';
+
 class TypeParser {
   i = 0;
+  /** where each constructor being read starts, for naming it in messages */
+  private readonly open: { name: string; at: number; close?: string }[] = [];
   constructor(readonly toks: Tok[], readonly map: PosMap, readonly text: string) {}
+  /** The type written so far inside the innermost constructor (list(int …), for messages. */
+  private sofar(): string {
+    const o = this.open[this.open.length - 1];
+    const prev = this.toks[this.i - 2] ?? this.toks[0];
+    if (!o) return '';
+    return this.text.slice(o.at, prev.at + prev.v.length).replace(/\s+/g, ' ').trim();
+  }
   peek(o = 0): Tok {
     return this.toks[Math.min(this.i + o, this.toks.length - 1)];
   }
@@ -62,15 +80,44 @@ class TypeParser {
     return this.toks[this.i++];
   }
   fail(t: Tok, m: string): never {
-    throw new MkpError('mkp.type-syntax', m, this.map.at(t.at));
+    // a token past the line end (an open bracket joins the next line on) is reported where the
+    // type stops, on the line to change
+    const prev = this.toks[this.toks.indexOf(t) - 1];
+    const ended = t.k === 'eof' || this.pastLine(t);
+    const at = prev && ended ? prev.at + prev.v.length : t.at;
+    const inner = this.open[this.open.length - 1];
+    // the line ended inside a bracket: the missing ")" is the problem, whatever was expected next
+    const close = inner?.close ?? ')';
+    if (ended && inner && !m.startsWith(`expected "${close}"`)) {
+      const sofar = this.text.slice(inner.at, at).replace(/\s+/g, ' ').trim();
+      m = `\`${sofar}\` is missing its closing "${close}"; found the end of the line. Add "${close}" to close ${close === '}' ? 'the record' : `${inner.name}(…)`}, e.g. \`${sofar}${close}\``;
+    }
+    throw new MkpError('mkp.type-syntax', m, this.map.at(at));
+  }
+  /** Whether a token sits on a later source line than the one before it. */
+  private pastLine(t: Tok): boolean {
+    const prev = this.toks[this.toks.indexOf(t) - 1];
+    return !!prev && this.map.at(prev.at + prev.v.length).line !== this.map.at(t.at).line;
+  }
+  private isOpTok(t: Tok | undefined, v: string): boolean {
+    return !!t && t.k === 'op' && t.v === v;
   }
   isOp(v: string, o = 0): boolean {
     const t = this.peek(o);
     return t.k === 'op' && t.v === v;
   }
-  expect(v: string): void {
+  expect(v: string, how?: string): void {
     const t = this.next();
-    if (t.k !== 'op' || t.v !== v) this.fail(t, `expected "${v}" in the type`);
+    if (t.k === 'op' && t.v === v) return;
+    const inner = this.open[this.open.length - 1];
+    const prev = this.toks[this.i - 2];
+    const what = inner ? `\`${this.sofar()}\`` : prev ? `\`${prev.v}\`` : 'the type';
+    const fix = how ?? (v === ')' && inner ? `Add ")" to close ${inner.name}(…), e.g. \`${this.sofar()})\`` : `Write "${v}" there`);
+    this.fail(t, `expected "${v}" after ${what}; found ${this.seen(t)}. ${fix}`);
+  }
+  /** A token as found, or the line end when the token is on a later line. */
+  seen(t: Tok): string {
+    return t.k !== 'eof' && this.pastLine(t) ? 'the end of the line' : tokText(t);
   }
   number(): number {
     let sign = 1;
@@ -79,7 +126,7 @@ class TypeParser {
       sign = -1;
     }
     const t = this.next();
-    if (t.k !== 'num') this.fail(t, 'expected a number in the range');
+    if (t.k !== 'num') this.fail(t, `a range in a type needs a plain number at each end, such as int 1..10; found ${this.seen(t)}. Write a number there`);
     return sign * t.num!;
   }
   type(): Type {
@@ -89,14 +136,17 @@ class TypeParser {
       const fields = this.fieldsAfterBrace(defaults);
       return Object.keys(defaults).length ? { t: 'rec', fields, defaults } : { t: 'rec', fields };
     }
-    if (t.k !== 'id') this.fail(t, 'expected a type');
+    if (t.k !== 'id') {
+      const inner = this.open[this.open.length - 1];
+      this.fail(t, `expected a type${inner ? ` inside ${inner.name}(…)` : ''}; found ${this.seen(t)}. Write a type such as ${TYPE_EXAMPLES}`);
+    }
     switch (t.v) {
       case 'num':
       case 'int': {
         const ty: { t: 'num' | 'int'; lo?: number; hi?: number } = { t: t.v };
         if (this.peek().k === 'num' || (this.isOp('-') && this.peek(1).k === 'num')) {
           ty.lo = this.number();
-          this.expect('..');
+          this.expect('..', `Write a range as lo..hi, e.g. \`${t.v} ${ty.lo}..10\``);
           ty.hi = this.number();
         }
         return ty;
@@ -110,11 +160,17 @@ class TypeParser {
       case 'slot':
         return { t: t.v } as Type;
       case 'expr': {
-        this.expect('(');
+        this.expect('(', 'Write the variables in brackets, e.g. `expr(x)` or `expr(t: num): point`');
+        this.open.push({ name: 'expr', at: t.at });
         const vars: Field[] = [];
+        let wrap: Tok | undefined;
         while (!this.isOp(')')) {
           const n = this.next();
-          if (n.k !== 'id') this.fail(n, 'expected a variable name in expr(…)');
+          // commas between the names are optional: a name read from the next line, with the list
+          // failing after it, means the ")" is missing at the line end (fail reports it so)
+          if (n.k === 'id' && !wrap && this.pastLine(n) && !this.isOpTok(this.toks[this.i - 2], ',')) wrap = n;
+          if (n.k !== 'id' && wrap) this.fail(wrap, '');
+          if (n.k !== 'id') this.fail(n, `expr(…) lists the names of the variables the expression uses, e.g. expr(x) or expr(x, y), each with an optional type (expr(t: num)); found ${this.seen(n)}. Write a name such as x`);
           let vt: Type = T.num;
           if (this.isOp(':')) {
             this.next();
@@ -124,6 +180,7 @@ class TypeParser {
           if (this.isOp(',')) this.next();
         }
         this.expect(')');
+        this.open.pop();
         let ret: Type = T.num;
         if (this.isOp(':')) {
           this.next();
@@ -132,27 +189,31 @@ class TypeParser {
         return { t: 'expr', vars, ret };
       }
       case 'choice': {
-        this.expect('(');
+        this.expect('(', 'Write the options in brackets, separated by |, e.g. `choice(low|high)`');
+        this.open.push({ name: 'choice', at: t.at });
         const opts: string[] = [];
         for (;;) {
           const n = this.next();
-          if (n.k !== 'id') this.fail(n, 'expected an option in choice(…)');
+          if (n.k !== 'id') this.fail(n, `each option of choice(…) must be a word (letters, digits and _, starting with a letter), as in choice(low|high); found ${this.seen(n)}. Write a word${n.k === 'num' ? `, e.g. n${n.v}` : ''}`);
           opts.push(n.v);
           if (this.isOp('|')) {
             this.next();
             continue;
           }
-          this.expect(')');
+          const nx = this.peek();
+          this.expect(')', `Separate the options with | and close with ")", e.g. \`choice(${[...opts, nx.k === 'id' ? nx.v : 'other'].join('|')})\``);
+          this.open.pop();
           return { t: 'choice', opts };
         }
       }
       case 'list': {
-        this.expect('(');
+        this.expect('(', 'Write the item type in brackets, e.g. `list(int)`');
+        this.open.push({ name: 'list', at: t.at });
         if (this.peek().k === 'id' && this.peek().v === 'record') {
           this.next();
           const kind = this.next();
-          if (kind.k !== 'id') this.fail(kind, 'expected the record name');
-          this.expect('{');
+          if (kind.k !== 'id') this.fail(kind, `list(record …) needs a name for its records after "record", e.g. list(record row {a: int}); found ${this.seen(kind)}. Write a name such as row`);
+          this.expect('{', `Write the record's fields in braces after its name, e.g. \`list(record ${kind.v} {a: int})\``);
           const defaults: Record<string, string> = {};
           const fields = this.fieldsAfterBrace(defaults);
           let slot = false;
@@ -161,26 +222,33 @@ class TypeParser {
             slot = true;
           }
           this.expect(')');
+          this.open.pop();
           return Object.keys(defaults).length ? { t: 'records', kind: kind.v, fields, slot, defaults } : { t: 'records', kind: kind.v, fields, slot };
         }
         const of = this.type();
         this.expect(')');
+        this.open.pop();
         return { t: 'list', of };
       }
       case 'dict': {
-        this.expect('(');
+        this.expect('(', 'Write the value type in brackets, e.g. `dict(int)` (the keys are always text)');
+        this.open.push({ name: 'dict', at: t.at });
         const of = this.type();
         this.expect(')');
+        this.open.pop();
         return { t: 'dict', of };
       }
       case 'ref':
         return { t: 'ref', of: this.type() };
       case 'path': {
-        this.expect('(');
+        this.expect('(', 'Write path(record type, field type), e.g. `path(T, text)`');
+        this.open.push({ name: 'path', at: t.at });
         const of = this.type();
-        this.expect(',');
+        const nx = this.peek();
+        this.expect(',', `path(…) takes two types separated by a comma: the record and the type of the field it names, e.g. \`path(${showType(of)}, ${nx.k === 'id' ? nx.v : 'text'})\``);
         const to = this.type();
         this.expect(')');
+        this.open.pop();
         return { t: 'path', of, to };
       }
       default:
@@ -194,10 +262,11 @@ class TypeParser {
       this.next();
       return fields;
     }
+    this.open.push({ name: 'record', at: this.toks[this.i - 1].at, close: '}' });
     for (;;) {
       const n = this.next();
-      if (n.k !== 'id') this.fail(n, 'expected a field name');
-      this.expect(':');
+      if (n.k !== 'id') this.fail(n, `each field of a record starts with its name, as in {title: text, count: int}; found ${this.seen(n)}. Write a name such as ${n.k === 'num' ? `f${n.v}` : 'title'}`);
+      this.expect(':', `Give the field a type after a colon, e.g. \`${n.v}: text\``);
       fields.push([n.v, this.type()]);
       if (this.isOp('=')) {
         // a field default (an extension of 6.5): the source up to the next "," or "}" at depth 0
@@ -220,7 +289,8 @@ class TypeParser {
         this.next();
         continue;
       }
-      this.expect('}');
+      this.expect('}', 'Separate the fields with commas and close the record with "}", e.g. `{a: int, b: text}`');
+      this.open.pop();
       return fields;
     }
   }
@@ -237,7 +307,10 @@ export function parseType(text: string, from: number, to: number, map: PosMap): 
 export function parseTypeString(src: string, file = '<type>'): Type {
   const map = new PosMap(file, [{ at: 0, line: 1, col: 1 }]);
   const { type, end } = parseType(src, 0, src.length, map);
-  if (end < src.trim().length) throw new MkpError('mkp.type-syntax', `unexpected text after the type: "${src.slice(end)}"`, map.at(end));
+  if (end < src.trim().length) {
+    const rest = src.slice(end).trim();
+    throw new MkpError('mkp.type-syntax', `the type \`${src.slice(0, end).trim()}\` is complete, but more follows it; found "${rest}". Remove "${rest}", or join it into the type (a range is written int 1..6)`, map.at(end));
+  }
   return type;
 }
 

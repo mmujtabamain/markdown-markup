@@ -38,7 +38,12 @@ export function parseDoc(src: string, file: string, diags: Diagnostics): DocSyn 
     const end = lines.indexOf('---', 1);
     const end2 = lines.indexOf('...', 1);
     const close = end < 0 ? end2 : end2 < 0 ? end : Math.min(end, end2);
-    if (close < 0) diags.error('mkp.front-matter', 'the front matter is never closed with ---', { file, line: 1, col: 1 });
+    if (close < 0)
+      diags.error(
+        'mkp.front-matter',
+        'the front matter that opens with `---` on line 1 is never closed; found no line holding only `---` (or `...`) after it. Add a `---` line where the front matter ends, before the first heading or text',
+        { file, line: 1, col: 1 },
+      );
     else {
       front = lines.slice(1, close).join('\n');
       frontLine = 2;
@@ -105,7 +110,10 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
           depth--;
         }
       }
-      if (j >= to) diags.error('mkp.container', `the container :::${co[2]} is never closed with ${':'.repeat(n)}`, { file, line: i + 1, col: 1 });
+      if (j >= to) {
+        const end = colons ? `the end of the container around it` : 'the end of the document';
+        diags.error('mkp.container', `the container \`${co[1]}${co[2]}\` opened here is never closed; found ${end} first. Add a line holding only \`${co[1]}\` (${n} colons, as many as it opens with) where the container ends`, { file, line: i + 1, col: 1 });
+      }
       const inner = parseItems(lines, i + 1, Math.min(j, to), n, file, diags);
       items.push({ k: 'container', name: co[2], args: (co[3] ?? '').trim(), colons: n, items: inner.items, line: i + 1 });
       i = j + 1;
@@ -121,7 +129,12 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
       } else if (items.length) {
         const last = items[items.length - 1];
         if (last.k !== 'state' && last.k !== 'defs') last.attrs = attrs;
-      } else diags.warn('mkp.attrs-orphan', 'attributes must follow a block', { file, line: i + 1, col: 1 });
+      } else
+        diags.warn(
+          'mkp.attrs-orphan',
+          `the attribute line \`${line.trim()}\` has no block above it to attach to (attributes apply to the block just before them); found it at the start of the ${colons ? 'container' : 'document'}. Move it to the line right after its heading or block, e.g. \`# Notes\` then \`${line.trim()}\``,
+          { file, line: i + 1, col: 1 },
+        );
       i++;
       mdLine = i + 1;
       continue;
@@ -131,7 +144,6 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
     i++;
   }
   flush();
-  void colons;
   return { items, end: to };
 }
 

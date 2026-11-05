@@ -5,7 +5,7 @@ import { CORE_MKP } from './base';
 import { checkDocument, DOC_PACK, type DocFile } from './check/doc';
 import { DefChecker, signatureOf, type Sig } from './check/def';
 import { Program, type PackInfo } from './check/program';
-import { Diagnostics, MkpError } from './diag';
+import { closest, Diagnostics, MkpError, type Pos } from './diag';
 import type { A, IRBundle, IRDef, IRDoc, IRExpr, IRFn, IRLock, IRNode, IRTokenSet, IRVal } from './ir';
 import { IR_VERSION } from './ir';
 import { corePack, loadPack, readZip, type PackFiles } from './pack';
@@ -18,6 +18,27 @@ import { sha256 } from './util/sha256';
 
 /** IR node names the compiler and runtime give their own meaning (statements, document state). */
 const BUILTIN_NODES = new Set(['each', 'switch', 'case', 'else', 'slot', 'fill', 'controls', 'arrow']);
+
+/**
+ * Where a manifest line is: the first `word` line (requires, depends, provides) that names `item`,
+ * at that item, or the pack line when there is none.
+ */
+function manifestAt(p: PackInfo, word: string, item?: string): Pos {
+  const base: Pos = { ...p.manifest.p, col: 1 };
+  const lines = (p.manifestText ?? '').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const words = [...lines[i].matchAll(/\S+/g)];
+    if (words[0]?.[0] !== word) continue;
+    const hit = item === undefined ? words[0] : words.slice(1).find((w) => w[0] === item);
+    if (hit) return { file: base.file, line: i + 1, col: (hit.index ?? 0) + 1 };
+  }
+  return base;
+}
+
+/** A definition's name as an author reads it, from its id (notes:note@1 → note). */
+function bareName(id: string): string {
+  return id.slice(id.indexOf(':') + 1).replace(/@\d+$/, '');
+}
 
 export interface PackSource {
   /** a folder's files, or the bytes of a .mkpack */
@@ -220,7 +241,7 @@ export function compile(opts: CompileOptions): Compiled {
       const p = loadPack(pf, diags);
       if (!p) continue;
       if (p.name === 'core') {
-        diags.error('mkp.pack-reserved', 'the pack name "core" is reserved for the base set', { file: src.label, line: 1, col: 1 });
+        diags.error('mkp.pack-reserved', `the pack name core is taken by MKP's own base set of widgets; found pack core@${p.version} in its manifest. Rename the pack, e.g. pack mywidgets@${p.version}, and keep its requires core@1 line`, { ...p.manifest.p, col: 1 });
         continue;
       }
       loaded.push(p);
@@ -234,17 +255,38 @@ export function compile(opts: CompileOptions): Compiled {
   const caps = new Set(opts.capabilities ?? ['core@1', 'gfx@1']);
   // dependencies, capabilities and provides
   for (const p of prog.packs.values()) {
-    const where = { file: `${p.name}/manifest.mkp`, line: p.manifest.p.line, col: 1 };
     for (const d of p.depends) {
+      const where = manifestAt(p, 'depends', d);
       const m = /^(.+)@(\d+)$/.exec(d);
       const dep = m && prog.packs.get(m[1]);
-      if (!m || !dep) diags.error('mkp.pack-depends', `${p.name} depends on ${d}, which this build was not given (pass it with --pack)`, where);
-      else if (dep.version < Number(m[2])) diags.error('mkp.pack-depends', `${p.name} depends on ${d}; this build has ${dep.name}@${dep.version}`, where);
+      if (!m) diags.error('mkp.pack-depends', `pack ${p.name} must name each pack it depends on as name@N; found depends ${d}. Write the version it needs, e.g. depends ${d}@1`, where);
+      else if (!dep) diags.error('mkp.pack-depends', `pack ${p.name} depends on ${d}, which is not among the packs given to this build; found depends ${d}. Give the build the ${m[1]} pack too (--pack <its folder>), or remove ${d} from the depends line if ${p.name} does not use it`, where);
+      else if (dep.version < Number(m[2])) diags.error('mkp.pack-depends', `pack ${p.name} depends on ${d}, but the ${dep.name} pack given to this build is ${dep.name}@${dep.version}; found depends ${d}. Give the build ${d} or later, or write depends ${dep.name}@${dep.version} if ${p.name} works with it`, where);
     }
-    for (const r of p.requires) if (!/^(core|gfx)@1$/.test(r)) diags.error('mkp.capability', `${p.name} requires ${r}, which is not a known capability (core@1, gfx@1)`, where);
+    for (const r of p.requires) {
+      if (/^(core|gfx)@1$/.test(r)) continue;
+      const fix = /^(core|gfx)(@\d+)?$/.test(r) ? `Write ${r.replace(/@\d+$/, '')}@1` : `Remove ${r} from the requires line`;
+      diags.error('mkp.capability', `pack ${p.name} requires ${r}, which is not a capability MKP knows (a feature the page's provider must have: core@1, or gfx@1 for pixels and 3D); found requires ${r}. ${fix}`, manifestAt(p, 'requires', r));
+    }
+    const own = [
+      ...[...prog.defs.values()].filter((d) => d.pack === p.name).map((d) => d.syn.name),
+      ...[...prog.ifaces.values()].filter((x) => x.pack === p.name).map((x) => x.syn.name),
+      ...[...prog.types.values()].filter((t) => t.pack === p.name).map((t) => t.name),
+      ...[...prog.fns.entries()].filter(([, fs]) => fs.some((f) => f.pack === p.name)).map(([n]) => n),
+      ...[...prog.consts.entries()].filter(([, cs]) => cs.some((x) => x.pack === p.name)).map(([n]) => n),
+      ...prog.tokenSets.filter((t) => t.pack === p.name).map((t) => t.syn.name),
+    ];
     for (const name of p.provides) {
-      const has = [...prog.defs.values()].some((d) => d.pack === p.name && d.syn.name === name) || [...prog.ifaces.values()].some((x) => x.pack === p.name && x.syn.name === name) || prog.types.has(`${p.name}:${name}`) || prog.fns.get(name)?.some((f) => f.pack === p.name) || prog.consts.get(name)?.some((x) => x.pack === p.name) || prog.tokenSets.some((t) => t.pack === p.name && t.syn.name === name);
-      if (!has) diags.error('mkp.pack-provides', `${p.name} provides "${name}", but no definition, type, fn or constant has that name`, where);
+      if (own.includes(name)) continue;
+      const bare = name.replace(/,+$/, '');
+      const fix =
+        bare !== name && (own.includes(bare) || !bare)
+          ? `Separate the names with spaces, not commas: provides ${[...p.provides].map((x) => x.replace(/,+$/, '')).filter(Boolean).join(' ')}`
+          : closest(name, own)
+            ? `Correct it to ${closest(name, own)}, or remove it from the provides line`
+            : `Remove ${name} from the provides line, or add a definition named ${name} to the pack, e.g. ${name}@1 "What it shows."`;
+      const shown = /^[A-Za-z_][\w.-]*$/.test(name) ? name : `"${name}"`;
+      diags.error('mkp.pack-provides', `pack ${p.name} provides ${shown}, but nothing in the pack has that name (no widget, part, interface, type, fn, constant or token set); found provides ${shown}. ${fix}`, manifestAt(p, 'provides', name));
     }
   }
   // the same provided definition name in two packs
@@ -256,11 +298,17 @@ export function compile(opts: CompileOptions): Compiled {
       providers.set(n, [...(providers.get(n) ?? []), p.name]);
     }
   }
+  const defIn = (pack: string, n: string) => [...prog.defs.values()].find((d) => d.pack === pack && d.syn.name === n);
   for (const [n, ps] of providers) {
-    if (ps.length > 1) diags.warn('mkp.name-clash', `${n} is provided by ${ps.join(' and ')}; uses must be qualified as pack:${n}`);
-    if (prog.lookupDefs(n, '$none').some((d) => d.pack === 'core')) diags.error('mkp.reserved', `${n} is a base widget name and is reserved`);
+    const first = defIn(ps[0], n);
+    if (ps.length > 1) {
+      const packs = ps.length === 2 ? `two packs, ${ps.join(' and ')}` : `${ps.length} packs, ${ps.join(', ')}`;
+      diags.warn('mkp.name-clash', `${n} is provided by ${packs}, so a bare ${n} could mean either; found provides ${n} in each manifest. Wherever ${n} is used, write its pack before it, e.g. ${ps[0]}:${n} (a block opens with \`\`\`${ps[0]}:${n}), or rename one of them`, defIn(ps[ps.length - 1], n)?.syn.p);
+    }
+    const found = `${n}@${first?.syn.version ?? 1} in pack ${ps.join(', ')}`;
+    if (prog.lookupDefs(n, '$none').some((d) => d.pack === 'core')) diags.error('mkp.reserved', `${n} is the name of a base widget, so a pack's widget may not be called ${n}; found ${found}. Rename the widget and its provides entry, e.g. my${n}@1 and provides my${n}`, first?.syn.p);
     // a use is an IR node named after the definition, so a built-in's name would be read as the built-in
-    if (BUILTIN_NODES.has(n)) diags.error('mkp.reserved', `${n} is a built-in node name (${[...BUILTIN_NODES].join(', ')}) and is reserved`);
+    if (BUILTIN_NODES.has(n)) diags.error('mkp.reserved', `${n} is a word MKP itself uses in views (${[...BUILTIN_NODES].join(', ')}), so a widget may not be called ${n}; found ${found}. Rename the widget and its provides entry, e.g. my${n}@1 and provides my${n}`, first?.syn.p);
   }
   // tokens
   c.tokens = prog.tokenSets.map((t) => tokenSetIR(t.syn, t.pack, diags));
@@ -275,7 +323,12 @@ export function compile(opts: CompileOptions): Compiled {
       const ir = dc.check();
       c.defs.set(d.id, ir);
       checkers.push(dc);
-      for (const r of ir.requires ?? []) if (!caps.has(r)) diags.warn('mkp.capability-fallback', `${d.syn.name} requires ${r}; providers without it show its fallback`, d.syn.p);
+      for (const r of ir.requires ?? []) {
+        if (caps.has(r)) continue;
+        const known = /^(core|gfx)@1$/.test(r);
+        const why = known ? `which the target provider lacks (it has ${[...caps].join(', ')})` : `which is not a capability MKP knows (core@1, gfx@1)`;
+        diags.warn('mkp.capability-fallback', `${d.syn.name} requires ${r}, ${why}, so the page shows the block's summary: text in its place; found requires ${r}. Remove that line if ${d.syn.name} works without it, or give every use a summary that says what it shows`, d.syn.p);
+      }
     } catch (e) {
       dc.err(e);
     }
@@ -375,9 +428,25 @@ function depthCheck(c: Compiled, checkers: DefChecker[], diags: Diagnostics): vo
     memo.set(id, d);
     return d;
   };
+  // the deepest chain of uses from a definition, for the message
+  const chainOf = (id: string): string[] => {
+    const out = [id];
+    for (let cur = id; out.length <= 64; ) {
+      const next = (uses.get(cur) ?? []).filter((u) => !u.startsWith('core:') && memo.has(u) && !out.includes(u)).sort((a, b) => memo.get(b)! - memo.get(a)!)[0];
+      if (!next) break;
+      out.push(next);
+      cur = next;
+    }
+    return out.map(bareName);
+  };
   for (const dc of checkers) {
     const d = depth(dc.entry.id, new Set());
-    if (d > 12) diags.error('mkp.limit', `${dc.entry.syn.name} nests definitions ${d} deep; at most 12`, dc.entry.syn.p);
+    if (d > 12) {
+      const ch = chainOf(dc.entry.id);
+      const shown = ch.length > 4 ? `${ch[0]} → ${ch[1]} → … → ${ch[ch.length - 1]}` : ch.join(' → ');
+      const [inner, outer] = [ch[ch.length - 1], ch[ch.length - 2] ?? ch[0]];
+      diags.error('mkp.limit', `definitions may be nested at most 12 deep, one using the next; found ${dc.entry.syn.name} nesting ${d} deep (${shown}). Shorten the chain: write ${inner}'s view straight into ${outer} instead of using ${inner} there`, dc.entry.syn.p);
+    }
   }
   void c;
 }
@@ -389,14 +458,21 @@ function makeLock(c: Compiled, prev: IRLock | undefined, diags: Diagnostics): IR
   if (prev) {
     for (const p of prev.packs) {
       const now = packs.find((x) => x.pack === p.pack && x.version === p.version);
-      if (now && now.digest !== p.digest && p.pack !== 'core') diags.warn('mkp.pack-changed', `${p.pack}@${p.version} changed since the lock was written; a published version must not change`);
+      if (now && now.digest !== p.digest && p.pack !== 'core') {
+        const pk = c.prog.packs.get(p.pack);
+        diags.warn('mkp.pack-changed', `pack ${p.pack}@${p.version} has changed since mkp.lock was written; found files that differ from the locked ones (one added, removed or edited), and a published version must not change. Undo the change, publish it as ${p.pack}@${p.version + 1}, or rebuild with --relock if it is unpublished`, pk ? { ...pk.manifest.p, col: 1 } : undefined);
+      }
     }
     for (const [id, dg] of Object.entries(prev.defs)) {
       // an unpublished pack may still change under the same @N (GAPS 15)
       if (c.prog.packs.get(id.slice(0, id.indexOf(':')))?.manifest.unpublished) continue;
       // the base set is versioned with MKP itself, not by the lock
       if (id.startsWith('core:')) continue;
-      if (defs[id] && defs[id] !== dg && !id.startsWith(`${DOC_PACK}:`)) diags.error('mkp.version-changed', `${id} changed since it was locked; a behaviour change is a new version (@N+1), or build with --relock while the pack is unpublished`);
+      if (defs[id] && defs[id] !== dg && !id.startsWith(`${DOC_PACK}:`)) {
+        const entry = c.prog.defs.get(id);
+        const v = Number(/@(\d+)$/.exec(id)?.[1] ?? 1);
+        diags.error('mkp.version-changed', `${id} has changed since mkp.lock recorded it; found a definition that differs from the locked one, and a locked version must keep its behaviour. Undo the change, or give it a new version (${bareName(id)}@${v + 1}); while the pack is unpublished, add unpublished to its manifest or rebuild with --relock`, entry?.syn.p);
+      }
     }
   }
   return { packs, defs };

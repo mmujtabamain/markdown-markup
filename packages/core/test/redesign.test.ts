@@ -108,12 +108,12 @@ describe('static types and nothing silent (6.5, GAPS 42, 43)', () => {
   });
   it('a wrong or missing value says what the input takes', () => {
     const msg = (body: string) => def(body).all.map((m) => m.split('\n')[0].replace(/^\S+ error /, ''));
-    expect(msg('  column pad=(2)\n    text "a"')).toEqual(['mkp.style-token: pad takes a space token: none, xs, s, m, l, xl; found (2) (int)']);
-    expect(msg('  column pad=huge\n    text "a"')).toEqual(['mkp.unknown-token: "huge" is not a space token; pad takes a space token: none, xs, s, m, l, xl']);
-    expect(msg('  row align=centre\n    text "a"')).toEqual(['mkp.enum: align takes one of start, center, end, stretch, baseline; found centre (did you mean "center"?)']);
-    expect(msg('  text "a" tone="#ff0000"')[0]).toMatch(/^mkp\.style-token: tone takes a color token: none, surface, ink, .*, c6, by name; found "#ff0000"$/);
-    expect(msg('  image "a.svg"')[0]).toMatch(/^mkp\.missing-input: image needs alt: text$/);
-    expect(msg('  text "a" lines=99')).toEqual(['mkp.input-range: lines takes a whole number from 0 to 24; found 99']);
+    expect(msg('  column pad=(2)\n    text "a"')).toEqual(['mkp.style-token: pad takes a space token: none, xs, s, m, l, xl; found (2), which gives int. Write a token name, or an expression that gives one, e.g. pad=xs']);
+    expect(msg('  column pad=huge\n    text "a"')).toEqual(['mkp.unknown-token: "huge" is not a space token; pad takes a space token: none, xs, s, m, l, xl. Write one of those names']);
+    expect(msg('  row align=centre\n    text "a"')).toEqual(['mkp.enum: align takes one of start, center, end, stretch, baseline; found centre (did you mean "center"?). Write align=center']);
+    expect(msg('  text "a" tone="#ff0000"')[0]).toMatch(/^mkp\.style-token: tone takes a color token by name, never a written-out colour, .*; found "#ff0000"\. Write one of none, surface, ink, .*, c6, e\.g\. tone=accent$/);
+    expect(msg('  image "a.svg"')[0]).toMatch(/^mkp\.missing-input: image needs alt: text\. Add it, e\.g\. image alt="…"$/);
+    expect(msg('  text "a" lines=99')).toEqual(['mkp.input-range: lines takes a whole number from 0 to 24; found 99. Write a value in that range, e.g. lines=24']);
   });
   it('a named type fills the fields a literal leaves out', () => {
     const r = doc(fence('type item = {label: text, tone: color = muted}\nw "w"\n  xs = [{label: "a"} : item]\n  text "a"\n  project md = "w"'));
@@ -232,7 +232,7 @@ describe('type parameters and typed paths (6.26)', () => {
   });
   it('a path to a field the items lack fails at its own line', () => {
     const r = doc(fence(picklist) + block('picklist', yaml('population')));
-    expect(r.all[0]).toMatch(/doc\.mkp\.md:\d+:\d+ error mkp\.unknown-field: "population" isn't a field of the items \(they have city, fact\)/);
+    expect(r.all[0]).toMatch(/doc\.mkp\.md:\d+:\d+ error mkp\.unknown-field: "population" isn't a field of the items; their fields are city, fact\. Write city or another of those, or add population to the items/);
   });
   it("a path to a pack's own record type takes YAML records of its shape (walk's entry)", () => {
     const lib = pack('lib', {
@@ -298,7 +298,7 @@ describe('positions (GAPS 165)', () => {
     const src = fence('nums "n"\n  in xs list(int)\n  text "n"\n  project md = "n"') + block('nums', 'xs:\n  - 1\n  - two\n  - 3\nsummary: s');
     const r = doc(src);
     const line = src.split('\n').findIndex((l) => l.includes('- two')) + 1;
-    expect(r.all[0]).toMatch(new RegExp(`^doc\\.mkp\\.md:${line}:5 error mkp\\.input-type: xs\\[1\\] is a whole number`));
+    expect(r.all[0]).toMatch(new RegExp(`^doc\\.mkp\\.md:${line}:5 error mkp\\.input-type: xs\\[1\\] takes a whole number \\(int\\); found \"two\"`));
   });
 });
 
@@ -326,7 +326,7 @@ describe('record kinds and optional paths (GAPS 44)', () => {
   });
   it('a path to a number where text is needed says to quote the values', () => {
     const src = fence('t of T "t"\n  in rows list(T)\n  in name path(T, text)\n  text "x"\n  project md = "x"') + block('t', 'rows:\n  - {n: 1}\nname: n\nsummary: s');
-    expect(doc(src).all[0]).toMatch(/quote the values in the YAML/);
+    expect(doc(src).all[0]).toMatch(/needs a field holding text, but "n" holds int\. Quote its values to make them text/);
   });
 });
 

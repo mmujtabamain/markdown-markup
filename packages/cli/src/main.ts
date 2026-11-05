@@ -206,8 +206,9 @@ async function build(a: Args): Promise<number> {
 async function check(a: Args): Promise<number> {
   const c = compiled(a);
   if (a.pos.length) return checkDocs(a, c);
-  let ok = report(c.diags);
+  // read the fixture files first, so a malformed one (mkp.fixture-shape) is reported with the rest
   const cases = fixtureCases(c);
+  let ok = report(c.diags);
   // maths is checked with the same engine that renders it (6.15)
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: false });
   let n = 0;
@@ -336,13 +337,15 @@ async function cases(a: Args): Promise<number> {
   const c = compiled(a);
   // maths drawn at build, as mkp build draws it, so a host needs no maths engine to show a case
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
+  // read the fixture files first, so a malformed one (mkp.fixture-shape) is reported with the rest
+  const all = fixtureCases(c);
   if (!report(c.diags, true)) return 1;
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
   if (!outDir) throw new Error('mkp cases needs --out <dir>');
   const only = typeof a.opts.only === 'string' ? a.opts.only : null;
   const byDef = new Map<string, { case: string; summary: string; bundle: unknown }[]>();
   let ok = true;
-  for (const fc of fixtureCases(c)) {
+  for (const fc of all) {
     if (fc.expect?.errors?.length || (only && fc.pack !== only)) continue;
     const r = compileCase(c, fc);
     if (!r.bundle) {
