@@ -599,3 +599,8 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
 133. **A zoom's height.** *Extension (zoom@1).* A zoom is as tall as what it holds, never shorter than
      `minheight` (none, the default: room for its own tools) and never taller than `maxheight` (`l`
      by default; none: unbounded). What is taller is clipped, to pan once unlocked.
+134. **A zoom shows its lock only when it is needed.** *Extension (zoom@1).* A zoom whose content fits
+     whole (not shrunk, not clipped) has nothing to zoom or pan, so it shows no lock, keeps no strip
+     free for one, and takes no gesture. The lock shows when what it holds was shrunk to fit its
+     width, runs past its sides (`fit=false`), is taller than `maxheight` and clipped, or is a drawing
+     or a picture (a canvas or an image, always worth a closer look); once unlocked or moved it stays.

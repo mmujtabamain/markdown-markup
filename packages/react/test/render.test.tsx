@@ -189,8 +189,50 @@ describe('a zoom’s height', () => {
       ['var(--mkp-size-s)', 'var(--mkp-size-m)'],
       ['', ''],
     ]);
-    // with no minheight, the stylesheet keeps room for the tools
-    expect(SHELL_CSS).toContain('.mkp-zoom { position: relative; overflow: hidden; min-height: calc(var(--mkp-space-s) * 2 + 40px); }');
+    // with no minheight, the stylesheet keeps room for the tools, when it shows them
+    expect(SHELL_CSS).toContain('.mkp-zoom { position: relative; overflow: hidden; }');
+    expect(SHELL_CSS).toContain('.mkp-zoom[data-tools] { min-height: calc(var(--mkp-space-s) * 2 + 40px); }');
+  });
+
+  it('shows its lock only when there is something to zoom or pan: shrunk to fit, clipped, a drawing or a picture', () => {
+    // a view 300 wide and 160 tall; what a zoom holds is 100 wide and 40 tall, unless it says "wide"
+    // (600) or "tall" (500); stretched, it is never narrower than its view
+    const canvasLines = ['canvas x=0..10 y=0..10 size=s', '  layer', '    circle (5, 5) 1'];
+    const names = ['clientWidth', 'clientHeight', 'offsetWidth', 'offsetHeight'] as const;
+    const was = names.map((k) => [k, Object.getOwnPropertyDescriptor(k.startsWith('client') ? Element.prototype : HTMLElement.prototype, k)] as const);
+    const is = (el: Element, c: string): boolean => el.classList.contains(c);
+    const say = (el: Element, w: string): boolean => (el.textContent ?? '').includes(w);
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, get(this: Element) { return is(this, 'mkp-zoom') || is(this, 'mkp-fit') ? 300 : 0; } });
+    Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, get(this: Element) { return is(this, 'mkp-zoom') ? 160 : 0; } });
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+      configurable: true,
+      get(this: HTMLElement) {
+        if (!is(this, 'mkp-fit-inner')) return 0;
+        const want = say(this, 'wide') ? 600 : 100;
+        return this.style.minWidth === '0' ? want : Math.max(want, 300);
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get(this: HTMLElement) { return is(this, 'mkp-fit-inner') || is(this, 'mkp-zoom-content') ? (say(this, 'tall') ? 500 : 40) : 0; } });
+    try {
+      const { container } = draw(doc(['column gap=s', '  zoom', '    text "fits"', '  zoom', '    text "wide"', '  zoom maxheight=s', '    text "tall"', '  zoom', ...canvasLines.map((l) => '    ' + l), '  zoom', '    image "plan.svg" "a plan"']));
+      const zooms = [...container.querySelectorAll<HTMLElement>('.mkp-zoom')];
+      const locks = zooms.map((z) => !!z.querySelector('button[aria-label="Unlock to zoom and pan"]'));
+      expect(locks).toEqual([false, true, true, true, true]);
+      expect(zooms.map((z) => z.hasAttribute('data-tools'))).toEqual([false, true, true, true, true]);
+      // what fits keeps its whole width and size: no strip kept free for a lock, no shrinking
+      const [fits, wide] = zooms.map((z) => z.querySelector<HTMLElement>('.mkp-fit'));
+      expect(fits!.style.paddingRight).toBe('');
+      expect(fits!.hasAttribute('data-shrunk')).toBe(false);
+      expect(wide!.style.paddingRight).toBe('44px');
+      expect(wide!.hasAttribute('data-shrunk')).toBe(true);
+      // a pinch on what fits is the page's, not the zoom's: it neither points at a lock nor is stopped
+      expect(fireEvent.wheel(zooms[0], { ctrlKey: true, deltaY: -10 })).toBe(true);
+      expect(zooms[0].hasAttribute('data-nudged')).toBe(false);
+      act(() => void fireEvent.wheel(zooms[1], { ctrlKey: true, deltaY: -10 }));
+      expect(zooms[1].hasAttribute('data-nudged')).toBe(true);
+    } finally {
+      for (const [k, d] of was) Object.defineProperty(k.startsWith('client') ? Element.prototype : HTMLElement.prototype, k, d!);
+    }
   });
 });
 

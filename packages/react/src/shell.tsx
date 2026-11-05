@@ -159,14 +159,15 @@ const OWN_DRAG = 'button, a, input, select, textarea, [role="slider"], .mkp-hand
 /**
  * Zoom and pan behind a lock. Locked (as it starts), a pinch or ctrl+wheel, a drag across it or a
  * double-click points at the lock for a second instead; unlocked, the wheel zooms about the pointer,
- * a drag pans, and + / − / reset sit beside the lock.
+ * a drag pans, and + / − / reset sit beside the lock. With nothing to zoom or pan (what it holds fits
+ * whole), it shows no lock and takes no gesture.
  */
 /**
  * What it holds at its natural width, shrunk to fit when that is wider than the room it has (never
  * enlarged), and as tall as it then is. A drawing wider than its frame is seen whole at rest; a zoom
  * around it lets the reader look closer.
  */
-export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNode; on?: boolean; gutter?: number }): ReactNode {
+export function FitBox({ children, on = true, gutter = 0, onWide }: { children?: ReactNode; on?: boolean; gutter?: number; onWide?: (wide: boolean) => void }): ReactNode {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ s: number; h: number } | null>(null);
@@ -175,11 +176,16 @@ export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNo
     const i = inner.current;
     if (!on || !o || !i) return;
     const go = (): void => {
+      // its natural width: what it holds, not the room it is stretched to
+      i.style.minWidth = '0';
+      const want = i.offsetWidth;
+      i.style.minWidth = '';
       // a gutter on the right, kept free for what sits over the view (a zoom's lock)
       const room = o.clientWidth - gutter;
-      const want = i.offsetWidth;
       const s = room > 0 && want > room + 0.5 ? room / want : 1;
       const h = Math.round(i.offsetHeight * s * 10) / 10;
+      // wider than the whole view, gutter or not: what a zoom shows its lock for
+      if (o.clientWidth > 0) onWide?.(want > o.clientWidth + 0.5);
       setFit((f) => (f && f.s === s && f.h === h ? f : { s, h }));
     };
     go();
@@ -188,11 +194,11 @@ export function FitBox({ children, on = true, gutter = 0 }: { children?: ReactNo
     ro.observe(o);
     ro.observe(i);
     return () => ro.disconnect();
-  }, [on, gutter]);
+  }, [on, gutter, onWide]);
   if (!on) return <>{children}</>;
   const shrunk = !!fit && fit.s < 1;
   return (
-    <div ref={outer} className="mkp-fit" data-shrunk={shrunk || undefined} style={shrunk ? { height: fit.h } : undefined}>
+    <div ref={outer} className="mkp-fit" data-shrunk={shrunk || undefined} style={{ ...(gutter ? { paddingRight: gutter } : {}), ...(shrunk ? { height: fit.h } : {}) }}>
       <div ref={inner} className="mkp-fit-inner" style={shrunk ? { transform: `scale(${fit.s})` } : undefined}>
         {children}
       </div>
@@ -208,10 +214,15 @@ export function zoomBounds(n: VNode): CSSProperties {
   return { ...(lo ? { minHeight: lo } : {}), ...(hi ? { maxHeight: hi } : {}) };
 }
 
+/** Whether a zoom holds one of these, at any depth. */
+function holds(n: VNode, kinds: string[]): boolean {
+  const any = (ns: VNode[] | undefined): boolean => (ns ?? []).some((k) => kinds.includes(k.t) || any(k.kids));
+  return any(n.kids);
+}
+
 /** Whether a zoom has something to fit: a canvas is drawn to its width already, so it never needs it. */
 export function fitsWidth(n: VNode): boolean {
-  const canvas = (ns: VNode[] | undefined): boolean => (ns ?? []).some((k) => k.t === 'canvas' || canvas(k.kids));
-  return n.p.fit !== false && !canvas(n.kids);
+  return n.p.fit !== false && !holds(n, ['canvas']);
 }
 
 export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; Button?: ShellButton }): ReactNode {
@@ -237,9 +248,35 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
   };
   const zoomRef = useRef(zoomAt);
   zoomRef.current = zoomAt;
+  // Its lock and tools show only when there is something to zoom or pan: what it holds was shrunk to
+  // fit (or, not fitted, runs past its sides), is taller than it and clipped, or is a drawing or a
+  // picture. Once unlocked or moved they stay, so they never vanish under the reader's hand.
+  const content = useRef<HTMLDivElement>(null);
+  const fit = fitsWidth(n);
+  const [wide, setWide] = useState(false);
+  const [tall, setTall] = useState(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    const c = content.current;
+    if (!el || !c) return;
+    const go = (): void => {
+      if (!el.clientWidth) return;
+      setTall(c.offsetHeight > el.clientHeight + 0.5);
+      if (!fit) setWide(c.scrollWidth > el.clientWidth + 0.5);
+    };
+    go();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(go);
+    ro.observe(el);
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [fit]);
+  const shifted = view.scale !== 1 || view.x !== 0 || view.y !== 0;
+  // a drawing or a picture is always worth a closer look, whole or not
+  const tools = wide || tall || holds(n, ['canvas', 'image']) || !locked || shifted;
   useEffect(() => {
     const el = box.current;
-    if (!el) return;
+    if (!el || !tools) return;
     const wheel = (e: WheelEvent): void => {
       const pinch = e.ctrlKey || e.metaKey;
       if (locked) {
@@ -255,9 +292,9 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
     };
     el.addEventListener('wheel', wheel, { passive: false });
     return () => el.removeEventListener('wheel', wheel);
-  }, [locked]);
+  }, [locked, tools]);
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (e.button !== 0 || (e.target as Element).closest(OWN_DRAG)) return;
+    if (!tools || e.button !== 0 || (e.target as Element).closest(OWN_DRAG)) return;
     const start = { x: e.clientX, y: e.clientY };
     const from = view;
     let moved = false;
@@ -282,7 +319,6 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
-  const shifted = view.scale !== 1 || view.x !== 0 || view.y !== 0;
   useEffect(() => relayout(box.current), [view]);
   return (
     <div
@@ -291,39 +327,42 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
       className="mkp-zoom"
       data-locked={locked || undefined}
       data-nudged={nudged || undefined}
+      data-tools={tools || undefined}
       style={{ ...zoomBounds(n), ...style }}
       onPointerDown={onPointerDown}
       onDoubleClick={(e) => {
-        if ((e.target as Element).closest(OWN_DRAG)) return;
+        if (!tools || (e.target as Element).closest(OWN_DRAG)) return;
         if (locked) return refuse();
         const r = e.currentTarget.getBoundingClientRect();
         zoomAt(ZOOM_STEP * ZOOM_STEP, e.clientX - r.left, e.clientY - r.top);
       }}
     >
       {/* the moving layer: arrows with both ends in it are drawn in it, and follow it (GAPS 126) */}
-      <div className="mkp-zoom-content" data-mkp-arrow-host="" style={shifted ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
-        <FitBox on={fitsWidth(n)} gutter={44}>
+      <div ref={content} className="mkp-zoom-content" data-mkp-arrow-host="" style={shifted ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
+        <FitBox on={fit} gutter={tools ? 44 : 0} onWide={setWide}>
           <Kids nodes={n.kids} />
         </FitBox>
       </div>
-      <div className="mkp-zoom-tools">
-        {!locked ? (
-          <>
-            <Button label="Zoom out" onClick={() => zoomAt(1 / ZOOM_STEP)}>
-              −
-            </Button>
-            <Button label="Zoom in" onClick={() => zoomAt(ZOOM_STEP)}>
-              +
-            </Button>
-            <Button label="Reset the view" onClick={() => setView({ scale: 1, x: 0, y: 0 })}>
-              ↺
-            </Button>
-          </>
-        ) : null}
-        <Button label={locked ? 'Unlock to zoom and pan' : 'Lock the view'} pressed={!locked} onClick={() => setLocked(!locked)}>
-          {locked ? '⚿' : '⚷'}
-        </Button>
-      </div>
+      {tools ? (
+        <div className="mkp-zoom-tools">
+          {!locked ? (
+            <>
+              <Button label="Zoom out" onClick={() => zoomAt(1 / ZOOM_STEP)}>
+                −
+              </Button>
+              <Button label="Zoom in" onClick={() => zoomAt(ZOOM_STEP)}>
+                +
+              </Button>
+              <Button label="Reset the view" onClick={() => setView({ scale: 1, x: 0, y: 0 })}>
+                ↺
+              </Button>
+            </>
+          ) : null}
+          <Button label={locked ? 'Unlock to zoom and pan' : 'Lock the view'} pressed={!locked} onClick={() => setLocked(!locked)}>
+            {locked ? '⚿' : '⚷'}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -374,7 +413,8 @@ export const SHELL_CSS = layer(`
 .mkp-pane-note { font-size: 0.8em; color: var(--mkp-color-muted); }
 .mkp-pane-body { position: relative; min-height: 0; overflow: auto; flex: 1 1 auto; }
 .mkp-pane-foot { padding: var(--mkp-space-s) var(--mkp-space-l); border-top: 1px solid var(--mkp-color-line); font-size: 0.85em; color: var(--mkp-color-muted); }
-.mkp-zoom { position: relative; overflow: hidden; min-height: calc(var(--mkp-space-s) * 2 + 40px); }
+.mkp-zoom { position: relative; overflow: hidden; }
+.mkp-zoom[data-tools] { min-height: calc(var(--mkp-space-s) * 2 + 40px); }
 .mkp-zoom[data-nudged] { outline: 2px solid var(--mkp-color-accent); outline-offset: -2px; }
 .mkp-zoom-content { position: relative; transform-origin: 0 0; }
 /* its own width never comes from what it holds, so a wide drawing can't widen the column it sits in */

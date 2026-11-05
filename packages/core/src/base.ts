@@ -255,10 +255,10 @@ extern pane@1 "A titled column of a stage: its title stays put while its body sc
   in body slot
   in footer slot
 
-extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scrolling the page past it is never caught by it. It starts locked; a try to zoom or pan then points at the lock."
+extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scrolling the page past it is never caught by it. It starts locked; a try to zoom or pan then points at the lock. Its lock shows only when there is something to zoom or pan: what it holds was shrunk to fit, is clipped, or is a drawing or a picture."
   in max num = 4 "how far it zooms in"
   in fit bool = true "at rest, what is wider than the view is shrunk to fit it (never enlarged)"
-  in minheight size = none "never shorter than this; none: room for its own tools"
+  in minheight size = none "never shorter than this; none: room for its lock, when it shows one"
   in maxheight size = l "never taller than this: what is taller is clipped, to pan once unlocked; none: as tall as its content"
   in body slot
 

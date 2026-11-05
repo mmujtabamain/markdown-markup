@@ -154,30 +154,49 @@ export function Pane({ n }: { n: VNode }): ReactNode {
   );
 }
 
-/** Zoom behind a lock: locked, it is still; unlocked, + / − / reset scale it. */
+/** Whether a zoom holds a drawing or a picture, always worth a closer look. */
+function holdsDrawing(ns: VNode[] | undefined): boolean {
+  return (ns ?? []).some((k) => k.t === 'canvas' || k.t === 'image' || holdsDrawing(k.kids));
+}
+
+/** Zoom behind a lock: locked, it is still; unlocked, + / − / reset scale it. The lock shows only
+ *  when there is something to zoom or pan: what it holds runs past its sides or below its maxheight,
+ *  or is a drawing or a picture. */
 export function Zoom({ n }: { n: VNode }): ReactNode {
   const { theme } = useCtx();
   const [locked, setLocked] = useState(true);
   const [scale, setScale] = useState(1);
+  const [view, setView] = useState({ w: 0, h: 0 });
+  const [held, setHeld] = useState({ w: 0, h: 0 });
   const max = Number(n.p.max) > 1 ? Number(n.p.max) : 4;
-  // as tall as its content, between its minheight (none: room for its tools) and its maxheight
-  const lo = theme.size(n.p.minheight) ?? (theme.space('s') ?? 4) * 2 + 40;
+  const tools = (view.w > 0 && (held.w > view.w + 0.5 || held.h > view.h + 0.5)) || holdsDrawing(n.kids) || !locked || scale !== 1;
+  // as tall as its content, between its minheight (none: room for its tools, when it shows them) and its maxheight
+  const lo = theme.size(n.p.minheight) ?? (tools ? (theme.space('s') ?? 4) * 2 + 40 : undefined);
   const hi = theme.size(n.p.maxheight);
   return (
-    <View style={{ overflow: 'hidden', minHeight: lo, ...(hi !== undefined ? { maxHeight: hi } : {}) }}>
-      <View style={scale !== 1 ? { transform: [{ scale }] } : undefined}>
+    <View
+      style={{ overflow: 'hidden', ...(lo !== undefined ? { minHeight: lo } : {}), ...(hi !== undefined ? { maxHeight: hi } : {}) }}
+      onLayout={(e) => setView({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      {/* its natural width, never less than the view's: wider means it runs past the sides */}
+      <View
+        style={{ alignSelf: 'flex-start', minWidth: '100%', ...(scale !== 1 ? { transform: [{ scale }] } : {}) }}
+        onLayout={(e) => setHeld({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
         <Kids nodes={n.kids} />
       </View>
-      <View style={{ position: 'absolute', top: theme.space('s'), right: theme.space('s'), flexDirection: 'row', gap: 2, padding: 2, borderRadius: theme.radius('card'), backgroundColor: theme.color('surface') }}>
-        {!locked ? (
-          <>
-            <ShellButton label="Zoom out" onPress={() => setScale(Math.max(1, scale / 1.25))}>−</ShellButton>
-            <ShellButton label="Zoom in" onPress={() => setScale(Math.min(max, scale * 1.25))}>+</ShellButton>
-            <ShellButton label="Reset the view" onPress={() => setScale(1)}>↺</ShellButton>
-          </>
-        ) : null}
-        <ShellButton label={locked ? 'Unlock to zoom' : 'Lock the view'} pressed={!locked} onPress={() => setLocked(!locked)}>⚿</ShellButton>
-      </View>
+      {tools ? (
+        <View style={{ position: 'absolute', top: theme.space('s'), right: theme.space('s'), flexDirection: 'row', gap: 2, padding: 2, borderRadius: theme.radius('card'), backgroundColor: theme.color('surface') }}>
+          {!locked ? (
+            <>
+              <ShellButton label="Zoom out" onPress={() => setScale(Math.max(1, scale / 1.25))}>−</ShellButton>
+              <ShellButton label="Zoom in" onPress={() => setScale(Math.min(max, scale * 1.25))}>+</ShellButton>
+              <ShellButton label="Reset the view" onPress={() => setScale(1)}>↺</ShellButton>
+            </>
+          ) : null}
+          <ShellButton label={locked ? 'Unlock to zoom' : 'Lock the view'} pressed={!locked} onPress={() => setLocked(!locked)}>⚿</ShellButton>
+        </View>
+      ) : null}
     </View>
   );
 }

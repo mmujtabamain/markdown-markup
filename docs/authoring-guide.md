@@ -224,7 +224,8 @@ summary: The four containers side by side.
 - Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
 - The host's shell: `frame` (kind, title, `status`, `fill actions`, `fill about`, `fill details`),
   `pane` side by side, `zoom` behind its lock (example 18), as tall as its content between `minheight` (by
-  default, room for its tools) and `maxheight` (by default `l`). A widget's controls go in its frame's bar.
+  default, room for its lock) and `maxheight` (by default `l`). The lock shows only when there is something
+  to zoom or pan: content shrunk to fit, clipped, or a drawing or picture. A widget's controls go in its frame's bar.
 
 ## Canvas and arrows
 
