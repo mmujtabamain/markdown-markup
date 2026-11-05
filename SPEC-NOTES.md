@@ -591,3 +591,8 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
 131. **Small additions.** `iconname` has `none`, which draws nothing; `grid cols=` takes a list of
      track words worked out by an expression; a YAML record fills a default written as an expression
      (a point); a path input is checked in the types of the definition it belongs to.
+132. **A wrong or missing value says what it may be.** *Clarification (6.19).* An error about a
+     value names the input and what it takes: a token kind's names (`pad takes a space token: none,
+     xs, s, m, l, xl; found 2`), a choice's options with the nearest one (`align takes one of start,
+     center, end, stretch, baseline; found centre (did you mean "center"?)`), a number's range, and a
+     required input left out (`image needs alt: text`).

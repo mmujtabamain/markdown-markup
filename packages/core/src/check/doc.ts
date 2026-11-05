@@ -419,7 +419,7 @@ class DocChecker {
     for (const [name, inp] of sig.inputs) {
       if (inp.hasDefault || node.props?.[name] !== undefined || failed.has(name)) continue;
       if (resolve(inp.type, this.prog.typeEnv(sig.pack)).t === 'records' && node.records?.length) continue;
-      this.diags.error('mkp.missing-input', `${sig.name} needs ${name} (${showType(inp.type)})`, p);
+      this.diags.error('mkp.missing-input', `${sig.name} needs ${name}: ${this.dc.takes(inp.type)}`, p);
     }
   }
 
@@ -521,7 +521,7 @@ class DocChecker {
       }
       case 'token':
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return { tok: v, kind: t.kind };
-        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, this.at(what, p));
+        throw new MkpError('mkp.unknown-token', `"${String(v)}" is not a ${t.kind} token${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}; ${what} takes ${this.dc.takes(t)}`, this.at(what, p));
       case 'ref': {
         const r = v as { ref?: unknown };
         if (!r || typeof r !== 'object' || typeof r.ref !== 'string') return bad('{ref: name} of a state line in a state block');
@@ -570,7 +570,7 @@ class DocChecker {
       case 'token':
         // a colour in a YAML record is a token name (GAPS 155)
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return v;
-        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, this.at(what, p));
+        throw new MkpError('mkp.unknown-token', `"${String(v)}" is not a ${t.kind} token${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}; ${what} takes ${this.dc.takes(t)}`, this.at(what, p));
       case 'point':
         return Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number') ? v : bad('a point [x, y]');
       case 'list':

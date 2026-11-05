@@ -106,6 +106,15 @@ describe('static types and nothing silent (6.5, GAPS 42, 43)', () => {
     // an option word is the option where a choice is expected, whatever else has that name
     expect(def('  plain = "x"\n  press kind=plain\n    text (plain)').all).toEqual([]);
   });
+  it('a wrong or missing value says what the input takes', () => {
+    const msg = (body: string) => def(body).all.map((m) => m.split('\n')[0].replace(/^\S+ error /, ''));
+    expect(msg('  column pad=(2)\n    text "a"')).toEqual(['mkp.style-token: pad takes a space token: none, xs, s, m, l, xl; found (2) (int)']);
+    expect(msg('  column pad=huge\n    text "a"')).toEqual(['mkp.unknown-token: "huge" is not a space token; pad takes a space token: none, xs, s, m, l, xl']);
+    expect(msg('  row align=centre\n    text "a"')).toEqual(['mkp.enum: align takes one of start, center, end, stretch, baseline; found centre (did you mean "center"?)']);
+    expect(msg('  text "a" tone="#ff0000"')[0]).toMatch(/^mkp\.style-token: tone takes a color token: none, surface, ink, .*, c6, by name; found "#ff0000"$/);
+    expect(msg('  image "a.svg"')[0]).toMatch(/^mkp\.missing-input: image needs alt: text$/);
+    expect(msg('  text "a" lines=99')).toEqual(['mkp.input-range: lines takes a whole number from 0 to 24; found 99']);
+  });
   it('a named type fills the fields a literal leaves out', () => {
     const r = doc(fence('type item = {label: text, tone: color = muted}\nw "w"\n  xs = [{label: "a"} : item]\n  text "a"\n  project md = "w"'));
     // the cast syntax isn't the language: a literal is typed by where it goes

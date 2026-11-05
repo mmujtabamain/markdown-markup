@@ -693,7 +693,20 @@ export class DefChecker {
   // ------------------------------------------------------------------------------------------
   // Values for props, fields and defaults
 
-  value(v: Val, type: Type, scope: Scope, p: Pos, defaultMode = false): IRVal {
+  /** What a value of this type can be, for an error that says what was wrong: a token's names, a
+   *  choice's options, a number's range, or the type. */
+  takes(type: Type): string {
+    const t = resolve(type, this.env);
+    if (t.t === 'token') return `a ${t.kind} token: ${['none', ...this.opts.tokenNames(t.kind), ...(t.kind === 'size' ? ['fill'] : [])].join(', ')}`;
+    if (t.t === 'choice') return `one of ${t.opts.join(', ')}`;
+    if (t.t === 'bool') return 'true or false';
+    if ((t.t === 'int' || t.t === 'num') && t.lo !== undefined && t.hi !== undefined) return `${t.t === 'int' ? 'a whole number' : 'a number'} from ${t.lo} to ${t.hi}`;
+    return showType(type);
+  }
+
+  value(v: Val, type: Type, scope: Scope, p: Pos, defaultMode = false, name?: string): IRVal {
+    // "pad takes", or "it takes" where nothing names it
+    const who = name ?? 'it';
     if (type.t === 'list' && type.of.t === 'named' && type.of.name === 'track') return this.tracks(v, scope, p);
     const t = resolve(type, this.env);
     switch (t.t) {
@@ -721,16 +734,16 @@ export class DefChecker {
           if (w === 'none' || this.opts.tokenNames(t.kind).has(w) || (t.kind === 'size' && w === 'fill')) return { tok: w, kind: t.kind };
           const b = scope.get(w);
           if (b && resolve(b.type, this.env).t === 'token') return this.irExpr({ ast: { t: 'var', name: w, from: b.from === 'const' ? 'const' : b.from }, type: b.type }, w, p);
-          this.fail(p, `"${w}" is not a ${t.kind} token${didYouMean(w, this.opts.tokenNames(t.kind))}`, 'mkp.unknown-token');
+          this.fail(p, `"${w}" is not a ${t.kind} token${didYouMean(w, this.opts.tokenNames(t.kind))}; ${who} takes ${this.takes(t)}`, 'mkp.unknown-token');
         }
-        if (v.v !== 'expr') return this.fail(p, `style props take token names; found ${v.src}`, 'mkp.style-token');
+        if (v.v !== 'expr') return this.fail(p, `${who} takes ${this.takes(t)}; found ${v.src}`, 'mkp.style-token');
         // a colour written out ("#ff0000") is never a token: themes and dark mode would not hold
-        if (v.e.k === 'str' && !this.opts.tokenNames(t.kind).has(v.e.v) && v.e.v !== 'none') this.fail(p, `style props take token names, such as ${[...this.opts.tokenNames(t.kind)].slice(0, 4).join(', ')}; found ${v.src}`, 'mkp.style-token');
+        if (v.e.k === 'str' && !this.opts.tokenNames(t.kind).has(v.e.v) && v.e.v !== 'none') this.fail(p, `${who} takes ${this.takes(t)}, by name; found ${v.src}`, 'mkp.style-token');
         // a computed style: an expression giving a token name (checked against the tokens at runtime)
         const c = this.x.check(v.e, scope, t);
         const ct = resolve(c.type, this.env);
         if (ct.t === 'token' || ct.t === 'text' || ct.t === 'choice') return this.irExpr({ ast: c.ast, type: t }, v.src, p);
-        return this.fail(p, `style props take token names; found ${showType(c.type)}`, 'mkp.style-token');
+        return this.fail(p, `${who} takes ${this.takes(t)}; found ${v.src} (${showType(c.type)})`, 'mkp.style-token');
       }
       case 'path': {
         // a field of the records the path reads, by name: title=city
@@ -776,16 +789,19 @@ export class DefChecker {
       }
       case 'choice': {
         if (v.v === 'expr' && v.e.k === 'id' && t.opts.includes(v.e.name) && !scope.get(v.e.name)) return { lit: v.e.name };
-        if (v.v !== 'expr') this.fail(p, `expected one of ${t.opts.join(', ')}`);
+        if (v.v !== 'expr') this.fail(p, `${who} takes one of ${t.opts.join(', ')}; found ${v.src}`, 'mkp.enum');
+        // a word that is neither an option nor a name here: say what the options are
+        if (v.e.k === 'id' && !scope.get(v.e.name) && !this.prog.constCandidates(v.e.name, this.entry.pack).length)
+          this.fail(p, `${who} takes one of ${t.opts.join(', ')}; found ${v.e.name}${didYouMean(v.e.name, t.opts)}`, 'mkp.enum');
         const c = this.x.check(v.e, scope, t);
-        if (!fits(c.type, t, this.env)) this.fail(p, `expected one of ${t.opts.join(', ')}, found ${v.src}`, 'mkp.enum');
+        if (!fits(c.type, t, this.env)) this.fail(p, `${who} takes one of ${t.opts.join(', ')}; found ${v.src}`, 'mkp.enum');
         return this.constOrExpr(c, v.src, p);
       }
       default: {
         if (v.v !== 'expr') this.fail(p, `expected ${showType(type)}, found ${v.src}`);
         let c = this.x.check(v.e, scope, type);
         c = this.x.coerce(c, type, p);
-        if (t.t === 'num' || t.t === 'int') this.checkNumRange(c, t, p);
+        if (t.t === 'num' || t.t === 'int') this.checkNumRange(c, t, p, who);
         return this.constOrExpr(c, v.src, p);
       }
     }
@@ -857,11 +873,11 @@ export class DefChecker {
     return undefined;
   }
 
-  private checkNumRange(c: Checked, t: Extract<Type, { t: 'num' | 'int' }>, p: Pos): void {
+  private checkNumRange(c: Checked, t: Extract<Type, { t: 'num' | 'int' }>, p: Pos, who = 'it'): void {
     if (c.ast.t !== 'num' && !(c.ast.t === 'builtin' && c.ast.fn === 'neg' && c.ast.args[0].t === 'num')) return;
     const v = c.ast.t === 'num' ? c.ast.v : -(c.ast.args[0] as { v: number }).v;
     if (t.t === 'int' && !Number.isInteger(v)) this.fail(p, `expected a whole number, found ${v}`, 'mkp.input-type');
-    if (t.lo !== undefined && (v < t.lo || v > t.hi!)) this.fail(p, `${v} is outside ${t.lo}..${t.hi}`, 'mkp.input-range');
+    if (t.lo !== undefined && (v < t.lo || v > t.hi!)) this.fail(p, `${who} takes ${this.takes(t)}; found ${v}`, 'mkp.input-range');
   }
 
   /** Literal values stay literal; everything else is an expression. */
@@ -949,7 +965,7 @@ export class DefChecker {
     const type = ctx.kind === 'use' ? ctx.sig.inputs.get(name)!.type : ctx.type.fields.find((f) => f[0] === name)![1];
     if (n.args.length !== 1 || n.args[0].key) this.fail(n.p, `a prop line sets one value: ${name} <value>`);
     if (n.children.length || n.events.length) this.fail(n.p, `the prop line "${name}" cannot have indented lines`);
-    return { props: { [name]: this.value(n.args[0].value, type, scope, n.args[0].p) } };
+    return { props: { [name]: this.value(n.args[0].value, type, scope, n.args[0].p, false, name) } };
   }
 
   private findRecord(kind: string, ctx: UseCtx | RecCtx): { input: string; type: Extract<Type, { t: 'records' }> } | undefined {
@@ -1066,7 +1082,7 @@ export class DefChecker {
     // required inputs
     for (const [name, inp] of sig.inputs) {
       if (inp.hasDefault || out.props![name] !== undefined) continue;
-      this.fail(n.p, `${sig.name} needs ${name} (${showType(inp.type)})`, 'mkp.missing-input');
+      this.fail(n.p, `${sig.name} needs ${name}: ${this.takes(inp.type)}`, 'mkp.missing-input');
     }
     // events
     if (n.events.length) {
@@ -1137,7 +1153,7 @@ export class DefChecker {
         }
         const t = inputs.get(a.key);
         if (!t || slots.has(a.key)) this.fail(a.p, `${what} has no prop "${a.key}"${didYouMean(a.key, [...inputs.keys()])}`, 'mkp.unknown-prop');
-        set(a.key, this.value(a.value, t, scope, a.p), a.p);
+        set(a.key, this.value(a.value, t, scope, a.p, false, a.key), a.p);
         continue;
       }
       const w = a.value.v === 'expr' && a.value.e.k === 'id' ? a.value.e.name : null;
@@ -1186,7 +1202,7 @@ export class DefChecker {
         const hint = order.length ? ` (its fields are ${order.join(' ')})` : ' (it takes no positional values)';
         this.fail(a.p, `unexpected value ${a.value.src} for ${what}${hint}`, 'mkp.extra-arg');
       }
-      set(k, this.value(a.value, inputs.get(k)!, scope, a.p), a.p);
+      set(k, this.value(a.value, inputs.get(k)!, scope, a.p, false, k), a.p);
     }
     return { props, meta };
   }
@@ -1209,7 +1225,7 @@ export class DefChecker {
         break;
       }
       case 'basis':
-        meta.basis = (this.value(a.value, { t: 'token', kind: 'size' }, scope, a.p) as { tok: string }).tok;
+        meta.basis = (this.value(a.value, { t: 'token', kind: 'size' }, scope, a.p, false, 'basis') as { tok: string }).tok;
         break;
       case 'span':
         meta.span = this.value(a.value, { t: 'int', lo: 1, hi: 64 }, scope, a.p);
