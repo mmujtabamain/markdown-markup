@@ -23,7 +23,7 @@ export interface ArrowPath {
 
 /** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
  *  crow's foot (many), or nothing. */
-export type ArrowEnd = 'arrow' | 'hollow' | 'one' | 'many' | 'cross' | 'none';
+export type ArrowEnd = 'arrow' | 'hollow' | 'one' | 'many' | 'dot' | 'ring' | 'cross' | 'none';
 
 /** Where the ray from a rectangle's centre towards (tx, ty) leaves the rectangle, plus a gap. */
 function exit(r: Rect, tx: number, ty: number, gap: number): [number, number] {
@@ -132,7 +132,10 @@ export function arrowPath(a: Rect, b: Rect, curve = false, gap = 3, headSize = 7
     const my = (ac[1] + bc[1]) / 2;
     const dx = bc[0] - ac[0];
     const dy = bc[1] - ac[1];
-    ctrl = [mx - dy * 0.25, my + dx * 0.25];
+    // a quarter of the distance, but never less than a clear bend: a back link between two
+    // rows next to each other otherwise hugs the straight line (GAPS 52)
+    const k = Math.max(0.25, MIN_BEND / Math.max(1, Math.hypot(dx, dy)));
+    ctrl = [mx - dy * k, my + dx * k];
   }
   const p0 = exit(a, ctrl ? ctrl[0] : bc[0], ctrl ? ctrl[1] : bc[1], gap);
   const p1 = exit(b, ctrl ? ctrl[0] : ac[0], ctrl ? ctrl[1] : ac[1], gap);
@@ -151,6 +154,8 @@ export function arrowPath(a: Rect, b: Rect, curve = false, gap = 3, headSize = 7
   return { d, head, label };
 }
 
+/** The least a curved arrow bends away from the straight line, in pixels (GAPS 52). */
+const MIN_BEND = 32;
 /** How far a self-loop stands off its element. */
 const LOOP = 18;
 /** How far apart the two ports on one side of an element sit. */

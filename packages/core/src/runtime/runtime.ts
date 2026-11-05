@@ -891,9 +891,34 @@ export class Runtime {
   // Base widgets
 
   private props(n: IRNode, env: Env, inst: Inst): Record<string, V> {
-    const out: Record<string, V> = {};
+    const out: Record<string, V> = { ...this.externDefaults(n.def) };
     for (const [k, v] of Object.entries(n.props ?? {})) out[k] = this.valueOf(v, env, inst);
     return out;
+  }
+
+  private readonly defaultsCache = new Map<string, Record<string, V>>();
+  /** A base widget's defaults for the props a use leaves out, so a provider gets every prop. */
+  private externDefaults(id: string | undefined): Record<string, V> {
+    if (!id) return {};
+    let d = this.defaultsCache.get(id);
+    if (!d) {
+      d = {};
+      const def = this.bundle.defs[id];
+      if (def?.kind === 'extern') {
+        const empty = new Env(null, null, null, this.prog);
+        for (const i of def.inputs) {
+          const t = this.resolveType(i.type).t;
+          if (!i.default || t === 'slot' || t === 'records' || t === 'ref') continue;
+          try {
+            d[i.name] = this.valueOf(i.default, empty, this.root);
+          } catch {
+            // a default that reads something is left to the provider
+          }
+        }
+      }
+      this.defaultsCache.set(id, d);
+    }
+    return d;
   }
 
   private on(key: string, event: string, f: (payload?: V) => void): void {
@@ -1290,7 +1315,7 @@ export class Runtime {
           this.setCell(inst, name, quantize(v, min, max, step));
         });
         kids.push(text(`${key}.value`, fmtNum(value as number)));
-        return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'control' }, kids };
+        return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'control', label }, kids };
       }
       case 'toggle':
         return press(key, name, label, [text(`${key}.t`, label)], () => this.setCell(inst, name, !value), { kind: 'toggle', selected: !!value });
