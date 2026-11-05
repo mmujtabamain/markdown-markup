@@ -75,4 +75,5 @@ mkp index --pack lib                               # the catalog
 mkp show walk --pack lib [--source --as my-walk]   # a signature, or a copy to edit
 ```
 
-Read `docs/authoring-guide.md`, then the examples in order.
+Read `docs/authoring-guide.md`, then the examples in order. To put MKP into an app (web, React Native,
+any other stack, or Markdown only), follow `docs/integration-guide.md`.

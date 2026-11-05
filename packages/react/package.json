@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The MKP web renderer: the base set as React DOM components bound to the core runtime.",
-  "main": "src/index.ts",
+  "main": "src/index.tsx",
   "types": "src/index.ts",
   "dependencies": {
     "@mkp/core": "workspace:*"
