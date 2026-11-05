@@ -401,8 +401,11 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
     // a line back up keeps clear of the lines coming down: it leaves or arrives by the side where
     // its lane stands clear of the box, and otherwise by the top or bottom edge beside them
     const up = via.length > 0 && first < 0 && last < 0 && !between.some((s) => s.turn);
-    const leave = up ? aside(a, between[0].x) : undefined;
-    const reach = up ? aside(b, between[between.length - 1].x) : undefined;
+    // a lane level with an end, clear of its box (a graph pins one beside a line back's ends): the
+    // line leaves or arrives by that side of the box
+    const pinned = (end: Rect, r: Rect | undefined): 1 | -1 | undefined => (r && !apart(end, r) ? aside(end, midX(r)) : undefined);
+    const leave = pinned(a, via[0]) ?? (up ? aside(a, between[0].x) : undefined);
+    const reach = pinned(b, via[via.length - 1]) ?? (up ? aside(b, between[between.length - 1].x) : undefined);
     const axis = across ? 'h' : 'v';
     const names: [string, string] = [`${axis}|${ar.from}|${first}|out`, `${axis}|${ar.to}|${-last}|in`];
     plans.push({

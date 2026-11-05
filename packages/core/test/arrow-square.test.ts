@@ -98,6 +98,17 @@ describe('arrow route=down', () => {
     expect(p!.head[0]).toEqual([97, 15]);
   });
 
+  it('joins a lane pinned level beside an end by that side of the box (a graph\'s line back)', () => {
+    const f = { top: box(100, 0), low: box(100, 200), pinLow: { x: 50, y: 200, w: 0, h: 30 }, lane: { x: 50, y: 100, w: 0, h: 40 }, pinTop: { x: 50, y: 0, w: 0, h: 30 } };
+    const [p] = arrowPaths([{ from: 'low', to: 'top', a: f.low, b: f.top, via: [f.pinLow, f.lane, f.pinTop], route: 'down' }]);
+    expect(allSquare(p!.d)).toBe(true);
+    // out of the left side of the lower box, up the lane, into the left side of the upper one
+    expect(runs(p!.d)[0].a).toEqual([97, 215]);
+    expect(p!.head[0]).toEqual([97, 15]);
+    // never inside either box
+    for (const [x, y] of corners(p!.d)) for (const r of [f.top, f.low]) expect(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h).toBe(false);
+  });
+
   it('turns a line within one row round a lane below it', () => {
     const f = { l: box(0, 0), r: box(200, 0), lane: { x: 100, y: 60, w: 0, h: 0 } };
     const [p] = arrowPaths([{ from: 'l', to: 'r', a: f.l, b: f.r, via: [f.lane], route: 'down' }]);
