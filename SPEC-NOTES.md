@@ -604,3 +604,9 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      free for one, and takes no gesture. The lock shows when what it holds was shrunk to fit its
      width, runs past its sides (`fit=false`), is taller than `maxheight` and clipped, or is a drawing
      or a picture (a canvas or an image, always worth a closer look); once unlocked or moved it stays.
+135. **An error message says what is wrong, what was found, and the fix.** *Extension (6.19).* Every
+     diagnostic names the thing it is about (the input, prop, block or file), quotes what was
+     written (`found …`), says what is allowed, and ends with an instruction and an example in the
+     author's own terms (`Write align=center`, `Quote the value: title: "Hello: world"`). It points
+     at the line to change. Library text (YAML, zip) is said in plain words. Codes and severities
+     are unchanged. The style and the reader feedback behind it are in `docs/error-messages/`.
