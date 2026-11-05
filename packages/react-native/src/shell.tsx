@@ -6,7 +6,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
 import { useCtx } from './context';
 import { Runs, useInk } from './runs';
-import { Kids } from './nodes';
+import { Kids, Scroller } from './nodes';
 
 function ShellButton({ label, onPress, pressed, children }: { label: string; onPress(): void; pressed?: boolean; children: string }): ReactNode {
   const { theme } = useCtx();
@@ -51,7 +51,8 @@ export function Frame({ n }: { n: VNode }): ReactNode {
   const [full, setFull] = useState(false);
   const slots = n.slots ?? {};
   const has = (k: string): boolean => (slots[k]?.length ?? 0) > 0;
-  const line = theme.mix(theme.color('muted'), theme.color('surface'), 0.3);
+  // outlines and rules are the line token (GAPS 62)
+  const line = theme.color('line') ?? theme.mix(theme.color('muted'), theme.color('surface'), 0.3);
   const mono = theme.font('mono');
   const body = theme.font('body');
   const height = n.p.height && n.p.height !== 'none' ? (theme.size(n.p.height) as number | undefined) : undefined;
@@ -75,9 +76,9 @@ export function Frame({ n }: { n: VNode }): ReactNode {
   const stage = (
     <View style={full ? { flex: 1 } : height ? { height } : undefined}>
       {height || full ? (
-        <ScrollView>
+        <Scroller>
           <Kids nodes={n.kids} />
-        </ScrollView>
+        </Scroller>
       ) : (
         <Kids nodes={n.kids} />
       )}
@@ -123,7 +124,7 @@ export function Frame({ n }: { n: VNode }): ReactNode {
 
 export function Pane({ n }: { n: VNode }): ReactNode {
   const { theme } = useCtx();
-  const line = theme.mix(theme.color('muted'), theme.color('surface'), 0.25);
+  const line = theme.color('line') ?? theme.mix(theme.color('muted'), theme.color('surface'), 0.25);
   const title = n.p.title as VRun[];
   const note = n.p.note as VRun[];
   const mono = theme.font('mono');
@@ -141,9 +142,9 @@ export function Pane({ n }: { n: VNode }): ReactNode {
           ) : null}
         </View>
       ) : null}
-      <ScrollView style={{ flex: 1 }}>
+      <Scroller style={{ flex: 1 }}>
         <Kids nodes={n.kids} />
-      </ScrollView>
+      </Scroller>
       {n.slots?.footer?.length ? (
         <View style={{ paddingVertical: theme.space('s'), paddingHorizontal: theme.space('l'), borderTopWidth: 1, borderTopColor: line }}>
           <Kids nodes={n.slots.footer} />

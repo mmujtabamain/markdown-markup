@@ -1,10 +1,11 @@
-// The base set as React DOM components (spec 8): layout, text, media, press, range, field,
-// overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
+// The base set as React DOM components (spec 8): the four containers, text, media, press, range,
+// field, overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { arrowPaths, type ArrowEnds, type Runtime, type VArrow, type VNode, type VRun } from '@mkp/core';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import type { Runtime, VNode, VRun } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
+import { Arrows } from './arrows';
 import { Frame, Icon, Pane, Zoom } from './shell';
 
 /** What a host's route gets: the node, what goes on its outer element, and how to report events. */
@@ -12,13 +13,13 @@ export interface HostProps {
   n: VNode;
   /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
   attrs: Record<string, unknown>;
-  /** the place its parent gives it: grow, basis, span */
+  /** the place its parent gives it: grow, basis, span, self */
   style: CSSProperties;
   dispatch: Runtime['dispatch'];
 }
 
 /** The base set (core@1, spec 8): what every provider implements. */
-export const BASE_WIDGETS = ['stack', 'flex', 'grid', 'text', 'image', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote', 'frame', 'pane', 'zoom', 'icon'] as const;
+export const BASE_WIDGETS = ['column', 'row', 'grid', 'stack', 'text', 'image', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote', 'frame', 'pane', 'zoom', 'icon'] as const;
 export type BaseWidget = (typeof BASE_WIDGETS)[number];
 
 /** Draws one base widget. It is called as a plain function, so hooks go in what it returns. */
@@ -51,6 +52,9 @@ export function Runs({ runs }: { runs: VRun[] }): ReactNode {
   return runs.map((r, i) => <Run key={i} r={r} />);
 }
 
+/** A superscript a reset can't lift off its line (GAPS 33). */
+const SUP: CSSProperties = { position: 'static', top: 'auto', verticalAlign: 'super', lineHeight: 0 };
+
 function Run({ r }: { r: VRun }): ReactNode {
   switch (r.t) {
     case 'text': {
@@ -74,10 +78,10 @@ function Run({ r }: { r: VRun }): ReactNode {
     case 'br':
       return <br />;
     case 'img':
-      return <img src={r.src} alt={r.alt} style={{ maxWidth: '100%' }} />;
+      return <img src={r.src} alt={r.alt} style={{ maxWidth: '100%', display: 'inline' }} />;
     case 'fnref':
       return (
-        <sup>
+        <sup style={SUP}>
           <a href={`#fn-${r.label}`}>{r.label}</a>
         </sup>
       );
@@ -91,6 +95,42 @@ export function MathSpan({ m, display }: { m: { tex: string; svg?: string; speec
   return <span className={cls} role="img" aria-label={m.speech ?? m.tex} dangerouslySetInnerHTML={{ __html: m.svg }} />;
 }
 
+/** A part of a formula written \mark{id}{…}: its tone, and a note shown under the formula. */
+export interface MathMark {
+  id: string;
+  tone?: string;
+  note?: string;
+}
+
+/**
+ * A display formula. Its marked parts are the engine's `.mkp-mark-<id>` groups, coloured by their
+ * tone; the notes are listed under it, each with its tone's swatch.
+ */
+export function MathBlock({ n, attrs, style }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties }): ReactNode {
+  const marks = (n.p.marks as MathMark[] | undefined) ?? [];
+  const scope = `[data-mkp-key="${String(n.key).replace(/["\\]/g, '\\$&')}"]`;
+  const rules = marks
+    .filter((m) => m.tone && m.tone !== 'none')
+    .map((m) => `${scope} .mkp-mark-${cssEscape(m.id)} { color: ${color(m.tone)}; fill: currentColor; }`)
+    .join('\n');
+  const notes = marks.filter((m) => m.note);
+  return (
+    <div {...(attrs ?? nodeAttrs(n))} style={style}>
+      {rules ? <style>{rules}</style> : null}
+      <MathSpan m={n.p as { tex: string }} display />
+      {notes.length ? (
+        <ul className="mkp-math-notes">
+          {notes.map((m) => (
+            <li key={m.id} data-mark={m.id} style={{ '--mkp-mark-tone': color(m.tone) ?? 'currentColor' } as CSSProperties}>
+              {m.note}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------------------------
 
 /** Children keyed by identity. Nothing animates: a change to the view is drawn as it is. */
@@ -99,15 +139,24 @@ export function Kids({ nodes }: { nodes: VNode[] | undefined }): ReactNode {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The containers: column, row, grid and stack (layers)
 
 const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch', baseline: 'baseline' };
 const JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around' };
+const ITEMS: Record<string, string> = { start: 'start', center: 'center', end: 'end', stretch: 'stretch', baseline: 'baseline' };
+const SELF: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' };
+const WIDTH: Record<string, string | undefined> = { fit: 'fit-content', fill: '100%' };
+const SIDES: Record<string, string[]> = { all: [], top: ['Top'], right: ['Right'], bottom: ['Bottom'], left: ['Left'], x: ['Left', 'Right'], y: ['Top', 'Bottom'] };
+const WEIGHT: Record<string, number> = { thin: 1, normal: 2, thick: 4 };
 
+/** The place a node's parent gives it: grow, basis, a grid span, and its own alignment (GAPS 41). */
 export function layoutStyle(n: VNode): CSSProperties {
   const s: CSSProperties = {};
-  if (n.layout?.grow) s.flex = '1 1 0';
-  if (n.layout?.basis) s.flexBasis = size(n.layout.basis);
-  if (n.layout?.span) s.gridColumn = `span ${n.layout.span}`;
+  const l = n.layout;
+  if (l?.grow) s.flex = '1 1 0';
+  if (l?.basis) s.flexBasis = size(l.basis);
+  if (l?.span) s.gridColumn = `span ${l.span}`;
+  if (l?.self) s.alignSelf = SELF[l.self];
   return s;
 }
 
@@ -115,16 +164,135 @@ export function layoutStyle(n: VNode): CSSProperties {
 const tint = (name: unknown): string | undefined =>
   name && name !== 'none' ? `var(--mkp-tint-${String(name)}, color-mix(in srgb, ${color(name)} 12%, var(--mkp-color-surface)))` : undefined;
 
-function boxStyle(p: Record<string, unknown>): CSSProperties {
+/** A container's look: background, border on the sides `edge` names at its `weight` (GAPS 154), corners and shadow. */
+export function boxStyle(p: Record<string, unknown>): CSSProperties {
+  const s: CSSProperties = { background: tint(p.tint) ?? color(p.fill), borderRadius: radius(p.radius), boxShadow: shadow(p.shadow) };
+  if (p.stroke && p.stroke !== 'none') {
+    // a box's outline: --mkp-stroke-<name> if the provider sets one, else the colour (GAPS 4)
+    const line = `${WEIGHT[String(p.weight)] ?? 1}px ${p.line === 'dashed' || p.line === 'dotted' ? p.line : 'solid'} var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})`;
+    const sides = SIDES[String(p.edge ?? 'all')] ?? [];
+    if (!sides.length) s.border = line;
+    else for (const side of sides) (s as Record<string, string>)[`border${side}`] = line;
+  }
+  return s;
+}
+
+/** A grid's column tracks: auto, fit, Nfr (a share that may shrink below its content), Nch, or a size token (GAPS 98, 148, 159). */
+export function gridTracks(cols: unknown): string {
+  if (typeof cols === 'number') return `repeat(${Math.max(1, Math.round(cols))}, minmax(0, 1fr))`;
+  const list = Array.isArray(cols) && cols.length ? cols.map(String) : ['1fr', '1fr'];
+  return list
+    .map((t) => {
+      if (t === 'auto') return 'auto';
+      if (t === 'fit') return 'fit-content(100%)';
+      if (/^\d+(\.\d+)?fr$/.test(t)) return `minmax(0, ${t})`;
+      if (/^\d+(\.\d+)?ch$/.test(t)) return t;
+      return `var(--mkp-size-${t}, auto)`;
+    })
+    .join(' ');
+}
+
+/** How a container lays its children out, whatever its look. */
+export function flowStyle(n: VNode): CSSProperties {
+  const p = n.p;
+  const gaps = { padding: space(p.pad), gap: space(p.gap) };
+  switch (n.t) {
+    case 'row':
+      // centring is the stylesheet's, as safe centring: an overflowing row keeps its start (GAPS 120)
+      return { display: 'flex', flexDirection: 'row', flexWrap: p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(p.align)] ?? 'flex-start', justifyContent: p.justify === 'center' ? undefined : JUSTIFY[String(p.justify)], ...gaps };
+    case 'grid':
+      return { display: 'grid', gridTemplateColumns: gridTracks(p.cols), alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)], ...gaps };
+    case 'stack':
+      // layers: every child in the one cell, the last on top; as big as the biggest (GAPS 79)
+      return { display: 'grid', alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)] ?? 'stretch', padding: space(p.pad) };
+    default:
+      return { display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(p.align)] ?? 'stretch', justifyContent: p.justify === 'center' ? undefined : JUSTIFY[String(p.justify)], ...gaps };
+  }
+}
+
+/** The attributes the stylesheet lays a container out by. */
+function flowAttrs(n: VNode): Record<string, string | undefined> {
   return {
-    padding: space(p.pad),
-    gap: space(p.gap),
-    background: tint(p.tint) ?? color(p.fill),
-    // a box's outline: --mkp-stroke-<name> if the provider sets one (lines lighter than text), else the colour
-    border: p.stroke && p.stroke !== 'none' ? `1px ${p.line === 'dashed' || p.line === 'dotted' ? p.line : 'solid'} var(--mkp-stroke-${String(p.stroke)}, ${color(p.stroke)})` : undefined,
-    borderRadius: radius(p.radius),
-    boxShadow: shadow(p.shadow),
+    'data-flow': n.t === 'column' ? 'column' : undefined,
+    'data-justify': (n.t === 'row' || n.t === 'column') && n.p.justify === 'center' ? 'center' : undefined,
+    'data-layers': n.t === 'stack' ? '' : undefined,
   };
+}
+
+/** A row's role: what the runtime gave it (a control, a choice), or a tablist when it holds tabs. */
+export const rowRole = (n: VNode): string | undefined =>
+  n.p.role === 'control' ? 'group' : ((n.p.role as string | undefined) ?? (n.kids?.some((k) => k.t === 'press' && k.p.kind === 'tab') ? 'tablist' : undefined));
+
+/**
+ * One container, laid out and drawn: column, row, grid or stack. `width` and `minwidth` size it
+ * (GAPS 19, 142); with `scroll=x` its content scrolls sideways inside its outline (GAPS 149); a
+ * press on its own background, not on a child, raises click (pointer only, GAPS 125).
+ */
+export function Box({ n, attrs, style, role, label, children }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; role?: string; label?: string; children?: ReactNode }): ReactNode {
+  const { rt } = useCtx();
+  const p = n.p;
+  const width = WIDTH[String(p.width)];
+  const min = size(p.minwidth);
+  const onClick = n.ev?.includes('click')
+    ? (e: MouseEvent<HTMLElement>) => {
+        const t = e.target as HTMLElement;
+        if (t === e.currentTarget || (t.parentElement === e.currentTarget && t.hasAttribute('data-mkp-inner'))) rt.dispatch(n.key, 'click');
+      }
+    : undefined;
+  const outer = { ...(attrs ?? nodeAttrs(n)), role: role ?? (p.role as string | undefined), 'aria-label': label ?? (p.label ? String(p.label) : undefined), onClick };
+  if (p.scroll === 'x') {
+    // the outline stays put and the content scrolls inside it, never narrower than minwidth
+    const inner: CSSProperties = n.t === 'row' && p.wrap === false ? { width: 'max-content', minWidth: min ?? '100%' } : { minWidth: min ?? 'min-content' };
+    return (
+      <div {...outer} data-scroll="x" style={{ ...boxStyle(p), overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%', width, ...style }}>
+        <div data-mkp-inner="" {...flowAttrs(n)} style={{ ...flowStyle(n), ...inner }}>
+          {children}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div {...outer} {...flowAttrs(n)} style={{ ...flowStyle(n), ...boxStyle(p), width, maxWidth: width === 'fit-content' ? '100%' : undefined, minWidth: min, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+
+export function textStyle(n: VNode): CSSProperties {
+  const font = String(n.p.font ?? 'body');
+  const lines = Number(n.p.lines) || 0;
+  return {
+    color: color(n.p.tone),
+    fontFamily: `var(--mkp-font-${font}), ${font === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}`,
+    fontWeight: n.p.weight === 'bold' ? 700 : n.p.weight === 'medium' ? 550 : undefined,
+    fontSize: n.p.size === 'small' ? '0.875em' : n.p.size === 'large' ? '1.25em' : undefined,
+    textAlign: (n.p.align as CSSProperties['textAlign']) ?? undefined,
+    whiteSpace: n.p.wrap === false && !n.p.clip ? 'nowrap' : undefined,
+    minHeight: lines ? `${lines}lh` : undefined,
+    // a caption: spaced capitals
+    ...(n.p.caps ? { textTransform: 'uppercase', letterSpacing: '0.06em' } : {}),
+    // clipped at its lines (one with no lines=) with an ellipsis, by the stylesheet's [data-clip] (GAPS 151)
+    ...(n.p.clip ? ({ '--mkp-lines': String(lines || 1) } as CSSProperties) : {}),
+  };
+}
+
+/** A run of text, clipped to its lines with an ellipsis when it says so. */
+export function TextBlock({ n, attrs, style }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties }): ReactNode {
+  return (
+    <div {...(attrs ?? nodeAttrs(n))} data-clip={n.p.clip ? '' : undefined} role={n.p.role as string | undefined} style={{ ...textStyle(n), ...style }}>
+      <Runs runs={n.p.runs as VRun[]} />
+    </div>
+  );
+}
+
+/** A press's pointer enter and leave, and its focus and blur, for the ones it listens to. */
+export function hoverEvents(n: VNode, dispatch: Runtime['dispatch']): Record<string, () => void> {
+  const on: Record<string, () => void> = {};
+  if (n.ev?.includes('enter')) on.onPointerEnter = on.onFocus = () => dispatch(n.key, 'enter');
+  if (n.ev?.includes('leave')) on.onPointerLeave = on.onBlur = () => dispatch(n.key, 'leave');
+  return on;
 }
 
 /** What goes on a node's outer element, so a provider's stylesheet, arrows and selectors find it. */
@@ -134,47 +302,52 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     'data-mkp-key': n.key,
     'data-mkp-id': n.id,
     'data-mkp-src': n.src ? `${n.src[0]}:${n.src[1]}:${n.src[2]}` : undefined,
-    // a box faded back, or blurred until revealed (stack, flex, grid)
+    // a box faded back, or blurred until revealed
     'data-dim': n.p.dim ? '' : undefined,
     'data-blur': n.p.blur ? '' : undefined,
-    // a control the runtime made for a state (steps), so a bar can lay it out on a narrow screen
+    // a control the runtime made for a state (steps, clock), so a bar can lay it out on a narrow screen
     'data-control': n.p.control as string | undefined,
     hidden: n.hidden || undefined,
   };
 }
 
-export const flexRole = (n: VNode): string | undefined =>
-  n.p.role === 'control' ? 'group' : ((n.p.role as string | undefined) ?? (n.kids?.some((k) => k.t === 'press' && k.p.kind === 'tab') ? 'tablist' : undefined));
-
-export const stackStyle = (n: VNode): CSSProperties => ({ display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(n.p.align)] ?? 'stretch', ...boxStyle(n.p) });
-
-export const flexStyle = (n: VNode): CSSProperties => ({ display: 'flex', flexDirection: 'row', flexWrap: n.p.wrap === false ? 'nowrap' : 'wrap', alignItems: ALIGN[String(n.p.align)] ?? 'flex-start', justifyContent: JUSTIFY[String(n.p.justify)] ?? 'flex-start', ...boxStyle(n.p) });
-
-export const gridStyle = (n: VNode): CSSProperties => ({ display: 'grid', gridTemplateColumns: `repeat(${Number(n.p.cols) || 2}, minmax(0, 1fr))`, alignItems: ALIGN[String(n.p.align)] ?? 'stretch', ...boxStyle(n.p) });
-
-export function textStyle(n: VNode): CSSProperties {
-  const font = String(n.p.font ?? 'body');
-  return {
-    color: color(n.p.tone),
-    fontFamily: `var(--mkp-font-${font}), ${font === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}`,
-    fontWeight: n.p.weight === 'bold' ? 700 : n.p.weight === 'medium' ? 550 : undefined,
-    fontSize: n.p.size === 'small' ? '0.875em' : n.p.size === 'large' ? '1.25em' : undefined,
-    textAlign: (n.p.align as CSSProperties['textAlign']) ?? undefined,
-    whiteSpace: n.p.wrap === false ? 'nowrap' : undefined,
-    minHeight: n.p.lines ? `${Number(n.p.lines)}lh` : undefined,
-    // a caption: spaced capitals
-    ...(n.p.caps ? { textTransform: 'uppercase', letterSpacing: '0.06em' } : {}),
-  };
+function cssEscape(s: string): string {
+  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/[^\w-]/g, (c) => `\\${c}`);
 }
 
-function cssEscape(s: string): string {
-  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+/**
+ * Scrolls the nearest ancestor that scrolls, never the page, so that `el` is in view (GAPS 150).
+ * It moves only as far as it must, and keeps a little room either side.
+ */
+export function keepInView(el: HTMLElement, room = 8): void {
+  for (let s = el.parentElement; s && s !== document.body && s !== document.documentElement; s = s.parentElement) {
+    const cs = getComputedStyle(s);
+    const down = /auto|scroll/.test(cs.overflowY) && s.scrollHeight > s.clientHeight;
+    const across = /auto|scroll/.test(cs.overflowX) && s.scrollWidth > s.clientWidth;
+    if (!down && !across) continue;
+    const r = el.getBoundingClientRect();
+    const b = s.getBoundingClientRect();
+    const by = (lo: number, hi: number, from: number, to: number): number => (lo < from + room ? lo - from - room : hi > to - room ? Math.min(hi - to + room, lo - from - room) : 0);
+    if (down) s.scrollTop = Math.max(0, s.scrollTop + by(r.top, r.bottom, b.top + s.clientTop, b.top + s.clientTop + s.clientHeight));
+    if (across) s.scrollLeft = Math.max(0, s.scrollLeft + by(r.left, r.right, b.left + s.clientLeft, b.left + s.clientLeft + s.clientWidth));
+    return;
+  }
+}
+
+/** keep=true: whenever it becomes the kept one, it is scrolled into its pane's view. */
+function useKeep(n: VNode): void {
+  const on = !!n.layout?.keep;
+  useLayoutEffect(() => {
+    if (!on || typeof document === 'undefined') return;
+    for (const el of document.querySelectorAll<HTMLElement>(`[data-mkp-key="${n.key.replace(/["\\]/g, '\\$&')}"]`)) keepInView(el);
+  }, [on, n.key]);
 }
 
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
 
 export function Node({ n }: { n: VNode }): ReactNode {
   const { rt, components } = useCtx();
+  useKeep(n);
   const p = n.p;
   // data-mkp names the base widget, so a provider's stylesheet can say what it styles
   const common = nodeAttrs(n);
@@ -197,30 +370,22 @@ export function Node({ n }: { n: VNode }): ReactNode {
           <Kids nodes={n.kids} />
         </div>
       );
+    case 'column':
+    case 'grid':
     case 'stack':
       return (
-        <div {...common} role={p.role as string | undefined} aria-label={p.label as string | undefined} style={{ ...stackStyle(n), ...lay }}>
+        <Box n={n} attrs={common} style={lay}>
           <Kids nodes={n.kids} />
-        </div>
+        </Box>
       );
-    case 'flex':
+    case 'row':
       return (
-        <div {...common} role={flexRole(n)} aria-label={p.label as string | undefined} style={{ ...flexStyle(n), ...lay }}>
+        <Box n={n} attrs={common} style={lay} role={rowRole(n)}>
           <Kids nodes={n.kids} />
-        </div>
-      );
-    case 'grid':
-      return (
-        <div {...common} style={{ ...gridStyle(n), ...lay }}>
-          <Kids nodes={n.kids} />
-        </div>
+        </Box>
       );
     case 'text':
-      return (
-        <div {...common} role={p.role as string | undefined} style={{ ...textStyle(n), ...lay }}>
-          <Runs runs={p.runs as VRun[]} />
-        </div>
-      );
+      return <TextBlock n={n} attrs={common} style={lay} />;
     case 'image':
       return <img {...common} src={String(p.src)} alt={String(p.alt)} style={{ maxWidth: p.size && p.size !== 'none' ? size(p.size) : '100%', ...lay }} />;
     case 'press': {
@@ -232,7 +397,18 @@ export function Node({ n }: { n: VNode }): ReactNode {
       else if (kind === 'toggle' || kind === 'plain') aria['aria-pressed'] = !!p.selected;
       if (p.label) aria['aria-label'] = String(p.label);
       return (
-        <button {...common} {...aria} data-kind={kind} data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined} type="button" disabled={!!p.disabled} className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'} style={{ color: color(p.tone), ...lay }} onClick={() => rt.dispatch(n.key, 'click')}>
+        <button
+          {...common}
+          {...aria}
+          {...hoverEvents(n, rt.dispatch.bind(rt))}
+          data-kind={kind}
+          data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined}
+          type="button"
+          disabled={!!p.disabled}
+          className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'}
+          style={{ color: color(p.tone), ...lay }}
+          onClick={() => rt.dispatch(n.key, 'click')}
+        >
           <Kids nodes={n.kids} />
         </button>
       );
@@ -243,8 +419,8 @@ export function Node({ n }: { n: VNode }): ReactNode {
           {...common}
           className="mkp-range"
           type="range"
-          min={Number(p.min)}
-          max={Number(p.max)}
+          min={Number(p.min ?? 0)}
+          max={Number(p.max ?? 1)}
           step={Number(p.step) > 0 ? Number(p.step) : 'any'}
           value={Number(p.value)}
           aria-label={String(p.label || 'value')}
@@ -257,8 +433,8 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'meter': {
       const max = Number(p.max) > 0 ? Number(p.max) : 1;
       return (
-        <div {...common} className="mkp-meter" role="progressbar" aria-valuemin={0} aria-valuemax={max} aria-valuenow={Number(p.value)} aria-label={String(p.label || 'progress')} style={{ width: size(p.size), ...lay }}>
-          <div style={{ width: `${Math.max(0, Math.min(1, Number(p.value) / max)) * 100}%`, background: color(p.tone) }} />
+        <div {...common} className="mkp-meter" role="progressbar" aria-valuemin={0} aria-valuemax={max} aria-valuenow={Number(p.value)} aria-label={String(p.label || 'progress')} style={{ width: size(p.size ?? 'fill'), ...lay }}>
+          <div style={{ width: `${Math.max(0, Math.min(1, Number(p.value) / max)) * 100}%`, background: color(p.tone ?? 'accent') }} />
         </div>
       );
     }
@@ -284,20 +460,17 @@ export function Node({ n }: { n: VNode }): ReactNode {
     }
     case 'divider':
       return <hr {...common} />;
-    case 'code':
+    case 'code': {
+      const marks = (p.marks as CodeMark[] | undefined) ?? [];
+      const pick = p.pickable && n.ev?.includes('pick') ? (line: number) => rt.dispatch(n.key, 'pick', { line }) : undefined;
       return (
         <pre {...common} style={lay}>
-          <code data-lang={String(p.lang || '') || undefined}>
-            {p.line || (p.marks as CodeMark[] | undefined)?.length ? <CodeLines src={String(p.src)} line={Number(p.line) || 0} marks={(p.marks as CodeMark[] | undefined) ?? []} /> : String(p.src)}
-          </code>
+          <code data-lang={String(p.lang || '') || undefined}>{p.line || marks.length || pick ? <CodeLines src={String(p.src)} line={Number(p.line) || 0} marks={marks} pick={pick} /> : String(p.src)}</code>
         </pre>
       );
+    }
     case 'math':
-      return (
-        <div {...common}>
-          <MathSpan m={p as { tex: string }} display />
-        </div>
-      );
+      return <MathBlock n={n} attrs={common} style={lay} />;
     case 'quote': {
       const alert = String(p.alert ?? 'none');
       const tone = QUOTE_TONE[alert];
@@ -310,11 +483,12 @@ export function Node({ n }: { n: VNode }): ReactNode {
     }
     case 'list': {
       const L = p.ordered ? 'ol' : 'ul';
+      // the markers are set here, not left to the browser's defaults, so a reset can't take them (GAPS 3)
       return (
-        <L {...common} start={p.ordered ? Number(p.start) : undefined}>
+        <L {...common} start={p.ordered ? Number(p.start) : undefined} style={{ listStyleType: p.ordered ? 'decimal' : 'disc', paddingLeft: '1.5em' }}>
           {(n.kids ?? []).map((it) => (
-            <li key={it.key} style={it.p.checked !== 'none' ? { listStyle: 'none' } : undefined}>
-              {it.p.checked !== 'none' ? <input type="checkbox" checked={it.p.checked === 'yes'} disabled readOnly style={{ marginRight: 6 }} /> : null}
+            <li key={it.key} style={{ display: 'list-item', ...(it.p.checked !== 'none' ? { listStyleType: 'none' } : {}) }}>
+              {it.p.checked !== 'none' ? <input type="checkbox" checked={it.p.checked === 'yes'} disabled readOnly style={{ marginRight: 6, display: 'inline-block' }} /> : null}
               <Kids nodes={it.kids} />
             </li>
           ))}
@@ -352,7 +526,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'footnote':
       return (
         <div {...common} id={`fn-${String(p.label)}`} style={{ fontSize: '0.875em' }}>
-          <sup>{String(p.label)}</sup> <Kids nodes={n.kids} />
+          <sup style={SUP}>{String(p.label)}</sup> <Kids nodes={n.kids} />
         </div>
       );
     case 'frame':
@@ -382,13 +556,28 @@ export interface CodeMark {
   to?: number;
 }
 
-function CodeLines({ src, line, marks }: { src: string; line: number; marks: CodeMark[] }): ReactNode {
+/** A numbered listing; with `pick`, each line is pressed with the pointer or Enter/Space (GAPS 68, 96). */
+export function CodeLines({ src, line, marks, pick }: { src: string; line: number; marks: CodeMark[]; pick?: (line: number) => void }): ReactNode {
   return src.split('\n').map((text, i) => {
     const m = marks.find((x) => x.line === i + 1);
     const tone = m?.tone && m.tone !== 'none' ? m.tone : undefined;
     const part = tone && m!.from ? [m!.from - 1, m!.to || text.length] : null;
+    const press = pick
+      ? {
+          role: 'button',
+          tabIndex: 0,
+          'data-pick': '',
+          'aria-label': `line ${i + 1}`,
+          onClick: () => pick(i + 1),
+          onKeyDown: (e: KeyboardEvent) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            pick(i + 1);
+          },
+        }
+      : {};
     return (
-      <span key={i} className="mkp-code-line" data-tone={tone && !part ? tone : undefined} aria-current={i + 1 === line ? 'step' : undefined} style={tone && !part ? { background: `color-mix(in srgb, var(--mkp-color-${tone}) 12%, transparent)` } : undefined}>
+      <span key={i} className="mkp-code-line" {...press} data-tone={tone && !part ? tone : undefined} aria-current={i + 1 === line ? 'step' : undefined} style={tone && !part ? { background: `color-mix(in srgb, var(--mkp-color-${tone}) 12%, transparent)` } : undefined}>
         {part ? (
           <>
             {text.slice(0, part[0])}
@@ -404,27 +593,40 @@ function CodeLines({ src, line, marks }: { src: string; line: number; marks: Cod
   });
 }
 
+/** A field marked right or wrong (GAPS 86): its outline in the tone, and invalid when wrong. */
+export function fieldTone(p: Record<string, unknown>): { attrs: Record<string, unknown>; style: CSSProperties } {
+  const tone = p.tone && p.tone !== 'none' ? String(p.tone) : undefined;
+  return { attrs: { 'data-tone': tone, 'aria-invalid': tone === 'bad' || undefined }, style: tone ? { borderColor: color(tone) } : {} };
+}
+
+/** Keys for a field: one line submits on Enter; several (GAPS 80) on Ctrl/Cmd+Enter, Enter being a new line. */
+export function fieldKeys(n: VNode, dispatch: Runtime['dispatch']): (e: { key: string; ctrlKey: boolean; metaKey: boolean; currentTarget: { value: string }; preventDefault(): void }) => void {
+  const multi = Number(n.p.lines) > 1;
+  return (e) => {
+    if (e.key !== 'Enter' || (multi && !e.ctrlKey && !e.metaKey)) return;
+    if (multi) e.preventDefault();
+    dispatch(n.key, 'submit', { value: e.currentTarget.value });
+  };
+}
+
 function Field({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
   const p = n.p;
-  return (
-    <input
-      data-mkp-key={n.key}
-      data-mkp-id={n.id}
-      hidden={n.hidden || undefined}
-      className="mkp-field"
-      type="text"
-      inputMode={p.kind === 'number' ? 'decimal' : undefined}
-      value={String(p.value ?? '')}
-      placeholder={String(p.placeholder ?? '')}
-      aria-label={String(p.label || p.placeholder || 'entry')}
-      style={{ width: p.width && p.width !== 'none' ? size(p.width) : undefined, ...layoutStyle(n) }}
-      onChange={(e) => rt.dispatch(n.key, 'change', { value: e.currentTarget.value })}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') rt.dispatch(n.key, 'submit', { value: e.currentTarget.value });
-      }}
-    />
-  );
+  const lines = Number(p.lines) || 1;
+  const tone = fieldTone(p);
+  const props = {
+    ...nodeAttrs(n),
+    ...tone.attrs,
+    className: 'mkp-field',
+    value: String(p.value ?? ''),
+    placeholder: String(p.placeholder ?? ''),
+    'aria-label': String(p.label || p.placeholder || 'entry'),
+    style: { width: p.width && p.width !== 'none' ? size(p.width) : undefined, ...tone.style, ...layoutStyle(n) },
+    onChange: (e: { currentTarget: { value: string } }) => rt.dispatch(n.key, 'change', { value: e.currentTarget.value }),
+    onKeyDown: fieldKeys(n, rt.dispatch.bind(rt)),
+  };
+  if (lines > 1) return <textarea {...props} rows={lines} />;
+  return <input {...props} type="text" inputMode={p.kind === 'number' ? 'decimal' : undefined} />;
 }
 
 function Overlay({ n }: { n: VNode }): ReactNode {
@@ -441,9 +643,9 @@ function Overlay({ n }: { n: VNode }): ReactNode {
   useEffect(() => {
     if (!open) return;
     const el = panel.current;
-    const focusables = (): HTMLElement[] => (el ? [...el.querySelectorAll<HTMLElement>('button, input, a[href], [tabindex]:not([tabindex="-1"])')] : []);
+    const focusables = (): HTMLElement[] => (el ? [...el.querySelectorAll<HTMLElement>('button, input, textarea, a[href], [tabindex]:not([tabindex="-1"])')] : []);
     if (mode === 'dialog') (focusables()[0] ?? el)?.focus();
-    const onKey = (e: KeyboardEvent): void => {
+    const onKey = (e: globalThis.KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault();
         close();
@@ -491,7 +693,7 @@ function Overlay({ n }: { n: VNode }): ReactNode {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Scopes: a definition instance, with its arrows drawn over it
+// Scopes: a definition instance, with its arrows drawn over (or under) it
 
 function Scope({ n }: { n: VNode }): ReactNode {
   const box = useRef<HTMLDivElement | null>(null);
@@ -505,6 +707,8 @@ function Scope({ n }: { n: VNode }): ReactNode {
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       data-mkp-def={String(n.p.def)}
+      // arrows behind the content sit under it, and over the scope's own background (GAPS 100)
+      data-mkp-behind={n.arrows?.some((a) => a.layer === 'behind') ? '' : undefined}
       hidden={n.hidden || undefined}
       className="mkp-scope"
       role={label ? 'group' : undefined}
@@ -515,101 +719,5 @@ function Scope({ n }: { n: VNode }): ReactNode {
       <Kids nodes={n.kids} />
       {n.arrows?.length ? <Arrows arrows={n.arrows} box={box} measure={measure} /> : null}
     </div>
-  );
-}
-
-/** Draws the arrows, measuring their ends after layout (run by Scope) and whenever a size changes (6.10). */
-/** One arrow as drawn: its shaft, head and other marks, label and look. */
-interface Drawn {
-  key: string;
-  d: string;
-  head: string;
-  marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
-  label?: [number, number];
-  align?: 'start' | 'end';
-  runs?: VRun[];
-  tone?: string;
-  line?: string;
-  dim?: boolean;
-  bold?: boolean;
-}
-const DASH: Record<string, string | undefined> = { solid: undefined, dashed: '5 4', dotted: '2 3' };
-
-function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { current: HTMLDivElement | null }; measure: { current: () => void } }): ReactNode {
-  const [paths, setPaths] = useState<Drawn[]>([]);
-  const sig = useMemo(() => arrows.map((a) => `${a.key}|${a.from}|${a.to}|${a.curve ? 1 : 0}|${a.route ?? ''}|${a.head ?? ''}|${a.tail ?? ''}|${(a.via ?? []).join(',')}`).join(';'), [arrows]);
-  measure.current = () => {
-    const root = box.current;
-    if (!root) return;
-    const t0 = performance.now();
-    const base = root.getBoundingClientRect();
-    const find = (key: string): DOMRect | null => {
-      const el = root.querySelector<HTMLElement>(`[data-mkp-key="${cssEscape(key)}"]`);
-      if (!el || el.hidden || !el.offsetParent) return null;
-      const r = el.getBoundingClientRect();
-      return r;
-    };
-    const out: typeof paths = [];
-    // a scale above the scope (a zoom, a fit) scales what is measured, and the drawing with it: measure
-    // in the scope's own units
-    const sx = root.offsetWidth ? base.width / root.offsetWidth : 1;
-    const sy = root.offsetHeight ? base.height / root.offsetHeight : 1;
-    const rel = (r: DOMRect) => ({ x: (r.left - base.left) / sx, y: (r.top - base.top) / sy, w: r.width / sx, h: r.height / sy });
-    const shown: VArrow[] = [];
-    const ends: ArrowEnds[] = [];
-    for (const a of arrows) {
-      const ra = find(a.from);
-      const rb = find(a.to);
-      if (!ra || !rb) continue;
-      // waypoints that are not shown (hidden, or not laid out) are passed by
-      const via = (a.via ?? []).map(find).filter((r): r is DOMRect => !!r).map(rel);
-      shown.push(a);
-      ends.push({ from: a.from, to: a.to, a: rel(ra), b: rel(rb), via, curve: a.curve, route: a.route, head: a.head, tail: a.tail });
-    }
-    arrowPaths(ends, 3, 7, base.width / sx).forEach((p, i) => {
-      const a = shown[i];
-      if (p) out.push({ key: a.key, d: p.d, head: p.head.map((q) => q.join(',')).join(' '), marks: p.marks, label: a.label ? p.label : undefined, align: p.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold });
-    });
-    setPaths((prev) => (JSON.stringify(prev) === JSON.stringify(out) ? prev : out));
-    // measuring cost, for performance probes (spike 2): passes, total and worst time, arrows drawn
-    const stats = ((globalThis as { __mkpArrowStats?: { passes: number; total: number; max: number; arrows: number } }).__mkpArrowStats ??= { passes: 0, total: 0, max: 0, arrows: 0 });
-    const dt = performance.now() - t0;
-    stats.passes++;
-    stats.total += dt;
-    stats.max = Math.max(stats.max, dt);
-    stats.arrows = Math.max(stats.arrows, out.length);
-  };
-  useEffect(() => {
-    const root = box.current;
-    if (!root || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => measure.current());
-    ro.observe(root);
-    for (const el of root.querySelectorAll('[data-mkp-key]')) ro.observe(el);
-    return () => ro.disconnect();
-  }, [sig, box, measure]);
-  return (
-    <svg className="mkp-arrows" aria-hidden="true">
-      {paths.map((p) => {
-        // a provider may give lines their own colour: --mkp-arrow-<tone>, else the tone's
-        const ink = `var(--mkp-arrow-${p.tone ?? 'muted'}, var(--mkp-color-${p.tone ?? 'muted'}))`;
-        const width = p.bold ? 2 : 1.5;
-        return (
-        <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} style={p.dim ? { opacity: 0.3 } : undefined}>
-          <path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
-          {p.head ? <polygon points={p.head} fill={ink} /> : null}
-          {(p.marks ?? []).map((m, i) => (
-            <path key={i} d={m.d} stroke={m.tone ? `var(--mkp-color-${m.tone})` : ink} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" strokeLinecap="round" />
-          ))}
-          {p.label && p.runs ? (
-            <foreignObject x={p.label[0] - (p.align === 'start' ? 0 : p.align === 'end' ? 120 : 60)} y={p.label[1] - 12} width={120} height={24}>
-              <div className="mkp-arrow-label" style={{ textAlign: p.align ?? 'center', fontSize: '0.8em', color: p.tone ? ink : 'var(--mkp-color-muted)' }}>
-                <span style={{ background: 'var(--mkp-color-surface)', padding: '0 3px' }}><Runs runs={p.runs} /></span>
-              </div>
-            </foreignObject>
-          ) : null}
-        </g>
-        );
-      })}
-    </svg>
   );
 }

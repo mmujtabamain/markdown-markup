@@ -7,11 +7,13 @@ import { RuntimeCtx, type Ctx } from './context';
 import { Kids } from './nodes';
 import { capabilities } from './skia';
 import { makeTheme, type Scheme, type TokenMap } from './theme';
+import { widthClass } from './geometry';
 
-export { Node, Kids } from './nodes';
+export { Node, Kids, Scroller } from './nodes';
+export { widthClass, placeCanvasLabels, placeLabels, curve, MIN_BEND, markSvg, trackList } from './geometry';
 export { Runs, MathView, InkCtx } from './runs';
 export { Canvas } from './canvas';
-export { RuntimeCtx, MeasureCtx, useCtx, type Ctx, type Registry } from './context';
+export { RuntimeCtx, MeasureCtx, KeepCtx, FlowCtx, useCtx, type Ctx, type Registry } from './context';
 export { makeTheme, mixColors, fontFamily, type Theme, type TokenMap, type Scheme, type FontToken } from './theme';
 export { capabilities, setSkia, skia, skiaUniforms, type SkiaModule } from './skia';
 
@@ -95,7 +97,8 @@ export function MkpDocument(props: MkpDocumentProps): ReactNode {
   const ctx = useMemo<Ctx>(() => ({ rt, theme }), [rt, theme]);
   return (
     <RuntimeCtx.Provider value={ctx}>
-      <View style={[{ backgroundColor: theme.color('surface') }, props.style]}>
+      {/* the document's width is the reader's: narrow, medium or wide (GAPS 30, 160) */}
+      <View style={[{ backgroundColor: theme.color('surface') }, props.style]} onLayout={(e) => e.nativeEvent.layout.width > 0 && rt.setWidth(widthClass(e.nativeEvent.layout.width))}>
         <Kids nodes={tree} />
       </View>
     </RuntimeCtx.Provider>

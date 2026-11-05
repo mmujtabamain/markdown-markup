@@ -3,14 +3,15 @@
 // as absolutely positioned views, handles that drag with a PanResponder and move with screen-reader
 // actions (WCAG 2.5.7), and with gfx@1: pixels through Skia and a 3D mesh with a camera.
 
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Image, PanResponder, Text, View, type AccessibilityActionEvent } from 'react-native';
-import { Circle, G, Image as SvgImage, Line, Path, Polygon, Rect, Svg } from 'react-native-svg';
+import { Circle, G, Image as SvgImage, Path, Polygon, Svg } from 'react-native-svg';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { useCtx } from './context';
 import { Kids } from './nodes';
 import { Runs, useInk } from './runs';
 import { skia, skiaUniforms } from './skia';
+import { placeCanvasLabels } from './geometry';
 import type { Theme } from './theme';
 
 const SIZES: Record<string, number> = { s: 160, m: 320, l: 480 };
@@ -34,6 +35,8 @@ interface Geo {
   over: ReactNode[];
   /** views drawn under the SVG (pixels) */
   under: ReactNode[];
+  /** labels, placed together once measured */
+  labels: { s: LabelShape; opacity: number }[];
   opacity: number;
 }
 
@@ -47,7 +50,9 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const x = (p.x as number[] | undefined) ?? [-1, 1];
   const y = (p.y as number[] | undefined) ?? [-1, 1];
   const aspect = Number(p.aspect) > 0 ? Number(p.aspect) : (x[1] - x[0]) / (y[1] - y[0]) || 1;
-  const H = Math.round(W / aspect);
+  // a height of its own, so a plot fills a stage of that height whatever its width (GAPS 18, 104)
+  const fixed = p.height && p.height !== 'none' ? theme.size(p.height) : undefined;
+  const H = Math.round(typeof fixed === 'number' ? fixed : W / aspect);
   const frame = (child: ReactNode): ReactNode => (
     <View style={{ width: '100%', maxWidth: max }} onLayout={(e) => setAvail(e.nativeEvent.layout.width)}>
       {child}
@@ -59,9 +64,11 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const unit = W / (x[1] - x[0]);
   const over: ReactNode[] = [];
   const under: ReactNode[] = [];
+  const labels: { s: LabelShape; opacity: number }[] = [];
+  const geo = (opacity: number): Geo => ({ X, Y, unit, W, H, x, y, theme, over, under, opacity, labels });
   const layers = (n.layers ?? []).map((l) => (
     <G key={l.key} opacity={l.opacity}>
-      {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, theme, over, under, opacity: l.opacity }))}
+      {l.shapes.map((s) => shape(s, geo(l.opacity)))}
     </G>
   ));
   return frame(
@@ -73,6 +80,7 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
         </Svg>
       </View>
       {over}
+      <Labels labels={labels} g={geo(1)} />
     </View>,
   );
 }
@@ -82,30 +90,25 @@ const paint = (theme: Theme, c: string): string => theme.color(c) ?? 'none';
 function shape(s: VShape, g: Geo): ReactNode {
   const { X, Y, unit, theme } = g;
   switch (s.t) {
-    case 'rect': {
-      const x0 = Math.min(X(s.a[0]), X(s.b[0]));
-      const y0 = Math.min(Y(s.a[1]), Y(s.b[1]));
-      const r = theme.radius(s.radius);
-      return <Rect key={s.key} x={x0} y={y0} width={Math.abs(X(s.b[0]) - X(s.a[0]))} height={Math.abs(Y(s.b[1]) - Y(s.a[1]))} rx={r} ry={r} fill={paint(theme, s.fill)} stroke={paint(theme, s.stroke)} />;
-    }
-    case 'line': {
-      const c = paint(theme, s.stroke);
+    case 'circle':
+      // px: a radius on the screen, whatever the ranges (GAPS 109)
+      return <Circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={s.px ? s.px : Math.max(0.5, s.r * unit)} fill={paint(theme, s.fill)} stroke={paint(theme, s.stroke)} strokeWidth={s.width} opacity={own(s.opacity)} />;
+    case 'path': {
+      const pts = s.pts.map((q) => [X(q[0]), Y(q[1])]);
+      if (!pts.length) return null;
+      const head = s.head && pts.length > 1 ? pathHead(pts, s.head, s.width || 1) : null;
+      const d = (head?.shaft ?? pts).map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(2)},${q[1].toFixed(2)}`).join(' ') + (s.closed ? ' Z' : '');
+      const ink = paint(theme, s.stroke);
       return (
-        <G key={s.key}>
-          <Line x1={X(s.a[0])} y1={Y(s.a[1])} x2={X(s.b[0])} y2={Y(s.b[1])} stroke={c} strokeWidth={s.width} strokeDasharray={s.dash ? [5, 4] : undefined} />
-          {s.arrow ? <Polygon points={arrowHead([X(s.a[0]), Y(s.a[1])], [X(s.b[0]), Y(s.b[1])])} fill={c} /> : null}
+        <G key={s.key} opacity={own(s.opacity)}>
+          <Path d={d} fill={paint(theme, s.fill)} stroke={ink} strokeWidth={s.width} strokeDasharray={s.dash ? dash(s.width || 1) : undefined} strokeLinejoin="round" />
+          {head?.tri ? <Polygon points={head.tri} fill={ink} /> : null}
+          {head && !head.tri ? <Circle cx={head.at[0]} cy={head.at[1]} r={head.size} fill={ink} /> : null}
         </G>
       );
     }
-    case 'circle':
-      return <Circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={Math.max(0.5, s.r * unit)} fill={paint(theme, s.fill)} stroke={paint(theme, s.stroke)} strokeWidth={s.width} />;
-    case 'path': {
-      if (!s.pts.length) return null;
-      const d = s.pts.map((q, i) => `${i ? 'L' : 'M'}${X(q[0]).toFixed(2)},${Y(q[1]).toFixed(2)}`).join(' ') + (s.closed ? ' Z' : '');
-      return <Path key={s.key} d={d} fill={paint(theme, s.fill)} stroke={paint(theme, s.stroke)} strokeWidth={s.width} strokeDasharray={s.dash ? [5, 4] : undefined} strokeLinejoin="round" />;
-    }
     case 'label':
-      g.over.push(<Label key={s.key} s={s} g={g} />);
+      g.labels.push({ s, opacity: g.opacity });
       return null;
     case 'image': {
       const w = s.w * unit;
@@ -126,12 +129,28 @@ function shape(s: VShape, g: Geo): ReactNode {
   }
 }
 
-function arrowHead(a: number[], b: number[]): string {
-  const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  const s = 8;
-  const p1 = [b[0] - s * Math.cos(ang - 0.4), b[1] - s * Math.sin(ang - 0.4)];
-  const p2 = [b[0] - s * Math.cos(ang + 0.4), b[1] - s * Math.sin(ang + 0.4)];
-  return `${b[0]},${b[1]} ${p1.join(',')} ${p2.join(',')}`;
+const own = (o: number | undefined): number | undefined => (o !== undefined && o < 1 ? o : undefined);
+
+/** A dash that keeps its look at any stroke width. */
+const dash = (w: number): number[] => [Math.max(4, 3 * w), Math.max(3, 2.5 * w)];
+
+/** A path's head at its last point, sized to its stroke and never more than a share of its length (GAPS 113). */
+function pathHead(pts: number[][], kind: 'arrow' | 'dot', w: number): { shaft: number[][]; tri?: string; at: number[]; size: number } {
+  const n = pts.length;
+  const total = pts.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]), 0);
+  const tip = pts[n - 1];
+  let k = n - 2;
+  while (k > 0 && Math.hypot(tip[0] - pts[k][0], tip[1] - pts[k][1]) < 0.5) k--;
+  const from = pts[k] ?? tip;
+  const len = Math.hypot(tip[0] - from[0], tip[1] - from[1]) || 1;
+  const u = [(tip[0] - from[0]) / len, (tip[1] - from[1]) / len];
+  if (kind === 'dot') return { shaft: pts, at: tip, size: Math.min(Math.max(2.5, w * 1.8), Math.max(1.5, total / 4)) };
+  const L = Math.min(5 + 2.5 * w, Math.max(3, total * 0.4));
+  const half = L * 0.42 + w / 2;
+  const base = [tip[0] - u[0] * L, tip[1] - u[1] * L];
+  const shaft = [...pts.slice(0, n - 1), [tip[0] - u[0] * L * 0.6, tip[1] - u[1] * L * 0.6]];
+  const f = (v: number): string => v.toFixed(2);
+  return { shaft, tri: `${f(tip[0])},${f(tip[1])} ${f(base[0] - u[1] * half)},${f(base[1] + u[0] * half)} ${f(base[0] + u[1] * half)},${f(base[1] - u[0] * half)}`, at: tip, size: L };
 }
 
 /**
@@ -144,31 +163,58 @@ function useAnchored(anchor: string): [{ w: number; h: number } | null, (w: numb
   return [size, (w, h) => setSize((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h })), off];
 }
 
-function Label({ s, g }: { s: Extract<VShape, { t: 'label' }>; g: Geo }): ReactNode {
+type LabelShape = Extract<VShape, { t: 'label' }>;
+const LABEL_SCALE: Record<string, number> = { small: 0.8, large: 1.15 };
+
+/**
+ * The canvas's labels as views (so they hold inline maths). Each is hidden until every label is
+ * measured; then each is kept inside the canvas and moved clear of those before it (GAPS 107).
+ */
+function Labels({ labels, g }: { labels: { s: LabelShape; opacity: number }[]; g: Geo }): ReactNode {
   const ink = useInk();
-  const [size, setSize, off] = useAnchored(s.anchor);
-  const o = size ? off(size) : [0, 0];
+  const [sizes, setSizes] = useState<Record<string, [number, number]>>({});
   const f = g.theme.font('body');
-  const fs = f.fontSize * 0.95;
-  const tone = s.tone === 'ink' ? ink : g.theme.color(s.tone) ?? ink;
-  return (
-    <View
-      pointerEvents="none"
-      onLayout={(e) => setSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}
-      style={{
-        position: 'absolute',
-        left: g.X(s.at[0]) + o[0],
-        top: g.Y(s.at[1]) + o[1],
-        opacity: size ? g.opacity : 0,
-        // a chip: the label on the surface in a thin outline of its tone
-        ...(s.chip ? { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderRadius: 5, borderColor: g.theme.mix(tone ?? '#888', g.theme.color('surface') ?? '#fff', 0.35), backgroundColor: g.theme.color('surface') } : null),
-      }}
-    >
-      <Text style={{ color: tone, fontFamily: f.fontFamily, fontSize: s.chip ? fs * 0.9 : fs, fontWeight: s.chip ? '600' : undefined }} numberOfLines={1}>
-        <Runs runs={s.runs as VRun[]} fontSize={fs} />
-      </Text>
-    </View>
-  );
+  const surface = g.theme.color('surface');
+  const ready = labels.every((l) => sizes[l.s.key]);
+  const at = (s: LabelShape): [number, number] => [g.X(s.at[0]) + (s.dx ?? 0), g.Y(s.at[1]) - (s.dy ?? 0)];
+  const placed = ready ? placeCanvasLabels(labels.map((l) => ({ x: at(l.s)[0], y: at(l.s)[1], w: sizes[l.s.key][0], h: sizes[l.s.key][1], anchor: l.s.anchor })), g.W, g.H) : [];
+  return labels.map(({ s, opacity }, i) => {
+    const fs = f.fontSize * 0.95 * (LABEL_SCALE[s.size ?? ''] ?? 1);
+    const tone = s.tone === 'ink' ? ink : g.theme.color(s.tone) ?? ink;
+    return (
+      <View
+        key={s.key}
+        testID={`${s.key}.label`}
+        pointerEvents="none"
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setSizes((prev) => (prev[s.key]?.[0] === width && prev[s.key]?.[1] === height ? prev : { ...prev, [s.key]: [width, height] }));
+        }}
+        style={{
+          position: 'absolute',
+          left: ready ? placed[i][0] : at(s)[0],
+          top: ready ? placed[i][1] : at(s)[1],
+          opacity: ready ? opacity * (s.opacity ?? 1) : 0,
+          // a chip: the label on the surface in a thin outline of its tone
+          ...(s.chip ? { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderRadius: 5, borderColor: g.theme.mix(tone ?? '#888', surface ?? '#fff', 0.35), backgroundColor: surface } : null),
+        }}
+      >
+        <Text
+          style={{
+            color: tone,
+            fontFamily: f.fontFamily,
+            fontSize: s.chip ? fs * 0.9 : fs,
+            fontWeight: s.chip ? '600' : undefined,
+            // a halo: the surface colour around the letters, so a label reads over a line (GAPS 106)
+            ...(s.halo ? { textShadowColor: surface, textShadowRadius: 3, textShadowOffset: { width: 0, height: 0 } } : null),
+          }}
+          numberOfLines={1}
+        >
+          <Runs runs={s.runs as VRun[]} fontSize={fs} />
+        </Text>
+      </View>
+    );
+  });
 }
 
 function Placed({ at, opacity, kids }: { at: [number, number]; opacity: number; kids: VNode[] }): ReactNode {
@@ -288,6 +334,8 @@ function Canvas3D({ n, W, H }: { n: VNode; W: number; H: number }): ReactNode {
   const p = n.p;
   const view = (p.view as number[] | undefined) ?? [35, 25];
   const [cam, setCam] = useState<[number, number]>([view[0], view[1]]);
+  // a view the widget changes (a turn slider) moves the camera too (GAPS 114)
+  useEffect(() => setCam([view[0], view[1]]), [view[0], view[1]]);
   const turn = (da: number, de: number): void => setCam(([a, b]) => [a + da, Math.max(-89, Math.min(89, b + de))]);
   const last = useRef<[number, number]>([0, 0]);
   const pan = useMemo(
