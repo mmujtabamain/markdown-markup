@@ -817,15 +817,16 @@ export class DefChecker {
     return this.irExpr({ ast, type: T.list(T.text) }, v.src, p);
   }
 
-  /** A path literal: the field must exist in the records and hold what the path promises. */
-  pathTo(field: string, t: Extract<Type, { t: 'path' }>, p: Pos): IRVal {
+  /** A path literal: the field must exist in the records and hold what the path promises. `env` is
+   *  the types of the definition the path is an input of (a pack's own types, such as walk's entry). */
+  pathTo(field: string, t: Extract<Type, { t: 'path' }>, p: Pos, env: TypeEnv = this.env): IRVal {
     // "" is no field: an optional path's default; the widget tests path != "" before reading it
     if (field === '') return { lit: '' };
-    const of = resolve(t.of, this.env);
+    const of = resolve(t.of, env);
     if (of.t !== 'rec') this.fail(p, `a path reads records; ${showType(t.of)} is not one`, 'mkp.type');
     const f = of.fields.find(([n]) => n === field);
     if (!f) this.fail(p, `"${field}" isn't a field of the items (they have ${of.fields.map(([n]) => n).join(', ') || 'no fields'})${didYouMean(field, of.fields.map(([n]) => n))}`, 'mkp.unknown-field');
-    if (!fits(f[1], t.to, this.env)) this.fail(p, `"${field}" holds ${showType(f[1])}, but this path needs ${showType(t.to)}${resolve(t.to, this.env).t === 'text' && ['int', 'num', 'bool'].includes(resolve(f[1], this.env).t) ? ' (quote the values in the YAML to make them text)' : ''}`, 'mkp.type');
+    if (!fits(f[1], t.to, env)) this.fail(p, `"${field}" holds ${showType(f[1])}, but this path needs ${showType(t.to)}${resolve(t.to, env).t === 'text' && ['int', 'num', 'bool'].includes(resolve(f[1], env).t) ? ' (quote the values in the YAML to make them text)' : ''}`, 'mkp.type');
     return { lit: field };
   }
 

@@ -215,6 +215,15 @@ describe('type parameters and typed paths (6.26)', () => {
     const r = doc(fence(picklist) + block('picklist', yaml('population')));
     expect(r.all[0]).toMatch(/doc\.mkp\.md:\d+:\d+ error mkp\.unknown-field: "population" isn't a field of the items \(they have city, fact\)/);
   });
+  it("a path to a pack's own record type takes YAML records of its shape (walk's entry)", () => {
+    const lib = pack('lib', {
+      'pairs.mkp': ['type entry = {name: text, value: text}', 'pairs@1 of S "Each step\'s name/value pairs."', '  in steps list(S)', '  in values path(S, list(entry))', '  column', '    each e in steps[0][values] key=e.name', '      text (e.name + " = " + e.value)', '  project md = "pairs"'].join('\n'),
+      'pairs.fixture.json': JSON.stringify({ widget: 'pairs@1', cases: { one: { props: { steps: [{ vars: [{ name: 'x', value: '1' }] }], values: 'vars' }, summary: 's' } } }),
+    }, '  provides pairs\n');
+    const r = doc(block('pairs', 'steps:\n  - {vars: [{name: x, value: "1"}]}\nvalues: vars\nsummary: s'), { packs: [lib] });
+    expect(r.all).toEqual([]);
+    expect(texts(new Runtime(r.b!).view())).toEqual(['x = 1']);
+  });
   it('items of different shapes fail', () => {
     const r = doc(fence(picklist) + block('picklist', 'items:\n  - {city: Lisbon, fact: Hills.}\n  - {city: Oslo}\ntitle: city\nnote: fact\nsummary: s'));
     expect(r.errors).toContain('mkp.input-type');

@@ -532,7 +532,7 @@ class DocChecker {
       }
       case 'path':
         if (typeof v !== 'string') return bad('a field name');
-        return this.dc.pathTo(v, t, this.at(what, p));
+        return this.dc.pathTo(v, t, this.at(what, p), env);
       case 'expr': {
         if (typeof v !== 'string' && typeof v !== 'number') return bad(`an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
         const e = parseExprString(String(v), this.file, p.line, p.col);
