@@ -5,11 +5,15 @@ import { built, exampleIds, expect, go, horizontalOverflow, open, watchErrors } 
 
 const ids = exampleIds();
 
-test('the sidebar lists every example in order, then the limits, then the cases', async ({ page }) => {
+test('the sidebar lists the base and derived widgets, every example in order, then the limits, then the cases', async ({ page }) => {
   await open(page, { e: ids[0] });
   const listed = await page.$$eval('aside a[data-pg-entry]', (as) => as.map((a) => a.getAttribute('data-pg-entry')!));
-  expect(listed.filter((x) => x.startsWith('ex:'))).toEqual(ids);
   const kinds = listed.map((x) => x.split(':')[0]);
+  // the widget pages first, then the examples
+  expect([...listed.filter((x) => x.startsWith('base:')), ...listed.filter((x) => x.startsWith('derived:')), ...listed.filter((x) => x.startsWith('ex:'))].sort()).toEqual([...ids].sort());
+  expect(kinds.lastIndexOf('base')).toBeLessThan(kinds.indexOf('derived'));
+  expect(kinds.lastIndexOf('derived')).toBeLessThan(kinds.indexOf('ex'));
+  expect(listed.filter((x) => x.startsWith('ex:'))).toEqual(ids.filter((x) => x.startsWith('ex:')));
   expect(kinds.lastIndexOf('ex')).toBeLessThan(kinds.indexOf('limit'));
   // the cases are folded away until asked for
   await page.getByRole('button', { name: /^Cases/ }).click();

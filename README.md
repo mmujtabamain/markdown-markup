@@ -16,7 +16,8 @@ JavaScript, CSS or shaders in content.
 | `packages/shadcn` | A provider's definition of the whole base set, drawn with the shadcn-style components it passes in. |
 | `packages/cli` | `mkp`: build, check, index, show, schema, fmt, pack — also as one executable. |
 | `apps/playground` | Write a document and see it drawn, its Markdown, that Markdown drawn, its IR and its errors, at phone or desktop width. |
-| `examples/` | 31 documents in reading order, each one idea, and `examples/limits` — 15 that fail on purpose. Each has its Markdown committed as `doc.md`. |
+| `examples/` | 31 documents in reading order, each one idea, and `examples/limits`: 14 that fail on purpose. Each has its Markdown committed as `doc.md`. |
+| `widgets/` | The playground's component pages: `base/`, each of the 25 base widgets on its own in its states, and `derived/`, everyday widgets (a card, tabs, an accordion, a stepper…) composed from them. |
 | `conformance/` | Golden cases any provider or port runs: a test-only pack that uses every extern and prop (`conformance/packs/base`), and every example. |
 | `docs/` | The authoring guide for agents and the written runtime spec. |
 | `SPEC-NOTES.md` | Every place the implementation reads, extends or departs from the spec. |

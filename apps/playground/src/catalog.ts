@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
-// What the sidebar lists, read at build time by Vite so the site is static: the examples of
-// doc #1129 §9 in their groups and order, the limits (each fails on purpose, at a known line), and
-// the conformance cases (bundles to draw, loaded when picked).
+// What the sidebar lists, read at build time by Vite so the site is static: the base widgets (each
+// of core@1's 25 on its own) and widgets derived from them (widgets/), the examples of doc #1129 §9
+// in their groups and order, the limits (each fails on purpose, at a known line), and the
+// conformance cases (bundles to draw, loaded when picked).
 
 import YAML from 'yaml';
 import type { IRBundle, PlayStep } from '@mkp/core';
@@ -9,9 +10,9 @@ import type { IRBundle, PlayStep } from '@mkp/core';
 const ROOT = '../../../';
 
 // every text file of every example and limit, but not the committed exported Markdown (doc.md)
-const texts = import.meta.glob(['../../../examples/**/*.{mkp,md,json}', '!../../../examples/**/doc.md'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const texts = import.meta.glob(['../../../examples/**/*.{mkp,md,json}', '!../../../examples/**/doc.md', '../../../widgets/**/*.mkp.md'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 // pictures a document links to, served beside the site
-const pictures = import.meta.glob(['../../../examples/**/*.{svg,png,jpg,jpeg,webp,gif}', '../../../conformance/packs/**/*.{svg,png,jpg,jpeg,webp,gif}'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+const pictures = import.meta.glob(['../../../examples/**/*.{svg,png,jpg,jpeg,webp,gif}', '../../../widgets/**/*.{svg,png,jpg,jpeg,webp,gif}', '../../../conformance/packs/**/*.{svg,png,jpg,jpeg,webp,gif}'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 const caseIndex = import.meta.glob('../../../conformance/index.json', { import: 'default', eager: true }) as Record<string, { cases: string[] }>;
 const caseFiles = import.meta.glob('../../../conformance/cases/*.json', { import: 'default' }) as Record<string, () => Promise<ConfCase>>;
 
@@ -35,10 +36,10 @@ export interface ConfCase {
   md: { plain: string; all: string };
 }
 
-export type EntryKind = 'example' | 'limit' | 'case' | 'opened';
+export type EntryKind = 'example' | 'widget' | 'limit' | 'case' | 'opened';
 
 export interface Entry {
-  /** ex:05-counter, limit:01-yaml-item-type, case:base.actions.1.bumped, open:name.mkp.md */
+  /** ex:05-counter, base:08-press, derived:01-card, limit:01-yaml-item-type, case:base.actions.1.bumped, open:name.mkp.md */
   id: string;
   kind: EntryKind;
   group: string;
@@ -147,6 +148,29 @@ function examples(): Entry[] {
   return out.sort((a, b) => (a.num < b.num ? -1 : 1));
 }
 
+/** The widget pages of widgets/base (core@1's base widgets, one each) or widgets/derived (widgets
+ *  composed from them): documents like the examples, numbered in their folder. */
+function widgets(kind: 'base' | 'derived'): Entry[] {
+  const out: Entry[] = [];
+  for (const [p, text] of Object.entries(texts)) {
+    const m = new RegExp(`^widgets/${kind}/((\\d\\d)-[^/]+)\\.mkp\\.md$`).exec(rel(p));
+    if (!m) continue;
+    const [, name, nn] = m;
+    const fm = frontMatter(text);
+    out.push({
+      id: `${kind}:${name}`,
+      kind: 'widget',
+      group: kind === 'base' ? 'Base widgets' : 'Derived widgets',
+      num: nn,
+      title: titleOf(text, name),
+      teaches: typeof fm.teaches === 'string' ? fm.teaches : undefined,
+      files: [{ path: `widgets/${kind}/${name}.mkp.md`, text, role: 'doc' }],
+      assets: assetsIn(`widgets/${kind}`),
+    });
+  }
+  return out.sort((a, b) => (a.num < b.num ? -1 : 1));
+}
+
 function limits(): Entry[] {
   const out: Entry[] = [];
   for (const [p, text] of Object.entries(texts)) {
@@ -184,14 +208,15 @@ function cases(): Entry[] {
 
 let cached: Entry[] | null = null;
 
-/** Every built-in entry, in the sidebar's order: the examples, then the limits, then the cases. */
+/** Every built-in entry: the examples (the first opens by default), the base and derived widgets,
+ *  the limits and the cases. The sidebar orders them by group (groupNames). */
 export function catalog(): Entry[] {
-  return (cached ??= [...examples(), ...limits(), ...cases()]);
+  return (cached ??= [...examples(), ...widgets('base'), ...widgets('derived'), ...limits(), ...cases()]);
 }
 
 /** The groups in order, as the sidebar shows them. */
 export function groupNames(entries: Entry[]): string[] {
-  const names = [...GROUPS.map((g) => g.name), 'More examples', 'Limits', 'Cases', 'Opened'];
+  const names = ['Base widgets', 'Derived widgets', ...GROUPS.map((g) => g.name), 'More examples', 'Limits', 'Cases', 'Opened'];
   const present = new Set(entries.map((e) => e.group));
   return names.filter((n) => present.has(n));
 }

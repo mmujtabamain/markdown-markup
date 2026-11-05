@@ -3,7 +3,8 @@
 //   npm run shot -- <target> [<target> …] [--page] [--dark] [--width 1280] [--video] [--images --every 400ms] [--wait 600] [--play]
 // A target is an entry of the sidebar: an example (05-counter, ex:05-counter or
 // examples/05-counter/doc.mkp.md), a limit (limit:01-yaml-item-type or
-// examples/limits/01-yaml-item-type.mkp.md) or a conformance case (case:base.actions.1.bumped).
+// examples/limits/01-yaml-item-type.mkp.md), a widget page (base:08-press, derived:01-card) or a
+// conformance case (case:base.actions.1.bumped).
 // It shoots the drawing, or the whole page with --page; --play plays a case's steps first.
 // Prints the files it writes, one per line.
 
@@ -52,7 +53,7 @@ const width = Number(opt('--width', 1280));
 
 /** The sidebar's id for a target. */
 function entryId(t) {
-  if (/^(ex|limit|case|open):/.test(t)) return t;
+  if (/^(ex|base|derived|limit|case|open):/.test(t)) return t;
   const ex = /(?:^|examples\/)(\d\d-[^/]+?)(?:\/doc\.mkp\.md)?$/.exec(t);
   const lim = /limits\/(\d\d-[^/]+)\.mkp\.md$/.exec(t);
   if (lim) return `limit:${lim[1]}`;

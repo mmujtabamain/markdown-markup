@@ -13,13 +13,17 @@ function front(text: string): Record<string, unknown> {
   return m ? (YAML.parse(m[1]) as Record<string, unknown>) : {};
 }
 
-/** The examples, in reading order: ex:<folder>. */
+/** The examples, in reading order (ex:<folder>), then the base and derived widget pages
+ *  (base:<name>, derived:<name>). */
 export function exampleIds(): string[] {
   const dir = join(ROOT, 'examples');
-  return readdirSync(dir)
+  const ex = readdirSync(dir)
     .filter((n) => /^\d\d-/.test(n) && existsSync(join(dir, n, 'doc.mkp.md')))
     .sort()
     .map((n) => `ex:${n}`);
+  const pages = (kind: 'base' | 'derived'): string[] =>
+    readdirSync(join(ROOT, 'widgets', kind)).filter((n) => /^\d\d-.*\.mkp\.md$/.test(n)).sort().map((n) => `${kind}:${n.replace(/\.mkp\.md$/, '')}`);
+  return [...ex, ...pages('base'), ...pages('derived')];
 }
 
 /** The limits, each with the error its front matter expects. */

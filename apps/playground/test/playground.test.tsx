@@ -14,12 +14,16 @@ import { packFiles, readHash, unpackFiles, writeHash } from '../src/share';
 const entries = catalog();
 const examples = entries.filter((e) => e.kind === 'example');
 const limits = entries.filter((e) => e.kind === 'limit');
+const widgets = entries.filter((e) => e.kind === 'widget');
+const BASE = ['column', 'row', 'grid', 'stack', 'text', 'image', 'icon', 'press', 'range', 'meter', 'field', 'overlay', 'canvas', 'paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote', 'frame', 'pane', 'zoom'];
 
 describe('the catalog', () => {
   it('has the 31 examples in reading order, in the groups of §9.3, each with what it teaches', () => {
     expect(examples.map((e) => e.num)).toEqual(Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')));
     for (const e of examples) expect(e.teaches, e.id).toBeTruthy();
-    expect(groupNames(entries)).toEqual([...GROUPS.map((g) => g.name), 'Limits', 'Cases']);
+    expect(groupNames(entries)).toEqual(['Base widgets', 'Derived widgets', ...GROUPS.map((g) => g.name), 'Limits', 'Cases']);
+    // the first example still opens first
+    expect(entries[0].id).toBe('ex:01-markdown-text');
     expect(examples.find((e) => e.num === '12')!.group).toBe('Controls and events');
     expect(examples.find((e) => e.num === '22')!.group).toBe('Composition');
   });
@@ -32,6 +36,15 @@ describe('the catalog', () => {
     expect(pack.files[1].pack).toBe('examples/29-a-pack/pack');
     expect(examples.find((e) => e.num === '30')!.files.some((f) => f.pack === 'examples/30-interface/host')).toBe(true);
     expect(Object.keys(examples.find((e) => e.num === '02')!.assets)).toEqual(['tide.svg']);
+  });
+
+  it('has a page for each of core@1’s 25 base widgets, in the order of base.ts, and widgets derived from them', () => {
+    const base = widgets.filter((e) => e.group === 'Base widgets');
+    expect(base.map((e) => e.title)).toEqual(BASE);
+    const derived = widgets.filter((e) => e.group === 'Derived widgets');
+    expect(derived.length).toBeGreaterThanOrEqual(10);
+    for (const e of widgets) expect(e.teaches, e.id).toBeTruthy();
+    expect(Object.keys(base.find((e) => e.title === 'image')!.assets)).toContain('plan.svg');
   });
 
   it('lists the limits last of the documents, each with the error it expects', () => {
@@ -60,7 +73,7 @@ describe('the catalog', () => {
 });
 
 describe('compiling what the source pane holds', () => {
-  for (const e of examples) {
+  for (const e of [...examples, ...widgets]) {
     it(`${e.id} compiles clean and draws without an error`, () => {
       const r = build(e.files);
       expect(r.diags.map(jsonLine)).toEqual([]);
