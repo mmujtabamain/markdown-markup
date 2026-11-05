@@ -153,7 +153,8 @@ const WEIGHT: Record<string, number> = { thin: 1, normal: 2, thick: 4 };
 export function layoutStyle(n: VNode): CSSProperties {
   const s: CSSProperties = {};
   const l = n.layout;
-  if (l?.grow) s.flex = '1 1 0';
+  // a growing child shares what is left, and its content (a canvas drawn to the width it is given) never widens it
+  if (l?.grow) Object.assign(s, { flex: '1 1 0', minWidth: 0 });
   if (l?.basis) s.flexBasis = size(l.basis);
   if (l?.span) s.gridColumn = `span ${l.span}`;
   if (l?.self) s.alignSelf = SELF[l.self];

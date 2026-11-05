@@ -22,7 +22,8 @@ export interface CompiledPixels {
   glsl: string;
   sksl: string;
   uniforms: Record<string, number>;
-  fallback?: () => string;
+  /** the image a provider without a GPU shows, sampled over the canvas's ranges */
+  fallback?: (x: number[], y: number[]) => string;
   terms: number;
 }
 
@@ -317,7 +318,7 @@ export function compilePixels(f: IRExpr, bundle: IRBundle, inst: (name: string) 
     sksl,
     uniforms: tr.uniforms,
     terms: tr.terms,
-    fallback: () => pngDataUri(renderPixelsCpu(fn, [-1, 1], [-1, 1], 96, 96), 96, 96),
+    fallback: (x, y) => pngDataUri(renderPixelsCpu(fn, x, y, 96, 96), 96, 96),
   };
 }
 

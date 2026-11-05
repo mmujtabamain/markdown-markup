@@ -1196,7 +1196,8 @@ export class Runtime {
         case 'pixels': {
           const fexpr = r.props?.f as IRExpr;
           const compiled = compilePixels(fexpr, this.bundle, (name) => inst.get(name), env, (name) => this.lambdaInput(inst, name), inst.fns);
-          s = { t: 'pixels', key: k, glsl: compiled.glsl, sksl: compiled.sksl, uniforms: compiled.uniforms, res: p.res as number, fallback: gfx ? undefined : compiled.fallback?.() };
+          const fallback = gfx ? undefined : compiled.fallback?.((canvasProps.x as number[]) ?? [-1, 1], (canvasProps.y as number[]) ?? [-1, 1]);
+          s = { t: 'pixels', key: k, glsl: compiled.glsl, sksl: compiled.sksl, uniforms: compiled.uniforms, res: p.res as number, fallback };
           break;
         }
         case 'mesh': {

@@ -1,4 +1,5 @@
 // The runtime on the examples: controls and their bar, play, steps, reveal, signals and width.
+import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
@@ -118,5 +119,32 @@ describe('runtime: a clock (example 15)', () => {
     expect(texts(rt)).toContain('5:58 left');
     pressLabelled(rt, 'Start over');
     expect(texts(rt)).toContain('6:00 left');
+  });
+});
+
+/** The red of a fallback PNG's pixel at (i, j): rows are filter 0, RGBA. */
+function redAt(uri: string, i: number, j: number): number {
+  const png = Buffer.from(uri.split(',')[1], 'base64');
+  const w = png.readUInt32BE(16);
+  const idat: Buffer[] = [];
+  for (let o = 8; o < png.length; ) {
+    const len = png.readUInt32BE(o);
+    if (png.toString('latin1', o + 4, o + 8) === 'IDAT') idat.push(png.subarray(o + 8, o + 8 + len));
+    o += 12 + len;
+  }
+  return inflateSync(Buffer.concat(idat))[j * (w * 4 + 1) + 1 + i * 4];
+}
+
+describe('runtime: a pixels layer without a GPU', () => {
+  it("samples its fallback image over the canvas's ranges, not -1..1", () => {
+    const text = ['```mkp', 'ramp "Red rising with x."', '  requires gfx@1', '  canvas x=2..4 y=0..1 size=s label="a ramp"', '    layer', '      pixels (rgb(x / 4, 0, 0)) res=32', '  project md = "A ramp."', '```', '', '```ramp', 'summary: A ramp.', '```', ''].join('\n');
+    const c = compile({ packs: [] });
+    const b = c.document(text, 'ramp.mkp.md');
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const shapes = find(new Runtime(b!, { now: () => 0, capabilities: ['core@1'] }).view(), (n) => n.t === 'canvas')[0].layers!.flatMap((l) => l.shapes);
+    const px = shapes.find((s) => s.t === 'pixels') as { fallback?: string };
+    // x runs 2..4, so red runs from a half to all of it (over -1..1 it would start at none)
+    expect(redAt(px.fallback!, 0, 0)).toBeGreaterThan(120);
+    expect(redAt(px.fallback!, 95, 0)).toBeGreaterThan(250);
   });
 });
