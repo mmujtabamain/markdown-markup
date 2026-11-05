@@ -35,16 +35,48 @@ from them), do step 6.
 | `@mkp/react-native` | The React Native renderer | React 19, React Native ≥ 0.78, react-native-svg 15; Skia optional |
 | `@mkp/cli` | `mkp`: check, build, index, show, schema, fmt, pack, cases | Node, or nothing (the single executable) |
 
-None of them is published to npm. Each package's `main` points at its TypeScript source, and
-they depend on each other with `workspace:*`, so `npm install <git url>` does not work. You use
-them as source, from a pinned copy of this repo (step 1).
+Each is published to GitHub Packages as `@mmujtabamain/mkp-<name>` (`@mmujtabamain/mkp-core`,
+`@mmujtabamain/mkp-react`, …): built JavaScript, type declarations and ordinary dependencies. That
+is the way in for almost every project (step 1.0). The snippets below import `@mkp/*`, the names
+inside this repo; in your app, import `@mmujtabamain/mkp-*` instead, or alias one to the other.
 
 ---
 
 ## Step 1. Get MKP into the project
 
-This step gives you a copy of MKP at a commit you choose, its dependencies installed, its CLI
-built, and your bundler reading its packages as source.
+### 1.0 Install the published packages (recommended)
+
+Tell npm where the scope lives, once, in your project's `.npmrc`, with a GitHub token that has
+`read:packages` (GitHub Packages asks for one even for public packages; in CI, a workflow's own
+`GITHUB_TOKEN` with `packages: read` will do):
+
+```ini
+@mmujtabamain:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+Then install what you need, like any npm package:
+
+```sh
+npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react   # web
+npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react-native react-native-svg   # phone
+npm install -D @mmujtabamain/mkp-cli   # the mkp command: npx mkp check …
+```
+
+```tsx
+import { compile } from '@mmujtabamain/mkp-core';
+import { MkpDocument } from '@mmujtabamain/mkp-react';
+```
+
+No aliases, no source paths. Each GitHub Release also carries the packages as `.tgz` files, which
+`npm install <url-of-the-tgz>` takes without the registry. Releases are made by
+`.github/workflows/release.yml` when a release is published on GitHub (the tag, e.g. `v0.3.0`, is
+the version). The rest of step 1 is for working on MKP itself, or for a commit no release has.
+
+### 1.0a Or use a pinned commit, as source
+
+This gives you a copy of MKP at a commit you choose, its dependencies installed, its CLI built,
+and your bundler reading its packages as source.
 
 ### 1.1 Node
 
@@ -1237,8 +1269,10 @@ script leaves a symlink alone.
 
 Things you will hit, as of this commit:
 
-- **Not on npm.** You consume source by pin and alias (step 1). There are no compiled builds or
-  type declarations to depend on.
+- **Published to GitHub Packages, not the public npm registry,** so an `.npmrc` with a token is
+  needed (step 1.0). Declarations use extensionless relative imports, which suits
+  `"moduleResolution": "bundler"` (Vite, Metro, webpack); `node16`/`nodenext` projects may need
+  `skipLibCheck`.
 - **`rt.widget('#id')` doesn't work.** The message says a block can be found by its `#anchor`, but
   only the index works (the same for `hosts` keys). Look the index up:
   `bundle.doc.body.find((n) => n.meta?.anchor === 'sensor')?.meta?.block`.

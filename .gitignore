@@ -7,3 +7,4 @@ apps/playground/playwright-report/
 .mkp-out/
 apps/playground/.shots/
 scripts/.hermes/
+release/

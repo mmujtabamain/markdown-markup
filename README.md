@@ -77,3 +77,18 @@ mkp show walk --pack lib [--source --as my-walk]   # a signature, or a copy to e
 
 Read `docs/authoring-guide.md`, then the examples in order. To put MKP into an app (web, React Native,
 any other stack, or Markdown only), follow `docs/integration-guide.md`.
+
+## Install
+
+The packages are published to GitHub Packages as `@mmujtabamain/mkp-core`, `-react`, `-shadcn`,
+`-react-native` and `-cli`. Add to your `.npmrc`:
+
+```ini
+@mmujtabamain:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+and `npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react`. A release is published by
+publishing a GitHub Release (tag `vX.Y.Z`); `.github/workflows/release.yml` builds, tests and
+publishes, and attaches each package's `.tgz` to the release. `node scripts/release.mjs --pack`
+builds the same packages locally, into `release/`.
