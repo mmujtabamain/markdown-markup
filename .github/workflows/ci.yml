@@ -40,6 +40,12 @@ jobs:
           git diff --stat --exit-code -- conformance || (echo "conformance/ is stale: run pnpm conformance --generate" && exit 1)
       - name: Conformance (Node)
         run: pnpm conformance
+      - name: The examples cover every gap they claim, and the docs' copies match them
+        run: |
+          pnpm examples:coverage
+          pnpm examples:sync
+      - name: No host's name outside the history (GAPS.md, SPEC-NOTES.md)
+        run: pnpm check:neutral
 
   hermes:
     name: Conformance under Hermes
