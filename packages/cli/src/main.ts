@@ -15,6 +15,8 @@
 //   mkp schema <name|ir/…|fixture> [--pack …]   JSON Schema of a widget's inputs, or of the IR
 //   mkp fmt <file.mkp|file.mkp.md…> --pack … [--write]   canonical form
 //   mkp pack <folder> [-o name.mkpack]           a pack folder as a .mkpack zip
+//   mkp cases --pack … --out dir [--only pack]  every valid fixture case's bundle, one file per
+//             definition (<pack>.<name>.cases.json: [{case, summary, bundle}]), for a host's gallery
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
@@ -64,7 +66,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -329,6 +331,34 @@ function fmt(a: Args): number {
   return ok ? 0 : 1;
 }
 
+/** Every valid fixture case compiled to its bundle, a file per definition, for a host to draw. */
+function cases(a: Args): number {
+  const c = compiled(a);
+  if (!report(c.diags, true)) return 1;
+  const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
+  if (!outDir) throw new Error('mkp cases needs --out <dir>');
+  const only = typeof a.opts.only === 'string' ? a.opts.only : null;
+  const byDef = new Map<string, { case: string; summary: string; bundle: unknown }[]>();
+  let ok = true;
+  for (const fc of fixtureCases(c)) {
+    if (fc.expect?.errors?.length || (only && fc.pack !== only)) continue;
+    const r = compileCase(c, fc);
+    if (!r.bundle) {
+      ok = false;
+      for (const d of r.diags.errors) process.stderr.write(formatDiagnostic(d) + '\n');
+      continue;
+    }
+    const key = `${fc.pack}.${fc.widget.replace(/@\d+$/, '')}`;
+    const list = byDef.get(key) ?? [];
+    list.push({ case: fc.name, summary: fc.summary ?? '', bundle: stripPos(r.bundle) });
+    byDef.set(key, list);
+  }
+  mkdirSync(outDir, { recursive: true });
+  for (const [key, list] of byDef) writeFileSync(join(outDir, `${key}.cases.json`), JSON.stringify(list) + '\n');
+  process.stdout.write(`${[...byDef.values()].reduce((n, l) => n + l.length, 0)} cases of ${byDef.size} definitions in ${outDir}\n`);
+  return ok ? 0 : 1;
+}
+
 function pack(a: Args): number {
   const dir = a.pos[0];
   if (!dir) throw new Error('mkp pack <folder> [-o name.mkpack]');
@@ -356,6 +386,7 @@ const HELP = `mkp ${VERSION}: Markdown Markup
   mkp schema <name | ir/bundle | ir/definition | ir/node | ir/expr | ir/tokens | fixture> [--pack …]
   mkp fmt <files…> --pack … [--write]
   mkp pack <folder> [-o name.mkpack]
+  mkp cases --pack … --out dir [--only pack]
 `;
 
 export async function main(argv: string[]): Promise<number> {
@@ -377,6 +408,8 @@ export async function main(argv: string[]): Promise<number> {
         return fmt(a);
       case 'pack':
         return pack(a);
+      case 'cases':
+        return cases(a);
       case 'version':
       case '--version':
         process.stdout.write(VERSION + '\n');
@@ -392,5 +425,4 @@ export async function main(argv: string[]): Promise<number> {
 }
 
 void canonicalJson;
-void stripPos;
 void extname;
