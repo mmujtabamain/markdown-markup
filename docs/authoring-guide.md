@@ -215,7 +215,8 @@ summary: The four containers side by side.
 ````
 
 - `column` stacks, `row` wraps (or scrolls with `wrap=false scroll=x`), `grid cols=[auto, 1fr, 6ch]`
-  takes tracks (or `cols=3`), `stack` layers its children, last on top.
+  takes tracks (or `cols=3`, or a list of track words worked out: `cols=(map(range(1, n), k => "auto"))`),
+  `stack` layers its children, last on top.
 - On a phone: `width` is `narrow`, `medium` or `wide`; a grown child in a wrapping row needs a
   `basis` (example 09). `minwidth=` with `scroll=x` scrolls what can't shrink.
 - Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
@@ -237,7 +238,7 @@ nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`)
 
 Named records with defaults (`type task = {title: text, tone: color = muted}`) fill what a literal
 leaves out; a literal is typed by where it goes, so `{tone: ok}` reads `ok` as a colour; `none`
-is a value of every token kind; `iconname` is the icons' type; types may be recursive (example 23).
+is a value of every token kind; `iconname` is the icons' type (`none` draws nothing); types may be recursive (example 23).
 A record kind of an input (`list(record mark {…})`) is a type its definition's fns can take.
 
 <!-- example 24-type-parameters -->

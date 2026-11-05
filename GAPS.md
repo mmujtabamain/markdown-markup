@@ -582,3 +582,38 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      build fetched it anyway (Study Pad's lesson chunk was 3.6 MB, 1.07 MB gzipped). *Fixed:* the
      first `MathsEngine.create()` loads it; React Native's Jest setup turns that `import()` into a
      deferred `require` (Metro handles it itself).
+
+### Study Pad's library on the redesign
+
+Found while building Study Pad's own library (packs/studypad: graph, plot, walk and the rest) on the
+redesigned language.
+
+171. **Types that read plainly didn't check.** `[0] + map(xs, x => x / 2)` (ints joined to nums), a
+     bare colour token in one branch of an `if` (`if(t == none, muted, t)`), a colour token passed to
+     a function's typed parameter, an option word beside a value of the same name (`kind=plain` with
+     a value `plain`), a YAML record's point default and computed grid tracks (`grid cols=(autos(n))`)
+     were all errors. *Fixed* (3d1d2e2): each types as it reads.
+172. **A line under a value or a projection was dropped.** `project md = "one"` with `+ " two"`
+     indented under it wrote "one", silently (GAPS 136 again). *Fixed* (3d1d2e2): any line indented
+     under one that takes none is `mkp.continuation`.
+173. **The Markdown drew every branch that read the width.** A snapshot treated `width` as state, so
+     a narrow-only branch with an error replaced the wide document's Markdown. *Fixed* (3d1d2e2):
+     the host's width is data; a snapshot draws the branch for its width.
+174. **A document's typed path didn't see the pack's types.** walk's `values: path(S, list(entry))`
+     failed in a lesson ("needs list(entry)") though its fixture passed: the path was checked in the
+     document's types, where walk's `entry` is unknown. *Fixed* (2c3323b).
+175. **The renderers' layout.** A canvas drawn to its parent's width inside a growing pane widened
+     it to the canvas's 4000 px cap (*fixed*, 10a2da7: a grown child has min-width 0); a pixels
+     layer's fallback image sampled -1..1 whatever the canvas's ranges (*fixed*, 10a2da7); a lane
+     pinned level beside a box was joined through the box's top (*fixed*, 25af2dd: by its side); a
+     high-emphasis press's label took `tone=ink` once base defaults were filled (*fixed*, 897a83d:
+     text's tone defaults to none). *Open:* arrows `layer=behind` sit under their scope's own
+     content, so a widget whose frame is inside the arrows' scope covers them with its surface (graph's
+     sequence lifelines don't show).
+176. **Still open from the library** (each with a minimal example in the agents' reports):
+     a `ref` input can't be optional, so a widget can't share a point with another by data alone;
+     `mkp check --pack` doesn't type-check a pack function nothing calls; a path point that isn't
+     finite is dropped rather than breaking the line (plot splits its runs itself); a lambda can't be
+     passed where an `expr` parameter is expected, and YAML can't give a list of expressions; a local
+     fn can't call one declared below it; an option word of a definition's own choices can't be a name
+     anywhere in it; any gfx use makes the whole widget require gfx@1.

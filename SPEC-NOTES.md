@@ -580,3 +580,14 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      private parts.
 127. **Conformance.** `pnpm conformance` compiles every case from source and compares the bundle
      before replaying it; `--generate <filter>` rewrites only matching cases.
+128. **Typing as it reads.** *Clarification (6.5).* A list joined to a list of ints takes the other's
+     element type (`[0] + nums` is nums); a bare word in one `if` branch takes the other branch's
+     type; the one function of a name and arity types its arguments by its parameters; where a choice
+     is expected its option word wins over any other name.
+129. **Indented lines.** *Clarification (5).* Only an element, a state line and a command take
+     indented lines; under any other (a value, a projection, an input) one is `mkp.continuation`.
+130. **Width is the host's.** *Clarification (6.6).* `width` is data, not state: a snapshot (the
+     Markdown) draws the branch for its width only.
+131. **Small additions.** `iconname` has `none`, which draws nothing; `grid cols=` takes a list of
+     track words worked out by an expression; a YAML record fills a default written as an expression
+     (a point); a path input is checked in the types of the definition it belongs to.
