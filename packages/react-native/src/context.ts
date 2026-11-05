@@ -39,3 +39,9 @@ export interface Registry {
 
 /** Every registry from the document root down to here: an element reports to each of them. */
 export const MeasureCtx = createContext<readonly Registry[]>([]);
+
+/** The nearest scroller: it scrolls a host view inside it into view (keep=true, GAPS 150). */
+export const KeepCtx = createContext<((host: Measurable) => void) | null>(null);
+
+/** Which way the container a node sits in runs, so width=fit knows whether to stop stretching. */
+export const FlowCtx = createContext<'row' | 'column'>('column');
