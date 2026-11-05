@@ -510,6 +510,12 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      of every lesson's build. Study Pad runs one compile at a time per service to stay inside the
      API's memory. *Open:* a checked-pack cache keyed by the packs' digests (or a long-lived build
      server), and a pack's warnings reported when the pack is built, not with each document.
+     *Measured after the redesign* (2c3323b, Study Pad's library of 46 definitions, `mkp check` of a
+     demo lesson): 0.99 s, of which about 0.2 s is starting node, 0.1 s parsing the 4.4 MB CLI and
+     0.12 s starting the maths engine; digests of every definition (canonical JSON and SHA-256) take
+     about 0.12 s, and the checking itself the rest. A cache of checked packs would save the checking
+     but not the start: a long-lived build server is the larger win for a host that compiles often.
+     Still open.
 163. **MKP: four of Study Pad's old widgets have no counterpart.** `map.geo` (places and routes on a
      world outline): MKP has no map. `math.annotated` (one formula with numbered notes on its parts):
      `annotated-source` notes lines of code, but nothing marks a part of a formula, as KaTeX draws it
