@@ -69,7 +69,7 @@ export class Compiled {
     const prof = this.opts.profile ? this.prog.packs.get(this.opts.profile) : undefined;
     const blockAttrs = new Set(prof?.kind === 'profile' ? prof.manifest.attrs.map((a) => a.name) : []);
     const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn(), blockAttrs, docFile: opts.docFile, privateOf: opts.privateOf });
-    if (this.opts.profile) checkProfile(this, cd.front, cd.body, file, diags);
+    if (this.opts.profile) checkProfile(this, cd.front, cd.body, file, diags, cd.frontAt);
     if (diags.errors.length > before) return null;
     const doc: IRDoc = { file, front: cd.front, body: cd.body };
     doc.digest = digest({ front: doc.front, body: stripPos(doc.body) });

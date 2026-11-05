@@ -29,6 +29,8 @@ export interface CheckedDoc {
   prog: Program;
   /** the document's own definitions (inline and its file), checked */
   defs: IRDef[];
+  /** where each front-matter key is written */
+  frontAt: (key: string) => Pos | undefined;
 }
 
 /** The document's file: name.mkp beside name.mkp.md, holding its definitions moved out of it. */
@@ -178,7 +180,12 @@ export function checkDocument(prog0: Program, src: string, file: string, diags: 
   const body = d.items(syn.items, true);
   dc.runDeferred();
   duplicateAnchors(body, file, diags);
-  return { file, front: d.front(syn), body, def, uses: dc.uses, prog, defs: own.defs };
+  const fp = syn.front !== null ? yamlPositions(syn.front) : new Map<string, YamlAt>();
+  const frontAt = (k: string): Pos | undefined => {
+    const hit = fp.get(k);
+    return hit ? { file, line: syn.frontLine + hit.line - 1, col: hit.col } : undefined;
+  };
+  return { file, front: d.front(syn), body, def, uses: dc.uses, prog, defs: own.defs, frontAt };
 }
 
 /** An anchor names one block: links, a host's ids and progress keyed by it would reach only the first. */
@@ -413,7 +420,9 @@ class DocChecker {
     const t = resolve(inp.type, env);
     if (t.t === 'slot') {
       if (typeof v !== 'string') throw new MkpError('mkp.input-type', `${k} is a slot: give it a Markdown string`, p);
-      const nodes = markdownToNodes(v, p.line);
+      // a slot may hold a fragment of a document, widget blocks and containers too (GAPS 88)
+      const fragment = /^(`{3,}|~{3,}|:{3,})/m.test(v);
+      const nodes = fragment ? this.items(parseDoc('\n'.repeat(Math.max(0, p.line)) + v, this.file, this.diags).items, false) : markdownToNodes(v, p.line);
       if (sig.slots[0] === k) node.children = nodes;
       else (node.fills ??= {})[k] = nodes;
       return;

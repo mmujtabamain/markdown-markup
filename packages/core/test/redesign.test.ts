@@ -263,3 +263,34 @@ describe('record kinds and optional paths (GAPS 44)', () => {
     expect(doc(src).all[0]).toMatch(/quote the values in the YAML/);
   });
 });
+
+describe('profiles: positions and the body’s shape (GAPS 12, 35)', () => {
+  const prof = (rules: string): PackSource => {
+    const m = new Map<string, Uint8Array>([['manifest.mkp', enc.encode(`profile lesson@1 "a lesson"\n  requires core@1\n  front title text\n  front course text = ""\n${rules}`)]]);
+    return { label: 'lesson', files: m };
+  };
+  const build = (rules: string, text: string) => {
+    const c = compile({ packs: [prof(rules)], profile: 'lesson' });
+    c.document(text, 'doc.mkp.md');
+    return c.diags.errors.map(formatDiagnostic);
+  };
+  it('a rule on a front-matter field points at that field', () => {
+    const all = build('  rule pattern front.course "^[a-z-]+$" "course ids are kebab-case"\n', '---\ntitle: T\ncourse: Not Kebab\n---\n# T\n');
+    expect(all[0]).toMatch(/^doc\.mkp\.md:3:1 error mkp\.rule\.pattern: course ids are kebab-case/);
+  });
+  it('headings at most n deep, and a body that starts with a heading', () => {
+    const rules = '  rule depth headings 3 "sections go three deep at most"\n  rule first body heading "a lesson starts with a heading"\n';
+    expect(build(rules, '---\ntitle: T\n---\n# T\n\n#### Too deep\n')).toEqual([expect.stringMatching(/^doc\.mkp\.md:6:1 error mkp\.rule\.depth/)]);
+    expect(build(rules, '---\ntitle: T\n---\nText first.\n\n# T\n')).toEqual([expect.stringMatching(/^doc\.mkp\.md:4:1 error mkp\.rule\.first/)]);
+    expect(build(rules, '---\ntitle: T\n---\n# T\n\n## U\n')).toEqual([]);
+  });
+});
+
+describe('a slot holds a fragment of a document (GAPS 88)', () => {
+  it('with widget blocks in it', () => {
+    const src = fence(greeting) + fence('boxed "b"\n  in body slot\n  column\n    slot body') + '````boxed\nbody: |\n  Before.\n\n  ```greeting\n  name: inside\n  summary: s\n  ```\nsummary: s\n````\n';
+    const r = doc(src);
+    expect(r.all).toEqual([]);
+    expect(texts(new Runtime(r.b!).view()).join(' ')).toContain('inside');
+  });
+});

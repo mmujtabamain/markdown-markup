@@ -34,10 +34,15 @@ function typeOk(v: unknown, t: Type): boolean {
   }
 }
 
-export function checkProfile(c: Compiled, front: Record<string, unknown>, body: IRNode[], file: string, diags: Diagnostics): void {
+/**
+ * Checks a document against its profile. `frontAt` is where each front-matter key is written, so a
+ * rule on a field points at that field (GAPS 12).
+ */
+export function checkProfile(c: Compiled, front: Record<string, unknown>, body: IRNode[], file: string, diags: Diagnostics, frontAt: (key: string) => Pos | undefined = () => undefined): void {
   const name = c.opts.profile!;
   const prof = c.prog.packs.get(name);
   const at: Pos = { file, line: 1, col: 1 };
+  const fieldAt = (path: string): Pos => (path.startsWith('front.') ? frontAt(path.slice(6)) : undefined) ?? at;
   if (!prof || prof.kind !== 'profile') {
     diags.error('mkp.profile', `there is no profile "${name}" among the packs given`, at);
     return;
@@ -53,9 +58,9 @@ export function checkProfile(c: Compiled, front: Record<string, unknown>, body: 
       }
       continue;
     }
-    if (!typeOk(front[f.name], resolve(f.type, env))) diags.error('mkp.front-type', `front matter ${f.name} must be ${showType(f.type)}`, at);
+    if (!typeOk(front[f.name], resolve(f.type, env))) diags.error('mkp.front-type', `front matter ${f.name} must be ${showType(f.type)}`, frontAt(f.name) ?? at);
   }
-  for (const k of Object.keys(front)) if (!m.front.some((f) => f.name === k)) diags.error('mkp.front-unknown', `the ${name} profile has no front-matter field "${k}"`, at);
+  for (const k of Object.keys(front)) if (!m.front.some((f) => f.name === k)) diags.error('mkp.front-unknown', `the ${name} profile has no front-matter field "${k}"`, frontAt(k) ?? at);
   // roles on headings ({role=…})
   const roles: string[] = [];
   const blocks = new Map<string, number>();
@@ -86,8 +91,20 @@ export function checkProfile(c: Compiled, front: Record<string, unknown>, body: 
   for (const r of m.rules) {
     const v = read(r.path);
     const msg = r.message ?? `${r.rule} ${r.path}`;
-    const fail = (): void => diags.error(`mkp.rule.${r.rule}`, msg, at);
+    const fail = (where: Pos = fieldAt(r.path)): void => diags.error(`mkp.rule.${r.rule}`, msg, where);
     switch (r.rule) {
+      // the body's shape (GAPS 35): headings at most n deep, and what the body starts with
+      case 'depth': {
+        const max = Number(r.args[0] ? valOf(r.args[0]) : NaN);
+        for (const n of body) if (n.node === 'heading' && Number((n.props?.level as { lit?: number } | undefined)?.lit ?? 2) > max) fail({ file, line: n.pos?.[0] ?? 1, col: 1 });
+        break;
+      }
+      case 'first': {
+        const kind = r.args[0] ? valOf(r.args[0]) : 'heading';
+        const first = body.find((n) => n.node !== 'controls');
+        if (first && first.node !== kind) fail({ file, line: first.pos?.[0] ?? 1, col: 1 });
+        break;
+      }
       case 'required':
         if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) || v === 0) fail();
         break;
@@ -124,7 +141,7 @@ export function checkProfile(c: Compiled, front: Record<string, unknown>, body: 
         break;
       }
       default:
-        diags.error('mkp.profile', `unknown rule "${r.rule}"; rules are required, one-of, pattern, max-length and count`, at);
+        diags.error('mkp.profile', `unknown rule "${r.rule}"; rules are required, one-of, pattern, max-length, count, depth and first`, at);
     }
   }
 }
