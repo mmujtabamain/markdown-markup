@@ -128,8 +128,10 @@ function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, dia
     try {
       const ir = dc.check();
       ir.inline = true;
-      // a document's widget is read without it by any reader of the Markdown (6.25)
-      if (d.syn.kind === 'widget' && !ir.project?.md) diags.error('mkp.no-project', `${d.syn.name} has no project md: a document's widget says in Markdown what it shows, for readers without it`, d.syn.p);
+      // a document's widget is read without it by any reader of the Markdown (6.25); one that holds
+      // content (a slot) writes that content, so it needs none of its own
+      const holds = ir.inputs.some((i) => i.type.t === 'slot' || (i.type.t === 'records' && i.type.slot));
+      if (d.syn.kind === 'widget' && !ir.project?.md && !holds) diags.error('mkp.no-project', `${d.syn.name} has no project md: a document's widget says in Markdown what it shows, for readers without it`, d.syn.p);
       defs.push(ir);
       checkers.push(dc);
     } catch (e) {
