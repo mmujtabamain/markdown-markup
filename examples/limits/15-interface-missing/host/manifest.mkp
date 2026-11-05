@@ -1,3 +1,0 @@
-pack scoreboard@1 "A made-up host."
-  requires core@1
-  provides scored
