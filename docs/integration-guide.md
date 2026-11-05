@@ -35,10 +35,10 @@ from them), do step 6.
 | `@mkp/react-native` | The React Native renderer | React 19, React Native ≥ 0.78, react-native-svg 15; Skia optional |
 | `@mkp/cli` | `mkp`: check, build, index, show, schema, fmt, pack, cases | Node, or nothing (the single executable) |
 
-Each is published to GitHub Packages as `@mmujtabamain/mkp-<name>` (`@mmujtabamain/mkp-core`,
-`@mmujtabamain/mkp-react`, …): built JavaScript, type declarations and ordinary dependencies. That
+Each is published to GitHub Packages as `@markdown-markup/<name>` (`@markdown-markup/core`,
+`@markdown-markup/react`, …): built JavaScript, type declarations and ordinary dependencies. That
 is the way in for almost every project (step 1.0). The snippets below import `@mkp/*`, the names
-inside this repo; in your app, import `@mmujtabamain/mkp-*` instead, or alias one to the other.
+inside this repo; in your app, import `@markdown-markup/*` instead, or alias one to the other.
 
 ---
 
@@ -51,21 +51,21 @@ Tell npm where the scope lives, once, in your project's `.npmrc`, with a GitHub 
 `GITHUB_TOKEN` with `packages: read` will do):
 
 ```ini
-@mmujtabamain:registry=https://npm.pkg.github.com
+@markdown-markup:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
 Then install what you need, like any npm package:
 
 ```sh
-npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react   # web
-npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react-native react-native-svg   # phone
-npm install -D @mmujtabamain/mkp-cli   # the mkp command: npx mkp check …
+npm install @markdown-markup/core @markdown-markup/react   # web
+npm install @markdown-markup/core @markdown-markup/react-native react-native-svg   # phone
+npm install -D @markdown-markup/cli   # the mkp command: npx mkp check …
 ```
 
 ```tsx
-import { compile } from '@mmujtabamain/mkp-core';
-import { MkpDocument } from '@mmujtabamain/mkp-react';
+import { compile } from '@markdown-markup/core';
+import { MkpDocument } from '@markdown-markup/react';
 ```
 
 No aliases, no source paths. Each GitHub Release also carries the packages as `.tgz` files, which

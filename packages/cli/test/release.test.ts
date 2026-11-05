@@ -16,16 +16,16 @@ beforeAll(() => {
 }, 240000);
 
 describe('the release build', () => {
-  it('names each package under the owner’s scope, at the version given, for GitHub Packages', () => {
+  it('names each package under the @markdown-markup scope, at the version given, for GitHub Packages', () => {
     for (const n of ['core', 'react', 'cli']) {
-      expect(pkg(n).name).toBe(`@mmujtabamain/mkp-${n}`);
+      expect(pkg(n).name).toBe(`@markdown-markup/${n}`);
       expect(pkg(n).version).toBe('9.8.7');
       expect(pkg(n).publishConfig.registry).toBe('https://npm.pkg.github.com');
       expect(pkg(n).private).toBeUndefined();
     }
   });
   it('depends on its siblings by their published names and versions, and only on what it imports', () => {
-    expect(pkg('react').dependencies).toEqual({ '@mmujtabamain/mkp-core': '9.8.7' });
+    expect(pkg('react').dependencies).toEqual({ '@markdown-markup/core': '9.8.7' });
     expect(pkg('react').peerDependencies).toMatchObject({ react: expect.any(String), 'react-dom': expect.any(String) });
     // the maths engine's sources are bundled in vendor/, so they are not dependencies
     expect(Object.keys(pkg('core').dependencies)).not.toContain('mathjax-full');

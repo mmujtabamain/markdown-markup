@@ -80,15 +80,15 @@ any other stack, or Markdown only), follow `docs/integration-guide.md`.
 
 ## Install
 
-The packages are published to GitHub Packages as `@mmujtabamain/mkp-core`, `-react`, `-shadcn`,
-`-react-native` and `-cli`. Add to your `.npmrc`:
+The packages are published to GitHub Packages as `@markdown-markup/core`, `/react`, `/shadcn`,
+`/react-native` and `/cli`. Add to your `.npmrc`:
 
 ```ini
-@mmujtabamain:registry=https://npm.pkg.github.com
+@markdown-markup:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-and `npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react`. A release is published by
+and `npm install @markdown-markup/core @markdown-markup/react`. A release is published by
 publishing a GitHub Release (tag `vX.Y.Z`); `.github/workflows/release.yml` builds, tests and
 publishes, and attaches each package's `.tgz` to the release. `node scripts/release.mjs --pack`
 builds the same packages locally, into `release/`.
