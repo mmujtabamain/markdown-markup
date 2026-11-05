@@ -9,6 +9,22 @@ were written with: `mkp/` is this repo's root as it was inside study-pad.
 Status: *fixed* (and where), *worked around* (in the provider, MKP unchanged), *open*, *reading* (a
 rule of the spec, not a defect), *in progress*.
 
+**After the redesign (DevBench doc #1129, MKP `6631306`).** Every entry has an action in that doc's
+Appendix A. The MKP core fixes are in: typing and nothing silent (42, 43, 44, 47, 67, 82, 83, 101,
+103, 110, 111, 117, 127, 128, 132, 136, 137, 138, 155, 157, 166), containers and layout (19, 29, 41,
+53 and 73 and 130 for the library's grid layout, 79, 80, 86, 98, 99, 120, 123, 125, 142, 145, 148,
+149, 150, 151, 154, 159), width (18, 30, 104, 160), canvas and arrows (52, 66, 92, 93, 100, 106–109,
+113, 114, 122, 126, 129, 140, 141, 143; React Native draws arrows in the scope only), renderers and
+tokens (2, 3, 4, 5, 33, 62, 158), events and time (68, 81, 96, 124, 146, 156, 169), Markdown and
+positions (12, 34, 35, 163, 165), the CLI and fixtures (14, 15, 48, 49, 87, 88, 115, 168), and the
+runtime (112, 153). 105 is resolved another way: an answer expression is text compared with
+`equivalent()`, so no `expr` input takes its names from another input. 162 is open: with no packs
+shipped a build checks only what the host loads. The library fixes (11, 13, 17, 20–24, 31, 32, 38,
+59–61, 71, 72, 78, 118, 119, 131, 133) live in Study Pad's library, each with a `gaps-<n>` fixture
+case. 45 is DevBench's (a bug report is drafted: DevBench doc biuIXHAgRryv3mSRGaL8kA); 85 is won't
+do (↑ and ↓ work and are accessible). The examples prove the fixes a reader can see
+(`pnpm examples:coverage`).
+
 1. **MKP: built-in node names weren't reserved.** A demo widget named `controls` compiled cleanly and
    drew nothing, because a document's `state` block compiles to the built-in `controls` node, and a
    use is an IR node named after its definition. The same goes for `each`, `switch`, `case`, `else`,

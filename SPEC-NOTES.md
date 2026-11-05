@@ -522,3 +522,61 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     `mkp.attrs`, as before. `mkp build -` reads one document from stdin, named by `--name`; `--target`
     takes a list (`ir,md`, with `--out`); `--diagnostics json` writes each diagnostic to stderr as one
     line of JSON (`severity`, `code`, `message`, `file`, `line`, `col`, `path`).
+
+## The redesign (doc #1129)
+
+MKP ships the language and the base set only; a host brings its library as a pack. These notes
+are the language changes that came with it. GAPS numbers are in `GAPS.md`.
+
+114. **No packs ship with MKP.** *Deviation.* The seven packs are gone. MKP's tests, conformance and
+     playground use `examples/` and the test-only `conformance/packs/base`.
+115. **The base set is 25 externs.** *Deviation (8).* `stack` (vertical) is now `column`, `flex` is
+     `row`, `grid` takes `cols` as tracks (`[auto, 1fr, 6ch]`, `Nfr`, `Nch`, `fit`, a size token; a
+     number n is n equal shares), and `stack` means layers. Every container takes `width`,
+     `minwidth`, `scroll`, `edge`, `weight` and `out click`; a child takes `self=` and `keep=`. The
+     canvas draws circles, paths, labels, images, places, handles and, with gfx@1, pixels and meshes;
+     rectangles, lines and curves are paths. New tokens: `line` and `c1`–`c6`.
+116. **A document's own definitions.** *Extension (5, 6.25).* An `mkp` fence holds definitions; so
+     does `name.mkp` beside `name.mkp.md`. They are checked on an overlay of the program, never
+     reach another document, need no `@N`, and a widget among them needs a `project md` unless it
+     holds content in a slot. A name a pack or core already gives is `mkp.shadow`. They are capped
+     at 800 lines (`mkp.doc-size`).
+117. **Interfaces.** *Extension (6.24).* `interface name@N` in a pack lists inputs, host inputs,
+     signals, outs and `project md`; `implements name@N` in a definition is checked against it
+     (`mkp.interface`). A document block carries `meta.implements` and `meta.within` (the
+     interfaces of what it holds, at any depth), and a bundle's `interface.implements`.
+118. **Type parameters and typed paths.** *Extension (6.26).* `walk of S` takes `in steps list(S)`;
+     `path(S, int)` names a field of S holding an int, applied as `step[path]`; `""` is no path. In
+     a document S is told from the YAML (every item the same fields and types); in a definition from
+     the argument's type. Only data tells a parameter: a path or an expression in S reads it.
+119. **Answers.** *Extension (6.27).* `in x type answer` marks an answer. `answers` is false when
+     Markdown is built with `--no-answers`; `project md` may read an answer (or a value computed
+     from one) only inside `if(answers, …)` (`mkp.answer-leak`).
+120. **Static types, nothing silent.** *Deviation (6.5).* Every fn types its parameters and result
+     (`mkp.untyped`): there is no `any` and no generic fn. A declared name may not take a colour
+     token, an option of its own definition's choices, or a global (`width`, `answers`): other token
+     kinds stay free, since a token wins where its kind is expected. A pack sees another's names only
+     through `depends`. A `\val` of a value with no written form, an unknown built-in, a continuation
+     line outside brackets and a written-out colour are errors. A record literal is typed by where it
+     goes and filled from its named type's defaults; a record kind of an input is a type inside its
+     definition.
+121. **Width.** *Extension (6.6).* `width` is `narrow`, `medium` or `wide`, set by the provider
+     (`Runtime.setWidth`); everything that reads it redraws.
+122. **Events and controls.** *Extension (6.11, 6.12).* `if=(…)` on an event line guards that line,
+     and several lines for one event run in order. `clock` counts seconds while it runs. `steps n
+     none=true` starts at no step (-1); `track=true` shows a track; `play=500ms/step` is a pace per
+     step. `@enter`/`@leave` on press, `@click` on a container's background, `@pick` on code.
+123. **Text and lists.** *Extension (6.7).* `lower upper trim replace split contains startswith
+     endswith number`, and `slice`, `indexof`, `len` on text; `at` never wraps a negative index;
+     `last(xs)` is the last item; a `"` always ends a string, in maths too; `\$` is a dollar sign.
+124. **Positions.** *Extension (6.19).* Errors in a block's YAML point at the key or list item, and
+     profile rules at the front-matter field. `mkp check --format json` prints them a line each.
+125. **Profiles.** *Extension (16).* `rule depth headings n` and `rule first body heading` check the
+     body's shape.
+126. **The CLI.** *Extension (12).* `mkp check <docs>`, `mkp show --source --as`, `--no-answers`,
+     `--relock`, a lock beside the document (only when packs are used; core's own definitions are
+     versioned with MKP), and `unpublished` in a manifest. Fixture play steps `{"open": id}` and
+     `{"set": {"part/name": v}}`; a slot may hold a document fragment; a pack's fixtures see its
+     private parts.
+127. **Conformance.** `pnpm conformance` compiles every case from source and compares the bundle
+     before replaying it; `--generate <filter>` rewrites only matching cases.
