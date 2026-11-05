@@ -122,8 +122,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build the executable
         run: pnpm --filter @mkp/cli sea
-      - name: Build the section-18 document with it
+      - name: Check a pack and build documents with it
         run: |
-          P="--pack packs/mkp-ui --pack packs/mkp-math --pack packs/mkp-learn --pack packs/mkp-diagrams --pack examples/spec18"
-          ./packages/cli/dist/mkp check $P --pack packs/mkp-charts --pack packs/mkp-data --pack packs/mkp-cs --pack examples/arrow-proof
-          ./packages/cli/dist/mkp build examples/spec18/roots.mkp.md $P --target md --md gfm,math,mermaid,html --no-lock
+          ./packages/cli/dist/mkp check --pack examples/29-a-pack/pack
+          # every example with the packs beside it (pack, host), as the examples test loads them
+          for d in examples/[0-9]*/; do
+            P=""; for k in pack host; do [ -d "$d$k" ] && P="$P --pack $d$k"; done
+            ./packages/cli/dist/mkp check "${d}doc.mkp.md" $P
+          done
+          ./packages/cli/dist/mkp build examples/25-roots-of-unity/doc.mkp.md --target md --md gfm,math,mermaid,html --out "$RUNNER_TEMP/md"
+          ./packages/cli/dist/mkp build examples/29-a-pack/doc.mkp.md --pack examples/29-a-pack/pack --target md --out "$RUNNER_TEMP/md"
