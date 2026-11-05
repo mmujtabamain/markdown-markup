@@ -146,17 +146,22 @@ export class MkpPrinter {
         break;
       case 'steps':
         parts.push('steps', valSrc(s.args.n));
+        if (s.args.none && 'lit' in s.args.none && s.args.none.lit) parts.push('none=true');
+        if (s.args.track && 'lit' in s.args.track && s.args.track.lit) parts.push('track=true');
+        break;
+      case 'clock':
+        parts.push('clock');
         break;
       case 'drag':
         parts.push('drag', `x=${valSrc(s.args.x)}`, `y=${valSrc(s.args.y)}`);
         break;
     }
-    if (s.play) parts.push(`play=${msSrc(s.play)}`);
+    if (s.play) parts.push(`play=${msSrc(s.play)}${s.playPer ? '/step' : ''}`);
     if (s.loop) parts.push(`loop=${s.loop}`);
     if (s.default) parts.push('=', valSrc(s.default, s.type));
     if (s.label !== undefined) parts.push(encodeText(s.label));
     const out = [`${i}${s.name} = ${parts.join(' ')}`];
-    for (const [ev, acts] of Object.entries(s.on ?? {})) out.push(`${i}  @${ev} ${acts.map((a) => this.action(a)).join(' ')}`);
+    for (const [ev, acts] of Object.entries(s.on ?? {})) out.push(...this.eventLines(ev, acts, `${i}  `));
     return out;
   }
 
@@ -178,7 +183,27 @@ export class MkpPrinter {
       case 'emit':
       case 'send':
         return [a.a, a.name, ...a.payload.map(([k, e]) => `${k}=${bare(e.expr)}`)].join(' ');
+      case 'when':
+        return `${a.actions.map((x) => this.action(x)).join(' ')} if=${bare(a.cond.expr)}`;
     }
+  }
+
+  /** An event's lines: its plain actions on one line, each guarded run on a line of its own. */
+  eventLines(ev: string, acts: IRAction[], i: string): string[] {
+    const out: string[] = [];
+    let plain: IRAction[] = [];
+    const flush = (): void => {
+      if (plain.length) out.push(`${i}@${ev} ${plain.map((a) => this.action(a)).join(' ')}`);
+      plain = [];
+    };
+    for (const a of acts) {
+      if (a.a === 'when') {
+        flush();
+        out.push(`${i}@${ev} ${this.action(a)}`);
+      } else plain.push(a);
+    }
+    flush();
+    return out;
   }
 
   private sigOf(n: IRNode): IRDef | undefined {
@@ -287,7 +312,7 @@ export class MkpPrinter {
       out.push(`${i}  fill ${slot}`);
       out.push(...ns.flatMap((x) => this.node(x, i + '    ', null)));
     }
-    for (const [ev, acts] of Object.entries(n.on ?? {})) out.push(`${i}  @${ev} ${acts.map((a) => this.action(a)).join(' ')}`);
+    for (const [ev, acts] of Object.entries(n.on ?? {})) out.push(...this.eventLines(ev, acts, `${i}  `));
     return out;
   }
 }

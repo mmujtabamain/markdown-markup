@@ -8,6 +8,7 @@ import type { IRDef, IRNode, IRVal } from '../ir';
 import { markdownToNodes } from '../markdown';
 import { chunks } from '../syntax/lexer';
 import { parseDoc, type DocItem, type DocSyn } from '../syntax/doc';
+import { yamlPositions, type YamlAt } from '../syntax/yamlpos';
 import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn, type MkpFile } from '../syntax/mkp';
 import { fits, resolve, showType, T, Type } from '../types';
 import { DefChecker, instantiate, pos, signatureOf, unify, yamlType, type Sig, type DefCheckOptions } from './def';
@@ -192,6 +193,9 @@ function duplicateAnchors(body: IRNode[], file: string, diags: Diagnostics): voi
 }
 
 class DocChecker {
+  /** the block being checked: where its YAML starts, and where each key and item is in it */
+  private yamlAt: { line: number; map: Map<string, YamlAt> } | null = null;
+
   constructor(
     readonly prog: Program,
     readonly dc: DefChecker,
@@ -201,6 +205,15 @@ class DocChecker {
 
   p(line: number, col = 1): Pos {
     return { file: this.file, line, col };
+  }
+
+  /** The position of a YAML key or item ("items[1].city") in the block, or the fallback. */
+  at(what: string, fallback: Pos): Pos {
+    const y = this.yamlAt;
+    if (!y) return fallback;
+    // "the picklist block" and record kinds are not paths
+    const hit = y.map.get(what) ?? y.map.get(what.replace(/^[^.[]+\./, ''));
+    return hit ? this.p(y.line + hit.line - 1, hit.col) : fallback;
   }
 
   front(syn: DocSyn): Record<string, unknown> {
@@ -310,6 +323,7 @@ class DocChecker {
       throw new MkpError('mkp.yaml', `the ${sig.name} block is not valid YAML: ${(e as Error).message.split('\n')[0]}`, this.p(it.line + 1));
     }
     if (data === null || data === undefined) data = {};
+    this.yamlAt = { line: it.line + 1, map: yamlPositions(it.yaml) };
     if (typeof data !== 'object' || Array.isArray(data)) throw new MkpError('mkp.yaml', `the ${sig.name} block must be a YAML mapping of its inputs`, p);
     const obj = data as Record<string, unknown>;
     this.guard(obj, this.p(it.line + 1), `the ${sig.name} block`);
@@ -330,6 +344,7 @@ class DocChecker {
     }
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
     this.requireInputs(node, sig, p);
+    this.yamlAt = null;
     return node;
   }
 
@@ -362,6 +377,8 @@ class DocChecker {
   }
 
   private lineOf(it: { line: number; yaml: string }, key: string): number {
+    const hit = this.yamlAt?.map.get(key);
+    if (hit) return it.line + hit.line;
     const i = it.yaml.split('\n').findIndex((l) => l.startsWith(key + ':'));
     return it.line + 1 + Math.max(0, i);
   }
@@ -388,13 +405,13 @@ class DocChecker {
     }
     if (t.t === 'records') {
       if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${t.kind} records: give a YAML list of objects`, p);
-      for (const r of v) node.records = [...(node.records ?? []), this.yamlRecord(r, t, sig, p, k)];
+      v.forEach((r, i) => (node.records = [...(node.records ?? []), this.yamlRecord(r, t, sig, this.at(`${k}[${i}]`, p), k, `${k}[${i}]`)]));
       return;
     }
     node.props![k] = this.yamlValue(v, inp.type, sig.pack, p, k);
   }
 
-  private yamlRecord(r: unknown, t: Extract<Type, { t: 'records' }>, sig: Sig, p: Pos, input: string): IRNode {
+  private yamlRecord(r: unknown, t: Extract<Type, { t: 'records' }>, sig: Sig, p: Pos, input: string, path = input): IRNode {
     if (!r || typeof r !== 'object' || Array.isArray(r)) throw new MkpError('mkp.input-type', `each ${t.kind} is an object of its fields`, p);
     const obj = r as Record<string, unknown>;
     const props: Record<string, IRVal> = {};
@@ -406,14 +423,14 @@ class DocChecker {
         continue;
       }
       const f = t.fields.find((x) => x[0] === k);
-      if (!f) throw new MkpError('mkp.unknown-field', `${t.kind} has no field "${k}"${didYouMean(k, t.fields.map((x) => x[0]))}`, p);
+      if (!f) throw new MkpError('mkp.unknown-field', `${t.kind} has no field "${k}"${didYouMean(k, t.fields.map((x) => x[0]))}`, this.at(`${path}.${k}`, p));
       const ft = resolve(f[1], this.prog.typeEnv(sig.pack));
       if (ft.t === 'records') {
-        if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${ft.kind} records`, p);
-        for (const x of v) (out.records ??= []).push(this.yamlRecord(x, ft, sig, p, k));
+        if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${ft.kind} records`, this.at(`${path}.${k}`, p));
+        v.forEach((x, i) => (out.records ??= []).push(this.yamlRecord(x, ft, sig, this.at(`${path}.${k}[${i}]`, p), k, `${path}.${k}[${i}]`)));
         continue;
       }
-      props[k] = this.yamlValue(v, f[1], sig.pack, p, `${t.kind}.${k}`);
+      props[k] = this.yamlValue(v, f[1], sig.pack, this.at(`${path}.${k}`, p), `${path}.${k}`);
     }
     for (const [k, ft] of t.fields) {
       if (props[k] !== undefined || resolve(ft, this.prog.typeEnv(sig.pack)).t === 'records') continue;
@@ -429,14 +446,14 @@ class DocChecker {
     const env = this.prog.typeEnv(pack);
     const t = resolve(type, env);
     const bad = (want: string): never => {
-      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, p);
+      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, this.at(what, p));
     };
     switch (t.t) {
       case 'num':
       case 'int': {
         if (typeof v !== 'number') return bad(t.t === 'int' ? 'a whole number' : 'a number');
         if (t.t === 'int' && !Number.isInteger(v)) return bad('a whole number');
-        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, p);
+        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, this.at(what, p));
         return { lit: v };
       }
       case 'bool':
@@ -451,7 +468,7 @@ class DocChecker {
       }
       case 'choice':
         if (typeof v === 'string' && t.opts.includes(v)) return { lit: v };
-        throw new MkpError('mkp.enum', `${what} is one of ${t.opts.join(', ')}; found ${JSON.stringify(v)}`, p);
+        throw new MkpError('mkp.enum', `${what} is one of ${t.opts.join(', ')}; found ${JSON.stringify(v)}`, this.at(what, p));
       case 'point':
         if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number')) return { lit: v };
         return bad('a point [x, y]');
@@ -469,18 +486,18 @@ class DocChecker {
       }
       case 'token':
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return { tok: v, kind: t.kind };
-        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, p);
+        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, this.at(what, p));
       case 'ref': {
         const r = v as { ref?: unknown };
         if (!r || typeof r !== 'object' || typeof r.ref !== 'string') return bad('{ref: name} of a state line in a state block');
         const b = this.dc.scope.get(r.ref);
-        if (!b || (b.kind !== 'state' && b.kind !== 'var')) throw new MkpError('mkp.not-state', `"${r.ref}" is not declared in a state block of this document`, p);
-        if (!fits(b.type, t.of, env)) throw new MkpError('mkp.input-type', `${what} is ${showType(t.of)}, but ${r.ref} is ${showType(b.type)}`, p);
+        if (!b || (b.kind !== 'state' && b.kind !== 'var')) throw new MkpError('mkp.not-state', `"${r.ref}" is not declared in a state block of this document`, this.at(what, p));
+        if (!fits(b.type, t.of, env)) throw new MkpError('mkp.input-type', `${what} is ${showType(t.of)}, but ${r.ref} is ${showType(b.type)}`, this.at(what, p));
         return { ref: r.ref };
       }
       case 'path':
         if (typeof v !== 'string') return bad('a field name');
-        return this.dc.pathTo(v, t, p);
+        return this.dc.pathTo(v, t, this.at(what, p));
       case 'expr': {
         if (typeof v !== 'string' && typeof v !== 'number') return bad(`an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
         const e = parseExprString(String(v), this.file, p.line, p.col);
@@ -500,13 +517,13 @@ class DocChecker {
   private yamlData(v: unknown, type: Type, env: (n: string) => Type | undefined, p: Pos, what: string): unknown {
     const t = resolve(type, env);
     const bad = (want: string): never => {
-      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, p);
+      throw new MkpError('mkp.input-type', `${what} is ${want}; found ${JSON.stringify(v)}`, this.at(what, p));
     };
     switch (t.t) {
       case 'num':
       case 'int':
         if (typeof v !== 'number' || (t.t === 'int' && !Number.isInteger(v))) return bad(t.t === 'int' ? 'a whole number' : 'a number');
-        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, p);
+        if (t.lo !== undefined && (v < t.lo || v > t.hi!)) throw new MkpError('mkp.input-range', `${what} is ${v}, outside ${t.lo}..${t.hi}`, this.at(what, p));
         return v;
       case 'bool':
         return typeof v === 'boolean' ? v : bad('true or false');
@@ -518,7 +535,7 @@ class DocChecker {
       case 'token':
         // a colour in a YAML record is a token name (GAPS 155)
         if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return v;
-        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, p);
+        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, this.at(what, p));
       case 'point':
         return Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number') ? v : bad('a point [x, y]');
       case 'list':
@@ -533,7 +550,7 @@ class DocChecker {
         if (!v || typeof v !== 'object' || Array.isArray(v)) return bad(`a record {${t.fields.map((f) => f[0]).join(', ')}}`);
         const o: Record<string, unknown> = {};
         const src = v as Record<string, unknown>;
-        for (const k of Object.keys(src)) if (!t.fields.some((f) => f[0] === k)) throw new MkpError('mkp.unknown-field', `${what} has no field "${k}"${didYouMean(k, t.fields.map((f) => f[0]))}`, p);
+        for (const k of Object.keys(src)) if (!t.fields.some((f) => f[0] === k)) throw new MkpError('mkp.unknown-field', `${what} has no field "${k}"${didYouMean(k, t.fields.map((f) => f[0]))}`, this.at(what, p));
         for (const [k, ft] of t.fields) {
           if (!(k in src)) {
             const d = t.defaults?.[k];
@@ -542,7 +559,7 @@ class DocChecker {
               o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : dv.lit;
               continue;
             }
-            throw new MkpError('mkp.missing-field', `${what} needs ${k} (${showType(ft)})`, p);
+            throw new MkpError('mkp.missing-field', `${what} needs ${k} (${showType(ft)})`, this.at(what, p));
           }
           o[k] = this.yamlData(src[k], ft, env, p, `${what}.${k}`);
         }

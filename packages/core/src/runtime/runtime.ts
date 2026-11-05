@@ -209,9 +209,6 @@ export class Inst {
 
 // ---------------------------------------------------------------------------------------------
 
-/** From this many steps, a steps control has a track to drag along them. */
-const STEPS_TRACK = 7;
-
 export class Runtime {
   readonly prog: Programme;
   readonly root: Inst;
@@ -446,6 +443,8 @@ export class Runtime {
         case 'state': {
           inst.states.set(v.name, v);
           inst.cells.set(v.name, new Cell(this.stateDefault(inst, v), true));
+          // a clock runs from the start; renderers tick only while the page is on screen
+          if (v.control === 'clock' && !this.opts.snapshot) inst.playing.set(v.name, { dir: 1, acc: 0 });
           break;
         }
         case 'var':
@@ -484,6 +483,8 @@ export class Runtime {
       case 'toggle':
         return false;
       case 'steps':
+        return s.args.none && 'lit' in s.args.none && s.args.none.lit ? -1 : 0;
+      case 'clock':
         return 0;
       case 'drag': {
         const x = this.rangeOf(s.args.x, env, inst);
@@ -826,8 +827,14 @@ export class Runtime {
         const x = this.valueOf(v, env, inst);
         if (k === 'dim' || k === 'bold') {
           if (x) a[k] = true;
+        } else if (k === 'opacity') {
+          if (typeof x === 'number' && x < 1) a.opacity = Math.max(0, x);
+        } else if (k === 'layer') {
+          if (x === 'behind') a.layer = 'behind';
         } else if (x !== 'none' || k === 'head') (a as unknown as Record<string, unknown>)[k] = String(x);
       }
+      // an empty label draws nothing, not an empty box (GAPS 129)
+      if (a.label && !a.label.some((r) => ('v' in r && String(r.v).trim()) || r.t === 'math')) delete a.label;
       if (n.via) {
         // waypoints: each id found like from and to; one that is missing is left out, with a warning
         const via: string[] = [];
@@ -902,11 +909,15 @@ export class Runtime {
       case 'code': {
         const p = this.props(n, env, inst);
         const marks = ((p.marks as V[] | undefined) ?? []).map((m) => Object.fromEntries(m instanceof Map ? m : Object.entries(m as object)));
-        return { t: 'code', key, p: { src: p.src, lang: p.lang ?? '', line: p.line ?? 0, ...(marks.length ? { marks } : {}) } };
+        const v: VNode = { t: 'code', key, p: { src: p.src, lang: p.lang ?? '', line: p.line ?? 0, ...(marks.length ? { marks } : {}), ...(p.pickable ? { pickable: true } : {}) } };
+        // a pressed line raises pick {line} (GAPS 68, 96)
+        this.wire(n, v, env, inst);
+        return v;
       }
       case 'math': {
         const p = this.props(n, env, inst);
-        return { t: 'math', key, p: { ...this.maths(String(p.tex), true) } };
+        const marks = ((p.marks as V[] | undefined) ?? []).map((m) => Object.fromEntries(m instanceof Map ? m : Object.entries(m as object)));
+        return { t: 'math', key, p: { ...this.maths(String(p.tex), true), ...(marks.length ? { marks } : {}) } };
       }
       case 'quote': {
         const p = this.props(n, env, inst);
@@ -1087,35 +1098,32 @@ export class Runtime {
       const p = this.props(r, env, inst);
       const pt = (x: V): number[] => x as number[];
       let s: VShape | null = null;
+      const opacity = typeof p.opacity === 'number' && p.opacity < 1 ? { opacity: Math.max(0, p.opacity) } : {};
       switch (r.record) {
-        case 'rect':
-          s = { t: 'rect', key: k, a: pt(p.a), b: pt(p.b), fill: String(p.fill), stroke: String(p.stroke), radius: String(p.radius) };
-          break;
-        case 'line':
-          s = { t: 'line', key: k, a: pt(p.a), b: pt(p.b), stroke: String(p.stroke), width: p.width as number, dash: !!p.dash, arrow: !!p.arrow };
-          break;
         case 'circle':
-          s = { t: 'circle', key: k, c: pt(p.c), r: p.r as number, fill: String(p.fill), stroke: String(p.stroke), width: p.width as number };
+          s = { t: 'circle', key: k, c: pt(p.c), r: p.r as number, ...(p.px ? { px: p.px as number } : {}), fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, ...opacity };
           break;
-        case 'path':
-          s = { t: 'path', key: k, pts: p.pts as number[][], closed: !!p.closed, fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, dash: !!p.dash };
-          break;
-        case 'curve': {
-          const f = p.f as Fun;
-          const [t0, t1] = p.t as number[];
-          const nSamples = Math.max(2, Math.min(2000, p.n as number));
-          const pts: number[][] = [];
-          withBudget(inst.budget, `${inst.label()} curve`, () => {
-            for (let j = 0; j < nSamples; j++) {
-              const v = f(t0 + ((t1 - t0) * j) / (nSamples - 1)) as number[];
-              if (Number.isFinite(v[0]) && Number.isFinite(v[1])) pts.push(v);
-            }
-          });
-          s = { t: 'path', key: k, pts, closed: false, fill: 'none', stroke: String(p.stroke), width: p.width as number, dash: !!p.dash };
+        case 'path': {
+          // points that aren't finite (a function's pole) break the path rather than draw to infinity
+          const pts = (p.pts as number[][]).filter((q) => Number.isFinite(q[0]) && Number.isFinite(q[1]));
+          s = { t: 'path', key: k, pts, closed: !!p.closed, fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, dash: !!p.dash, ...(p.head && p.head !== 'none' ? { head: p.head as 'arrow' | 'dot' } : {}), ...opacity };
           break;
         }
         case 'label':
-          s = { t: 'label', key: k, at: pt(p.at), runs: this.runs(String(p.text)), tone: String(p.tone), anchor: String(p.anchor), ...(p.chip ? { chip: true } : {}) };
+          s = {
+            t: 'label',
+            key: k,
+            at: pt(p.at),
+            runs: this.runs(String(p.text)),
+            tone: String(p.tone),
+            anchor: String(p.anchor),
+            ...(p.chip ? { chip: true } : {}),
+            ...(p.size && p.size !== 'normal' ? { size: p.size as 'small' | 'large' } : {}),
+            ...(p.halo ? { halo: true } : {}),
+            ...(p.dx ? { dx: p.dx as number } : {}),
+            ...(p.dy ? { dy: p.dy as number } : {}),
+            ...opacity,
+          };
           break;
         case 'image':
           s = { t: 'image', key: k, src: String(p.src), at: pt(p.at), w: p.w as number, h: p.h as number, alt: String(p.alt) };
@@ -1276,25 +1284,42 @@ export class Runtime {
       case 'steps': {
         const n = this.valueOf(s.args.n, env, inst) as number;
         const at = value as number;
-        const go = (to: number): void => this.setCell(inst, name, Math.max(0, Math.min(n - 1, to)));
+        const none = !!(s.args.none && 'lit' in s.args.none && s.args.none.lit);
+        const go = (to: number): void => this.setCell(inst, name, Math.max(none ? -1 : 0, Math.min(n - 1, to)));
         // back, play, next; a track once there are enough steps to need one; where it is; start over.
         // Every part keeps its width, so nothing moves as it plays.
-        const kids: VNode[] = [press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹')], () => go(at - 1), { disabled: at <= 0, emphasis: 'low' })];
+        const kids: VNode[] = [press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹')], () => go(Math.max(0, at - 1)), { disabled: at <= 0, emphasis: 'low' })];
         if (s.play) {
           const playing = inst.playing.has(name);
           kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'high' }));
         }
         kids.push(press(`${key}.next`, `${name}.next`, `next: ${label}`, [text(`${key}.next.t`, '›')], () => go(at + 1), { disabled: at >= n - 1, emphasis: 'low' }));
-        if (n >= STEPS_TRACK) {
-          kids.push({ t: 'range', key: `${key}.range`, p: { value: at, min: 0, max: n - 1, step: 1, label }, ev: ['change'] });
+        // a track only where the widget asks for one (GAPS 124)
+        if (s.args.track && 'lit' in s.args.track && s.args.track.lit) {
+          kids.push({ t: 'range', key: `${key}.range`, p: { value: Math.max(0, at), min: 0, max: n - 1, step: 1, label }, ev: ['change'] });
           this.on(`${key}.range`, 'change', (payload) => go(Math.round(typeof payload === 'number' ? payload : ((payload as Record<string, V>)?.value as number))));
         }
-        const count = text(`${key}.at`, `${at + 1}/${n}`, 'muted');
+        const count = text(`${key}.at`, `${at < 0 ? '—' : at + 1}/${n}`, 'muted');
         count.p.font = 'mono';
         kids.push(count);
-        kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺')], () => go(0), { disabled: at <= 0, emphasis: 'low' }));
+        kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺')], () => go(none ? -1 : 0), { disabled: at <= (none ? -1 : 0), emphasis: 'low' }));
         inst.ids.set(name, key);
         return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'steps' }, kids };
+      }
+      case 'clock': {
+        const playing = inst.playing.has(name);
+        const secs = Math.floor(value as number);
+        const shown = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+        const time = text(`${key}.time`, shown, 'muted');
+        time.p.font = 'mono';
+        inst.ids.set(name, key);
+        return {
+          t: 'row',
+          key,
+          id: name,
+          p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'clock' },
+          kids: [press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `resume ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'low' }), time],
+        };
       }
       default:
         return null;
@@ -1349,6 +1374,10 @@ export class Runtime {
 
   play(inst: Inst, name: string): void {
     const s = inst.states.get(name);
+    if (s?.control === 'clock') {
+      if (!inst.playing.has(name)) inst.playing.set(name, { dir: 1, acc: 0 });
+      return;
+    }
     if (!s || (s.control !== 'slider' && s.control !== 'steps')) return;
     const c = inst.cells.get(name)!;
     if (this.atEnd(inst, s, c.value) && (s.loop ?? 'once') === 'once') {
@@ -1366,10 +1395,19 @@ export class Runtime {
     const c = inst.cells.get(name)!;
     const dur = s.play ?? 4000;
     const loop = s.loop ?? 'once';
+    if (s.control === 'clock') {
+      ps.acc += ms;
+      // whole hundredths, so a clock read every frame doesn't redraw for nothing
+      if (ps.acc < 100) return;
+      const v = Math.round(((c.value as number) + ps.acc / 1000) * 10) / 10;
+      ps.acc = 0;
+      if (c.set(v)) this.stateChanged(inst, name);
+      return;
+    }
     if (s.control === 'steps') {
       const n = this.valueOf(s.args.n, inst.env, inst) as number;
       ps.acc += ms;
-      const every = dur / Math.max(1, n);
+      const every = s.playPer ? dur : dur / Math.max(1, n);
       while (ps.acc >= every) {
         ps.acc -= every;
         let v = (c.value as number) + 1;
@@ -1450,7 +1488,9 @@ export class Runtime {
           const vdecl = (inst.def.values ?? []).find((x) => x.name === nm);
           const def = s ? this.stateDefault(inst, s) : vdecl && (vdecl.k === 'var' || vdecl.k === 'host') ? this.valueOf(vdecl.default, inst.env, inst) : undefined;
           if (def !== undefined) this.setCell(inst, nm, def);
-          inst.playing.delete(nm);
+          // a clock starts again from 0; anything else stops
+          if (s?.control === 'clock') inst.playing.set(nm, { dir: 1, acc: 0 });
+          else inst.playing.delete(nm);
         }
         break;
       }
@@ -1481,6 +1521,9 @@ export class Runtime {
         this.emitSignal(inst, a.name, payload);
         break;
       }
+      case 'when':
+        if (this.evalExpr(a.cond, env, inst)) for (const x of a.actions) this.action(x, env, inst);
+        break;
     }
   }
 

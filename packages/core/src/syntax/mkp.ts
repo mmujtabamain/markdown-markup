@@ -10,7 +10,7 @@ import { chunks, Chunk, decodeText, LLine, PosMap, readLines, skipMaths } from '
 export type Val =
   | { v: 'expr'; e: Ex; src: string; p: Pos }
   | { v: 'range'; lo: Ex; hi: Ex; src: string; loSrc: string; hiSrc: string; p: Pos }
-  | { v: 'dur'; ms: number; src: string; p: Pos };
+  | { v: 'dur'; ms: number; src: string; p: Pos; per?: boolean };
 
 export interface Arg {
   key?: string;
@@ -27,6 +27,8 @@ export interface ActionSyn {
 export interface EventSyn {
   name: string;
   actions: ActionSyn[];
+  /** if=(…) on the event line: its actions run only while it is true (GAPS 81) */
+  cond?: Val;
   p: Pos;
 }
 
@@ -39,7 +41,7 @@ export interface NodeSyn {
   p: Pos;
 }
 
-export type ControlWord = 'slider' | 'choice' | 'toggle' | 'steps' | 'drag';
+export type ControlWord = 'slider' | 'choice' | 'toggle' | 'steps' | 'drag' | 'clock';
 
 export interface ParamSyn {
   name: string;
@@ -156,7 +158,7 @@ export interface MkpFile {
 }
 
 const MEMBER_WORDS = new Set(['requires', 'budget', 'fields', 'in', 'out', 'signal', 'host', 'command', 'var', 'fn', 'project', 'implements']);
-export const CONTROL_WORDS = new Set(['slider', 'choice', 'toggle', 'steps', 'drag']);
+export const CONTROL_WORDS = new Set(['slider', 'choice', 'toggle', 'steps', 'drag', 'clock']);
 export const ACTION_NAMES = new Set(['set', 'play', 'pause', 'reset', 'reveal', 'hide', 'open', 'close', 'emit', 'send']);
 const OP_SYMBOLS = new Set(['+', '-', '*', '/', '^', '==', '<', 'from', 'point']);
 
@@ -660,7 +662,7 @@ function member(ctx: LineCtx, diags: Diagnostics): Member {
     const name = assign[1];
     const restAt = assign[0].length;
     const rest = text.slice(restAt);
-    const cw = /^(slider|toggle|steps|drag)\b|^choice\(/.exec(rest);
+    const cw = /^(slider|toggle|steps|drag|clock)\b|^choice\(/.exec(rest);
     if (cw) return stateLine(ctx, name, restAt, diags);
     const { e, src } = exprAt(ctx, restAt, text.length);
     return { m: 'derived', name, e, src, p, comments };
@@ -733,7 +735,15 @@ export function nodeLine(ctx: LineCtx, diags: Diagnostics): NodeSyn {
 function eventLine(ctx: LineCtx, diags: Diagnostics): EventSyn {
   const m = /^@([A-Za-z_][A-Za-z0-9_]*)/.exec(ctx.text);
   if (!m) ctx.fail('expected "@event action …"');
-  const actions = actionLine(ctx, m[0].length);
+  // if=(…) anywhere on the line guards the whole line
+  const cs = chunks(ctx.text, m[0].length);
+  const guard = cs.find((c) => c.text.startsWith('if='));
+  let cond: Val | undefined;
+  if (guard) {
+    if (cs.filter((c) => c.text.startsWith('if=')).length > 1) ctx.fail('an event line has one if=', guard.at);
+    cond = arg(ctx, guard).value;
+  }
+  const actions = actionChunks(ctx, cs.filter((c) => c !== guard));
   for (const c of ctx.line.children) {
     const lc = new LineCtx(c, ctx.map.file);
     try {
@@ -743,12 +753,15 @@ function eventLine(ctx: LineCtx, diags: Diagnostics): EventSyn {
     }
   }
   if (!actions.length) ctx.fail(`the event "@${m[1]}" has no actions`);
-  return { name: m[1], actions, p: ctx.pos(0) };
+  return { name: m[1], actions, ...(cond ? { cond } : {}), p: ctx.pos(0) };
 }
 
 /** One or more actions on a line; each action name starts a new action. */
 function actionLine(ctx: LineCtx, from: number): ActionSyn[] {
-  const cs = chunks(ctx.text, from);
+  return actionChunks(ctx, chunks(ctx.text, from));
+}
+
+function actionChunks(ctx: LineCtx, cs: Chunk[]): ActionSyn[] {
   const out: ActionSyn[] = [];
   for (const c of cs) {
     if (ACTION_NAMES.has(c.text)) {
@@ -775,8 +788,8 @@ function arg(ctx: LineCtx, c: Chunk): Arg {
 function valueOf(ctx: LineCtx, c: Chunk): Val {
   const p = ctx.pos(c.at);
   const t = c.text;
-  const dur = /^(\d+(?:\.\d+)?)(ms|s)$/.exec(t);
-  if (dur) return { v: 'dur', ms: Number(dur[1]) * (dur[2] === 's' ? 1000 : 1), src: t, p };
+  const dur = /^(\d+(?:\.\d+)?)(ms|s)(\/step)?$/.exec(t);
+  if (dur) return { v: 'dur', ms: Number(dur[1]) * (dur[2] === 's' ? 1000 : 1), src: t, p, ...(dur[3] ? { per: true } : {}) };
   const dots = topLevelDots(t);
   if (dots >= 0) {
     const lo = ExprParser.parse(ctx.text, c.at, c.at + dots, ctx.map);

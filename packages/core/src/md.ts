@@ -299,17 +299,11 @@ export function canvasSvg(n: VNode, tokens: TokenTable, W = 320): string {
   const parts: string[] = [];
   const shape = (s: VShape): void => {
     switch (s.t) {
-      case 'rect':
-        parts.push(`<rect x="${f(Math.min(X(s.a[0]), X(s.b[0])))}" y="${f(Math.min(Y(s.a[1]), Y(s.b[1])))}" width="${f(Math.abs(X(s.b[0]) - X(s.a[0])))}" height="${f(Math.abs(Y(s.b[1]) - Y(s.a[1])))}" fill="${col(s.fill)}" stroke="${col(s.stroke)}"/>`);
-        break;
-      case 'line':
-        parts.push(`<line x1="${f(X(s.a[0]))}" y1="${f(Y(s.a[1]))}" x2="${f(X(s.b[0]))}" y2="${f(Y(s.b[1]))}" stroke="${col(s.stroke)}" stroke-width="${s.width}"${s.dash ? ' stroke-dasharray="5 4"' : ''}/>`);
-        break;
       case 'circle':
-        parts.push(`<circle cx="${f(X(s.c[0]))}" cy="${f(Y(s.c[1]))}" r="${f(Math.max(0.5, s.r * unit))}" fill="${col(s.fill)}" stroke="${col(s.stroke)}" stroke-width="${s.width}"/>`);
+        parts.push(`<circle cx="${f(X(s.c[0]))}" cy="${f(Y(s.c[1]))}" r="${f(Math.max(0.5, s.px ? s.px : s.r * unit))}" fill="${col(s.fill)}" stroke="${col(s.stroke)}" stroke-width="${s.width}"${s.opacity !== undefined ? ` opacity="${s.opacity}"` : ''}/>`);
         break;
       case 'path':
-        if (s.pts.length) parts.push(`<path d="${s.pts.map((q, i) => `${i ? 'L' : 'M'}${f(X(q[0]))},${f(Y(q[1]))}`).join(' ')}${s.closed ? ' Z' : ''}" fill="${col(s.fill)}" stroke="${col(s.stroke)}" stroke-width="${s.width}"/>`);
+        if (s.pts.length) parts.push(`<path d="${s.pts.map((q, i) => `${i ? 'L' : 'M'}${f(X(q[0]))},${f(Y(q[1]))}`).join(' ')}${s.closed ? ' Z' : ''}" fill="${col(s.fill)}" stroke="${col(s.stroke)}" stroke-width="${s.width}"${s.dash ? ' stroke-dasharray="5 4"' : ''}${s.opacity !== undefined ? ` opacity="${s.opacity}"` : ''}/>`);
         break;
       case 'label': {
         const maths = s.runs.find((r) => r.t === 'math' && 'svg' in r && r.svg) as { svg?: string; w?: number; h?: number } | undefined;

@@ -80,7 +80,9 @@ export type IRAction =
   | { a: 'reset'; names: string[] }
   | { a: 'reveal' | 'hide' | 'open' | 'close'; id: string | IRExpr }
   | { a: 'emit'; name: string; payload: [string, IRExpr][] }
-  | { a: 'send'; name: string; payload: [string, IRExpr][] };
+  | { a: 'send'; name: string; payload: [string, IRExpr][] }
+  /** an event line's if=(…): its actions run while the condition holds (GAPS 81) */
+  | { a: 'when'; cond: IRExpr; actions: IRAction[] };
 
 export interface IRMeta {
   id?: string | IRExpr;
@@ -161,11 +163,13 @@ export interface IRInput {
 export interface IRState {
   k: 'state';
   name: string;
-  control: 'slider' | 'choice' | 'toggle' | 'steps' | 'drag';
+  control: 'slider' | 'choice' | 'toggle' | 'steps' | 'drag' | 'clock';
   type: Type;
-  /** slider: min max step; steps: n; drag: x y ranges; choice: opts */
+  /** slider: min max step; steps: n, none, track; drag: x y ranges; choice: opts */
   args: Record<string, IRVal>;
   play?: number;
+  /** play is the time each step takes, not the whole run's (GAPS 156) */
+  playPer?: boolean;
   loop?: 'once' | 'repeat' | 'bounce';
   default?: IRVal;
   label?: string;

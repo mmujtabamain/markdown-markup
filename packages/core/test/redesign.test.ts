@@ -192,3 +192,46 @@ describe('answers (6.27, GAPS 166)', () => {
     expect(r.b!.defs['$doc:ask@1'].inputs.find((i) => i.name === 'accept')?.answer).toBe(true);
   });
 });
+
+describe('events, controls and time (6.11, 6.12)', () => {
+  const def = (body: string) => doc(fence(`w "w"\n${body}\n  project md = "w"`) + block('w', 'summary: s'));
+  it('if= on an event line guards that line, and lines run in order', () => {
+    const r = def('  var n int = 0\n  var log text = ""\n  press id=go\n    text "go"\n    @click set n=(n + 1)\n    @click set log=(log + "even") if=(mod(n, 2) == 0)\n  text "\\val{n} \\val{log}"');
+    expect(r.all).toEqual([]);
+    const rt = new Runtime(r.b!);
+    rt.press('go');
+    expect(texts(rt.view())).toContain('1 ');
+    rt.press('go');
+    expect(texts(rt.view())).toContain('2 even');
+  });
+  it('a clock counts seconds while it runs, and reset starts it again', () => {
+    const r = def('  t = clock "elapsed"\n  text "\\val{floor(t)}"');
+    expect(r.all).toEqual([]);
+    const rt = new Runtime(r.b!);
+    rt.view();
+    rt.tick(2500);
+    expect(texts(rt.view())).toContain('2');
+    rt.press('t.play');
+    rt.tick(5000);
+    expect(texts(rt.view())).toContain('2');
+  });
+  it('steps can start at no step, and play a pace per step', () => {
+    const r = def('  at = steps 4 none=true play=500ms/step "step"\n  text "at \\val{at}"');
+    expect(r.all).toEqual([]);
+    const rt = new Runtime(r.b!);
+    expect(texts(rt.view())).toContain('at -1');
+    expect(texts(rt.view())).toContain('—/4');
+    rt.press('at.play');
+    rt.tick(1000);
+    expect(texts(rt.view())).toContain('at 1');
+  });
+});
+
+describe('positions (GAPS 165)', () => {
+  it('a wrong value in a YAML list item is reported at that item', () => {
+    const src = fence('nums "n"\n  in xs list(int)\n  text "n"\n  project md = "n"') + block('nums', 'xs:\n  - 1\n  - two\n  - 3\nsummary: s');
+    const r = doc(src);
+    const line = src.split('\n').findIndex((l) => l.includes('- two')) + 1;
+    expect(r.all[0]).toMatch(new RegExp(`^doc\\.mkp\\.md:${line}:5 error mkp\\.input-type: xs\\[1\\] is a whole number`));
+  });
+});

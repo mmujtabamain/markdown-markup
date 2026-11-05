@@ -27,20 +27,27 @@ export interface VArrow {
   /** its colour (a color token), its line, the marks at its ends, faded back or drawn strong */
   tone?: string;
   line?: 'solid' | 'dashed' | 'dotted';
-  head?: 'arrow' | 'hollow' | 'one' | 'many' | 'none';
-  tail?: 'arrow' | 'hollow' | 'one' | 'many' | 'none';
+  head?: 'arrow' | 'hollow' | 'one' | 'many' | 'dot' | 'ring' | 'cross' | 'none';
+  tail?: 'arrow' | 'hollow' | 'one' | 'many' | 'dot' | 'ring' | 'cross' | 'none';
   dim?: boolean;
   bold?: boolean;
+  /** behind: drawn under the content (GAPS 100) */
+  layer?: 'behind';
+  /** its own opacity, quieter than muted (GAPS 122) */
+  opacity?: number;
   /** the keys of the elements the path runs through, in order (via=, 6.10) */
   via?: string[];
 }
 
+/**
+ * Canvas shapes. Lines, rectangles and curves are paths (the base set draws only these); a
+ * circle's px is a radius in pixels, whatever the zoom; opacity is the shape's own (GAPS 106–109,
+ * 113). Labels are kept inside the canvas and clear of each other by the renderer.
+ */
 export type VShape =
-  | { t: 'rect'; key: string; a: number[]; b: number[]; fill: string; stroke: string; radius: string }
-  | { t: 'line'; key: string; a: number[]; b: number[]; stroke: string; width: number; dash: boolean; arrow: boolean }
-  | { t: 'circle'; key: string; c: number[]; r: number; fill: string; stroke: string; width: number }
-  | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean }
-  | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string; chip?: boolean }
+  | { t: 'circle'; key: string; c: number[]; r: number; px?: number; fill: string; stroke: string; width: number; opacity?: number }
+  | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean; head?: 'arrow' | 'dot'; opacity?: number }
+  | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string; chip?: boolean; size?: 'small' | 'large'; halo?: boolean; dx?: number; dy?: number; opacity?: number }
   | { t: 'image'; key: string; src: string; at: number[]; w: number; h: number; alt: string }
   | { t: 'place'; key: string; at: number[]; kids: VNode[] }
   | { t: 'handle'; key: string; at: number[]; tone: string; label: string; x: number[]; y: number[] }
@@ -54,7 +61,7 @@ export interface VLayer {
 }
 
 export interface VNode {
-  /** base widget kind: stack flex grid text image press range meter field overlay canvas, Markdown kinds,
+  /** base widget kind: column row grid stack text image press range meter field overlay canvas, Markdown kinds,
    *  or the containers scope (a definition instance), bar (its controls) and error */
   t: string;
   key: string;

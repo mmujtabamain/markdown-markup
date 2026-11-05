@@ -45,13 +45,19 @@ export interface Sig {
 }
 
 /** An arrow's look (6.10): its colour, its line, the marks at its ends, faded back or drawn strong. */
+const ARROW_ENDS: Type = { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'dot', 'ring', 'cross', 'none'] };
 const ARROW_LOOK: Record<string, Type> = {
   tone: { t: 'token', kind: 'color' },
   line: { t: 'choice', opts: ['solid', 'dashed', 'dotted'] },
-  head: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'cross', 'none'] },
-  tail: { t: 'choice', opts: ['arrow', 'hollow', 'one', 'many', 'cross', 'none'] },
+  // dot and ring are ER's exactly-one and zero-or-one ends (GAPS 140)
+  head: ARROW_ENDS,
+  tail: ARROW_ENDS,
   dim: T.bool,
   bold: T.bool,
+  // drawn under the content, so a line never crosses a box's text (GAPS 100)
+  layer: { t: 'choice', opts: ['front', 'behind'] },
+  // quieter than muted (GAPS 122)
+  opacity: { t: 'num', lo: 0, hi: 1 },
 };
 const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
 const META_FLAGS = new Set(['hidden', 'grow']);
@@ -540,9 +546,11 @@ export class DefChecker {
       return a;
     };
     const playArg = take('play');
+    let playPer = false;
     if (playArg) {
-      if (playArg.value.v !== 'dur') this.fail(playArg.p, 'play takes a duration such as 8s');
+      if (playArg.value.v !== 'dur') this.fail(playArg.p, 'play takes a duration such as 8s, or 500ms/step');
       play = playArg.value.ms;
+      playPer = !!playArg.value.per;
     }
     const loopArg = take('loop');
     if (loopArg) {
@@ -579,9 +587,23 @@ export class DefChecker {
         const n = positional.shift();
         if (!n) this.fail(m.p, 'steps needs a count: steps n');
         args.n = this.value(n.value, T.int, this.scope, n.p);
+        // none=true: it starts at no step (-1), and start over goes back there (GAPS 123)
+        for (const k of ['none', 'track']) {
+          const a = take(k);
+          if (a) {
+            const v = this.value(a.value, T.bool, this.scope, a.p);
+            if (!('lit' in v)) this.fail(a.p, `${k} is true or false, written`);
+            args[k] = v;
+          }
+        }
         type = T.int;
         break;
       }
+      case 'clock':
+        // seconds since it last started, running while the widget is on screen (GAPS 169)
+        type = T.num;
+        if (play) this.fail(m.p, 'a clock runs on its own; play and pause it with actions');
+        break;
       case 'drag': {
         for (const k of ['x', 'y']) {
           const a = take(k);
@@ -597,6 +619,7 @@ export class DefChecker {
     if (m.control === 'drag' && play) this.fail(m.p, 'a drag control cannot play');
     const st: IRState = { k: 'state', name: m.name, control: m.control, type, args, pos: pos(m.p) };
     if (play) st.play = play;
+    if (playPer) st.playPer = true;
     if (loop) st.loop = loop;
     if (m.def) st.default = this.value(m.def, type, this.scope, m.def.p);
     if (m.label) st.label = m.label;
@@ -612,7 +635,7 @@ export class DefChecker {
           if (ev.name === 'end' && m.control !== 'slider' && m.control !== 'steps') this.fail(ev.p, 'only a slider or steps reaches an end');
           // the actions are checked after the view's ids are known
           this.deferred.push(() => {
-            st.on![ev.name] = this.actions(ev, this.scope);
+            st.on![ev.name] = [...(st.on![ev.name] ?? []), ...this.actions(ev, this.scope)];
           });
         } catch (e) {
           this.err(e);
@@ -1022,7 +1045,8 @@ export class DefChecker {
           if (payload) sc.set(ev.name, { type: payload, from: 'local', kind: 'payload' });
           const target = out.on;
           this.deferred.push(() => {
-            target[ev.name] = this.actions(ev, sc);
+            // several lines for one event run in order
+            target[ev.name] = [...(target[ev.name] ?? []), ...this.actions(ev, sc)];
           });
         } catch (e) {
           this.err(e);
@@ -1269,7 +1293,7 @@ export class DefChecker {
         const meta: IRMeta = {};
         this.meta(a, meta, scope);
         out.meta = meta;
-      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim= and bold=', 'mkp.unknown-prop');
+      } else this.fail(a.p, 'arrow takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim=, bold=, layer= and opacity=', 'mkp.unknown-prop');
     }
     if (!out.from || !out.to) this.fail(n.p, 'arrow needs from=id and to=id');
     return out;
@@ -1296,7 +1320,12 @@ export class DefChecker {
   }
 
   private actions(ev: EventSyn, scope: Scope): IRAction[] {
-    return ev.actions.flatMap((a) => this.action(a, scope));
+    const acts = ev.actions.flatMap((a) => this.action(a, scope));
+    if (!ev.cond) return acts;
+    if (ev.cond.v !== 'expr') this.fail(ev.p, 'if takes a boolean expression');
+    const c = this.x.check(ev.cond.e, scope, T.bool);
+    if (resolve(c.type, this.env).t !== 'bool') this.fail(ev.cond.p, `if needs a boolean; found ${showType(c.type)}`);
+    return [{ a: 'when', cond: this.irExpr(c, ev.cond.src, ev.cond.p), actions: acts }];
   }
 
   private action(a: ActionSyn, scope: Scope): IRAction[] {
@@ -1322,7 +1351,7 @@ export class DefChecker {
         if (a.args.length !== 1) this.fail(a.p, `${a.name} takes exactly one slider or steps name`, 'mkp.extra-arg');
         const nm = word(a.args[0] ?? this.fail(a.p, `${a.name} takes a slider or steps name`));
         const c = this.controlNames.get(nm);
-        if (c !== 'slider' && c !== 'steps') this.fail(a.p, `"${nm}" is not a slider or steps of this definition`, 'mkp.not-playable');
+        if (c !== 'slider' && c !== 'steps' && c !== 'clock') this.fail(a.p, `"${nm}" is not a slider, steps or clock of this definition`, 'mkp.not-playable');
         return { a: a.name, name: nm };
       }
       case 'reset': {
