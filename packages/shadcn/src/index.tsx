@@ -397,9 +397,19 @@ function list({ n, attrs }: HostProps, kit: Kit): ReactNode {
   return (
     <kit.List {...attrs} ordered={!!n.p.ordered} start={n.p.ordered ? Number(n.p.start) : undefined}>
       {(n.kids ?? []).map((it) => (
-        <li key={it.key} style={task(it) ? { listStyle: 'none', display: 'flex', gap: '0.5rem', alignItems: 'baseline' } : undefined}>
-          {task(it) ? <kit.Checkbox checked={it.p.checked === 'yes'} disabled aria-readonly style={{ alignSelf: 'center' }} /> : null}
-          <Kids nodes={it.kids} />
+        <li key={it.key} style={task(it) ? { listStyle: 'none', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' } : undefined}>
+          {task(it) ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '1lh', flex: 'none' }}>
+              <kit.Checkbox checked={it.p.checked === 'yes'} disabled aria-readonly />
+            </span>
+          ) : null}
+          {task(it) ? (
+            <div style={{ minWidth: 0 }}>
+              <Kids nodes={it.kids} />
+            </div>
+          ) : (
+            <Kids nodes={it.kids} />
+          )}
         </li>
       ))}
     </kit.List>
@@ -544,7 +554,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
       );
     },
     footnote: ({ n, attrs }) => (
-      <kit.Footnote {...attrs} id={`fn-${String(n.p.label)}`} label={String(n.p.label)}>
+      <kit.Footnote {...attrs} id={`fn-${String(n.p.label)}`} label={String(n.p.n ?? n.p.label)}>
         <Kids nodes={n.kids} />
       </kit.Footnote>
     ),

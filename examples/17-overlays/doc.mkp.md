@@ -28,9 +28,9 @@ recipe "A recipe's tools: a note, a hint, a confirmation and a menu of servings.
         press kind=option selected=(serves == six)
           text "six"
           @click set serves=six
+    # an overlay is its own press: what it holds is what the press shows
     overlay mode=dialog label="save the recipe" id=confirm
-      press emphasis=high
-        text "Save"
+      text "Save…"
       fill body
         column gap=s
           text "Save this recipe to your book?"

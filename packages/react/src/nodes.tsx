@@ -82,7 +82,7 @@ function Run({ r }: { r: VRun }): ReactNode {
     case 'fnref':
       return (
         <sup style={SUP}>
-          <a href={`#fn-${r.label}`}>{r.label}</a>
+          <a href={`#fn-${r.label}`}>{r.n ?? r.label}</a>
         </sup>
       );
   }
@@ -527,7 +527,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'footnote':
       return (
         <div {...common} id={`fn-${String(p.label)}`} style={{ fontSize: '0.875em' }}>
-          <sup style={SUP}>{String(p.label)}</sup> <Kids nodes={n.kids} />
+          <sup style={SUP}>{String(p.n ?? p.label)}</sup> <Kids nodes={n.kids} />
         </div>
       );
     case 'frame':

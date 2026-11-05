@@ -89,6 +89,8 @@ export const BASE_CSS = layer(`
 .mkp-place { position: absolute; transform: translate(-50%, -50%); }
 .mkp-handle { cursor: grab; } .mkp-handle:focus { outline: none; } .mkp-handle:focus-visible circle { stroke: var(--mkp-color-accent); stroke-width: 3; }
 .mkp-scope { position: relative; }
+/* a document's blocks: a widget block keeps the paragraph gap from what is beside it (a root of one block adds none) */
+.mkp-root > * + .mkp-scope, .mkp-root > .mkp-scope + * { margin-top: var(--mkp-space-l); }
 .mkp-root [data-mkp-behind] { isolation: isolate; }
 /* a layer arrows are drawn in: zero specificity, so a full-screen frame stays fixed */
 .mkp-root :where([data-mkp-arrow-host]) { position: relative; isolation: isolate; }

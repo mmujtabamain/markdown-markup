@@ -16,7 +16,7 @@ stars "Rate out of five by pressing a star."
   row gap=xs
     each k in 1..of key=k
       press kind=plain label=(format(k, 0) + " of " + format(of, 0))
-        icon name=star tone=(if(k <= got, accent, muted))
+        icon name=star tone=(if(k <= got, warn, muted))
         @click set got=k send scored got=k
   project md = format(got, 0) + " of " + format(of, 0) + " stars"
 

@@ -11,13 +11,16 @@ type step = {name: text, kids: list(step) = []}
 fn shown(t: task): task = if(t.done, {title: t.title, tone: ok, icon: check, done: true}, t)
 fn count(s: step): int = 1 + sum(map(s.kids, k => count(k)))
 
-part branch "A step and the steps under it, indented."
+part branch "A step and the steps under it, indented under a rule."
   in at step
+  in depth int = 0 "how deep it is: the plan itself is 0"
   column gap=xs
-    text at.name
+    row gap=s align=center
+      icon name=(if(len(at.kids) > 0, down, dot)) size=small tone=muted
+      text at.name weight=(if(depth == 0, bold, regular))
     column gap=xs pad=s edge=left stroke=line if=(len(at.kids) > 0)
       each k in at.kids key=k.name
-        branch at=k
+        branch at=k depth=(depth + 1)
 
 jobs "A to-do list whose items take their colours and icons from a named type, and the plan as a tree."
   in items list(task)

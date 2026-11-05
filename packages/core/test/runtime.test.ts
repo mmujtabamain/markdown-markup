@@ -114,11 +114,16 @@ describe('runtime: a clock (example 15)', () => {
     rt.tick(1000);
     rt.tick(1000);
     expect(texts(rt)).toContain('5:58 left');
-    pressLabelled(rt, 'Pause');
+    // taking it out pauses the clock (pause), and it shows the clock's own control in its row
+    pressLabelled(rt, 'Take it out now');
     rt.tick(5000);
     expect(texts(rt)).toContain('5:58 left');
+    expect(find(rt.view(), (n) => n.p.control === 'clock').length).toBe(1);
+    // starting over goes back to the start and runs again (reset, then play)
     pressLabelled(rt, 'Start over');
     expect(texts(rt)).toContain('6:00 left');
+    rt.tick(1000);
+    expect(texts(rt)).toContain('5:59 left');
   });
 });
 

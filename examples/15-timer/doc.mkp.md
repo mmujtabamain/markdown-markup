@@ -17,16 +17,17 @@ egg "A timer for a boiled egg: soft, medium or hard."
     text "\val{mins}:\val{pad}\val{secs} left" font=heading if=(not done)
     text "Done: into cold water." tone=ok font=heading if=done
     meter value=(min(t, minutes 60)) max=(minutes 60) label="how far along" tone=(if(done, ok, accent))
-    row gap=s
+    # the clock's own control (pause, go on, the time) here rather than in a bar of its own
+    row gap=s align=center
+      controls t
       press
-        text "Pause"
-        @click pause t
-      press
-        text "Go on"
-        @click play t
-      press emphasis=low
+        icon name=reset size=small
         text "Start over"
         @click reset t
+        @click play t
+      press if=(not done)
+        text "Take it out now"
+        @click pause t
   project md = "Boil for " + format(minutes, 0) + " minutes."
 ```
 

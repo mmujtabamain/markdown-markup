@@ -8,24 +8,31 @@ gaps: [74, 92, 145, 147]
 plan "A flat's floor plan beside the list of its rooms, in a frame."
   in rooms list({name: text, area: num})
   at = steps (len(rooms)) "room"
+  var feet bool = false
   total = sum(map(rooms, r => r.area))
-  frame kind="Plan" title="Flat on Rua Augusta" status=("**\val{rooms[at].name}**, \val{format(rooms[at].area, 0)} m² of \val{format(total, 0)} m²") height=m
+  fn area(m2: num): text = if(feet, format(m2 10.764, 0) + " ft²", format(m2, 0) + " m²")
+  frame kind="Plan" title="Flat on Rua Augusta" status=("**\val{rooms[at].name}**, \val{area(rooms[at].area)} of \val{area(total)}")
     row align=stretch gap=none
       pane title="Rooms" note=("\val{len(rooms)}") grow basis=s
-        column gap=xs
+        column gap=xs pad=m
           each k in 0..(len(rooms) - 1) key=k
-            text (rooms[k].name) weight=(if(k == at, bold, regular)) tone=(if(k == at, accent, ink))
+            row justify=between gap=m
+              text (rooms[k].name) weight=(if(k == at, bold, regular))
+              text (area(rooms[k].area)) font=mono tone=muted
         fill footer
-          text "\val{format(total, 0)} m² in all" tone=muted size=small
-      pane title="Plan" grow basis=m
+          text "\val{area(total)} in all" tone=muted size=small
+      pane title="From above" grow basis=m
         zoom max=3
-          image "plan.svg" "the flat from above" size=m
-          grid cols=3 gap=xs
-            each k in 0..(len(rooms) - 1) key=k
-              column pad=m stroke=(if(k == at, accent, line)) radius=card
-                text (rooms[k].name) size=small
+          column gap=s pad=m
+            image "plan.svg" "the flat from above" size=m
+            grid cols=3 gap=xs
+              each k in 0..(len(rooms) - 1) key=k
+                column pad=s stroke=(if(k == at, accent, line)) radius=card
+                  text (rooms[k].name) size=small
     fill actions
-      icon name=expand label="the plan, full screen"
+      press kind=toggle selected=feet label="areas in square feet"
+        text "ft²"
+        @click set feet=(not feet)
     fill about
       text "Areas are measured wall to wall."
     fill details

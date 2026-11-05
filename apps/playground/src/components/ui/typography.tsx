@@ -22,7 +22,7 @@ function Heading({ level, className, ...props }: ComponentProps<'h2'> & { level:
 
 function List({ ordered, className, ...props }: ComponentProps<'ol'> & { ordered?: boolean }) {
   const L = ordered ? 'ol' : 'ul';
-  return <L className={cn('my-3 ml-6 [&>li]:mt-1', ordered ? 'list-decimal' : 'list-disc', className)} {...props} />;
+  return <L className={cn('my-3 ml-6 leading-7 [&>li]:mt-1 [&_li_p]:mt-0', ordered ? 'list-decimal' : 'list-disc', className)} {...props} />;
 }
 
 function Quote({ className, ...props }: ComponentProps<'blockquote'>) {
@@ -32,7 +32,7 @@ function Quote({ className, ...props }: ComponentProps<'blockquote'>) {
 function Footnote({ label, children, className, ...props }: ComponentProps<'div'> & { label: string }) {
   return (
     <div className={cn('mt-2 flex items-baseline gap-1 text-sm text-muted-foreground', className)} {...props}>
-      <sup>{label}</sup>
+      <sup className="tabular-nums">{label}</sup>
       <div className="min-w-0">{children}</div>
     </div>
   );

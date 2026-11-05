@@ -80,11 +80,11 @@ summary: A greeting for the reader.
 counter "A number the reader steps up or down."
   in start int = 0 "where it begins"
   var n int = start
-  row gap=s align=center
+  row gap=m align=center
     press label="one less"
       icon name=minus
       @click set n=(n - 1)
-    text "\val{n}" font=heading
+    text "\val{n}" font=mono size=large weight=bold
     press label="one more"
       icon name=plus
       @click set n=(n + 1)
@@ -180,32 +180,34 @@ container's background), `@enter`/`@leave` (pointer or focus), `@change` and `@s
 part box "A labelled tile."
   fields label
   in label text
-  in tone color = surface
-  column pad=m fill=tone stroke=line radius=card width=fit
+  in tone color = none "a wash of this colour behind it"
+  column pad=m tint=tone stroke=line radius=card width=fit
     text label
 
 containers "The same three boxes in each of MKP's four containers."
-  grid cols=[auto, 1fr] gap=l align=center
+  grid cols=[auto, 1fr] gap=l align=baseline
     text "column" font=mono
     column gap=s
       box "one"
       box "two"
       box "three"
     text "row" font=mono
-    row gap=s justify=between
+    row gap=s align=end
       box "one"
-      box "two" self=end
+      box "two, the wider one"
       box "three"
     text "grid" font=mono
-    grid cols=[1fr, 1fr] gap=s
+    grid cols=[auto, auto] gap=s width=fit
       box "one"
       box "two"
-      box "three" span=2
+      box "three, across both" span=2
     text "stack" font=mono
     stack
-      box "one" tone=muted
-      box "two" self=center
-      box "three" self=end tone=accent
+      column pad=l tint=muted radius=card align=end justify=end
+        text "one, at the back" tone=muted
+        text "two and three over it" tone=muted size=small
+      box "two" self=start tone=info
+      box "three" self=end tone=ok
   project md = "The same three boxes, in a column, a row, a grid and a stack."
 ```
 
@@ -253,7 +255,7 @@ picklist of T "Records the reader steps through, showing two of their fields."
   at = steps (len(items)) "item"
   column gap=s
     each k in 0..(len(items) - 1) key=k
-      column pad=s radius=card stroke=(if(k == at, accent, line))
+      column pad=m gap=xs radius=card stroke=(if(k == at, accent, line))
         text (items[k][title]) weight=bold
         text (items[k][note]) tone=muted
   project md = join(map(items, it => "- **" + it[title] + "**: " + it[note]), "\n")

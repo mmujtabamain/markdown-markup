@@ -18,12 +18,17 @@ schema "Three tables and how they relate, as an ER diagram."
   in tables list({ref: text, name: text, fields: list(text)})
   in links list({a: text, b: text, label: text, many: bool})
   zoom max=3
-    row gap=xl align=center justify=center
-      each t in tables key=(t.ref)
-        entity ref=(t.ref) name=(t.name) fields=(t.fields)
+    # the tables with a lane between each two, wide enough for a link's label, and a lane under
+    # the middle one, so the quiet line from the first to the last goes round it
+    grid cols=[auto, 9ch, auto, 9ch, auto] gap=none align=center width=fit
+      each k in 0..(len(tables) - 1) key=k
+        entity ref=(tables[k].ref) name=(tables[k].name) fields=(tables[k].fields)
+        column if=(k < len(tables) - 1)
+      column span=2
+      column id=under pad=l
       each l in links key=(l.a + l.b)
         arrow from=(l.a) to=(l.b) label=(l.label) tail=one head=(if(l.many, many, ring))
-      arrow from=customer to=product line=dashed layer=behind opacity=0.4
+      arrow from=customer to=product via=(["under"]) route=down line=dashed layer=behind opacity=0.5
   project md = join(map(links, l => "- " + l.a + " → " + l.b + ": " + l.label), "\n")
 ```
 

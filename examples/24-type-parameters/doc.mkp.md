@@ -11,7 +11,7 @@ picklist of T "Records the reader steps through, showing two of their fields."
   at = steps (len(items)) "item"
   column gap=s
     each k in 0..(len(items) - 1) key=k
-      column pad=s radius=card stroke=(if(k == at, accent, line))
+      column pad=m gap=xs radius=card stroke=(if(k == at, accent, line))
         text (items[k][title]) weight=bold
         text (items[k][note]) tone=muted
   project md = join(map(items, it => "- **" + it[title] + "**: " + it[note]), "\n")

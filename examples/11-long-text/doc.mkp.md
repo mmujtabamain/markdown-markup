@@ -9,11 +9,13 @@ reviews "A list of reviews, each cut to two lines, with the chosen one kept in v
   in items list({who: text, said: text})
   at = steps (len(items)) "review"
   column gap=s
-    row wrap=false scroll=x gap=s
-      each k in 0..(len(items) - 1) key=k
-        column pad=s stroke=(if(k == at, accent, line)) radius=card minwidth=s keep=(k == at)
-          text (items[k].who) weight=bold
-          text (items[k].said) lines=2 clip
+    # cards of one width (a track each), so a long review is cut at two lines, not drawn wider
+    row wrap=false scroll=x
+      grid cols=(map(range(1, max(1, len(items))), k => "s")) gap=s
+        each k in 0..(len(items) - 1) key=k
+          column pad=m gap=xs stroke=(if(k == at, accent, line)) radius=card keep=(k == at)
+            text (items[k].who) weight=bold
+            text (items[k].said) lines=2 clip
   project md = join(map(items, i => "> " + i.said + "\n> — " + i.who), "\n\n")
 ```
 
