@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { Diagnostics, formatDiagnostic } from '../src/diag';
 import { parseMkp, parseExprString } from '../src/syntax/mkp';
+import { examples } from './examples.test';
 
-const where: Record<string, string> = { 'roots.mkp': 'examples/spec18', 'acme.mkp': 'examples/spec18', 'tree.mkp': 'packs/mkp-diagrams', 'graph.mkp': 'packs/mkp-diagrams', 'tabs.mkp': 'packs/mkp-ui' };
-const ex = (n: string) => readFileSync(new URL(`../../../${where[n]}/${n}`, import.meta.url), 'utf8');
+const files = examples().flatMap((e) => [
+  ...e.packs.flatMap((p) => [...p.files!].filter(([n]) => n.endsWith('.mkp')).map(([n, b]) => [`${p.label}/${n}`, new TextDecoder().decode(b), false] as const)),
+  ...(e.docFile ? [[e.docFile.file, e.docFile.text, true] as const] : []),
+]);
 
 describe('mkp parser', () => {
-  for (const f of ['roots.mkp', 'tree.mkp', 'graph.mkp', 'tabs.mkp', 'acme.mkp']) {
+  for (const [f, text, inline] of files) {
     it(`parses ${f}`, () => {
       const d = new Diagnostics();
-      const file = parseMkp(ex(f), f, d);
+      const file = parseMkp(text, f, d, { inline });
       expect(d.items.map(formatDiagnostic)).toEqual([]);
       expect(file.items.length).toBeGreaterThan(0);
     });

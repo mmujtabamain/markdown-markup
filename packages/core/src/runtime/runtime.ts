@@ -1429,7 +1429,9 @@ export class Runtime {
     const span = max - min;
     // under reduced motion, play moves in jumps of a tenth of the range (or one step)
     const jump = this.opts.reducedMotion ? Math.max(step, span / 10) : 0;
-    ps.acc += (ms / dur) * span * ps.dir;
+    // play=1s/step: each step takes that long, however many there are (GAPS 156)
+    const total = s.playPer ? dur * (step > 0 ? span / step : 10) : dur;
+    ps.acc += (ms / total) * span * ps.dir;
     let delta = ps.acc;
     if (jump) {
       if (Math.abs(ps.acc) < jump) return;

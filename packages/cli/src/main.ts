@@ -120,8 +120,9 @@ function lockPath(a: Args): string {
   const start = dir;
   for (;;) {
     if (existsSync(join(dir, 'mkp.lock'))) return relative(process.cwd(), join(dir, 'mkp.lock')) || 'mkp.lock';
+    // never past the project the document is in
     const up = dirname(dir);
-    if (up === dir) break;
+    if (up === dir || existsSync(join(dir, '.git'))) break;
     dir = up;
   }
   return relative(process.cwd(), join(start, 'mkp.lock')) || 'mkp.lock';
@@ -130,8 +131,9 @@ function lockPath(a: Args): string {
 function compiled(a: Args): Compiled {
   let lock: IRLock | undefined;
   const lp = lockPath(a);
-  // --relock: record what the packs are now, refusing nothing the old lock pinned
-  if (existsSync(lp) && !a.opts.relock) lock = JSON.parse(readFileSync(lp, 'utf8')) as IRLock;
+  // --relock: record what the packs are now, refusing nothing the old lock pinned; a build
+  // with no pack has nothing to lock
+  if (a.packs.length && existsSync(lp) && !a.opts.relock) lock = JSON.parse(readFileSync(lp, 'utf8')) as IRLock;
   return compile({ packs: a.packs.map(packSource), lock, profile: typeof a.opts.profile === 'string' ? a.opts.profile : undefined });
 }
 
@@ -293,14 +295,18 @@ function fmt(a: Args): number {
     let text: string;
     if (file.endsWith('.mkp.md')) {
       const d = new Diagnostics();
-      const b = c.document(readFileSync(abs, 'utf8'), file, d, { allowParts: true });
+      const src = readFileSync(abs, 'utf8');
+      const docFile = docFileOf(file);
+      const b = c.document(src, file, d, { allowParts: true, docFile });
       if (!b) {
         report(d);
         ok = false;
         continue;
       }
-      const docDef = Object.values(b.defs).find((x) => x.pack === '$doc');
-      text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body, docDef);
+      const docDef = Object.values(b.defs).find((x) => x.pack === '$doc' && x.name === 'document');
+      // its own definitions stay in their fence; with a file beside it, they stay in the file
+      const defs = docFile ? undefined : c.documentDefs(src, file) ?? undefined;
+      text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body, docDef, defs);
     } else {
       let found: string | null = null;
       for (const p of c.prog.packs.values()) {

@@ -8,7 +8,6 @@ import { compileCase, fixtureCases } from '../src/fixtures';
 import { arrowPath, type Rect } from '../src/runtime/arrow';
 import { Runtime } from '../src/runtime/runtime';
 import type { VArrow, VNode } from '../src/runtime/view';
-import { allPacks } from './helpers';
 
 const enc = new TextEncoder();
 function build(src: string) {
@@ -151,100 +150,6 @@ describe('arrows in the expanded IR', () => {
   });
 });
 
-describe('layered diagrams route every edge row by row', () => {
-  // Each edge's run, from its source through its waypoints to its target, must step one row at a
-  // time: a step that skips a row could pass through a box in it, and a step within one row runs
-  // along it. Rows are the children of the innermost element holding every arrow end.
-  const c = compile({ packs: allPacks() });
-  // er is drawn as linked cards in columns now (below)
-  const wanted = new Set(['mkp-diagrams/flow@1', 'mkp-diagrams/graph@1', 'mkp-cs/protocol@1']);
-  const cases = fixtureCases(c).filter((fc) => wanted.has(`${fc.pack}/${fc.widget}`) && !fc.expect?.errors?.length);
-
-  it('covers the fixture cases', () => expect(cases.length).toBeGreaterThanOrEqual(6));
-
-  it.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as const))('%s', (_name, fc) => {
-    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
-    const scope = scopeWithArrows(rt.view())!;
-    const arrows = scope.arrows ?? [];
-    const ends = new Set(arrows.flatMap((a) => [a.from, a.to, ...(a.via ?? [])]));
-    // the path of keys from the scope down to each arrow end
-    const paths = new Map<string, string[]>();
-    const nodes = new Map<string, VNode>();
-    const walk = (ns: VNode[], path: string[]): void => {
-      for (const n of ns) {
-        const p = [...path, n.key];
-        nodes.set(n.key, n);
-        if (ends.has(n.key)) paths.set(n.key, p);
-        walk(n.kids ?? [], p);
-      }
-    };
-    walk(scope.kids ?? [], []);
-    expect([...ends].filter((k) => !paths.has(k))).toEqual([]);
-    const all = [...paths.values()];
-    let depth = 0;
-    while (all.every((p) => p.length > depth + 1 && p[depth] === all[0][depth])) depth++;
-    const rows = (depth ? nodes.get(all[0][depth - 1])!.kids ?? [] : scope.kids ?? []).map((n) => n.key);
-    const index = (k: string): number => rows.indexOf(paths.get(k)![depth]);
-    expect(rows.length).toBeGreaterThan(1);
-    for (const a of arrows) {
-      // a link from a node to itself stays in its row: it's a loop
-      if (a.from === a.to) continue;
-      const run = [a.from, ...(a.via ?? []), a.to];
-      for (let i = 1; i < run.length; i++) expect(Math.abs(index(run[i]) - index(run[i - 1])), `${a.key} step ${i}`).toBe(1);
-    }
-    // labels are laid out as elements of their own, never drawn on the arrow
-    expect(arrows.filter((a) => a.label)).toEqual([]);
-  });
-});
-
-describe('linked cards route every link column by column', () => {
-  // Cards stand in columns with a lane between each two; a row's line leaves its card's column for
-  // the next one, so every step of a run crosses one gap: from a column to the next (two children
-  // of the row of columns on), or into or out of the lane beside a column, or along a channel at
-  // the foot of a column it skips. None runs through a column of cards.
-  const c = compile({ packs: allPacks() });
-  const wanted = new Set(['mkp-diagrams/cards@1', 'mkp-diagrams/cardsview@1', 'mkp-diagrams/er@1']);
-  const cases = fixtureCases(c).filter((fc) => wanted.has(`${fc.pack}/${fc.widget}`) && !fc.expect?.errors?.length);
-
-  it('covers the fixture cases', () => expect(cases.length).toBeGreaterThanOrEqual(8));
-
-  it.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as const))('%s', (_name, fc) => {
-    const rt = new Runtime(compileCase(c, fc).bundle!, { now: () => 0 });
-    const scope = scopeWithArrows(rt.view())!;
-    const arrows = scope.arrows ?? [];
-    expect(arrows.length).toBeGreaterThan(0);
-    // the row of columns: the scope's first flex. Its children are columns of cards and, between
-    // them, empty lanes; column c is slot 2c and a lane after it slot 2c + 1
-    const row = (scope.kids ?? []).find((n) => n.t === 'flex')!;
-    const kids = row.kids ?? [];
-    const column = new Map<string, number>();
-    const walk = (ns: VNode[], k: number): void => {
-      for (const n of ns) {
-        column.set(n.key, k);
-        walk(n.kids ?? [], k);
-      }
-    };
-    const lanes = new Set<string>();
-    let cols = 0;
-    for (const n of kids) {
-      const empty = !(n.kids ?? []).length;
-      if (empty) lanes.add(n.key);
-      else cols++;
-      walk([n], empty ? 2 * cols - 1 : 2 * (cols - 1));
-    }
-    for (const a of arrows) {
-      expect(a.route).toBe('right');
-      if (a.from === a.to) continue;
-      const run = [a.from, ...(a.via ?? []), a.to];
-      for (const k of run) expect(column.has(k), `${a.key}: ${k} is in a column`).toBe(true);
-      for (let i = 1; i < run.length; i++) {
-        const step = Math.abs(column.get(run[i])! - column.get(run[i - 1])!);
-        expect(step === 2 || (step === 1 && (lanes.has(run[i]) || lanes.has(run[i - 1]))), `${a.key} step ${i}`).toBe(true);
-      }
-    }
-  });
-});
-
 describe('an arrow’s look and a code block’s marks', () => {
   it('carries tone, line, its end marks, dim and bold to the view', () => {
     const { b, errors } = build(`w@1 "w"
@@ -286,16 +191,16 @@ describe('a box’s line and a frame’s status lines', () => {
 
   it('takes a dashed or dotted border, and a cross at an arrow’s end', () => {
     const { b, errors } = build(`w@1 "w"
-  stack id=a stroke=muted dashed
+  column id=a stroke=muted dashed
     text "a"
-  flex id=b stroke=info line=dotted
+  row id=b stroke=info line=dotted
     text "b"
   arrow from=a to=b head=cross
 `);
     expect(errors).toEqual([]);
     const v = all(new Runtime(b!).view());
-    expect(v.find((n) => n.t === 'stack' && n.id === 'a')!.p.line).toBe('dashed');
-    expect(v.find((n) => n.t === 'flex' && n.id === 'b')!.p.line).toBe('dotted');
+    expect(v.find((n) => n.t === 'column' && n.id === 'a')!.p.line).toBe('dashed');
+    expect(v.find((n) => n.t === 'row' && n.id === 'b')!.p.line).toBe('dotted');
     expect((scopeWithArrows(new Runtime(b!).view())!.arrows as VArrow[])[0].head).toBe('cross');
   });
 

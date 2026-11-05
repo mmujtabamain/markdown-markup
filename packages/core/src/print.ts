@@ -10,6 +10,7 @@ import type { InterfaceSyn, MkpFile } from './syntax/mkp';
 import { canonical } from './syntax/canon';
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const T_BOOL: Type = { t: 'bool' };
 
 /** Wraps an expression in parentheses when it has spaces outside brackets (6.2 bare values). */
 export function bare(src: string): string {
@@ -30,17 +31,24 @@ export function bare(src: string): string {
   return src;
 }
 
-function litSrc(v: unknown, asPoint = false): string {
+/**
+ * A literal as written. With its type, a token or option inside a list or record is written as
+ * the word it is (tone: accent), not as text, so it reads back as the same value.
+ */
+function litSrc(v: unknown, asPoint = false, type?: Type, env?: TypeEnv): string {
+  const t = type && env ? resolve(type, env) : type;
   if (typeof v === 'number') return Number.isFinite(v) ? String(v) : Number.isNaN(v) ? 'nan' : v > 0 ? 'inf' : '-inf';
   if (typeof v === 'boolean') return v ? 'true' : 'false';
-  if (typeof v === 'string') return encodeText(v);
+  if (typeof v === 'string') return (t?.t === 'token' || t?.t === 'choice') && IDENT.test(v) ? v : encodeText(v);
   if (Array.isArray(v)) {
-    if (asPoint && v.length === 2 && v.every((x) => typeof x === 'number')) return `(${litSrc(v[0])}, ${litSrc(v[1])})`;
-    return `[${v.map((x) => litSrc(x)).join(', ')}]`;
+    if ((asPoint || t?.t === 'point') && v.length === 2 && v.every((x) => typeof x === 'number')) return `(${litSrc(v[0])}, ${litSrc(v[1])})`;
+    const of = t?.t === 'list' ? t.of : undefined;
+    return `[${v.map((x) => litSrc(x, false, of, env)).join(', ')}]`;
   }
   if (v && typeof v === 'object') {
     const e = Object.entries(v);
-    return e.length ? `{${e.map(([k, x]) => `${k}: ${litSrc(x)}`).join(', ')}}` : '{}';
+    const fields = t?.t === 'rec' ? t.fields : undefined;
+    return e.length ? `{${e.map(([k, x]) => `${k}: ${litSrc(x, false, fields?.find((f) => f[0] === k)?.[1] ?? (t?.t === 'dict' ? t.of : undefined), env)}`).join(', ')}}` : '{}';
   }
   return '0';
 }
@@ -54,11 +62,13 @@ function isExpr(v: IRVal): v is IRExpr {
 }
 
 /** A value as it is written in an argument. */
-export function valSrc(v: IRVal, type?: Type): string {
+export function valSrc(v: IRVal, type?: Type, env?: TypeEnv): string {
   if ('lit' in v) {
     if (typeof v.lit === 'string' && (type?.t === 'choice' || (!type && IDENT.test(v.lit)))) return v.lit;
     if (type?.t === 'text' && typeof v.lit === 'string') return encodeText(v.lit);
-    return litSrc(v.lit, type?.t === 'point');
+    // grid tracks are words: [auto, 1fr]
+    if (type?.t === 'list' && type.of.t === 'named' && type.of.name === 'track' && Array.isArray(v.lit)) return `[${(v.lit as string[]).join(', ')}]`;
+    return litSrc(v.lit, type?.t === 'point', type, env);
   }
   if (isExpr(v)) return bare(v.expr);
   if ('text' in v) return encodeText((v as { text: string }).text);
@@ -100,7 +110,7 @@ export class MkpPrinter {
     if (d.fields?.length) out.push(`${i}fields ${d.fields.join(' ')}`);
     for (const inp of d.inputs) {
       out.push(...comments(inp.comment, i));
-      out.push(`${i}in ${inp.name} ${showType(inp.type)}${inp.answer ? ' answer' : ''}${inp.default ? ` = ${valSrc(inp.default, resolve(inp.type, this.ctx.env))}` : ''}${inp.about !== undefined ? ' ' + encodeText(inp.about) : ''}`);
+      out.push(`${i}in ${inp.name} ${showType(inp.type)}${inp.answer ? ' answer' : ''}${inp.default ? ` = ${valSrc(inp.default, inp.type.t === 'list' && inp.type.of.t === 'named' && inp.type.of.name === 'track' ? inp.type : resolve(inp.type, this.ctx.env), this.ctx.env)}` : ''}${inp.about !== undefined ? ' ' + encodeText(inp.about) : ''}`);
     }
     for (const o of d.outs ?? []) out.push(...comments(o.comment, i), `${i}out ${o.name}${o.payload ? ' ' + showType(o.payload) : ''}${o.about !== undefined ? ' ' + encodeText(o.about) : ''}`);
     for (const s of d.signals ?? []) out.push(...comments(s.comment, i), `${i}signal ${s.name} ${showType(s.payload)}${s.about !== undefined ? ' ' + encodeText(s.about) : ''}`);
@@ -230,15 +240,17 @@ export class MkpPrinter {
       const v = ps[f];
       if (!v) break;
       const t = types.get(f) ? resolve(types.get(f)!, this.ctx.env) : undefined;
-      if ('tok' in v || 'ref' in v || (t?.t === 'bool')) break;
-      let s = valSrc(v, t);
+      // a bare word could be read as a flag, an option or a token (icon info): it is written key=value
+      if ('tok' in v || 'ref' in v || t?.t === 'bool' || t?.t === 'choice') break;
+      let s = valSrc(v, t, this.ctx.env);
       if (IDENT.test(s)) s = `(${s})`;
       out.push(s);
       delete ps[f];
     }
     for (const [k, v] of Object.entries(ps)) {
-      const t = types.get(k) ? resolve(types.get(k)!, this.ctx.env) : undefined;
-      out.push(`${k}=${valSrc(v, t)}`);
+      const raw = types.get(k);
+      const t = raw && !(raw.t === 'list' && raw.of.t === 'named' && raw.of.name === 'track') ? resolve(raw, this.ctx.env) : raw;
+      out.push(`${k}=${valSrc(v, t, this.ctx.env)}`);
     }
     return out;
   }
@@ -253,6 +265,8 @@ export class MkpPrinter {
     if (m.grow) out.push('grow');
     if (m.basis) out.push(`basis=${m.basis}`);
     if (m.span) out.push(`span=${valSrc(m.span)}`);
+    if (m.self) out.push(`self=${m.self}`);
+    if (m.keep) out.push(`keep=${valSrc(m.keep, T_BOOL)}`);
     return out;
   }
 
@@ -434,9 +448,11 @@ export class DocPrinter {
     this.p = new MkpPrinter(ctx);
   }
 
-  doc(front: Record<string, unknown>, body: IRNode[], docDef?: IRDef): string {
+  /** A document; `defs` is its own definitions, printed (Compiled.documentDefs), put in one mkp fence. */
+  doc(front: Record<string, unknown>, body: IRNode[], docDef?: IRDef, defs?: string): string {
     const parts: string[] = [];
     if (Object.keys(front).length) parts.push(`---\n${yamlText(front).trimEnd()}\n---`);
+    if (defs?.trim()) parts.push('```mkp\n' + defs.trimEnd() + '\n```');
     parts.push(...this.blocks(body, 3, docDef));
     return parts.join('\n\n') + '\n';
   }

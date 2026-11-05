@@ -11,6 +11,7 @@ import { IR_VERSION } from './ir';
 import { corePack, loadPack, readZip, type PackFiles } from './pack';
 import { checkRequired, tokenNames, tokenSetIR } from './tokens';
 import { checkProfile } from './profile';
+import { fileItems, printFile } from './print';
 import type { Type } from './types';
 import { canonicalJson } from './util/jcs';
 import { sha256 } from './util/sha256';
@@ -76,6 +77,20 @@ export class Compiled {
     markDefFallbacks(own);
     for (const d of own.values()) d.digest = digest(stripPos({ ...d, fns: d.fns }));
     return this.bundle(doc, cd.def, { prog: cd.prog, defs: own });
+  }
+
+  /**
+   * A document's own definitions (its mkp fences and its file) in the formatter's form, for
+   * printing it back (mkp fmt), or null when it has none or doesn't compile.
+   */
+  documentDefs(text: string, file: string, opts: { docFile?: DocFile } = {}): string | null {
+    const d = new Diagnostics();
+    const cd = checkDocument(this.prog, text, file, d, { tokenNames: this.tokenNameFn(), sigs: this.sigs, locked: this.lockedFn(), docFile: opts.docFile });
+    const own = cd.prog.packs.get(DOC_PACK);
+    if (!d.ok || !own || own === this.prog.packs.get(DOC_PACK) || !own.files.length) return null;
+    const defs = new Map([...this.defs, ...cd.defs.map((x) => [x.id, x] as const)]);
+    const ctx = { defs: Object.fromEntries(defs), env: cd.prog.typeEnv(DOC_PACK) };
+    return own.files.map((f) => printFile(fileItems(f, defs, DOC_PACK, () => undefined), ctx)).join('\n');
   }
 
   /** A self-contained bundle: the document, the definitions it uses, fns, tokens and the lock. */
@@ -379,6 +394,8 @@ function makeLock(c: Compiled, prev: IRLock | undefined, diags: Diagnostics): IR
     for (const [id, dg] of Object.entries(prev.defs)) {
       // an unpublished pack may still change under the same @N (GAPS 15)
       if (c.prog.packs.get(id.slice(0, id.indexOf(':')))?.manifest.unpublished) continue;
+      // the base set is versioned with MKP itself, not by the lock
+      if (id.startsWith('core:')) continue;
       if (defs[id] && defs[id] !== dg && !id.startsWith(`${DOC_PACK}:`)) diags.error('mkp.version-changed', `${id} changed since it was locked; a behaviour change is a new version (@N+1), or build with --relock while the pack is unpublished`);
     }
   }

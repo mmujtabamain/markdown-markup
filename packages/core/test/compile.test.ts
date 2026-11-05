@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { compile } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
-import { allPacks, ROOT } from './helpers';
+import { examples } from './examples.test';
+import { testPacks } from './helpers';
 
 describe('compile', () => {
-  it('checks every pack without errors', () => {
-    const c = compile({ packs: allPacks() });
+  it('checks the test packs and the examples’ packs without errors', () => {
+    const c = compile({ packs: [...testPacks(), ...examples().flatMap((e) => e.packs)] });
     expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
-    expect(c.defs.size).toBeGreaterThan(10);
   });
-  it('compiles the section 18 document', () => {
-    const c = compile({ packs: allPacks() });
-    const b = c.document(readFileSync(join(ROOT, 'examples/spec18/roots.mkp.md'), 'utf8'), 'roots.mkp.md');
-    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
-    expect(b).not.toBeNull();
-    expect(Object.keys(b!.defs)).toContain('spec18:roots@1');
+  it('ships no packs: without any, there is only core’s base set of 25', () => {
+    const c = compile({ packs: [] });
+    expect([...c.prog.packs.keys()]).toEqual(['core']);
+    expect([...c.defs.values()].filter((d) => d.kind === 'extern').length).toBe(25);
   });
 });

@@ -9,9 +9,10 @@ import { MathsEngine, prerender } from '../src/maths';
 import { Diagnostics } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
-import { allPacks } from './helpers';
+import { examples } from './examples.test';
+import { testPacks } from './helpers';
 
-const c = compile({ packs: allPacks() });
+const c = compile({ packs: [...testPacks(), ...examples().flatMap((e) => e.packs)] });
 const cases = fixtureCases(c);
 let maths: MathsEngine;
 beforeAll(async () => {
