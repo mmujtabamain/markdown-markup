@@ -1,9 +1,0 @@
-badge@1 "A small solid label for a status or a count."
-  fields text tone
-  in text text
-  in tone color = accent "the badge's colour"
-  flex
-    flex pad=xs gap=s fill=tone radius=pill align=center wrap=false
-      text ""
-      text text tone=surface size=small weight=medium wrap=false
-      text ""

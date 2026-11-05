@@ -1,3 +1,0 @@
-{ "widget": "opnode@1", "cases": {
-  "selection": { "summary": "A selection over a relation, with the relation already read and the selection current.",
-    "props": { "node": { "id": "s", "op": "$\\sigma_{qty > 2}$", "kids": [{ "id": "r", "op": "orders", "kids": [] }] }, "at": "s", "done": ["r"] } } } }

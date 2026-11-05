@@ -19,14 +19,16 @@ function pack(name: string, files: Record<string, string>, extra = ''): PackSour
 /** Compiles one definition (in a pack that provides it) and a document using it. */
 function build(src: string, doc: string, opts: { packs?: PackSource[]; provides?: string } = {}) {
   const names = [...src.matchAll(/^(?:part |extern )?([A-Za-z_][\w.-]*)@\d+/gm)].map((m) => m[1]);
-  const p = pack('t', { 't.mkp': src }, `  provides ${opts.provides ?? names.join(' ')}\n`);
+  // the test pack depends on every pack it is given, so their names are visible to it (GAPS 47)
+  const deps = (opts.packs ?? []).filter((x) => !x.label.includes('/')).map((x) => `  depends ${x.label}@1\n`).join('');
+  const p = pack('t', { 't.mkp': src }, `  provides ${opts.provides ?? names.join(' ')}\n${deps}`);
   const c = compile({ packs: [...(opts.packs ?? []), p] });
   const b = c.document(doc, 'doc.mkp.md');
   return { c, b, errors: c.diags.errors.map((d) => d.code), all: c.diags.errors.map(formatDiagnostic) };
 }
 
 function evalIn(expr: string, extra = '', packs: PackSource[] = []): unknown {
-  const { b, all } = build(`w@1 "w"\n${extra}  r = ${expr}\n  text "\\val{r}"\n`, '```w\nsummary: s\n```\n', { packs });
+  const { b, all } = build(`w@1 "w"\n${extra}  r = ${expr}\n  text "r"\n`, '```w\nsummary: s\n```\n', { packs });
   expect(all).toEqual([]);
   const rt = new Runtime(b!);
   rt.view();
@@ -127,15 +129,13 @@ describe('expressions (6.7)', () => {
     expect(signals).toMatchObject([{ name: 'error', payload: { code: 'mkp.index' } }]);
   });
   it('dispatch on declared types with one from promotion, and convert to point', () => {
-    const packs = allPacks().filter((p) => p.label.includes('mkp-math') || p.label.includes('mkp-ui'));
-    const z = evalIn('exp(2 pi i 1/4)', '', packs) as { re: number; im: number };
-    expect(z.re).toBeCloseTo(0, 12);
-    expect(z.im).toBeCloseTo(1, 12);
-    expect(evalIn('1 + 0.5i', '', packs)).toEqual({ re: 1, im: 0.5 });
+    const vec = pack('vec', { 'vec.mkp': 'type vec2 = {x: num, y: num}\nop +(a: vec2, b: vec2): vec2 = {x: a.x + b.x, y: a.y + b.y}\nop from(n: num): vec2 = {x: n, y: 0}\nop point(v: vec2): point = (v.x, v.y)\nfn v(x: num, y: num): vec2 = {x: x, y: y}\n' }, '  provides vec2 v\n');
+    expect(evalIn('v(1, 2) + v(3, 4)', '', [vec])).toEqual({ x: 4, y: 6 });
+    expect(evalIn('v(1, 2) + 5', '', [vec])).toEqual({ x: 6, y: 2 });
   });
-  it('specialise untyped fns per call, and cap recursion', () => {
-    expect(evalIn('twice(3)', '  fn twice(x) = x 2\n')).toBe(6);
-    expect(evalIn('twice("a")', '  fn twice(x) = x + x\n')).toBe('aa');
+  it('type every fn, and cap recursion', () => {
+    expect(build('w@1 "w"\n  fn twice(x) = x 2\n  r = twice(3)\n', '').errors).toContain('mkp.untyped');
+    expect(evalIn('twice(3)', '  fn twice(x: num): num = x 2\n')).toBe(6);
     const { b } = build('w@1 "w"\n  fn f(n: num): num = if(n <= 0, 0, 1 + f(n - 1))\n  r = f(100)\n  text "\\val{r}"\n', '```w\nsummary: s\n```\n');
     expect(JSON.stringify(new Runtime(b!).view())).toContain('mkp.depth');
   });

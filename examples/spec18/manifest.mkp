@@ -1,4 +1,0 @@
-pack spec18@1 "The worked examples of the MKP spec, section 18."
-  requires core@1
-  depends mkp-ui@1 mkp-math@1 mkp-learn@1 mkp-diagrams@1
-  provides roots acme

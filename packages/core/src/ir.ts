@@ -89,6 +89,10 @@ export interface IRMeta {
   grow?: boolean;
   basis?: string;
   span?: IRVal;
+  /** how this child sits across its container (start, center, end, stretch) */
+  self?: 'start' | 'center' | 'end' | 'stretch';
+  /** while true, the nearest scrolling container scrolls to show it */
+  keep?: IRVal;
   comment?: string[];
   summary?: string;
   block?: number;
@@ -98,6 +102,10 @@ export interface IRMeta {
   role?: string;
   /** the profile's block attributes written on this block ({cite=…}), as written (16) */
   attrs?: Record<string, string>;
+  /** a document block: the interfaces its definition implements (pack:name@N) */
+  implements?: string[];
+  /** a document block: the interfaces of the definitions used inside it, at any depth */
+  within?: string[];
 }
 
 export interface IRNode {
@@ -143,6 +151,8 @@ export interface IRInput {
   name: string;
   type: Type;
   default?: IRVal;
+  /** an answer: left out of Markdown built without answers (GAPS 166) */
+  answer?: boolean;
   about?: string;
   pos?: IRPos;
   comment?: string[];
@@ -196,6 +206,12 @@ export interface IRDef {
   pack: string;
   file?: string;
   about?: string;
+  /** type parameters (walk of S) */
+  params?: string[];
+  /** a document's own definition, written without @N */
+  inline?: boolean;
+  /** the interfaces it implements, as pack:name@N */
+  implements?: string[];
   requires?: string[];
   budget?: number;
   fields?: string[];
@@ -236,6 +252,22 @@ export interface IRInterface {
   signals: { def: string; name: string; payload: Type }[];
   hosts: { def: string; name: string; type: Type; default: IRVal }[];
   commands: { def: string; name: string; payload?: Type }[];
+  /** which definitions implement which interfaces (pack:name@N), for hosts that find widgets by them */
+  implements: { def: string; iface: string }[];
+}
+
+/** An interface (spec 6.24): what a host relies on in a widget that implements it. */
+export interface IRIface {
+  id: string;
+  name: string;
+  version: number;
+  pack: string;
+  about?: string;
+  inputs: { name: string; type: Type }[];
+  hosts: { name: string; type: Type }[];
+  signals: { name: string; payload: Type }[];
+  outs: { name: string; payload?: Type }[];
+  project: boolean;
 }
 
 export interface IRDoc {

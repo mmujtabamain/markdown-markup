@@ -6,6 +6,8 @@ export type DocItem =
   | { k: 'md'; text: string; line: number; attrs?: DocAttrs }
   | { k: 'block'; name: string; id?: string; yaml: string; line: number; attrs?: DocAttrs; info: string; fence: string }
   | { k: 'state'; body: string; line: number }
+  /** an mkp fence: the document's own definitions (it draws nothing) */
+  | { k: 'defs'; body: string; line: number }
   | { k: 'container'; name: string; args: string; colons: number; items: DocItem[]; line: number; attrs?: DocAttrs };
 
 export interface DocAttrs {
@@ -67,9 +69,9 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
       while (j < to && !(lines[j].trim().startsWith(fence[0].repeat(fence.length)) && lines[j].trim().replace(new RegExp(`^${fence[0] === '`' ? '`' : '~'}+`), '').trim() === '')) j++;
       const body = lines.slice(i + 1, j).join('\n');
       const wm = WIDGET_INFO_RE.exec(info);
-      if (info === 'state') {
+      if (info === 'state' || (info === 'mkp' && !f[1])) {
         flush();
-        items.push({ k: 'state', body, line: i + 1 });
+        items.push({ k: info === 'mkp' ? 'defs' : 'state', body, line: i + 1 });
         i = j + 1;
         mdLine = i + 1;
         continue;
@@ -118,7 +120,7 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
         (items[items.length - 1] as { attrs?: DocAttrs }).attrs = attrs;
       } else if (items.length) {
         const last = items[items.length - 1];
-        if (last.k !== 'state') last.attrs = attrs;
+        if (last.k !== 'state' && last.k !== 'defs') last.attrs = attrs;
       } else diags.warn('mkp.attrs-orphan', 'attributes must follow a block', { file, line: i + 1, col: 1 });
       i++;
       mdLine = i + 1;

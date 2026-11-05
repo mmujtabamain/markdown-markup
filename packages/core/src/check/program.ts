@@ -3,7 +3,7 @@
 
 import { Diagnostics, Pos } from '../diag';
 import type { IRFn, IRExpr, IRTokenSet } from '../ir';
-import type { DefSyn, FnSyn, ManifestSyn, MkpFile, TokensSyn } from '../syntax/mkp';
+import type { DefSyn, FnSyn, InterfaceSyn, ManifestSyn, MkpFile, TokensSyn } from '../syntax/mkp';
 import { Type, TypeEnv } from '../types';
 
 export interface PackInfo {
@@ -51,8 +51,18 @@ export interface ConstEntry {
   checking?: boolean;
 }
 
+export interface IfaceEntry {
+  id: string;
+  pack: string;
+  file: string;
+  syn: InterfaceSyn;
+}
+
 export class Program {
   readonly packs = new Map<string, PackInfo>();
+  readonly ifaces = new Map<string, IfaceEntry>();
+  /** token names by kind: every checker reads token words with them (GAPS 117) */
+  tokenNames?: (kind: string) => Set<string>;
   readonly defs = new Map<string, DefEntry>();
   readonly types = new Map<string, { pack: string; name: string; type: Type; p: Pos }>();
   readonly fns = new Map<string, FnEntry[]>();
@@ -103,6 +113,8 @@ export class Program {
             const list = table.get(name) ?? [];
             const sig = it.params.every((q) => q.type) ? it.params.map((q) => q.type!) : undefined;
             if (isOp && !sig) this.diags.error('mkp.op-untyped', `op ${name} must type every parameter; dispatch uses them (6.22)`, it.p);
+            // every fn says what it takes and gives, so a mistake is a compile error (GAPS 43)
+            else if (!p.builtin && (!sig || !it.ret)) this.diags.error('mkp.untyped', `${isOp ? 'op' : 'fn'} ${name} must type every parameter and its result: fn ${name}(x: num): num = …`, it.p);
             const id = `${p.name}:${isOp ? 'op' : ''}${name}#${list.length}`;
             list.push({ id, pack: p.name, file: f.file, syn: it, op: isOp ? name : undefined, sig });
             table.set(name, list);
@@ -120,6 +132,12 @@ export class Program {
           case 'tokens':
             this.tokenSets.push({ pack: p.name, syn: it });
             break;
+          case 'interface': {
+            const id = `${p.name}:${it.name}@${it.version}`;
+            if (this.ifaces.has(id)) this.diags.error('mkp.duplicate-definition', `interface ${it.name}@${it.version} is declared twice in pack ${p.name}`, it.p);
+            this.ifaces.set(id, { id, pack: p.name, file: f.file, syn: it });
+            break;
+          }
           case 'manifest':
             break;
         }
@@ -127,11 +145,48 @@ export class Program {
     }
   }
 
-  /** Whether a name declared in `owner` is visible from `from`. */
+  /**
+   * Whether a name declared in `owner` is visible from `from`: its own pack's names, core's, and
+   * the names a pack it depends on provides (GAPS 47). A document sees every pack the host loaded.
+   */
   visible(owner: string, name: string, from: string): boolean {
     if (owner === from) return true;
     const p = this.packs.get(owner);
-    return !!p && (p.builtin || p.provides.has(name));
+    if (!p || !(p.builtin || p.provides.has(name))) return false;
+    if (p.builtin || from === '$doc' || from === '$none') return true;
+    const f = this.packs.get(from);
+    return !f || f.depends.some((d) => d.replace(/@\d+$/, '') === owner);
+  }
+
+  /**
+   * A program for one document: every pack's entries shared, plus the document's own
+   * definitions added on top, so they never reach another document built with the same packs.
+   */
+  overlay(diags: Diagnostics): Program {
+    const o = new Program(diags);
+    for (const [k, v] of this.packs) o.packs.set(k, v);
+    for (const [k, v] of this.defs) o.defs.set(k, v);
+    for (const [k, v] of this.types) o.types.set(k, v);
+    for (const [k, v] of this.ifaces) o.ifaces.set(k, v);
+    for (const [k, v] of this.fns) o.fns.set(k, [...v]);
+    for (const [k, v] of this.ops) o.ops.set(k, [...v]);
+    for (const [k, v] of this.consts) o.consts.set(k, [...v]);
+    for (const [k, v] of this.macros) o.macros.set(k, v);
+    o.tokenSets.push(...this.tokenSets);
+    // checked fns are read through to the packs' and written to the document's own
+    Object.setPrototypeOf(o.irFns, this.irFns);
+    Object.setPrototypeOf(o.irConsts, this.irConsts);
+    o.tokenNames = this.tokenNames;
+    return o;
+  }
+
+  /** An interface visible under name@N. */
+  lookupIface(nameVersion: string, from: string): IfaceEntry | undefined {
+    const at = nameVersion.lastIndexOf('@');
+    const name = nameVersion.slice(0, at);
+    const version = Number(nameVersion.slice(at + 1));
+    for (const e of this.ifaces.values()) if (e.syn.name === name && e.syn.version === version && this.visible(e.pack, name, from)) return e;
+    return undefined;
   }
 
   /** The type environment seen from a pack. */

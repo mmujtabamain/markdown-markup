@@ -66,7 +66,7 @@ export interface VNode {
   /** frame and pane: their other slots, by name (actions, bar, about, details; footer) */
   slots?: Record<string, VNode[]>;
   hidden?: boolean;
-  layout?: { grow?: boolean; basis?: string; span?: number };
+  layout?: { grow?: boolean; basis?: string; span?: number; self?: 'start' | 'center' | 'end' | 'stretch'; keep?: boolean };
   /** events the renderer should report: click, change, submit, open, close, drag */
   ev?: string[];
   arrows?: VArrow[];

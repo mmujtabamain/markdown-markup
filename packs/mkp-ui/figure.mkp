@@ -1,8 +1,0 @@
-figure@1 "Content with a caption under it, optionally numbered."
-  fields caption
-  in caption text "what the figure shows"
-  in number text = "" "e.g. 3 gives \"Figure 3.\" before the caption"
-  in body slot
-  stack gap=s align=center
-    slot body
-    text (if(number != "", "**Figure " + number + ".** ", "") + caption) tone=muted size=small align=center

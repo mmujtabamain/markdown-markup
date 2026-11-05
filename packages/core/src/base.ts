@@ -1,55 +1,101 @@
 // The base set (core@1, spec 8) and gfx@1 (8.1), declared in MKP itself as externs, plus core@1's
 // default tokens (spec 7). Every provider implements these; the compiler checks uses against them.
+// An extern is here for one of three reasons: Markdown compiles to it, it needs the device (focus,
+// pointer, entry), or a host has a component of its own that MKP routes to. Anything else is a
+// composition, written in MKP.
 
 export const CORE_MKP = String.raw`pack core@1 "The base set every provider implements, and the default tokens."
-  provides stack flex grid text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote frame pane zoom icon rgb
+  provides column row grid stack text image press range meter field overlay canvas paragraph heading list quote code math divider table footnote frame pane zoom icon rgb iconname track
 
 type rgb = {r: num, g: num, b: num}
+type iconname = choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|sliders|trash|copy|download|upload|expand|lightbulb|book)
+type track = text
 
-extern stack@1 "Children one below another."
+extern column@1 "Children one below another."
+  in align choice(start|center|end|stretch|baseline) = stretch "how children sit across it; a child's self= overrides"
+  in justify choice(start|center|end|between|around) = start "where the children sit down it, when it is taller than they are"
   in pad space = none "inner padding"
   in gap space = none "space between children"
-  in align choice(start|center|end|stretch|baseline) = stretch "cross-axis alignment"
+  in width choice(auto|fit|fill) = auto "fit: as wide as its widest child; fill: the whole row"
+  in minwidth size = none "never narrower than this; with scroll=x, what doesn't fit scrolls sideways"
+  in scroll choice(none|x) = none "x: scrolls sideways when narrower than its content"
   in fill color = none "background"
   in tint color = none "a wash of this colour behind it: a state, not a surface"
   in stroke color = none "border"
   in line choice(solid|dashed|dotted) = solid "the border's line"
+  in edge choice(all|top|right|bottom|left|x|y) = all "which sides the border is drawn on"
+  in weight choice(thin|normal|thick) = thin "the border's width"
   in radius radius = none "corner radius"
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
+  out click "a press on its background, not on a child (pointer only)"
 
-extern flex@1 "Children in a row that wraps or scrolls."
-  in pad space = none
-  in gap space = none
-  in align choice(start|center|end|stretch|baseline) = start
-  in justify choice(start|center|end|between|around) = start
-  in wrap bool = true
-  in fill color = none
-  in tint color = none
-  in stroke color = none
+extern row@1 "Children side by side, wrapping onto more lines (or scrolling) when they don't fit."
+  in align choice(start|center|end|stretch|baseline) = start "how children sit across it; a child's self= overrides"
+  in justify choice(start|center|end|between|around) = start "where the children sit along it; center keeps its start in view when it overflows"
+  in wrap bool = true "false: one line, which scrolls with scroll=x"
+  in pad space = none "inner padding"
+  in gap space = none "space between children"
+  in width choice(auto|fit|fill) = auto "fit: as wide as its widest child; fill: the whole row"
+  in minwidth size = none "never narrower than this; with scroll=x, what doesn't fit scrolls sideways"
+  in scroll choice(none|x) = none "x: scrolls sideways when narrower than its content"
+  in fill color = none "background"
+  in tint color = none "a wash of this colour behind it: a state, not a surface"
+  in stroke color = none "border"
   in line choice(solid|dashed|dotted) = solid "the border's line"
-  in radius radius = none
+  in edge choice(all|top|right|bottom|left|x|y) = all "which sides the border is drawn on"
+  in weight choice(thin|normal|thick) = thin "the border's width"
+  in radius radius = none "corner radius"
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
+  out click "a press on its background, not on a child (pointer only)"
 
-extern grid@1 "Children in equal columns."
-  in cols int 1..12 = 2
-  in pad space = none
-  in gap space = none
+extern grid@1 "Children in columns: a number of equal columns, or tracks such as [auto, 1fr, 6ch]."
+  in cols list(track) = ["1fr", "1fr"] "the column tracks: auto (its content), Nfr (a share), Nch (characters), or a size token; a number n is n equal shares"
   in align choice(start|center|end|stretch|baseline) = stretch
-  in fill color = none
-  in tint color = none
-  in stroke color = none
+  in justify choice(start|center|end|stretch) = stretch "how a child sits in its cell, across"
+  in pad space = none "inner padding"
+  in gap space = none "space between children"
+  in width choice(auto|fit|fill) = auto "fit: as wide as its widest child; fill: the whole row"
+  in minwidth size = none "never narrower than this; with scroll=x, what doesn't fit scrolls sideways"
+  in scroll choice(none|x) = none "x: scrolls sideways when narrower than its content"
+  in fill color = none "background"
+  in tint color = none "a wash of this colour behind it: a state, not a surface"
+  in stroke color = none "border"
   in line choice(solid|dashed|dotted) = solid "the border's line"
-  in radius radius = none
+  in edge choice(all|top|right|bottom|left|x|y) = all "which sides the border is drawn on"
+  in weight choice(thin|normal|thick) = thin "the border's width"
+  in radius radius = none "corner radius"
   in shadow shadow = none
   in dim bool = false "faded back, while something else is in focus"
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
+  out click "a press on its background, not on a child (pointer only)"
+
+extern stack@1 "Children drawn one over another, in the order written: the last is on top. As big as its biggest child."
+  in align choice(start|center|end|stretch) = stretch "where children sit down it; a child's self= overrides"
+  in justify choice(start|center|end|stretch) = stretch "where children sit across it"
+  in pad space = none "inner padding"
+  in gap space = none "space between children"
+  in width choice(auto|fit|fill) = auto "fit: as wide as its widest child; fill: the whole row"
+  in minwidth size = none "never narrower than this; with scroll=x, what doesn't fit scrolls sideways"
+  in scroll choice(none|x) = none "x: scrolls sideways when narrower than its content"
+  in fill color = none "background"
+  in tint color = none "a wash of this colour behind it: a state, not a surface"
+  in stroke color = none "border"
+  in line choice(solid|dashed|dotted) = solid "the border's line"
+  in edge choice(all|top|right|bottom|left|x|y) = all "which sides the border is drawn on"
+  in weight choice(thin|normal|thick) = thin "the border's width"
+  in radius radius = none "corner radius"
+  in shadow shadow = none
+  in dim bool = false "faded back, while something else is in focus"
+  in blur bool = false "blurred past reading, until it is revealed"
+  in body slot
+  out click "a press on its background, not on a child (pointer only)"
 
 extern text@1 "A styled run of inline Markdown with inline maths."
   fields value
@@ -61,6 +107,7 @@ extern text@1 "A styled run of inline Markdown with inline maths."
   in align choice(start|center|end) = start
   in wrap bool = true
   in lines int 0..24 = 0 "height kept for this many lines, so a shorter text moves nothing below it"
+  in clip bool = false "cut it at lines= lines, with an ellipsis"
   in literal bool = false "show the value as it is, not read as inline Markdown"
   in caps bool = false "in spaced capitals: a caption or a label over a column"
 
@@ -80,6 +127,8 @@ extern press@1 "Anything clickable and focusable: a button, a tab, an option amo
   in mark text = "" "an answer row's letter (A, B, C), shown in its tick or dot until it is chosen"
   in body slot
   out click
+  out enter "the pointer moved onto it, or it took focus"
+  out leave "the pointer left it, or it lost focus"
 
 extern range@1 "A value on a track: drag, or use the arrow keys."
   fields value min max
@@ -98,13 +147,15 @@ extern meter@1 "How far along something is: a bar filled to value out of max."
   in tone color = accent
   in size size = fill
 
-extern field@1 "Text or number entry."
+extern field@1 "Text or number entry, on one line or several."
   fields value
   in value ref text
   in kind choice(text|number) = text
   in label text = ""
   in placeholder text = ""
   in width size = none
+  in lines int 1..24 = 1 "more than 1: a box of that many lines, where Enter starts a new line and Ctrl+Enter submits"
+  in tone color = none "marks it right (ok) or wrong (bad)"
   out change {value: text}
   out submit {value: text}
 
@@ -117,23 +168,21 @@ extern overlay@1 "A popover, tooltip, dialog or menu anchored to its first slot.
   out open
   out close
 
-extern canvas@1 "A 2D coordinate space with layers drawn in the order written."
+extern canvas@1 "A 2D coordinate space with layers drawn in the order written. Lines, rectangles and curves are paths."
   fields x y
   in x range = -1..1
   in y range = -1..1
   in z range = -1..1 "3D only"
   in aspect num = 0 "width over height; 0 means from the ranges"
-  in size size = m
+  in size size = m "its width"
+  in height size = none "a fixed height, so it fills a stage of that height; none: from the aspect"
   in dims int 2..3 = 2 "3 needs gfx@1"
   in view point = (35, 25) "3D camera: azimuth and elevation in degrees"
   in label text = ""
   in layers list(record layer {opacity: num = 1,
-      rects: list(record rect {a: point, b: point, fill: color = none, stroke: color = ink, radius: radius = none}),
-      lines: list(record line {a: point, b: point, stroke: color = ink, width: num = 1, dash: bool = false, arrow: bool = false}),
-      circles: list(record circle {c: point, r: num, fill: color = none, stroke: color = none, width: num = 1}),
-      paths: list(record path {pts: list(point), closed: bool = false, fill: color = none, stroke: color = ink, width: num = 1, dash: bool = false}),
-      curves: list(record curve {f: expr(t): point, t: range = 0..1, n: int 2..2000 = 200, stroke: color = accent, width: num = 1.5, dash: bool = false}),
-      labels: list(record label {at: point, text: text, tone: color = ink, anchor: choice(center|n|s|e|w|ne|nw|se|sw) = center, chip: bool = false}),
+      circles: list(record circle {c: point, r: num, px: int = 0, fill: color = none, stroke: color = none, width: num = 1, opacity: num = 1}),
+      paths: list(record path {pts: list(point), closed: bool = false, fill: color = none, stroke: color = ink, width: num = 1, dash: bool = false, head: choice(none|arrow|dot) = none, opacity: num = 1}),
+      labels: list(record label {at: point, text: text, tone: color = ink, anchor: choice(center|n|s|e|w|ne|nw|se|sw) = center, chip: bool = false, size: choice(small|normal|large) = normal, halo: bool = false, dx: int = 0, dy: int = 0, opacity: num = 1}),
       images: list(record image {src: text, at: point, w: num, h: num = 0, alt: text = ""}),
       places: list(record place {at: point} slot),
       handles: list(record handle {p: ref point, tone: color = accent}),
@@ -164,10 +213,13 @@ extern code@1 "A code block."
   in lang text = ""
   in line int = 0 "the current line, from 1: the lines are numbered and this one is marked"
   in marks list({line: int, tone: color, note: text, from: int, to: int}) = [] "lines with a tone (or none), only in the columns from and to (from 1) when from is above 0, and a note at the end (or empty); the lines are numbered"
+  in pickable bool = false "the reader can press a line, which raises pick"
+  out pick {line: int} "a line was pressed (from 1)"
 
-extern math@1 "A display formula."
+extern math@1 "A display formula. \mark{id}{…} marks a part, coloured by its entry in marks."
   fields tex
   in tex latex
+  in marks list({id: text, tone: color, note: text}) = [] "the parts written \mark{id}{…}: their tone, and a note shown under the formula"
 
 extern divider@1 "A thematic break (Markdown's ---)."
 
@@ -210,7 +262,7 @@ extern zoom@1 "A view the reader can zoom and pan once they unlock it, so scroll
 
 extern icon@1 "A symbol from a fixed set, drawn in the provider's own icon style."
   fields name
-  in name choice(play|pause|prev|next|first|last|reset|check|cross|plus|minus|up|down|left|right|ban|alert|info|help|lock|unlock|eye|edit|search|user|users|file|folder|database|server|cloud|mail|clock|calendar|flag|target|gauge|layers|branch|box|square|circle|dot|star|bolt|link|key|shield|cart|chart|code|terminal|bell|home|settings|sliders|trash|copy|download|upload|expand|lightbulb|book)
+  in name iconname
   in tone color = none "its colour; none: the text's"
   in size choice(small|normal|large) = normal
   in label text = "" "what it means, when it stands for words"
@@ -219,11 +271,18 @@ tokens core@1 "Default tokens: every required name (spec 7)."
   color surface "#ffffff" dark="#15171a"
   color ink "#1a1c1f" dark="#eceef1"
   color muted "#6b7280" dark="#9aa3ae"
+  color line "#d4d7dc" dark="#3a3f46"
   color accent "#2563eb" dark="#7aa7ff"
   color info "#0284c7" dark="#38bdf8"
   color ok "#15803d" dark="#4ade80"
   color warn "#b45309" dark="#fbbf24"
   color bad "#dc2626" dark="#f87171"
+  color c1 "#2563eb" dark="#7aa7ff"
+  color c2 "#d97706" dark="#fbbf24"
+  color c3 "#059669" dark="#34d399"
+  color c4 "#9333ea" dark="#c084fc"
+  color c5 "#db2777" dark="#f472b6"
+  color c6 "#0891b2" dark="#22d3ee"
   font body "system-ui, sans-serif" size=16 weight=400 line=1.5
   font heading "system-ui, sans-serif" size=22 weight=650 line=1.25
   font mono "ui-monospace, monospace" size=14 weight=400 line=1.45
@@ -235,7 +294,7 @@ tokens core@1 "Default tokens: every required name (spec 7)."
 
 /** Required token names per kind (spec 7). */
 export const REQUIRED_TOKENS: Record<string, string[]> = {
-  color: ['surface', 'ink', 'muted', 'accent', 'info', 'ok', 'warn', 'bad'],
+  color: ['surface', 'ink', 'muted', 'line', 'accent', 'info', 'ok', 'warn', 'bad', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6'],
   font: ['body', 'heading', 'mono'],
   space: ['xs', 's', 'm', 'l', 'xl'],
   size: ['s', 'm', 'l'],

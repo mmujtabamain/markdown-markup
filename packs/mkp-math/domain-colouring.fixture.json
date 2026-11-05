@@ -1,8 +1,0 @@
-{ "widget": "domain-colouring@1", "cases": {
-  "zeros-and-poles": { "summary": "$(z^2 - 1)/(z^2 + 1)$ coloured over the plane: zeros at $\\pm 1$ (dark, every hue once) and poles at $\\pm i$ (light).",
-    "props": { "f": "(z^2 - 1)/(z^2 + 1)" }, "play": [ { "set": { "p": [0.9, 0.1] } }, { "wait": 100 } ] },
-  "cube": { "summary": "$z^3$: one zero at the origin where every hue appears three times round.",
-    "props": { "f": "z^3", "r": 1.5, "bands": false } },
-  "exp": { "summary": "$e^z$ on a wide view: hue repeats every $2\\pi$ up the imaginary axis, lightness grows to the right.",
-    "props": { "f": "exp(z)", "r": 4, "step": 2 } },
-  "bad-type": { "props": { "f": "\"text\"" }, "expect": { "errors": ["mkp.type"] } } } }

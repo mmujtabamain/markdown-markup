@@ -1,8 +1,0 @@
-{
-  "widget": "roots@1",
-  "cases": {
-    "fifth": { "props": { "n": 5 }, "summary": "The five fifth roots of unity.", "play": [{ "press": "k.play" }, { "wait": 8000 }] },
-    "exam": { "props": { "n": 8, "level": "exam", "labels": false }, "summary": "Eight roots, ending with the check.", "play": [{ "set": { "tour": 2 } }, { "wait": 500 }] },
-    "too-many": { "props": { "n": 20 }, "expect": { "errors": ["mkp.input-range"] } }
-  }
-}

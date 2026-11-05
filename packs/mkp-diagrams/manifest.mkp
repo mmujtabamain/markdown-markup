@@ -1,3 +1,0 @@
-pack mkp-diagrams@1 "Diagrams laid out by compute and arrows: trees, layered and force-directed graphs, flowcharts, sequence and ER diagrams."
-  requires core@1
-  provides tree graph tnode edge network flow sequence er hierarchy gnode gcard layers glyph netmap htree hnode cards cardsview

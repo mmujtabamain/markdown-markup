@@ -1,8 +1,0 @@
-callout@1 "A note, tip, warning, danger or success callout around Markdown."
-  fields kind title
-  in kind choice(note|tip|warning|danger|success) = note
-  in title text = ""
-  in body slot
-  quote alert=(if(kind == note, note, if(kind == tip, tip, if(kind == warning, warning, if(kind == danger, caution, important)))))
-    text title weight=bold if=(title != "")
-    slot body

@@ -6,7 +6,7 @@ import YAML from 'yaml';
 import type { IRAction, IRDef, IRExpr, IRNode, IRState, IRTokenSet, IRVal, IRValue } from './ir';
 import { encodeText } from './syntax/lexer';
 import { showType, resolve, Type, TypeEnv } from './types';
-import type { MkpFile } from './syntax/mkp';
+import type { InterfaceSyn, MkpFile } from './syntax/mkp';
 import { canonical } from './syntax/canon';
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -91,14 +91,16 @@ export class MkpPrinter {
   def(d: IRDef): string {
     const out: string[] = [...comments(d.comment, '')];
     const head = d.kind === 'widget' ? '' : `${d.kind} `;
-    out.push(`${head}${d.name}@${d.version}${d.about !== undefined ? ' ' + encodeText(d.about) : ''}`);
+    const params = d.params?.length ? ` of ${d.params.join(', ')}` : '';
+    out.push(`${head}${d.name}${d.inline ? '' : `@${d.version}`}${params}${d.about !== undefined ? ' ' + encodeText(d.about) : ''}`);
     const i = '  ';
+    if (d.implements?.length) out.push(`${i}implements ${d.implements.map((x) => x.slice(x.indexOf(':') + 1)).join(' ')}`);
     for (const r of d.requires ?? []) out.push(`${i}requires ${r}`);
     if (d.budget) out.push(`${i}budget ${d.budget}`);
     if (d.fields?.length) out.push(`${i}fields ${d.fields.join(' ')}`);
     for (const inp of d.inputs) {
       out.push(...comments(inp.comment, i));
-      out.push(`${i}in ${inp.name} ${showType(inp.type)}${inp.default ? ` = ${valSrc(inp.default, resolve(inp.type, this.ctx.env))}` : ''}${inp.about !== undefined ? ' ' + encodeText(inp.about) : ''}`);
+      out.push(`${i}in ${inp.name} ${showType(inp.type)}${inp.answer ? ' answer' : ''}${inp.default ? ` = ${valSrc(inp.default, resolve(inp.type, this.ctx.env))}` : ''}${inp.about !== undefined ? ' ' + encodeText(inp.about) : ''}`);
     }
     for (const o of d.outs ?? []) out.push(...comments(o.comment, i), `${i}out ${o.name}${o.payload ? ' ' + showType(o.payload) : ''}${o.about !== undefined ? ' ' + encodeText(o.about) : ''}`);
     for (const s of d.signals ?? []) out.push(...comments(s.comment, i), `${i}signal ${s.name} ${showType(s.payload)}${s.about !== undefined ? ' ' + encodeText(s.about) : ''}`);
@@ -300,6 +302,7 @@ export type FileItem =
   | { const: string; type?: Type; expr: string; comment?: string[] }
   | { macro: string; tex: string; comment?: string[] }
   | { tokens: IRTokenSet; comment?: string[] }
+  | { iface: InterfaceSyn }
   | { pack: { kind: string; name: string; version: number; about?: string; requires: string[]; depends: string[]; provides: string[]; front: { name: string; type: Type; def?: string; about?: string }[]; attrs: { name: string; type: Type; about?: string }[]; roles: string[]; rules: { rule: string; path: string; args: string[]; message?: string }[] }; comment?: string[] };
 
 export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string, tokenIR: (name: string) => IRTokenSet | undefined): FileItem[] {
@@ -320,6 +323,8 @@ export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string,
         return { macro: it.name, tex: it.tex, ...cm(it.comments) };
       case 'tokens':
         return { tokens: tokenIR(it.name)!, ...cm(it.comments) };
+      case 'interface':
+        return { iface: it };
       case 'manifest':
         return {
           pack: {
@@ -369,6 +374,16 @@ export function printFile(items: FileItem[], ctx: PrintContext): string {
     if ('type' in it) return [...c, `type ${it.type} = ${showType(it.of)}`].join('\n');
     if ('macro' in it) return [...c, `macro ${it.macro} = $${it.tex}$`].join('\n');
     if ('tokens' in it) return [...c, `tokens ${it.tokens.name}@${it.tokens.version}${it.tokens.about !== undefined ? ' ' + encodeText(it.tokens.about) : ''}`, ...tokenLines(it.tokens)].join('\n');
+    if ('iface' in it) {
+      const f = it.iface;
+      const lines = [...comments(f.comments, ''), `interface ${f.name}@${f.version}${f.about !== undefined ? ' ' + encodeText(f.about) : ''}`];
+      for (const x of f.inputs) lines.push(`  in ${x.name} ${showType(x.type)}`);
+      for (const x of f.hosts) lines.push(`  host ${x.name} ${showType(x.type)}`);
+      for (const x of f.signals) lines.push(`  signal ${x.name} ${showType(x.payload)}`);
+      for (const x of f.outs) lines.push(`  out ${x.name}${x.payload ? ' ' + showType(x.payload) : ''}`);
+      if (f.project) lines.push('  project md');
+      return lines.join('\n');
+    }
     const m = it.pack;
     const lines = [...c, `${m.kind} ${m.name}@${m.version}${m.about !== undefined ? ' ' + encodeText(m.about) : ''}`];
     if (m.requires.length) lines.push(`  requires ${m.requires.join(' ')}`);

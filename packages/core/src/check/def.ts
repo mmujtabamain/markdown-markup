@@ -6,9 +6,9 @@ import { IR_VERSION } from '../ir';
 import { GFX_SHAPES } from '../base';
 import type { Ex } from '../syntax/expr';
 import { parseValueString, type ActionSyn, type Arg, type DefSyn, type EventSyn, type NodeSyn, type Val } from '../syntax/mkp';
-import { fits, resolve, showType, T, Type, TypeEnv } from '../types';
+import { fits, hasParam, join, resolve, sameType, showType, substitute, T, Type, TypeEnv } from '../types';
 import { canonical } from '../syntax/canon';
-import { ExprChecker, Scope, type Checked } from './expr';
+import { ExprChecker, GLOBALS, Scope, withParams, type Checked } from './expr';
 import type { DefEntry, FnEntry, Program } from './program';
 
 export const LIMITS = {
@@ -40,6 +40,8 @@ export interface Sig {
   records: Map<string, { input: string; type: Extract<Type, { t: 'records' }> }>;
   slots: string[];
   requires: string[];
+  /** type parameters, bound at each use (walk of S) */
+  params?: string[];
 }
 
 /** An arrow's look (6.10): its colour, its line, the marks at its ends, faded back or drawn strong. */
@@ -51,8 +53,10 @@ const ARROW_LOOK: Record<string, Type> = {
   dim: T.bool,
   bold: T.bool,
 };
-const META_KEYS = new Set(['id', 'if', 'basis', 'span']);
+const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
 const META_FLAGS = new Set(['hidden', 'grow']);
+const SELF: Type = { t: 'choice', opts: ['start', 'center', 'end', 'stretch'] };
+const TRACK_RE = /^(auto|fit|\d+(\.\d+)?(fr|ch)|xs|s|m|l|xl)$/;
 const EVENT_ONLY_STATE = new Set(['change', 'end']);
 
 export function signatureOf(prog: Program, d: DefEntry): Sig {
@@ -75,7 +79,61 @@ export function signatureOf(prog: Program, d: DefEntry): Sig {
     else if (m.m === 'out') outs.set(m.name, m.payload);
     else if (m.m === 'requires') requires.push(m.cap);
   }
-  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires };
+  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires, ...(d.syn.params?.length ? { params: d.syn.params } : {}) };
+}
+
+/** Binds type parameters by matching what a use gives against what its inputs declare. */
+export function unify(want: Type, got: Type, params: string[], bound: Record<string, Type>, env: TypeEnv): string | null {
+  if ((want.t === 'named' || want.t === 'param') && params.includes(want.name)) {
+    const prev = bound[want.name];
+    if (!prev) {
+      bound[want.name] = got;
+      return null;
+    }
+    const j = join(prev, got, env);
+    if (!j) return `${want.name} is ${showType(prev)} in one place and ${showType(got)} in another`;
+    bound[want.name] = j;
+    return null;
+  }
+  const g = resolve(got, env);
+  if ((want.t === 'list' || want.t === 'dict') && g.t === want.t) return unify(want.of, g.of, params, bound, env);
+  if (want.t === 'rec' && g.t === 'rec') {
+    for (const [n, t] of want.fields) {
+      const f = g.fields.find(([m]) => m === n);
+      if (f) {
+        const e = unify(t, f[1], params, bound, env);
+        if (e) return e;
+      }
+    }
+  }
+  return null;
+}
+
+/** The plain-data type of a YAML value, for inferring a type parameter from a document block. */
+export function yamlType(v: unknown, what: string): Type {
+  if (typeof v === 'number') return Number.isInteger(v) ? T.int : T.num;
+  if (typeof v === 'boolean') return T.bool;
+  if (typeof v === 'string') return T.text;
+  if (Array.isArray(v)) {
+    if (!v.length) throw new Error(`${what} is empty, so its items' type can't be told; give at least one`);
+    let t = yamlType(v[0], `${what}[0]`);
+    for (let i = 1; i < v.length; i++) {
+      const u = yamlType(v[i], `${what}[${i}]`);
+      const j = join(t, u, () => undefined);
+      if (!j) throw new Error(`${what}[${i}] is ${showType(u)}, but the items before it are ${showType(t)}: every item has the same fields of the same types`);
+      t = j;
+    }
+    return T.list(t);
+  }
+  if (v && typeof v === 'object') return { t: 'rec', fields: Object.entries(v).map(([k, x]) => [k, yamlType(x, `${what}.${k}`)] as [string, Type]) };
+  throw new Error(`${what} has no value`);
+}
+
+/** A signature with its type parameters replaced, for one use. */
+export function instantiate(sig: Sig, bound: Record<string, Type>): Sig {
+  const inputs = new Map([...sig.inputs].map(([k, v]) => [k, { ...v, type: substitute(v.type, bound) }]));
+  const records = new Map([...sig.records].map(([k, v]) => [k, { input: v.input, type: substitute(v.type, bound) as Extract<Type, { t: 'records' }> }]));
+  return { ...sig, inputs, records, params: undefined };
 }
 
 interface RecCtx {
@@ -120,6 +178,8 @@ export class DefChecker {
   private readonly signals = new Map<string, Type>();
   private readonly controlNames = new Map<string, string>();
   private readonly stateNames = new Map<string, { control?: string; settable: boolean; type: Type }>();
+  /** option words of this definition's choices → the name whose choice it is */
+  private readonly options = new Map<string, string>();
 
   constructor(
     readonly prog: Program,
@@ -128,8 +188,8 @@ export class DefChecker {
     readonly opts: DefCheckOptions,
   ) {
     const s = entry.syn;
-    this.env = prog.typeEnv(entry.pack);
-    this.x = new ExprChecker(prog, entry.pack, this.localFns, entry.file);
+    this.env = withParams(prog.typeEnv(entry.pack), s.params ?? []);
+    this.x = new ExprChecker(prog, entry.pack, this.localFns, entry.file, s.params ?? []);
     this.x.tokenNames = opts.tokenNames;
     this.ir = {
       ir: IR_VERSION,
@@ -143,6 +203,12 @@ export class DefChecker {
       inputs: [],
       pos: pos(s.p),
     };
+    if (s.params?.length) this.ir.params = s.params;
+    // the options of its own choices: no name it declares may hide one (GAPS 42)
+    for (const m of s.members) {
+      const opts2 = m.m === 'state' && m.opts ? m.opts : m.m === 'in' || m.m === 'var' || m.m === 'host' ? (resolve(m.type, this.env).t === 'choice' ? (resolve(m.type, this.env) as { opts: string[] }).opts : []) : [];
+      for (const o of opts2) if (!this.options.has(o)) this.options.set(o, m.m === 'state' || m.m === 'in' || m.m === 'var' || m.m === 'host' ? m.name : '');
+    }
     if (s.comments.length) this.ir.comment = s.comments;
     this.path.push(`${s.name}@${s.version}`);
   }
@@ -234,6 +300,10 @@ export class DefChecker {
             break;
           }
           case 'fn': {
+            // every fn says what it takes and gives, so a mistake is a compile error (GAPS 43)
+            const untyped = m.params.filter((q) => !q.type).map((q) => q.name);
+            if (untyped.length || !m.ret) this.fail(m.p, `fn ${m.name} must type ${untyped.length ? `its parameter${untyped.length > 1 ? 's' : ''} ${untyped.join(', ')}` : ''}${untyped.length && !m.ret ? ' and ' : ''}${!m.ret ? 'its result (fn name(x: num): num = …)' : ''}`, 'mkp.untyped');
+            this.shadow(m.name, m.p);
             const list = this.scope.fns.get(m.name) ?? [];
             const id = `local:${this.entry.id}:${m.name}#${list.length}`;
             const sig = m.params.every((q) => q.type) ? m.params.map((q) => q.type!) : undefined;
@@ -288,6 +358,8 @@ export class DefChecker {
         this.err(e);
       }
     }
+    this.answerLeaks();
+    this.implementsCheck();
     if (Object.keys(this.localFns).length) ir.fns = this.localFns;
     if (this.usesGfx.size && !s.about && s.kind !== 'extern') {
       this.err(new MkpError('mkp.no-fallback', `${s.name}@${s.version} needs gfx@1 (${[...this.usesGfx].join(', ')}) and has no fallback: give it an "about" text, shown where gfx@1 is missing`, s.p));
@@ -298,10 +370,108 @@ export class DefChecker {
     return ir;
   }
 
+  /**
+   * Answers stay out of Markdown built without them (GAPS 166): project md may read an answer
+   * input, or a value computed from one, only inside if(answers, …).
+   */
+  private answerLeaks(): void {
+    const ir = this.ir;
+    const tainted = new Set(ir.inputs.filter((i) => i.answer).map((i) => i.name));
+    if (!tainted.size || !ir.project) return;
+    const reads = (a: A | undefined, guarded: boolean, seen: Set<string>): boolean => {
+      if (!a || typeof a !== 'object') return false;
+      if (a.t === 'if' && a.c.t === 'var' && a.c.name === '$answers') return reads(a.b, guarded, seen) || (!guarded && false);
+      if (a.t === 'var' && a.from === 'inst' && tainted.has(a.name)) return !guarded;
+      if (a.t === 'call' && this.localFns[a.fn] && !seen.has(a.fn)) {
+        seen.add(a.fn);
+        if (reads(this.localFns[a.fn].body, guarded, seen)) return true;
+      }
+      for (const v of Object.values(a)) {
+        if (Array.isArray(v)) {
+          for (const x of v) if (x && typeof x === 'object' && 't' in x && reads(x as A, guarded, seen)) return true;
+        } else if (v && typeof v === 'object' && 't' in v && reads(v as A, guarded, seen)) return true;
+      }
+      return false;
+    };
+    for (const v of ir.values ?? []) if (v.k === 'derived' && reads(v.value.ast, false, new Set())) tainted.add(v.name);
+    for (const [target, e] of Object.entries(ir.project)) {
+      if (e && reads(e.ast, false, new Set())) this.err(new MkpError('mkp.answer-leak', `project ${target} shows an answer (${[...tainted].join(', ')}) outside if(answers, …), so Markdown built without answers would still give it away`, { file: this.entry.file, line: e.pos?.[0] ?? this.entry.syn.p.line, col: e.pos?.[1] ?? 1 }, [...this.path]));
+    }
+  }
+
+  /** What an implemented interface asks for, the definition has, with the same types (6.24). */
+  private implementsCheck(): void {
+    const ir = this.ir;
+    for (const m of this.entry.syn.members) {
+      if (m.m !== 'implements') continue;
+      for (const nv of m.names) {
+        try {
+          const e = this.prog.lookupIface(nv, this.entry.pack);
+          if (!e) this.fail(m.p, `there is no interface ${nv}${didYouMean(nv, [...this.prog.ifaces.values()].map((x) => `${x.syn.name}@${x.syn.version}`))}`, 'mkp.unknown-interface');
+          const f = e.syn;
+          const same = (a: Type, b: Type): boolean => sameType(a, b, this.env) || (fits(a, b, this.env) && fits(b, a, this.env));
+          const miss: string[] = [];
+          for (const x of f.inputs) {
+            const i = ir.inputs.find((n) => n.name === x.name);
+            if (!i) miss.push(`has no in ${x.name} ${showType(x.type)}`);
+            else if (!same(i.type, x.type)) miss.push(`its in ${x.name} is ${showType(i.type)}, not ${showType(x.type)}`);
+          }
+          for (const x of f.hosts) {
+            const h = (ir.values ?? []).find((v) => v.k === 'host' && v.name === x.name) as { type: Type } | undefined;
+            if (!h) miss.push(`has no host ${x.name} ${showType(x.type)}`);
+            else if (!same(h.type, x.type)) miss.push(`its host ${x.name} is ${showType(h.type)}, not ${showType(x.type)}`);
+          }
+          for (const x of f.signals) {
+            const sg = ir.signals?.find((v) => v.name === x.name);
+            const want = resolve(x.payload, this.env);
+            const got = sg ? resolve(sg.payload, this.env) : undefined;
+            if (!sg || !got || got.t !== 'rec' || want.t !== 'rec') miss.push(`has no signal ${x.name} ${showType(x.payload)}`);
+            else for (const [n, t] of want.fields) {
+              const g = got.fields.find(([k]) => k === n);
+              if (!g || !same(g[1], t)) miss.push(`its signal ${x.name} has no ${n}: ${showType(t)}`);
+            }
+          }
+          for (const x of f.outs) if (!ir.outs?.some((o) => o.name === x.name)) miss.push(`has no out ${x.name}`);
+          if (f.project && !ir.project?.md) miss.push('has no project md');
+          if (miss.length) this.fail(m.p, `${this.entry.syn.name} implements ${nv} but ${miss.join('; ')}`, 'mkp.interface');
+          (ir.implements ??= []).push(e.id);
+        } catch (err) {
+          this.err(err);
+        }
+      }
+    }
+  }
+
+  /**
+   * A name this definition declares may not hide what a reader means by the same word (GAPS 42,
+   * 83, 110, 128, 137): a colour token, an option of its own choices, or a value every definition
+   * reads. Colours are the words a widget computes with (if(ok, ok, bad)); the other token kinds
+   * (body, s, card, raised) are only ever read where a font, space, size, radius or shadow is
+   * expected, and there the token always wins, so a slot can still be called body.
+   */
+  shadow(name: string, p: Pos): void {
+    // the base set's externs name their props as they are drawn (field width, a box's line)
+    if (this.prog.packs.get(this.entry.pack)?.builtin) return;
+    if (GLOBALS[name]) this.fail(p, `"${name}" is the reader's ${name === 'width' ? 'width (narrow, medium or wide)' : 'answers switch'}, which every definition reads; name this something else`, 'mkp.shadow');
+    if (RESERVED.has(name)) this.fail(p, `"${name}" is a value of the language; name this something else`, 'mkp.shadow');
+    for (const kind of ['color']) {
+      if (this.opts.tokenNames(kind).has(name)) this.fail(p, `"${name}" is a ${kind === 'color' ? 'colour' : kind} token; a name declared here can't take it, or "${name}" in a style would mean this instead (rename it, e.g. "${name}2" or "is${name[0].toUpperCase()}${name.slice(1)}")`, 'mkp.shadow');
+    }
+    const owner = this.options.get(name);
+    if (owner !== undefined && owner !== name) this.fail(p, `"${name}" is an option of ${owner ? `${owner}'s choice` : 'a choice here'}; a name can't take it, or comparing ${owner || 'it'} with ${name} would read this instead`, 'mkp.shadow');
+  }
+
   private checkType(t: Type, p: Pos): void {
     const walk = (x: Type): void => {
       switch (x.t) {
+        case 'param':
+          break;
+        case 'path':
+          walk(x.of);
+          walk(x.to);
+          break;
         case 'named':
+          if (this.entry.syn.params?.includes(x.name)) break;
           if (!this.prog.lookupType(x.name, this.entry.pack)) this.fail(p, `there is no type "${x.name}"${didYouMean(x.name, [...this.prog.types.values()].map((v) => v.name))}`, 'mkp.unknown-type');
           break;
         case 'list':
@@ -326,6 +496,7 @@ export class DefChecker {
 
   private declare(name: string, p: Pos): void {
     if (this.scope.has(name)) this.fail(p, `"${name}" is already declared in this definition`, 'mkp.duplicate');
+    this.shadow(name, p);
   }
 
   /** The scope type of an input: record lists read as lists of records with their slot. */
@@ -339,6 +510,7 @@ export class DefChecker {
     this.checkType(m.type, m.p);
     this.declare(m.name, m.p);
     const inp: IRInput = { name: m.name, type: m.type, pos: pos(m.p) };
+    if (m.answer) inp.answer = true;
     if (m.about) inp.about = m.about;
     if (m.comments.length) inp.comment = m.comments;
     const emptyRecords = rt0(m.type, this.env) === 'records' && m.def?.v === 'expr' && m.def.e.k === 'list' && !m.def.e.items.length;
@@ -474,6 +646,7 @@ export class DefChecker {
   // Values for props, fields and defaults
 
   value(v: Val, type: Type, scope: Scope, p: Pos, defaultMode = false): IRVal {
+    if (type.t === 'list' && type.of.t === 'named' && type.of.name === 'track') return this.tracks(v, scope, p);
     const t = resolve(type, this.env);
     switch (t.t) {
       case 'range': {
@@ -509,6 +682,19 @@ export class DefChecker {
         if (ct.t === 'token' || ct.t === 'text' || ct.t === 'choice') return this.irExpr({ ast: c.ast, type: t }, v.src, p);
         return this.fail(p, `style props take token names; found ${showType(c.type)}`, 'mkp.style-token');
       }
+      case 'path': {
+        // a field of the records the path reads, by name: title=city
+        if (v.v !== 'expr') this.fail(p, `expected a field name, found ${v.src}`);
+        const w = v.e.k === 'id' ? v.e.name : v.e.k === 'str' && !v.e.v.includes('\\val{') ? v.e.v : null;
+        const of = resolve(t.of, this.env);
+        if (w !== null && of.t === 'rec') return this.pathTo(w, t, p);
+        const c = this.x.check(v.e, scope, t);
+        if (!fits(c.type, t, this.env)) this.fail(p, `expected ${showType(t)}, found ${showType(c.type)}`, 'mkp.type');
+        return this.irExpr(c, v.src, p);
+      }
+      case 'param':
+        this.fail(p, `${showType(t)} is known only where the definition is used`, 'mkp.type');
+        break;
       case 'expr': {
         if (v.v !== 'expr') this.fail(p, `expected an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
         const sc = scope.child();
@@ -552,6 +738,60 @@ export class DefChecker {
         return this.constOrExpr(c, v.src, p);
       }
     }
+  }
+
+  /**
+   * Grid column tracks (GAPS 98): [auto, 1fr, 6ch], words or quoted, or a number n for n equal
+   * shares, written or computed.
+   */
+  private tracks(v: Val, scope: Scope, p: Pos): IRVal {
+    if (v.v !== 'expr') this.fail(p, 'cols takes a number of equal columns or tracks such as [auto, 1fr, 6ch]');
+    const src = v.src.trim();
+    if (src.startsWith('[') && src.endsWith(']')) {
+      const words = src.slice(1, -1).split(',').map((w) => w.trim().replace(/^"(.*)"$/, '$1')).filter(Boolean);
+      for (const w of words) if (!TRACK_RE.test(w)) this.fail(p, `"${w}" is not a column track: auto, fit, Nfr (a share), Nch (characters) or a size token (s, m, l)`, 'mkp.input-type');
+      if (!words.length) this.fail(p, 'a grid needs at least one column', 'mkp.input-type');
+      return { lit: words };
+    }
+    const c = this.x.check(v.e, scope, T.int);
+    if (resolve(c.type, this.env).t !== 'int') this.fail(p, `cols takes a whole number or tracks such as [auto, 1fr]; found ${showType(c.type)}`, 'mkp.input-type');
+    if (c.ast.t === 'num') {
+      if (c.ast.v < 1) this.fail(p, 'a grid needs at least one column', 'mkp.input-range');
+      return { lit: Array.from({ length: c.ast.v }, () => '1fr') };
+    }
+    const ast: A = { t: 'builtin', fn: 'map', args: [{ t: 'builtin', fn: 'range', args: [{ t: 'num', v: 1 }, c.ast] }, { t: 'lam', params: ['_c'], body: { t: 'str', v: '1fr' } }] };
+    return this.irExpr({ ast, type: T.list(T.text) }, v.src, p);
+  }
+
+  /** A path literal: the field must exist in the records and hold what the path promises. */
+  pathTo(field: string, t: Extract<Type, { t: 'path' }>, p: Pos): IRVal {
+    const of = resolve(t.of, this.env);
+    if (of.t !== 'rec') this.fail(p, `a path reads records; ${showType(t.of)} is not one`, 'mkp.type');
+    const f = of.fields.find(([n]) => n === field);
+    if (!f) this.fail(p, `"${field}" isn't a field of the items (they have ${of.fields.map(([n]) => n).join(', ') || 'no fields'})${didYouMean(field, of.fields.map(([n]) => n))}`, 'mkp.unknown-field');
+    if (!fits(f[1], t.to, this.env)) this.fail(p, `"${field}" holds ${showType(f[1])}, but this path needs ${showType(t.to)}`, 'mkp.type');
+    return { lit: field };
+  }
+
+  /** Binds a use's type parameters from the values it gives (6.26). */
+  instantiateUse(sig: Sig, args: Arg[], scope: Scope, p: Pos): Sig {
+    const params = sig.params!;
+    const bound: Record<string, Type> = {};
+    const env = this.prog.typeEnv(sig.pack);
+    const free = sig.fields.slice();
+    for (const a of args) {
+      const name = a.key ?? (a.value.v === 'expr' && a.value.e.k === 'id' && sig.inputs.has(a.value.e.name) ? null : free.shift());
+      if (!name) continue;
+      if (a.key) free.splice(free.indexOf(a.key) >>> 0, free.includes(a.key) ? 1 : 0);
+      const inp = sig.inputs.get(name);
+      if (!inp || !hasParamNamed(inp.type, params) || resolve(inp.type, env).t === 'path' || a.value.v !== 'expr') continue;
+      const c = this.x.check(a.value.e, scope);
+      const e = unify(inp.type, c.type, params, bound, env);
+      if (e) this.fail(a.p, e, 'mkp.type');
+    }
+    const missing = params.filter((x) => !bound[x]);
+    if (missing.length) this.fail(p, `${sig.name} can't tell what ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} here: give the inputs that hold ${missing.length > 1 ? 'them' : 'it'}`, 'mkp.type');
+    return instantiate(sig, bound);
   }
 
   private refInScope(name: string, scope: Scope): { type: Type } | undefined {
@@ -718,7 +958,8 @@ export class DefChecker {
 
   private element(n: NodeSyn, scope: Scope, depth: number): IRNode {
     this.elementCount++;
-    const sig = this.resolveDef(n.head, n.p);
+    let sig = this.resolveDef(n.head, n.p);
+    if (sig.params?.length) sig = this.instantiateUse(sig, n.args, scope, n.p);
     this.uses.add(sig.id);
     if (sig.kind === 'widget' || sig.kind === 'part' || sig.kind === 'extern') {
       // fine: definitions use widgets, parts and externs alike
@@ -913,7 +1154,18 @@ export class DefChecker {
         meta.basis = (this.value(a.value, { t: 'token', kind: 'size' }, scope, a.p) as { tok: string }).tok;
         break;
       case 'span':
-        meta.span = this.value(a.value, { t: 'int', lo: 1, hi: 12 }, scope, a.p);
+        meta.span = this.value(a.value, { t: 'int', lo: 1, hi: 64 }, scope, a.p);
+        break;
+      case 'self': {
+        // how this child sits across its container, overriding the container's align (GAPS 41)
+        const v = this.value(a.value, SELF, scope, a.p);
+        if (!('lit' in v)) this.fail(a.p, 'self takes start, center, end or stretch', 'mkp.enum');
+        meta.self = v.lit as IRMeta['self'];
+        break;
+      }
+      case 'keep':
+        // scrolls the nearest scrolling container to show it while true (GAPS 150)
+        meta.keep = this.value(a.value, T.bool, scope, a.p);
         break;
     }
   }
@@ -927,6 +1179,7 @@ export class DefChecker {
       this.fail(n.p, 'expected "each x in list [key=expr]" or "each x in a..b"');
     }
     const name = v.value.e.name;
+    this.shadow(name, v.p);
     let elem: Type;
     let inVal: IRVal;
     if (src.value.v === 'range') {
@@ -1123,6 +1376,27 @@ export class DefChecker {
     const c = this.x.coerce(this.x.check(x.value.e, scope, st.type), st.type, x.p);
     const kind = this.scope.get(x.key!)?.kind;
     return { a: 'set', name: x.key!, target: kind === 'ref' ? 'ref' : kind === 'var' ? 'var' : 'state', value: this.irExpr(c, x.value.src, x.p) };
+  }
+}
+
+const RESERVED = new Set(['none', 'true', 'false', 'pi', 'tau', 'inf', 'nan']);
+
+function hasParamNamed(t: Type, params: string[]): boolean {
+  if (hasParam(t)) return true;
+  switch (t.t) {
+    case 'named':
+      return params.includes(t.name);
+    case 'list':
+    case 'dict':
+    case 'ref':
+      return hasParamNamed(t.of, params);
+    case 'rec':
+    case 'records':
+      return t.fields.some(([, f]) => hasParamNamed(f, params));
+    case 'path':
+      return hasParamNamed(t.of, params) || hasParamNamed(t.to, params);
+    default:
+      return false;
   }
 }
 

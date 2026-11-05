@@ -1,1 +1,0 @@
-{ "widget": "value@1", "cases": { "pi": { "summary": "π to four figures.", "props": { "v": 3.14159265, "label": "\\pi" } } } }

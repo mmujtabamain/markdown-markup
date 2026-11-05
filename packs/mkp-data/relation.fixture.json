@@ -1,8 +1,0 @@
-{ "widget": "relation@1", "cases": {
-  "staff": { "summary": "A staff relation with two rows highlighted.",
-    "props": { "name": "staff", "head": ["id", "name", "dept", "salary"],
-      "rows": [["1", "Ada", "Eng", "120"], ["2", "Brook", "Sales", "80"], ["3", "Cy", "Eng", "95"], ["4", "Dee", "Ops", "70"]],
-      "marked": [0, 2] } },
-  "plain": { "summary": "A two-column relation with nothing highlighted.",
-    "props": { "head": ["x", "y"], "rows": [["1", "a"], ["2", "b"]] } },
-  "empty": { "summary": "A relation with columns and no rows.", "props": { "head": ["a", "b"], "rows": [] } } } }

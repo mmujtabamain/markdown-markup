@@ -1,8 +1,0 @@
-{ "widget": "surface@1", "cases": {
-  "waves": { "summary": "The egg-box surface $z = \\sin x \\cos y$, turning slowly.",
-    "props": { "f": "sin(x) cos(y)" }, "play": [ { "press": "turn.play" }, { "wait": 1000 } ] },
-  "saddle": { "summary": "The saddle $z = (x^2 - y^2)/4$ seen from higher up.",
-    "props": { "f": "(x^2 - y^2)/4", "xmin": -2, "xmax": 2, "ymin": -2, "ymax": 2, "tilt": 45, "n": 24 } },
-  "bump": { "summary": "A Gaussian bump $z = e^{-(x^2 + y^2)}$.",
-    "props": { "f": "exp(-(x^2 + y^2))", "n": 60 } },
-  "steep": { "props": { "tilt": 120 }, "expect": { "errors": ["mkp.input-range"] } } } }

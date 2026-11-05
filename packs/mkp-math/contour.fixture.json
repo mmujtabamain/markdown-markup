@@ -1,8 +1,0 @@
-{ "widget": "contour@1", "cases": {
-  "bowl": { "summary": "Contours of $x^2 + y^2$: circles, closer together further out.",
-    "props": { "f": "x^2 + y^2" }, "play": [ { "set": { "p": [-1.2, 0.4] } }, { "wait": 100 } ] },
-  "saddle": { "summary": "The saddle $x^2 - y^2$ at levels −2 to 2, with the zero level crossing at the origin.",
-    "props": { "f": "x^2 - y^2", "levels": [-2, -1, -0.5, 0, 0.5, 1, 2] } },
-  "waves": { "summary": "Contours of $\\sin x \\cos y$ on a wide view, without the probe.",
-    "props": { "f": "sin(x) cos(y)", "xmin": -4, "xmax": 4, "ymin": -4, "ymax": 4, "n": 36, "probe": false, "step": 2 } },
-  "coarse": { "props": { "n": 2 }, "expect": { "errors": ["mkp.input-range"] } } } }

@@ -76,6 +76,13 @@ const INT_RESULT = new Set(['floor', 'ceil', 'round', 'sign', 'step']);
 
 export const RGB: Type = { t: 'rec', name: 'rgb', fields: [['r', T.num], ['g', T.num], ['b', T.num]] };
 
+/**
+ * Values every definition can read: the reader's width (GAPS 30) and whether answers are shown
+ * (false when Markdown is built without them, GAPS 166).
+ */
+export const WIDTH: Type = { t: 'choice', opts: ['narrow', 'medium', 'wide'] };
+export const GLOBALS: Record<string, Type> = { width: WIDTH, answers: T.bool };
+
 export class ExprChecker {
   /** specialisations being checked, to catch recursion without a return type */
   private get inProgress(): Map<string, Type | undefined> {
@@ -92,8 +99,11 @@ export class ExprChecker {
     /** where local fns (and their specialisations) are stored */
     readonly localSink: Record<string, IRFn> | null,
     readonly file: string,
+    /** the definition's type parameters (walk of S): opaque types inside it */
+    typeParams: string[] = [],
   ) {
-    this.env = prog.typeEnv(pack);
+    this.env = withParams(prog.typeEnv(pack), typeParams);
+    this.tokenNames = prog.tokenNames;
   }
 
   fail(p: Pos, msg: string, code = 'mkp.type'): never {
@@ -152,6 +162,16 @@ export class ExprChecker {
           fields.push([n, c.ast]);
           ft.push([n, c.type]);
         }
+        if (ex && ex.t === 'rec' && ex.defaults) {
+          // a named type's field defaults fill what the literal leaves out (GAPS 132)
+          for (const [n, t] of ex.fields) {
+            if (e.fields.some(([m]) => m === n) || ex.defaults[n] === undefined) continue;
+            const d = this.check(parseExprString(ex.defaults[n], this.file, e.p.line, e.p.col), new Scope(), t);
+            const c = hasUnknown(t) ? d : this.coerce(d, t, e.p);
+            fields.push([n, c.ast]);
+            ft.push([n, t]);
+          }
+        }
         if (ex && ex.t === 'rec' && ex.name) {
           // a record literal written for a named type takes that type
           const t: Type = { t: 'rec', fields: ft };
@@ -179,6 +199,14 @@ export class ExprChecker {
       case 'index': {
         const o = this.check(e.o, scope);
         const ot = this.r(o.type);
+        if (ot.t === 'param' || ot.t === 'rec') {
+          // a record read by a typed path: step[pointer] where pointer is path(S, int)
+          const i = this.check(e.i, scope);
+          const it = this.r(i.type);
+          if (it.t !== 'path') this.fail(e.i.p, `${showType(o.type)} is read by a path (an input typed path(…)) or with .field; found ${showType(i.type)}`);
+          if (!sameType(it.of, o.type, this.env) && !fits(o.type, it.of, this.env)) this.fail(e.i.p, `this path reads ${showType(it.of)}, not ${showType(o.type)}`);
+          return { ast: { t: 'index', o: o.ast, i: i.ast }, type: it.to };
+        }
         if (ot.t === 'list') {
           const i = this.coerce(this.check(e.i, scope, T.int), T.num, e.i.p);
           return { ast: { t: 'index', o: o.ast, i: i.ast }, type: ot.of };
@@ -248,12 +276,16 @@ export class ExprChecker {
 
   private tryCheck(e: Ex, scope: Scope): Checked | null {
     if (e.k !== 'id') return this.check(e, scope);
-    if (scope.get(e.name) || e.name in CONSTS || this.prog.constCandidates(e.name, this.pack).length) return this.check(e, scope);
+    if (scope.get(e.name) || e.name in CONSTS || GLOBALS[e.name] || this.prog.constCandidates(e.name, this.pack).length) return this.check(e, scope);
     return null;
   }
 
   private ident(name: string, p: Pos, scope: Scope, ex?: Type): Checked {
     const b = scope.get(name);
+    if (!b && GLOBALS[name]) return { ast: { t: 'var', name: `$${name}`, from: 'inst' }, type: GLOBALS[name] };
+    // where a font, space, size, radius or shadow is expected, its token wins over a name in scope
+    if (ex && ex.t === 'token' && ex.kind !== 'color' && this.tokenNames?.(ex.kind).has(name)) return { ast: { t: 'str', v: name }, type: ex };
+    if (!b && name === 'none' && ex && ex.t === 'token') return { ast: { t: 'str', v: 'none' }, type: ex };
     if (b) {
       if (b.from === 'const') return { ast: { t: 'var', name: b.id!, from: 'const' }, type: b.type };
       return { ast: { t: 'var', name, from: b.from }, type: b.type.t === 'ref' ? b.type.of : b.type };
@@ -598,9 +630,13 @@ export class ExprChecker {
       const e = parseExprString(h.src, p.file, p.line, p.col);
       const c = this.check(e, scope);
       asts.push(c.ast);
-      show.push(this.showFn(c.type, p));
+      const sh = this.showFn(c.type, p);
+      show.push(sh);
       const rt = this.r(c.type);
-      kinds.push(['num', 'int', 'bool', 'text', 'latex', 'choice', 'point', 'list'].includes(rt.t) ? rt.t : 'other');
+      const kind = ['num', 'int', 'bool', 'text', 'latex', 'choice', 'point', 'list'].includes(rt.t) ? rt.t : 'other';
+      // a value \\val can't write is a compile error, never "[object Object]" (6.7)
+      if (kind === 'other' && !sh) this.fail(p, `\\val{${h.src}} is ${showType(c.type)}, which has no written form; show one of its fields, or give its type a show fn`, 'mkp.type');
+      kinds.push(kind);
       modes.push(tex || insideMaths(src, h.at) ? 'tex' : 'text');
     });
     out += src.slice(last);
@@ -616,6 +652,12 @@ export class ExprChecker {
     void p;
     return this.ensureFn(cands[0]);
   }
+}
+
+/** A type environment in which the definition's type parameters are opaque types. */
+export function withParams(env: TypeEnv, params: string[]): TypeEnv {
+  if (!params.length) return env;
+  return (n) => (params.includes(n) ? { t: 'param', name: n } : env(n));
 }
 
 function insideMaths(s: string, at: number): boolean {
@@ -744,6 +786,7 @@ const SPECIAL: Record<string, Special> = {
   indexof(c, a, p, s) {
     arity(c, 'indexof', a, p, 2);
     const xs = c.check(a[0], s);
+    if (isText(c, xs)) return { ast: b('tindexof', [xs.ast, textArg(c, a[1], s)]), type: T.int };
     const el = listOf(c, xs, p, 'indexof');
     const x = c.check(a[1], s, el);
     return { ast: b('indexof', [xs.ast, x.ast]), type: T.int };
@@ -779,13 +822,14 @@ const SPECIAL: Record<string, Special> = {
     arity(c, 'last', a, p, 1, 2);
     const xs = c.check(a[0], s);
     const el = listOf(c, xs, p, 'last');
-    if (a.length === 1) return { ast: b('at', [xs.ast, { t: 'num', v: -1 }]), type: el };
+    if (a.length === 1) return { ast: b('last1', [xs.ast]), type: el };
     const n = c.coerce(c.check(a[1], s), T.num, a[1].p);
     return { ast: b('last', [xs.ast, n.ast]), type: T.list(el) };
   },
   slice(c, a, p, s) {
     arity(c, 'slice', a, p, 3);
     const xs = c.check(a[0], s);
+    if (isText(c, xs)) return { ast: b('tslice', [xs.ast, c.coerce(c.check(a[1], s), T.num, a[1].p).ast, c.coerce(c.check(a[2], s), T.num, a[2].p).ast]), type: T.text };
     const el = listOf(c, xs, p, 'slice');
     const i = c.coerce(c.check(a[1], s), T.num, a[1].p);
     const j = c.coerce(c.check(a[2], s), T.num, a[2].p);
@@ -912,6 +956,24 @@ const SPECIAL: Record<string, Special> = {
     const vars = a[2] ? c.check(a[2], s, T.list(T.text)) : { ast: { t: 'list', items: [] } as A, type: T.list(T.text) };
     return { ast: b('equivalent', [x.ast, y.ast, vars.ast]), type: T.bool };
   },
+  lower: text1('lower'),
+  upper: text1('upper'),
+  trim: text1('trim'),
+  number(c, a, p, s) {
+    arity(c, 'number', a, p, 1);
+    return { ast: b('number', [textArg(c, a[0], s)]), type: T.num };
+  },
+  replace(c, a, p, s) {
+    arity(c, 'replace', a, p, 3);
+    return { ast: b('replace', a.map((x) => textArg(c, x, s))), type: T.text };
+  },
+  split(c, a, p, s) {
+    arity(c, 'split', a, p, 2);
+    return { ast: b('split', a.map((x) => textArg(c, x, s))), type: T.list(T.text) };
+  },
+  contains: text2('contains'),
+  startswith: text2('startswith'),
+  endswith: text2('endswith'),
   rgb(c, a, p, s) {
     arity(c, 'rgb', a, p, 3);
     return { ast: b('rgb', a.map((x) => c.coerce(c.check(x, s), T.num, x.p).ast)), type: RGB };
@@ -925,6 +987,29 @@ const SPECIAL: Record<string, Special> = {
     return { ast: b('dist', a.map((x) => c.coerce(c.check(x, s), T.point, x.p).ast)), type: T.num };
   },
 };
+
+function isText(c: ExprChecker, x: Checked): boolean {
+  const t = c.r(x.type);
+  return t.t === 'text' || t.t === 'choice' || t.t === 'latex';
+}
+
+function textArg(c: ExprChecker, e: Ex, s: Scope): A {
+  return c.coerce(c.check(e, s, T.text), T.text, e.p).ast;
+}
+
+function text1(name: string): Special {
+  return (c, a, p, s) => {
+    arity(c, name, a, p, 1);
+    return { ast: b(name, [textArg(c, a[0], s)]), type: T.text };
+  };
+}
+
+function text2(name: string): Special {
+  return (c, a, p, s) => {
+    arity(c, name, a, p, 2);
+    return { ast: b(name, a.map((x) => textArg(c, x, s))), type: T.bool };
+  };
+}
 
 function aggregate(c: ExprChecker, name: 'sum' | 'prod', a: Ex[], p: Pos, s: Scope): Checked {
   if (a.length === 1 && name === 'sum') {

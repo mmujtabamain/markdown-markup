@@ -1,9 +1,0 @@
-{ "widget": "annotated-source@1", "cases": {
-  "gcd": { "summary": "Euclid's algorithm in Python with three numbered notes; the second note is picked.",
-    "props": { "lang": "python",
-      "code": [ "def gcd(a, b):", "    while b:", "        a, b = b, a % b", "    return a" ],
-      "notes": [ { "line": 2, "text": "Stops when the remainder is $0$." }, { "line": 3, "text": "$\\gcd(a, b) = \\gcd(b, a \\bmod b)$, and the pair shrinks every time." }, { "line": 4, "text": "The last non-zero remainder is the answer." } ] },
-    "play": [ { "set": { "sel": 1 } }, { "wait": 100 } ] },
-  "plain": { "summary": "A short loop without line numbers.",
-    "props": { "numbers": false, "code": [ "total = 0", "for x in xs:", "    total += x" ], "notes": [ { "line": 1, "text": "Start the running sum at zero." } ] } },
-  "no-code": { "props": { "notes": [] }, "expect": { "errors": ["mkp.missing-input"] } } } }

@@ -1,3 +1,0 @@
-{ "widget": "quiz.answer@1", "cases": {
-  "book": { "summary": "A worked solution behind a book icon.", "props": { "items": ["$250 \\times 1.0842 = 271.05$ USD."] } },
-  "plain": { "summary": "The solution offered in words, shown at once.", "props": { "items": ["$21 = 3 \\times 7$ and $27 = 3^3$, so only $23$ is prime."], "plain": true, "spoil": false } } } }

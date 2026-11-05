@@ -1,4 +1,0 @@
-pack arrow-proof@1 "Arrows that follow changing data: nodes added, removed and moved under keys."
-  requires core@1
-  depends mkp-diagrams@1
-  provides growing

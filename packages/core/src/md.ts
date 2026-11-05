@@ -167,10 +167,11 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
       }
       case 'icon':
         return p.label ? escape(String(p.label)) : null;
-      case 'stack':
+      case 'column':
       case 'grid':
+      case 'stack':
         return blocks(n.kids).join('\n\n');
-      case 'flex':
+      case 'row':
         if (p.role === 'control' || p.role === 'radiogroup' || p.role === 'group') return controls({ ...n, kids: [n] } as VNode);
         return inlineRow(n.kids) ?? blocks(n.kids).join('\n\n');
       case 'text':

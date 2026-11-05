@@ -677,8 +677,8 @@ function builtin(fn: string, args: C[]): C {
       return (env) => {
         tick();
         const xs = x(env) as V[];
-        let i = num(y(env));
-        if (i < 0) i += xs.length;
+        // an index out of range is never wrapped: -1 is not the last item (GAPS 111); last() is
+        const i = num(y(env));
         if (Number.isInteger(i) && i >= 0 && i < xs.length) return xs[i];
         if (z) return z(env);
         throw new EvalError('mkp.index', `index ${num(y(env))} is out of range (0..${xs.length - 1}); use at(xs, i, default)`, budget.where);
@@ -701,6 +701,60 @@ function builtin(fn: string, args: C[]): C {
         const xs = x(env) as V[];
         tick();
         return xs.slice(num(y(env)), num(z(env)));
+      };
+    case 'last1':
+      return (env) => {
+        tick();
+        const xs = x(env) as V[];
+        if (!xs.length) throw new EvalError('mkp.index', 'last of an empty list; use at(xs, len(xs) - 1, default)', budget.where);
+        return xs[xs.length - 1];
+      };
+    // text (GAPS 82): positions count characters from 0, like lists
+    case 'tslice':
+      return (env) => {
+        tick();
+        return [...(x(env) as string)].slice(num(y(env)), num(z(env))).join('');
+      };
+    case 'tindexof':
+      return (env) => {
+        const t = x(env) as string;
+        tick(t.length);
+        const i = t.indexOf(y(env) as string);
+        return i < 0 ? -1 : [...t.slice(0, i)].length;
+      };
+    case 'lower':
+      return (env) => (tick(), (x(env) as string).toLowerCase());
+    case 'upper':
+      return (env) => (tick(), (x(env) as string).toUpperCase());
+    case 'trim':
+      return (env) => (tick(), (x(env) as string).trim().replace(/\s+/g, ' '));
+    case 'replace':
+      return (env) => {
+        const t = x(env) as string;
+        tick(t.length);
+        const a = y(env) as string;
+        return a ? t.split(a).join(z(env) as string) : t;
+      };
+    case 'split':
+      return (env) => {
+        const t = x(env) as string;
+        tick(t.length);
+        const sep = y(env) as string;
+        const parts = sep ? t.split(sep) : [...t];
+        return checkList(parts);
+      };
+    case 'contains':
+      return (env) => (tick(), (x(env) as string).includes(y(env) as string));
+    case 'startswith':
+      return (env) => (tick(), (x(env) as string).startsWith(y(env) as string));
+    case 'endswith':
+      return (env) => (tick(), (x(env) as string).endsWith(y(env) as string));
+    case 'number':
+      // a number as a reader types it: spaces and a decimal comma are fine; anything else is nan
+      return (env) => {
+        tick();
+        const t = (x(env) as string).trim().replace(/\s+/g, '').replace(/^([+-]?\d*),(\d+)$/, '$1.$2').replace(/^\+/, '');
+        return /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(t) ? Number(t) : NaN;
       };
     case 'lsum':
       return (env) => {

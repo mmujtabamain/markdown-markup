@@ -41,6 +41,10 @@ export interface RuntimeOptions {
    * and marked instead of being decided by the initial state.
    */
   snapshot?: boolean;
+  /** the reader's width, which every definition reads as `width` (GAPS 30); default wide */
+  width?: 'narrow' | 'medium' | 'wide';
+  /** false: answers are left out (`answers` reads false), for Markdown without them (GAPS 166) */
+  answers?: boolean;
 }
 
 /** Evaluates f, reporting whether it read reader state. */
@@ -169,6 +173,8 @@ export class Inst {
   get(name: string): V {
     const c = this.cells.get(name);
     if (c) return c.get();
+    if (name === '$width') return this.rt.widthCell.get();
+    if (name === '$answers') return this.rt.opts.answers !== false;
     const m = this.memos.get(name);
     if (m) return m.get();
     const b = this.inputs.get(name);
@@ -220,13 +226,16 @@ export class Runtime {
   readonly signals: SignalEvent[] = [];
   private readonly mathsCache = new Map<string, IRMaths>();
   private nodeCount = 0;
+  /** the reader's width: narrow, medium or wide, as the provider measures it */
+  readonly widthCell: Cell;
 
   constructor(
     readonly bundle: IRBundle,
     readonly opts: RuntimeOptions = {},
   ) {
     this.prog = new Programme(bundle.fns, bundle.consts);
-    const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc');
+    this.widthCell = new Cell(opts.width ?? 'wide', true);
+    const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
     if (!docDef) throw new Error('the bundle has no document definition');
     this.root = new Inst(this, docDef, 'doc', null, null, null, 0, null);
     this.setupInst(this.root);
@@ -239,6 +248,14 @@ export class Runtime {
   view(): VNode[] {
     if (this.dirty) this.render();
     return this.tree;
+  }
+
+  /**
+   * The provider says how wide the reader's view is: narrow (a phone), medium or wide. Everything
+   * that reads `width` is drawn again.
+   */
+  setWidth(w: 'narrow' | 'medium' | 'wide'): void {
+    if (this.widthCell.set(w)) this.changed();
   }
 
   subscribe(f: () => void): () => void {
@@ -708,6 +725,8 @@ export class Runtime {
     if (n.meta?.grow) layout.grow = true;
     if (n.meta?.basis) layout.basis = n.meta.basis;
     if (n.meta?.span) layout.span = this.valueOf(n.meta.span, env, inst) as number;
+    if (n.meta?.self) layout.self = n.meta.self;
+    if (n.meta?.keep && this.valueOf(n.meta.keep, env, inst)) layout.keep = true;
     if (Object.keys(layout).length) v.layout = layout;
     return v;
   }
@@ -923,9 +942,10 @@ export class Runtime {
         const p = this.props(n, env, inst);
         return { t: 'footnote', key, p: { label: p.label }, kids: kids() };
       }
-      case 'stack':
-      case 'flex':
-      case 'grid': {
+      case 'column':
+      case 'row':
+      case 'grid':
+      case 'stack': {
         const p = this.props(n, env, inst);
         const v: VNode = { t: n.node, key, p, kids: kids() };
         this.wire(n, v, env, inst);
@@ -1242,7 +1262,7 @@ export class Runtime {
           this.setCell(inst, name, quantize(v, min, max, step));
         });
         kids.push(text(`${key}.value`, fmtNum(value as number)));
-        return { t: 'flex', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'control' }, kids };
+        return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'control' }, kids };
       }
       case 'toggle':
         return press(key, name, label, [text(`${key}.t`, label)], () => this.setCell(inst, name, !value), { kind: 'toggle', selected: !!value });
@@ -1251,7 +1271,7 @@ export class Runtime {
         const kids: VNode[] = [text(`${key}.label`, label, 'muted')];
         for (const o of opts) kids.push(press(`${key}.${o}`, `${name}.${o}`, o, [text(`${key}.${o}.t`, o)], () => this.setCell(inst, name, o), { kind: 'option', selected: value === o }));
         inst.ids.set(name, key);
-        return { t: 'flex', key, id: name, p: { gap: 'xs', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'radiogroup', label }, kids };
+        return { t: 'row', key, id: name, p: { gap: 'xs', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'radiogroup', label }, kids };
       }
       case 'steps': {
         const n = this.valueOf(s.args.n, env, inst) as number;
@@ -1274,7 +1294,7 @@ export class Runtime {
         kids.push(count);
         kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺')], () => go(0), { disabled: at <= 0, emphasis: 'low' }));
         inst.ids.set(name, key);
-        return { t: 'flex', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'steps' }, kids };
+        return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'steps' }, kids };
       }
       default:
         return null;

@@ -28,6 +28,10 @@ export type Type =
   | { t: 'ref'; of: Type }
   | { t: 'token'; kind: TokenKind }
   | { t: 'fn'; params: Type[]; ret: Type }
+  /** a definition's type parameter (walk of S): known at each use */
+  | { t: 'param'; name: string }
+  /** the name of a field of `of` whose value is a `to` (path(S, int)) */
+  | { t: 'path'; of: Type; to: Type }
   | { t: 'unknown' }
   | { t: 'any' };
 
@@ -171,6 +175,14 @@ class TypeParser {
       }
       case 'ref':
         return { t: 'ref', of: this.type() };
+      case 'path': {
+        this.expect('(');
+        const of = this.type();
+        this.expect(',');
+        const to = this.type();
+        this.expect(')');
+        return { t: 'path', of, to };
+      }
       default:
         if ((TOKEN_KINDS as readonly string[]).includes(t.v)) return { t: 'token', kind: t.v as TokenKind };
         return { t: 'named', name: t.v };
@@ -254,6 +266,10 @@ export function showType(ty: Type): string {
       return ty.kind;
     case 'fn':
       return `fn(${ty.params.map(showType).join(', ')}): ${showType(ty.ret)}`;
+    case 'param':
+      return ty.name;
+    case 'path':
+      return `path(${showType(ty.of)}, ${showType(ty.to)})`;
     default:
       return ty.t;
   }
@@ -313,8 +329,62 @@ export function sameType(a: Type, b: Type, env: TypeEnv, seen = new Set<string>(
       const bb = b as typeof a;
       return a.vars.length === bb.vars.length && a.vars.every(([, t], i) => sameType(t, bb.vars[i][1], env, seen)) && sameType(a.ret, bb.ret, env, seen);
     }
+    case 'param':
+      return a.name === (b as typeof a).name;
+    case 'path': {
+      const bb = b as typeof a;
+      return sameType(a.of, bb.of, env, seen) && sameType(a.to, bb.to, env, seen);
+    }
     default:
       return true;
+  }
+}
+
+/** A type with its parameters replaced (walk of S used with S = {line: int, …}). */
+export function substitute(ty: Type, args: Record<string, Type>): Type {
+  switch (ty.t) {
+    case 'param':
+      return args[ty.name] ?? ty;
+    case 'named':
+      return args[ty.name] ?? ty;
+    case 'list':
+    case 'dict':
+    case 'ref':
+      return { ...ty, of: substitute(ty.of, args) };
+    case 'rec':
+    case 'records':
+      return { ...ty, fields: ty.fields.map(([n, f]) => [n, substitute(f, args)] as Field) };
+    case 'fn':
+      return { t: 'fn', params: ty.params.map((p) => substitute(p, args)), ret: substitute(ty.ret, args) };
+    case 'expr':
+      return { t: 'expr', vars: ty.vars.map(([n, v]) => [n, substitute(v, args)] as Field), ret: substitute(ty.ret, args) };
+    case 'path':
+      return { t: 'path', of: substitute(ty.of, args), to: substitute(ty.to, args) };
+    default:
+      return ty;
+  }
+}
+
+/** Whether a type mentions a type parameter. */
+export function hasParam(ty: Type): boolean {
+  switch (ty.t) {
+    case 'param':
+      return true;
+    case 'list':
+    case 'dict':
+    case 'ref':
+      return hasParam(ty.of);
+    case 'rec':
+    case 'records':
+      return ty.fields.some(([, f]) => hasParam(f));
+    case 'fn':
+      return ty.params.some(hasParam) || hasParam(ty.ret);
+    case 'expr':
+      return ty.vars.some(([, v]) => hasParam(v)) || hasParam(ty.ret);
+    case 'path':
+      return hasParam(ty.of) || hasParam(ty.to);
+    default:
+      return false;
   }
 }
 

@@ -1,9 +1,0 @@
-legend@1 "A key: a colour dot and a name for each series."
-  in items list(record item {name: text, tone: color = info}) "one item per series"
-  in title text = "" "said before the items, as a small caption"
-  flex gap=m align=center
-    text title font=mono size=small tone=muted caps=true wrap=false if=(title != "")
-    each it in items
-      flex gap=s align=center wrap=false
-        stack pad=s radius=pill fill=(it.tone)
-        text it.name size=small wrap=false

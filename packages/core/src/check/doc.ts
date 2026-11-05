@@ -8,12 +8,15 @@ import type { IRDef, IRNode, IRVal } from '../ir';
 import { markdownToNodes } from '../markdown';
 import { chunks } from '../syntax/lexer';
 import { parseDoc, type DocItem, type DocSyn } from '../syntax/doc';
-import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn } from '../syntax/mkp';
+import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn, type MkpFile } from '../syntax/mkp';
 import { fits, resolve, showType, T, Type } from '../types';
-import { DefChecker, pos, type Sig, type DefCheckOptions } from './def';
-import type { Program } from './program';
+import { DefChecker, instantiate, pos, signatureOf, unify, yamlType, type Sig, type DefCheckOptions } from './def';
+import type { PackInfo, Program } from './program';
 
 export const DOC_PACK = '$doc';
+
+/** A document's definitions, inline and in its file together, are capped at this many lines. */
+export const DOC_DEF_LINES = 800;
 
 export interface CheckedDoc {
   file: string;
@@ -21,10 +24,124 @@ export interface CheckedDoc {
   body: IRNode[];
   def: IRDef;
   uses: Set<string>;
+  /** the program the document was checked with: its own definitions on top of the packs' */
+  prog: Program;
+  /** the document's own definitions (inline and its file), checked */
+  defs: IRDef[];
 }
 
-export function checkDocument(prog: Program, src: string, file: string, diags: Diagnostics, opts: DefCheckOptions): CheckedDoc {
+/** The document's file: name.mkp beside name.mkp.md, holding its definitions moved out of it. */
+export interface DocFile {
+  text: string;
+  file: string;
+}
+
+export interface DocCheckOptions extends DefCheckOptions {
+  docFile?: DocFile;
+}
+
+/** Every mkp fence of a document, containers included. */
+function fences(items: DocItem[]): Extract<DocItem, { k: 'defs' }>[] {
+  const out: Extract<DocItem, { k: 'defs' }>[] = [];
+  for (const it of items) {
+    if (it.k === 'defs') out.push(it);
+    if (it.k === 'container') out.push(...fences(it.items));
+  }
+  return out;
+}
+
+/** Names a document's definition may not take: they would hide what the reader means (6.4). */
+const DOC_RESERVED = new Set(['document']);
+
+/**
+ * The document's own definitions (6.25): parsed with the document's own line numbers, added to an
+ * overlay of the program and checked. A name a pack or core already gives is refused (mkp.shadow).
+ */
+function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, diags: Diagnostics, opts: DocCheckOptions): { prog: Program; defs: IRDef[]; sigs: Map<string, Sig> } {
+  const fs = fences(syn.items);
+  if (!fs.length && !opts.docFile) return { prog, defs: [], sigs: opts.sigs };
+  const files: MkpFile[] = [];
+  let lines = 0;
+  if (fs.length) {
+    // each fence's lines where they are in the document, so positions are the document's own
+    const total = src.split('\n').length;
+    const text: string[] = Array.from({ length: total }, () => '');
+    for (const f of fs) {
+      const body = f.body.split('\n');
+      body.forEach((l, i) => (text[f.line + i] = l));
+      lines += body.filter((l) => l.trim()).length;
+    }
+    files.push(parseMkp(text.join('\n'), file, diags, { inline: true }));
+  }
+  if (opts.docFile) {
+    files.push(parseMkp(opts.docFile.text, opts.docFile.file, diags, { inline: true }));
+    lines += opts.docFile.text.split('\n').filter((l) => l.trim()).length;
+  }
+  const at = (p?: Pos): Pos => p ?? { file, line: fs[0]?.line ?? 1, col: 1 };
+  if (lines > DOC_DEF_LINES) diags.error('mkp.doc-size', `the document's own definitions are ${lines} lines; at most ${DOC_DEF_LINES} — a definition used this much belongs in a pack`, at());
+  const names = new Set<string>();
+  for (const f of files) {
+    f.items = f.items.filter((it) => {
+      if (it.item === 'def' || it.item === 'type' || it.item === 'fn' || it.item === 'op' || it.item === 'const') return true;
+      diags.error('mkp.doc-item', `a document defines widgets, parts, types and fns; ${it.item === 'manifest' ? 'a manifest' : it.item === 'tokens' ? 'tokens' : it.item === 'macro' ? 'a macro' : 'an interface'} belongs in a pack`, at(it.p));
+      return false;
+    });
+    for (const it of f.items) {
+      const name = 'symbol' in it ? (it as { symbol: string }).symbol : (it as { name: string }).name;
+      if (it.item !== 'op') names.add(name);
+      if (it.item !== 'def' && it.item !== 'type') continue;
+      if (DOC_RESERVED.has(name)) {
+        diags.error('mkp.shadow', `"${name}" is reserved for the document itself; name the definition something else`, it.p);
+        continue;
+      }
+      // a pack's or core's name: a copy must be renamed (mkp show --source --as)
+      const hit = it.item === 'def' ? prog.lookupDefs(name, DOC_PACK)[0] : prog.lookupType(name, DOC_PACK);
+      if (hit) diags.error('mkp.shadow', `${name} is already ${hit.pack === 'core' ? 'a base widget or type' : `provided by ${hit.pack}`}; give this one its own name${it.item === 'def' ? ' (mkp show --source --as copies one renamed)' : ''}`, it.p);
+    }
+  }
+  const info: PackInfo = {
+    name: DOC_PACK,
+    version: 1,
+    kind: 'pack',
+    requires: ['core@1'],
+    depends: [],
+    provides: names,
+    manifest: { item: 'manifest', kind: 'pack', name: DOC_PACK, version: 1, requires: ['core@1'], depends: [], provides: [...names], front: [], attrs: [], roles: [], rules: [], p: { file, line: 1, col: 1 }, comments: [] },
+    files,
+    fixtures: [],
+    assets: new Map(),
+    documents: [],
+    digest: '',
+  };
+  const p2 = prog.overlay(diags);
+  p2.addPack(info);
+  const sigs = new Map(opts.sigs);
+  const entries = [...p2.defs.values()].filter((d) => d.pack === DOC_PACK);
+  for (const d of entries) sigs.set(d.id, signatureOf(p2, d));
+  const defs: IRDef[] = [];
+  const checkers: DefChecker[] = [];
+  for (const d of entries) {
+    const dc = new DefChecker(p2, d, diags, { ...opts, sigs });
+    try {
+      const ir = dc.check();
+      ir.inline = true;
+      // a document's widget is read without it by any reader of the Markdown (6.25)
+      if (d.syn.kind === 'widget' && !ir.project?.md) diags.error('mkp.no-project', `${d.syn.name} has no project md: a document's widget says in Markdown what it shows, for readers without it`, d.syn.p);
+      defs.push(ir);
+      checkers.push(dc);
+    } catch (e) {
+      dc.err(e);
+    }
+  }
+  for (const dc of checkers) dc.runDeferred();
+  return { prog: p2, defs, sigs };
+}
+
+export function checkDocument(prog0: Program, src: string, file: string, diags: Diagnostics, opts: DocCheckOptions): CheckedDoc {
   const syn = parseDoc(src, file, diags);
+  const own = documentDefs(prog0, syn, src, file, diags, opts);
+  const prog = own.prog;
+  opts = { ...opts, sigs: own.sigs };
   // the synthetic definition: state blocks become its state lines
   const states: { line: number; body: string }[] = [];
   const collect = (items: DocItem[]): void => {
@@ -52,7 +169,7 @@ export function checkDocument(prog: Program, src: string, file: string, diags: D
   const body = d.items(syn.items, true);
   dc.runDeferred();
   duplicateAnchors(body, file, diags);
-  return { file, front: d.front(syn), body, def, uses: dc.uses };
+  return { file, front: d.front(syn), body, def, uses: dc.uses, prog, defs: own.defs };
 }
 
 /** An anchor names one block: links, a host's ids and progress keyed by it would reach only the first. */
@@ -136,6 +253,8 @@ class DocChecker {
             out.push({ node: 'controls', names, pos: [it.line, 1] });
             break;
           }
+          case 'defs':
+            break;
           case 'block': {
             const n = this.block(it);
             if (n) {
@@ -183,7 +302,7 @@ class DocChecker {
       }
       return { node: 'code', def: 'core:code@1', props: { src: { text: it.yaml }, lang: { text: it.info } }, pos: [it.line, 1] };
     }
-    const sig = this.widgetSig(it.name, p);
+    let sig = this.widgetSig(it.name, p);
     let data: unknown;
     try {
       data = it.yaml.trim() ? YAML.parse(it.yaml, { strict: true, uniqueKeys: true }) : {};
@@ -194,6 +313,7 @@ class DocChecker {
     if (typeof data !== 'object' || Array.isArray(data)) throw new MkpError('mkp.yaml', `the ${sig.name} block must be a YAML mapping of its inputs`, p);
     const obj = data as Record<string, unknown>;
     this.guard(obj, this.p(it.line + 1), `the ${sig.name} block`);
+    if (sig.params?.length) sig = this.bindYaml(sig, obj, it);
     const node: IRNode = { node: sig.name, def: sig.id, props: {}, pos: [it.line, 1] };
     const summary = obj.summary;
     if (typeof summary !== 'string' || !summary.trim()) {
@@ -211,6 +331,30 @@ class DocChecker {
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
     this.requireInputs(node, sig, p);
     return node;
+  }
+
+  /** A block's type parameters, told from its YAML: items: [{city: Lisbon, …}] makes T {city: text, …}. */
+  private bindYaml(sig: Sig, obj: Record<string, unknown>, it: { line: number; yaml: string }): Sig {
+    const params = sig.params!;
+    const bound: Record<string, Type> = {};
+    const env = this.prog.typeEnv(sig.pack);
+    for (const [k, v] of Object.entries(obj)) {
+      const inp = sig.inputs.get(k);
+      if (!inp || resolve(inp.type, env).t === 'path') continue;
+      const mentions = JSON.stringify(inp.type).match(/"name":"([A-Z][A-Za-z0-9]*)"/g)?.some((m) => params.includes(m.slice(8, -1)));
+      if (!mentions) continue;
+      let got: Type;
+      try {
+        got = yamlType(v, k);
+      } catch (e) {
+        throw new MkpError('mkp.input-type', (e as Error).message, this.p(this.lineOf(it, k)));
+      }
+      const err = unify(inp.type, got, params, bound, env);
+      if (err) throw new MkpError('mkp.input-type', err, this.p(this.lineOf(it, k)));
+    }
+    const missing = params.filter((x) => !bound[x]);
+    if (missing.length) throw new MkpError('mkp.input-type', `${sig.name} can't tell what ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'}: give the inputs that hold ${missing.length > 1 ? 'them' : 'it'}`, this.p(it.line));
+    return instantiate(sig, bound);
   }
 
   private looksLikeWidget(yaml: string): boolean {
@@ -334,6 +478,9 @@ class DocChecker {
         if (!fits(b.type, t.of, env)) throw new MkpError('mkp.input-type', `${what} is ${showType(t.of)}, but ${r.ref} is ${showType(b.type)}`, p);
         return { ref: r.ref };
       }
+      case 'path':
+        if (typeof v !== 'string') return bad('a field name');
+        return this.dc.pathTo(v, t, p);
       case 'expr': {
         if (typeof v !== 'string' && typeof v !== 'number') return bad(`an expression in ${t.vars.map((x) => x[0]).join(', ')}`);
         const e = parseExprString(String(v), this.file, p.line, p.col);
@@ -368,6 +515,10 @@ class DocChecker {
         return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : bad('text');
       case 'choice':
         return typeof v === 'string' && t.opts.includes(v) ? v : bad(`one of ${t.opts.join(', ')}`);
+      case 'token':
+        // a colour in a YAML record is a token name (GAPS 155)
+        if (typeof v === 'string' && (v === 'none' || this.dc.opts.tokenNames(t.kind).has(v))) return v;
+        throw new MkpError('mkp.unknown-token', `${what} is a ${t.kind} token; "${String(v)}" is not one${didYouMean(String(v), this.dc.opts.tokenNames(t.kind))}`, p);
       case 'point':
         return Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number') ? v : bad('a point [x, y]');
       case 'list':

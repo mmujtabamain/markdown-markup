@@ -2,7 +2,7 @@
 // documents, write the lock and assemble bundles.
 
 import { CORE_MKP } from './base';
-import { checkDocument, DOC_PACK } from './check/doc';
+import { checkDocument, DOC_PACK, type DocFile } from './check/doc';
 import { DefChecker, signatureOf, type Sig } from './check/def';
 import { Program, type PackInfo } from './check/program';
 import { Diagnostics, MkpError } from './diag';
@@ -59,21 +59,29 @@ export class Compiled {
     return (kind) => names.get(kind) ?? new Set();
   }
 
-  /** Checks a document and assembles its bundle (null when it has errors). */
-  document(text: string, file: string, diags = this.diags, opts: { allowParts?: boolean } = {}): IRBundle | null {
+  /**
+   * Checks a document and assembles its bundle (null when it has errors). Its own definitions
+   * (mkp fences, and `docFile`, the name.mkp beside it) are checked with it and go in its bundle.
+   */
+  document(text: string, file: string, diags = this.diags, opts: { allowParts?: boolean; docFile?: DocFile } = {}): IRBundle | null {
     const before = diags.errors.length;
     const prof = this.opts.profile ? this.prog.packs.get(this.opts.profile) : undefined;
     const blockAttrs = new Set(prof?.kind === 'profile' ? prof.manifest.attrs.map((a) => a.name) : []);
-    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn(), blockAttrs });
+    const cd = checkDocument(this.prog, text, file, diags, { tokenNames: this.tokenNameFn(), sigs: this.sigs, allowParts: opts.allowParts, locked: this.lockedFn(), blockAttrs, docFile: opts.docFile });
     if (this.opts.profile) checkProfile(this, cd.front, cd.body, file, diags);
     if (diags.errors.length > before) return null;
     const doc: IRDoc = { file, front: cd.front, body: cd.body };
     doc.digest = digest({ front: doc.front, body: stripPos(doc.body) });
-    return this.bundle(doc, cd.def);
+    const own = new Map(cd.defs.map((d) => [d.id, d]));
+    markDefFallbacks(own);
+    for (const d of own.values()) d.digest = digest(stripPos({ ...d, fns: d.fns }));
+    return this.bundle(doc, cd.def, { prog: cd.prog, defs: own });
   }
 
   /** A self-contained bundle: the document, the definitions it uses, fns, tokens and the lock. */
-  bundle(doc: IRDoc, docDef: IRDef): IRBundle {
+  bundle(doc: IRDoc, docDef: IRDef, own?: { prog: Program; defs: Map<string, IRDef> }): IRBundle {
+    const prog = own?.prog ?? this.prog;
+    const lookup = (id: string): IRDef | undefined => own?.defs.get(id) ?? this.defs.get(id);
     const defs: Record<string, IRDef> = {};
     const fns: Record<string, IRFn> = {};
     const consts: Record<string, IRExpr> = {};
@@ -83,14 +91,14 @@ export class Compiled {
       if (!a || typeof a !== 'object') return;
       if ((a.t === 'call' || a.t === 'fnref') && !seenFn.has(a.fn)) {
         seenFn.add(a.fn);
-        const f = this.prog.irFns[a.fn];
+        const f = prog.irFns[a.fn];
         if (f) {
           fns[a.fn] = f;
           visitAst(f.body);
         }
       }
       if (a.t === 'var' && a.from === 'const' && !consts[a.name]) {
-        const c = this.prog.irConsts[a.name];
+        const c = prog.irConsts[a.name];
         if (c) {
           consts[a.name] = c;
           visitAst(c.ast);
@@ -107,7 +115,7 @@ export class Compiled {
       if (Array.isArray(v)) return v.forEach(visitVal);
       const o = v as Record<string, unknown>;
       if ('ast' in o && o.ast && typeof o.ast === 'object') visitAst(o.ast as A);
-      if (typeof o.def === 'string' && !defs[o.def] && this.defs.has(o.def)) want.push(o.def);
+      if (typeof o.def === 'string' && !defs[o.def] && lookup(o.def)) want.push(o.def);
       for (const x of Object.values(o)) if (x && typeof x === 'object') visitVal(x);
     };
     visitVal(doc.body);
@@ -115,7 +123,7 @@ export class Compiled {
     while (want.length) {
       const id = want.pop()!;
       if (defs[id]) continue;
-      const d = this.defs.get(id)!;
+      const d = lookup(id)!;
       defs[id] = d;
       visitVal(d);
       for (const f of Object.values(d.fns ?? {})) visitAst(f.body);
@@ -124,17 +132,19 @@ export class Compiled {
     markFallbacks(doc.body, defs);
     for (const f of Object.values(docDef.fns ?? {})) visitAst(f.body);
     const types: Record<string, Type> = {};
-    for (const [k, t] of this.prog.types) types[k] = t.type;
+    for (const [k, t] of prog.types) types[k] = t.type;
     const caps = new Set<string>(['core@1']);
-    const iface: IRBundle['interface'] = { signals: [], hosts: [], commands: [] };
+    const iface: IRBundle['interface'] = { signals: [], hosts: [], commands: [], implements: [] };
     for (const d of Object.values(defs)) {
       for (const r of d.requires ?? []) caps.add(r);
       for (const s of d.signals ?? []) iface.signals.push({ def: d.id, name: s.name, payload: s.payload });
       for (const v of d.values ?? []) if (v.k === 'host') iface.hosts.push({ def: d.id, name: v.name, type: v.type, default: v.default });
       for (const c of d.commands ?? []) iface.commands.push({ def: d.id, name: c.name, payload: c.payload });
+      for (const i of d.implements ?? []) iface.implements.push({ def: d.id, iface: i });
     }
+    markInterfaces(doc.body, defs);
     const macros: Record<string, string> = {};
-    for (const [k, m] of this.prog.macros) macros[k] = m.tex;
+    for (const [k, m] of prog.macros) macros[k] = m.tex;
     const lockDefs: Record<string, string> = {};
     for (const id of Object.keys(defs)) if (this.lock.defs[id]) lockDefs[id] = this.lock.defs[id];
     const packsUsed = new Set(Object.values(defs).map((d) => d.pack));
@@ -218,7 +228,7 @@ export function compile(opts: CompileOptions): Compiled {
     }
     for (const r of p.requires) if (!/^(core|gfx)@1$/.test(r)) diags.error('mkp.capability', `${p.name} requires ${r}, which is not a known capability (core@1, gfx@1)`, where);
     for (const name of p.provides) {
-      const has = [...prog.defs.values()].some((d) => d.pack === p.name && d.syn.name === name) || prog.types.has(`${p.name}:${name}`) || prog.fns.get(name)?.some((f) => f.pack === p.name) || prog.consts.get(name)?.some((x) => x.pack === p.name) || prog.tokenSets.some((t) => t.pack === p.name && t.syn.name === name);
+      const has = [...prog.defs.values()].some((d) => d.pack === p.name && d.syn.name === name) || [...prog.ifaces.values()].some((x) => x.pack === p.name && x.syn.name === name) || prog.types.has(`${p.name}:${name}`) || prog.fns.get(name)?.some((f) => f.pack === p.name) || prog.consts.get(name)?.some((x) => x.pack === p.name) || prog.tokenSets.some((t) => t.pack === p.name && t.syn.name === name);
       if (!has) diags.error('mkp.pack-provides', `${p.name} provides "${name}", but no definition, type, fn or constant has that name`, where);
     }
   }
@@ -240,6 +250,7 @@ export function compile(opts: CompileOptions): Compiled {
   // tokens
   c.tokens = prog.tokenSets.map((t) => tokenSetIR(t.syn, t.pack, diags));
   checkRequired(c.tokens, diags);
+  prog.tokenNames = c.tokenNameFn();
   // definitions
   const checkers: DefChecker[] = [];
   for (const d of prog.defs.values()) c.sigs.set(d.id, signatureOf(prog, d));
@@ -262,6 +273,52 @@ export function compile(opts: CompileOptions): Compiled {
   // the lock: pack digests and the version each name resolved to
   c.lock = makeLock(c, opts.lock, diags);
   return c;
+}
+
+/**
+ * Puts on each document block the interfaces its definition implements (meta.implements), and
+ * those of the definitions used inside it at any depth (meta.within), so a host finds a question
+ * inside a walk without knowing either's name (6.24).
+ */
+function markInterfaces(body: IRNode[], defs: Record<string, IRDef>): void {
+  const deep = new Map<string, Set<string>>();
+  const inside = (id: string, stack: Set<string>): Set<string> => {
+    const hit = deep.get(id);
+    if (hit) return hit;
+    const out = new Set<string>();
+    if (stack.has(id)) return out;
+    stack.add(id);
+    const visit = (ns: IRNode[] | undefined): void => {
+      for (const n of ns ?? []) {
+        if (n.def && defs[n.def] && n.def !== id) {
+          for (const i of defs[n.def].implements ?? []) out.add(i);
+          for (const i of inside(n.def, stack)) out.add(i);
+        }
+        visit(n.children);
+        visit(n.records);
+        for (const c of n.cases ?? []) visit(c.children);
+        visit(n.else);
+        for (const f of Object.values(n.fills ?? {})) visit(f);
+      }
+    };
+    visit(defs[id]?.view);
+    stack.delete(id);
+    deep.set(id, out);
+    return out;
+  };
+  const visit = (ns: IRNode[] | undefined): void => {
+    for (const n of ns ?? []) {
+      const d = n.def ? defs[n.def] : undefined;
+      if (d && d.kind !== 'extern') {
+        if (d.implements?.length) (n.meta ??= {}).implements = [...d.implements];
+        const within = [...inside(d.id, new Set())];
+        if (within.length) (n.meta ??= {}).within = within.sort();
+      }
+      visit(n.children);
+      for (const f of Object.values(n.fills ?? {})) visit(f);
+    }
+  };
+  visit(body);
 }
 
 /** Marks uses of gfx definitions, and gfx canvases, with their fallback (8.1). */

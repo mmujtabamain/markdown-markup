@@ -1,1 +1,0 @@
-{ "widget": "tabs@1", "cases": { "two": { "summary": "Two tabs.", "props": { "pages": [ { "title": "First", "slot": "The first pane, with $x^2$." }, { "title": "Second", "slot": "The **second** pane." } ] } } } }

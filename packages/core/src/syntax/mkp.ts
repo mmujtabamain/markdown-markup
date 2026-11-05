@@ -60,7 +60,8 @@ export type Member =
   | { m: 'requires'; cap: string; p: Pos; comments: string[] }
   | { m: 'budget'; n: number; p: Pos; comments: string[] }
   | { m: 'fields'; names: string[]; p: Pos; comments: string[] }
-  | { m: 'in'; name: string; type: Type; def?: Val; about?: string; p: Pos; comments: string[] }
+  | { m: 'in'; name: string; type: Type; def?: Val; about?: string; answer?: boolean; p: Pos; comments: string[] }
+  | { m: 'implements'; names: string[]; p: Pos; comments: string[] }
   | { m: 'out'; name: string; payload?: Type; about?: string; p: Pos; comments: string[] }
   | { m: 'signal'; name: string; payload: Type; about?: string; p: Pos; comments: string[] }
   | { m: 'host'; name: string; type: Type; def: Val; about?: string; p: Pos; comments: string[] }
@@ -77,6 +78,10 @@ export interface DefSyn {
   kind: 'widget' | 'part' | 'extern';
   name: string;
   version: number;
+  /** type parameters: `walk of S` */
+  params?: string[];
+  /** written without @N, in a document (inline or its file): versioned by the document */
+  inline?: boolean;
   about?: string;
   members: Member[];
   p: Pos;
@@ -119,8 +124,24 @@ export interface ManifestSyn {
   comments: string[];
 }
 
+/** What a host may rely on in a widget that implements it (spec 6.24). */
+export interface InterfaceSyn {
+  item: 'interface';
+  name: string;
+  version: number;
+  about?: string;
+  inputs: { name: string; type: Type; p: Pos }[];
+  hosts: { name: string; type: Type; p: Pos }[];
+  signals: { name: string; payload: Type; p: Pos }[];
+  outs: { name: string; payload?: Type; p: Pos }[];
+  project: boolean;
+  p: Pos;
+  comments: string[];
+}
+
 export type TopSyn =
   | DefSyn
+  | InterfaceSyn
   | TokensSyn
   | ManifestSyn
   | { item: 'type'; name: string; type: Type; p: Pos; comments: string[] }
@@ -134,7 +155,7 @@ export interface MkpFile {
   items: TopSyn[];
 }
 
-const MEMBER_WORDS = new Set(['requires', 'budget', 'fields', 'in', 'out', 'signal', 'host', 'command', 'var', 'fn', 'project']);
+const MEMBER_WORDS = new Set(['requires', 'budget', 'fields', 'in', 'out', 'signal', 'host', 'command', 'var', 'fn', 'project', 'implements']);
 export const CONTROL_WORDS = new Set(['slider', 'choice', 'toggle', 'steps', 'drag']);
 export const ACTION_NAMES = new Set(['set', 'play', 'pause', 'reset', 'reveal', 'hide', 'open', 'close', 'emit', 'send']);
 const OP_SYMBOLS = new Set(['+', '-', '*', '/', '^', '==', '<', 'from', 'point']);
@@ -158,7 +179,12 @@ class LineCtx {
   }
 }
 
-export function parseMkp(src: string, file: string, diags: Diagnostics): MkpFile {
+export interface ParseOptions {
+  /** a document's own definitions (an mkp fence or the document's file): heads need no @N */
+  inline?: boolean;
+}
+
+export function parseMkp(src: string, file: string, diags: Diagnostics, opts: ParseOptions = {}): MkpFile {
   const lines = readLines(src, file, diags);
   const items: TopSyn[] = [];
   let lastManifest: ManifestSyn | null = null;
@@ -170,7 +196,7 @@ export function parseMkp(src: string, file: string, diags: Diagnostics): MkpFile
         packLine(ctx, lastManifest);
         continue;
       }
-      const item = topLevel(ctx, diags);
+      const item = topLevel(ctx, diags, opts);
       if (item) {
         items.push(item);
         lastManifest = item.item === 'manifest' ? item : null;
@@ -206,18 +232,82 @@ function optText(ctx: LineCtx, c: Chunk | undefined): string | undefined {
   return decodeText(c.text);
 }
 
-function topLevel(ctx: LineCtx, diags: Diagnostics): TopSyn | null {
+/**
+ * A definition's head after its keyword: name@N (or a bare name in a document), type parameters
+ * (of S, T) and its about text.
+ */
+function defHead(ctx: LineCtx, cs: Chunk[], at: number, inline: boolean): { name: string; version: number; params?: string[]; about?: string; inline?: boolean } {
+  const c = cs[at] ?? ctx.fail(inline ? 'expected a name' : 'expected name@N', 0);
+  let nv: { name: string; version: number };
+  let bare = false;
+  if (/@/.test(c.text) || !inline) nv = nameVersion(ctx, c);
+  else {
+    if (!NAME_RE.test(c.text) || c.text.includes(':')) ctx.fail(`"${c.text}" is not a valid name (letters, digits, ".", "-" and "_")`, c.at);
+    nv = { name: c.text, version: 1 };
+    bare = true;
+  }
+  let i = at + 1;
+  let params: string[] | undefined;
+  if (cs[i]?.text === 'of') {
+    params = [];
+    i++;
+    while (cs[i] && !cs[i].text.startsWith('"')) {
+      for (const n of cs[i].text.split(',').map((x) => x.trim()).filter(Boolean)) {
+        if (!/^[A-Z][A-Za-z0-9]*$/.test(n)) ctx.fail(`"${n}" is not a type parameter: one capitalised word, such as S or Item`, cs[i].at);
+        params.push(n);
+      }
+      i++;
+    }
+    if (!params.length) ctx.fail('of names the type parameters: name of S', cs[at + 1].at);
+  }
+  const about = optText(ctx, cs[i]);
+  if (cs[i + 1]) ctx.fail(`unexpected "${cs[i + 1].text}" after the description`, cs[i + 1].at);
+  return { ...nv, ...(params ? { params } : {}), about, ...(bare ? { inline: true } : {}) };
+}
+
+function interfaceItem(ctx: LineCtx, diags: Diagnostics, comments: string[]): InterfaceSyn {
+  const cs = chunks(ctx.text);
+  const nv = nameVersion(ctx, cs[1] ?? ctx.fail('expected interface name@N', 0));
+  const it: InterfaceSyn = { item: 'interface', ...nv, about: optText(ctx, cs[2]), inputs: [], hosts: [], signals: [], outs: [], project: false, p: ctx.pos(0), comments };
+  for (const c of ctx.line.children) {
+    const lc = new LineCtx(c, ctx.map.file);
+    try {
+      const m = member(lc, diags);
+      if (m.m === 'in') it.inputs.push({ name: m.name, type: m.type, p: m.p });
+      else if (m.m === 'signal') it.signals.push({ name: m.name, payload: m.payload, p: m.p });
+      else if (m.m === 'out') it.outs.push({ name: m.name, payload: m.payload, p: m.p });
+      else if (m.m === 'host') it.hosts.push({ name: m.name, type: m.type, p: m.p });
+      else if (m.m === 'project') it.project = true;
+      else lc.fail('an interface lists in, host, signal and out lines, and "project md"', 0, 'mkp.syntax');
+    } catch (e) {
+      // "project md" alone is an interface's own line
+      if (/^project\s+md\s*$/.test(c.text)) it.project = true;
+      else if (/^host\s+[A-Za-z_][A-Za-z0-9_]*\s+\S/.test(c.text) && !c.text.includes('=')) {
+        const name = chunks(c.text)[1].text;
+        it.hosts.push({ name, type: typedMember(lc, c.text.indexOf(name) + name.length).type, p: lc.pos(0) });
+      } else report(e, diags);
+    }
+  }
+  return it;
+}
+
+function topLevel(ctx: LineCtx, diags: Diagnostics, opts: ParseOptions = {}): TopSyn | null {
   const text = ctx.text;
   const cs = chunks(text);
   const head = cs[0].text;
   const comments = ctx.line.comments;
   const p = ctx.pos(0);
+  const inline = !!opts.inline;
   switch (head) {
     case 'extern':
     case 'part': {
-      const nv = nameVersion(ctx, cs[1] ?? ctx.fail('expected name@N', 0));
-      return { item: 'def', kind: head === 'extern' ? 'extern' : 'part', ...nv, about: optText(ctx, cs[2]), members: members(ctx, diags), p, comments };
+      if (head === 'extern' && inline) ctx.fail('a document cannot declare an extern; externs are what a provider draws', 0, 'mkp.syntax');
+      const h = defHead(ctx, cs, 1, inline);
+      return { item: 'def', kind: head === 'extern' ? 'extern' : 'part', ...h, members: members(ctx, diags), p, comments };
     }
+    case 'interface':
+      if (inline) ctx.fail('interfaces belong to a host, in its pack; a document cannot declare one', 0, 'mkp.syntax');
+      return interfaceItem(ctx, diags, comments);
     case 'tokens': {
       const nv = nameVersion(ctx, cs[1] ?? ctx.fail('expected name@N', 0));
       return { item: 'tokens', ...nv, about: optText(ctx, cs[2]), lines: tokenLines(ctx, diags), p, comments };
@@ -270,9 +360,9 @@ function topLevel(ctx: LineCtx, diags: Diagnostics): TopSyn | null {
       return { item: 'macro', name: m[1], tex: tex.slice(d, end - d), p, comments };
     }
     default: {
-      if (/^[^@\s]+@\d+$/.test(head)) {
-        const nv = nameVersion(ctx, cs[0]);
-        return { item: 'def', kind: 'widget', ...nv, about: optText(ctx, cs[1]), members: members(ctx, diags), p, comments };
+      if (/^[^@\s]+@\d+$/.test(head) || (inline && NAME_RE.test(head) && (cs[1]?.text.startsWith('"') || cs[1]?.text === 'of'))) {
+        const h = defHead(ctx, cs, 0, inline);
+        return { item: 'def', kind: 'widget', ...h, members: members(ctx, diags), p, comments };
       }
       ctx.fail(`a top-level line starts a definition (name@N, part, extern), tokens, type, fn, op, const, macro or pack; found "${head}"`, 0, 'mkp.unknown-statement');
     }
@@ -435,7 +525,7 @@ function fnLine(ctx: LineCtx, nameAt: number, comments: string[], symbol?: strin
 }
 
 /** "type [= value] ["about"]" after a member name. */
-function typedMember(ctx: LineCtx, from: number): { type: Type; def?: Val; about?: string } {
+function typedMember(ctx: LineCtx, from: number): { type: Type; def?: Val; about?: string; answer?: boolean } {
   const text = ctx.text;
   const eq = findTopEq(text, from);
   let typeEnd = eq >= 0 ? eq : text.length;
@@ -449,7 +539,10 @@ function typedMember(ctx: LineCtx, from: number): { type: Type; def?: Val; about
     }
   }
   const { type, end } = parseType(text, from, typeEnd, ctx.map);
-  if (text.slice(end, typeEnd).trim()) ctx.fail(`unexpected "${text.slice(end, typeEnd).trim()}" after the type`, end);
+  let answer: boolean | undefined;
+  const after = text.slice(end, typeEnd).trim();
+  if (after === 'answer') answer = true;
+  else if (after) ctx.fail(`unexpected "${after}" after the type`, end);
   let def: Val | undefined;
   if (eq >= 0) {
     const cs = chunks(text, eq + 1);
@@ -458,7 +551,7 @@ function typedMember(ctx: LineCtx, from: number): { type: Type; def?: Val; about
     if (cs[1]) about = optText(ctx, cs[1]);
     if (cs.length > 2) ctx.fail(`unexpected "${cs[2].text}"`, cs[2].at);
   }
-  return { type, def, about };
+  return { type, def, about, ...(answer ? { answer } : {}) };
 }
 
 function recordTypeAfter(ctx: LineCtx, from: number): { payload?: Type; about?: string } {
@@ -507,6 +600,12 @@ function member(ctx: LineCtx, diags: Diagnostics): Member {
         if (!Number.isInteger(n) || n <= 0) ctx.fail('expected a positive whole number of operations', cs[1]?.at ?? 0);
         return { m: 'budget', n, p, comments };
       }
+      case 'implements': {
+        const names = cs.slice(1).map((c) => c.text);
+        if (!names.length) ctx.fail('implements names an interface: implements studypad.question@1');
+        for (const n of names) if (!/^[A-Za-z_][A-Za-z0-9_.:-]*@\d+$/.test(n)) ctx.fail(`"${n}" is not an interface name@N`);
+        return { m: 'implements', names, p, comments };
+      }
       case 'fields': {
         const names = cs.slice(1).map((c) => c.text);
         for (const n of names) if (!IDENT_RE.test(n)) ctx.fail(`"${n}" is not a valid input name`);
@@ -519,6 +618,7 @@ function member(ctx: LineCtx, diags: Diagnostics): Member {
         if (!name || !IDENT_RE.test(name)) ctx.fail(`expected "${word} name type …"`, cs[1]?.at ?? 0);
         const t = typedMember(ctx, cs[1].at + name.length);
         if (word === 'in') return { m: 'in', name, ...t, p, comments };
+        if (t.answer) ctx.fail('only an input (in) can be an answer', 0);
         if (!t.def) ctx.fail(`a ${word} always has a default: "${word} ${name} type = value"`, 0, 'mkp.missing-default');
         return { m: word, name, type: t.type, def: t.def, about: t.about, p, comments };
       }

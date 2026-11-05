@@ -1,9 +1,0 @@
-part toggle@1 "A switch for the caller's on/off state, with its label."
-  fields on label
-  in on ref bool "the caller's state"
-  in label text "what it switches"
-  out changed {on: bool} "after the reader flips it"
-  project md = if(on, "- [x] ", "- [ ] ") + label
-  press id=switch kind=switch selected=on
-    text label
-    @click set on=(not on) emit changed on=(not on)

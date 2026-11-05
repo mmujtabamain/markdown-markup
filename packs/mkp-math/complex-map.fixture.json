@@ -1,8 +1,0 @@
-{ "widget": "complex-map@1", "cases": {
-  "square": { "summary": "A grid under $w = z^2$: horizontal lines become parabolas opening left, vertical ones parabolas opening right.",
-    "props": { "f": "z^2" }, "play": [ { "set": { "p": [1, 0.8] } }, { "wait": 100 } ] },
-  "exp": { "summary": "The exponential maps horizontal lines to rays and vertical lines to circles.",
-    "props": { "f": "exp(z)", "r": 2, "wr": 4, "lines": 8 } },
-  "inverse": { "summary": "Four points and their images under $w = 1/z$.",
-    "props": { "f": "1/z", "mode": "points", "zs": [[1, 0.5], [0.5, 1], [-1, 0.5], [0.4, -0.8]] } },
-  "too-many-lines": { "props": { "lines": 40 }, "expect": { "errors": ["mkp.input-range"] } } } }
