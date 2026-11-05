@@ -203,10 +203,11 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'text': {
       const f = theme.font(p.font ?? 'body');
       const scale = p.size === 'small' ? 0.875 : p.size === 'large' ? 1.25 : 1;
-      const tone = String(p.tone ?? 'ink');
+      // none: the colour around it, which a press passes down (InkCtx)
+      const tone = String(p.tone ?? 'none');
       const lines = Number(p.lines) || 0;
       const st: TextStyle = {
-        color: tone === 'ink' ? ink : theme.color(tone) ?? ink,
+        color: tone === 'none' ? ink : theme.color(tone) ?? ink,
         fontFamily: f.fontFamily,
         fontSize: f.fontSize * scale,
         lineHeight: f.lineHeight * scale,

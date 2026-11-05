@@ -101,7 +101,7 @@ extern text@1 "A styled run of inline Markdown with inline maths."
   fields value
   in value text = ""
   in font font = body
-  in tone color = ink
+  in tone color = none "its colour; none: the colour around it (a press's, a list's)"
   in weight choice(regular|medium|bold) = regular
   in size choice(small|normal|large) = normal
   in align choice(start|center|end) = start
