@@ -1,6 +1,6 @@
 ---
 teaches: "a listing with its current line marked, inline and display maths, and a formula's marked parts"
-gaps: [33, 68, 163]
+gaps: [33, 68, 96, 163]
 ---
 # Averages
 

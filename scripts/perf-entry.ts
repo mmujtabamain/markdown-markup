@@ -16,7 +16,8 @@ const folder = (d: string): PackSource => {
   walk(d);
   return { files, label: relative(root, d) };
 };
-const packs = [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), ...readdirSync(join(root, 'examples')).map((n) => folder(join(root, 'examples', n)))];
+// the test packs: MKP ships none of its own (a host times its own library the same way)
+const packs = readdirSync(join(root, 'conformance/packs')).map((n) => folder(join(root, 'conformance/packs', n)));
 const t0 = performance.now();
 const c = compile({ packs });
 console.log(`compile ${c.defs.size} definitions: ${(performance.now() - t0).toFixed(0)} ms`);

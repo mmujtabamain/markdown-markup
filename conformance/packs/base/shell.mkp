@@ -1,0 +1,45 @@
+shell@1 "A frame with every slot and prop, panes side by side, a zoom, icons and overlays."
+  at = steps 3 "step"
+  var open bool = false
+  frame kind="Shell" title="**Every** part" status=("step \val{at + 1}: a status that is long enough to wrap onto a second line") statuslines=2 tone=info height=m
+    row align=stretch
+      pane title="Left" note="3" grow basis=s
+        text "left pane"
+        fill footer
+          text "footer" size=small
+      pane title="Right" grow basis=s
+        zoom max=3 fit=false
+          text "zoomed"
+    row gap=xs
+      icon name=check tone=ok size=small label="ok"
+      icon name=alert tone=warn size=large
+      icon name=sliders
+      overlay mode=popover label="more" id=pop
+        icon name=info label="more"
+        fill body
+          text "a popover"
+      overlay mode=tooltip label="tip"
+        text "?"
+        fill body
+          text "a tooltip"
+      overlay mode=dialog label="ask" id=dlg emphasis=low
+        text "ask"
+        fill body
+          press id=shut
+            text "close"
+            @click close dlg
+      overlay mode=menu label="pick"
+        text "pick"
+        fill body
+          press kind=option
+            text "first"
+    fill actions
+      press kind=toggle selected=open label="open"
+        icon name=expand
+        @click set open=(not open)
+    fill bar
+      text "in the bar" size=small
+    fill about
+      text "about drawer"
+    fill details
+      text "details drawer"

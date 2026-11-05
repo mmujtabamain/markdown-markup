@@ -1,0 +1,1 @@
+{ "widget": "inner@1", "cases": { "one": { "summary": "A counter part.", "play": [{ "press": "bump" }] } } }

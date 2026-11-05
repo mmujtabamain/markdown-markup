@@ -1,0 +1,14 @@
+entry@1 "A range and fields: one line, several, a number, and a field's tone."
+  var v num = 0.25
+  var name text = "Ana"
+  var note text = ""
+  var n text = "3"
+  var said text = ""
+  column gap=s
+    range value=v min=0 max=1 step=0.05 label="amount"
+      @change set said=("moved to " + format(change.value, 2))
+    field value=name label="name" placeholder="your name" width=s tone=ok
+      @submit set said=("hello " + submit.value)
+    field value=note label="a note" lines=3 tone=bad
+    field value=n kind=number label="a number"
+    text "\val{v} \val{name} \val{said}"

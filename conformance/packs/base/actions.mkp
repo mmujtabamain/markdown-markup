@@ -1,0 +1,34 @@
+part inner@1 "A part that counts and tells its caller."
+  in step int = 1
+  var count int = 0
+  out bumped {by: int}
+  press id=bump
+    text "bump \val{count}"
+    @click set count=(count + step) emit bumped by=step
+
+actions@1 "Every action: set, play, pause, reset, reveal, hide, open, close, emit, send, and a guarded line."
+  signal tapped {total: int} "sent on each bump"
+  var total int = 0
+  var log text = ""
+  s = slider 0..5 step=1 play=500ms "slider"
+  column gap=xs
+    inner step=2
+      @bumped set total=(total + bumped.by) send tapped total=(total + bumped.by)
+      @bumped set log=(log + "big ") if=(total >= 4)
+    press id=go
+      text "go"
+      @click play s reveal note open pop
+    press id=stop
+      text "stop"
+      @click pause s hide note close pop reset total
+    text "a note" id=note hidden
+    overlay mode=popover label="pop" id=pop
+      text "pop"
+      fill body
+        text "popped"
+    text "\val{total} \val{s} \val{log}"
+
+outer@1 "Two inner parts, keyed, whose state a fixture sets by path."
+  column
+    each k in [1, 2] key=k
+      inner step=k

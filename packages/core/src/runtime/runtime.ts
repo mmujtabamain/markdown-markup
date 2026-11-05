@@ -312,16 +312,35 @@ export class Runtime {
     return false;
   }
 
-  /** Fixture play step {"set": {…}} on the first widget (or the document's state). */
+  /**
+   * Fixture play step {"set": {…}} on the first widget (or the document's state); "part/name"
+   * sets the state of the first instance of that part inside the blocks (GAPS 87).
+   */
   set(values: Record<string, unknown>, inst?: Inst): void {
     this.view();
-    for (const [k, v] of Object.entries(values)) {
-      const owner = inst ?? [...this.blocks(), this.root].find((i) => i.cellOf(k));
+    for (const [k0, v] of Object.entries(values)) {
+      const slash = k0.indexOf('/');
+      const k = slash >= 0 ? k0.slice(slash + 1) : k0;
+      const pool = slash >= 0 ? [...this.instances.values()].filter((i) => i.def.name === k0.slice(0, slash)) : [...this.blocks(), this.root];
+      const owner = inst ?? pool.find((i) => i.cellOf(k));
       const c = owner?.cellOf(k);
-      if (!owner || !c) throw new Error(`no state "${k}" in any widget block`);
+      if (!owner || !c) throw new Error(`no state "${k0}" in any widget block`);
       this.setCell(owner, k, fromJson(v));
     }
     this.changed();
+  }
+
+  /** Fixture play step {"open": id}: opens an overlay (GAPS 115). */
+  open(id: string): boolean {
+    this.view();
+    for (const inst of [this.root, ...this.instances.values()]) {
+      const key = inst.ids.get(id);
+      if (key && this.handlers.get(key)?.has('open')) {
+        this.dispatch(key, 'open');
+        return true;
+      }
+    }
+    return false;
   }
 
   /** The instance a scope view node stands for. */

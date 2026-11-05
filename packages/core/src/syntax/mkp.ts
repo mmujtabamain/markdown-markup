@@ -610,7 +610,7 @@ function member(ctx: LineCtx, diags: Diagnostics): Member {
       }
       case 'implements': {
         const names = cs.slice(1).map((c) => c.text);
-        if (!names.length) ctx.fail('implements names an interface: implements studypad.question@1');
+        if (!names.length) ctx.fail('implements names an interface: implements scored@1');
         for (const n of names) if (!/^[A-Za-z_][A-Za-z0-9_.:-]*@\d+$/.test(n)) ctx.fail(`"${n}" is not an interface name@N`);
         return { m: 'implements', names, p, comments };
       }

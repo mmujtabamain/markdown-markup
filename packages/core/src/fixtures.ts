@@ -8,10 +8,13 @@ import type { IRBundle } from './ir';
 
 export interface PlayStep {
   press?: string;
+  /** state by name; "part/name" sets a nested part's (GAPS 87) */
   set?: Record<string, unknown>;
   command?: string;
   args?: Record<string, unknown>;
   wait?: number;
+  /** an overlay by id (GAPS 115) */
+  open?: string;
 }
 
 export interface FixtureCase {
@@ -46,7 +49,7 @@ export function fixtureShape(json: unknown): string | null {
       if (!Array.isArray(cc.play)) return `case ${n}: play is a list of steps`;
       for (const s of cc.play) {
         const keys = Object.keys(s ?? {});
-        if (!keys.length || !keys.every((k) => ['press', 'set', 'command', 'args', 'wait'].includes(k))) return `case ${n}: a play step is press, set, command (with args) or wait`;
+        if (!keys.length || !keys.every((k) => ['press', 'set', 'command', 'args', 'wait', 'open'].includes(k))) return `case ${n}: a play step is press, set, command (with args), wait or open`;
       }
     }
   }

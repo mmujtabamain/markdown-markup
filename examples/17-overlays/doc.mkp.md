@@ -41,6 +41,9 @@ recipe "A recipe's tools: a note, a hint, a confirmation and a menu of servings.
             press
               text "Cancel"
               @click close confirm
+    press kind=plain emphasis=low label="save, from elsewhere"
+      text "or save it here" tone=muted size=small
+      @click open confirm
     text "Saved." tone=ok if=saved
   project md = "Potato salad, serves " + serves + "."
 ```

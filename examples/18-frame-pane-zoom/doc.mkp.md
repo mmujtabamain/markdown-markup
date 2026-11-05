@@ -19,6 +19,7 @@ plan "A flat's floor plan beside the list of its rooms, in a frame."
           text "\val{format(total, 0)} m² in all" tone=muted size=small
       pane title="Plan" grow basis=m
         zoom max=3
+          image "plan.svg" "the flat from above" size=m
           grid cols=3 gap=xs
             each k in 0..(len(rooms) - 1) key=k
               column pad=m stroke=(if(k == at, accent, line)) radius=card

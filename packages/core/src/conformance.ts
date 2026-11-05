@@ -50,6 +50,7 @@ function play(rt: Runtime, steps: PlayStep[]): void {
   for (const s of steps) {
     if (s.press) rt.press(s.press);
     if (s.set) rt.set(s.set);
+    if (s.open) rt.open(s.open);
     if (s.command) rt.widget(0).command(s.command, s.args);
     if (s.wait) for (let t = 0; t < s.wait; t += 50) rt.tick(Math.min(50, s.wait - t));
   }

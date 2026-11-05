@@ -1,0 +1,1 @@
+{ "widget": "tile@1", "cases": { "one": { "props": { "label": "a tile" }, "summary": "A tile." } } }

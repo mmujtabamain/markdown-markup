@@ -1,0 +1,36 @@
+# The four containers, with every prop they take, and how a child sits in them.
+part tile@1 "A labelled tile."
+  fields label
+  in label text
+  column pad=s stroke=line radius=card
+    text label
+
+boxes@1 "Every container prop: column, row, grid tracks and the layered stack."
+  in wide bool = false
+  column pad=m gap=l fill=surface stroke=line line=dashed edge=all weight=normal radius=card shadow=raised align=stretch justify=start width=auto
+    row gap=s align=center justify=between wrap minwidth=m tint=info
+      tile "start" self=start
+      tile "grows" grow basis=s
+      tile "end" self=end
+    row gap=s wrap=false scroll=x minwidth=l justify=center
+      tile "one"
+      tile "two"
+      tile "three"
+    grid cols=[auto, 1fr, 6ch, s] gap=xs align=center justify=start
+      tile "a"
+      tile "b"
+      tile "c" span=2
+      tile "d"
+    grid cols=(if(wide, 4, 2)) gap=xs
+      tile "e"
+      tile "f"
+    stack align=center justify=center width=fit
+      column dim
+        tile "under"
+      tile "over" self=end
+      column blur
+        tile "blurred"
+    column edge=top stroke=ink weight=thick dim
+      tile "kept in view" keep=true
+    column edge=left stroke=line weight=thin
+      tile "a rule on the left"

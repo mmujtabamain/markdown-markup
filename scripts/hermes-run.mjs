@@ -43,12 +43,13 @@ const folder = (d) => {
   walk(d);
   return { label: relative(root, d), files };
 };
-const packs = [...readdirSync(join(root, 'packs')).map((n) => folder(join(root, 'packs', n))), ...readdirSync(join(root, 'examples')).map((n) => folder(join(root, 'examples', n)))];
-const docCase = cases.find((c) => c.id === 'spec18.roots.doc');
-const doc = { path: 'spec18/roots.mkp.md', text: readFileSync(join(root, 'examples/spec18/roots.mkp.md'), 'utf8'), digest: docCase?.bundle.doc.digest };
+// the compiler runs too: the test packs, and a document with its own definitions
+const packs = readdirSync(join(root, 'conformance/packs')).map((n) => folder(join(root, 'conformance/packs', n)));
+const docCase = cases.find((c) => c.id === 'examples.25-roots-of-unity');
+const doc = { path: 'examples/25-roots-of-unity/doc.mkp.md', text: readFileSync(join(root, 'examples/25-roots-of-unity/doc.mkp.md'), 'utf8'), digest: docCase?.bundle.doc.digest };
 
 // Hermes has a 1 GB heap, so the cases run in batches, each a separate process: the first batch
-// also compiles the section-18 document and renders maths.
+// also compiles a document with its own definitions and renders maths.
 const BATCH = 8;
 const batches = [];
 for (let i = 0; i < cases.length; i += BATCH) batches.push(cases.slice(i, i + BATCH));

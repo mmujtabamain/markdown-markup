@@ -1,0 +1,4 @@
+pack base@1 "Test-only definitions that use every extern of the base set and its props, for conformance: what any provider and port must reproduce. Not for documents."
+  requires core@1 gfx@1
+  provides blocks boxes tile typeset presses entry shell shapes surface links controlset actions inner outer
+  unpublished

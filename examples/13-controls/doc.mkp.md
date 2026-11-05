@@ -27,7 +27,11 @@ tea "Steps for a pot of tea, with the water and the strength chosen first."
     press kind=plain
       text "Why not boiling?" tone=accent
       @click reveal why
-    text "Boiling water scalds green tea and makes it bitter." id=why hidden
+    column gap=xs id=why hidden
+      text "Boiling water scalds green tea and makes it bitter."
+      press kind=plain
+        text "Got it" tone=muted size=small
+        @click hide why
   project md = "1. Warm the pot.\n2. Add the tea.\n3. Pour the water at " + format(temp, 0) + "°C and wait " + format(minutes, 0) + " minutes.\n4. Pour, and drink."
 ```
 

@@ -49,6 +49,7 @@ describe.each(cases.map((fc) => [`${fc.pack}/${fc.widget}/${fc.name}`, fc] as co
     for (const s of fc.play ?? []) {
       if (s.press) expect(rt.press(s.press), `press ${s.press}`).toBe(true);
       if (s.set) rt.set(s.set);
+      if (s.open) expect(rt.open(s.open), `open ${s.open}`).toBe(true);
       if (s.command) rt.widget(0).command(s.command, s.args);
       if (s.wait) for (let t = 0; t < s.wait; t += 50) rt.tick(50);
       expect(errs(rt.view())).toEqual([]);
