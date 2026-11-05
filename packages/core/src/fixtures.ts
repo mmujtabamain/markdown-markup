@@ -99,7 +99,8 @@ export interface CaseResult {
 
 export function compileCase(c: Compiled, fc: FixtureCase): CaseResult {
   const diags = new Diagnostics();
-  const bundle = c.document(caseDocument(fc), `${fc.pack}/${fc.file}#${fc.name}`, diags, { allowParts: true });
+  // a pack's fixture cases see its private parts too: every definition has a case
+  const bundle = c.document(caseDocument(fc), `${fc.pack}/${fc.file}#${fc.name}`, diags, { allowParts: true, privateOf: fc.pack });
   const want = fc.expect?.errors;
   if (want?.length) {
     const got = new Set(diags.errors.map((d) => d.code));

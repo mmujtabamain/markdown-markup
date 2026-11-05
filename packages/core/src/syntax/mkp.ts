@@ -556,6 +556,11 @@ function typedMember(ctx: LineCtx, from: number): { type: Type; def?: Val; about
     const cs = chunks(text, eq + 1);
     if (!cs.length) ctx.fail('expected a value after "="', eq);
     def = valueOf(ctx, cs[0]);
+    // answer may also come after the default: in accept list(text) = [] answer "…"
+    if (cs[1]?.text === 'answer') {
+      answer = true;
+      cs.splice(1, 1);
+    }
     if (cs[1]) about = optText(ctx, cs[1]);
     if (cs.length > 2) ctx.fail(`unexpected "${cs[2].text}"`, cs[2].at);
   }

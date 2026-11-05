@@ -724,11 +724,13 @@ const SPECIAL: Record<string, Special> = {
     if (t.t !== 'list' && t.t !== 'text' && t.t !== 'dict' && t.t !== 'records' && t.t !== 'any') return c.fail(p, `len needs a list, text or dict; found ${showType(x.type)}`);
     return { ast: b('len', [x.ast]), type: T.int };
   },
-  map(c, a, p, s) {
+  map(c, a, p, s, ex) {
     arity(c, 'map', a, p, 2);
     const xs = c.check(a[0], s);
     const el = listOf(c, xs, p, 'map');
-    const f = lam(c, a[1], s, [el]);
+    // a list of known type is expected: each result is typed by it, so tokens read as tokens
+    const want = ex && c.r(ex).t === 'list' ? (c.r(ex) as { of: Type }).of : T.unknown;
+    const f = lam(c, a[1], s, [el], hasUnknown(want) ? T.unknown : want);
     return { ast: b('map', [xs.ast, f.ast]), type: T.list(retOf(f)) };
   },
   filter(c, a, p, s) {

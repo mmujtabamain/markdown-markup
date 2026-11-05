@@ -63,6 +63,8 @@ export class Program {
   readonly ifaces = new Map<string, IfaceEntry>();
   /** token names by kind: every checker reads token words with them (GAPS 117) */
   tokenNames?: (kind: string) => Set<string>;
+  /** a pack whose private names a document may use: its own fixture cases */
+  privateFor?: string;
   readonly defs = new Map<string, DefEntry>();
   readonly types = new Map<string, { pack: string; name: string; type: Type; p: Pos }>();
   readonly fns = new Map<string, FnEntry[]>();
@@ -152,6 +154,7 @@ export class Program {
   visible(owner: string, name: string, from: string): boolean {
     if (owner === from) return true;
     const p = this.packs.get(owner);
+    if (from === '$doc' && owner === this.privateFor) return true;
     if (!p || !(p.builtin || p.provides.has(name))) return false;
     if (p.builtin || from === '$doc' || from === '$none') return true;
     const f = this.packs.get(from);

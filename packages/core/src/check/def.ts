@@ -116,22 +116,24 @@ export function unify(want: Type, got: Type, params: string[], bound: Record<str
 }
 
 /** The plain-data type of a YAML value, for inferring a type parameter from a document block. */
-export function yamlType(v: unknown, what: string): Type {
+export function yamlType(v: unknown, what: string, top = true): Type {
   if (typeof v === 'number') return Number.isInteger(v) ? T.int : T.num;
   if (typeof v === 'boolean') return T.bool;
   if (typeof v === 'string') return T.text;
   if (Array.isArray(v)) {
+    // an empty list inside an item takes its type from the other items' (a step with no choices)
+    if (!v.length && !top) return T.list(T.unknown);
     if (!v.length) throw new Error(`${what} is empty, so its items' type can't be told; give at least one`);
-    let t = yamlType(v[0], `${what}[0]`);
+    let t = yamlType(v[0], `${what}[0]`, false);
     for (let i = 1; i < v.length; i++) {
-      const u = yamlType(v[i], `${what}[${i}]`);
+      const u = yamlType(v[i], `${what}[${i}]`, false);
       const j = join(t, u, () => undefined);
       if (!j) throw new Error(`${what}[${i}] is ${showType(u)}, but the items before it are ${showType(t)}: every item has the same fields of the same types`);
       t = j;
     }
     return T.list(t);
   }
-  if (v && typeof v === 'object') return { t: 'rec', fields: Object.entries(v).map(([k, x]) => [k, yamlType(x, `${what}.${k}`)] as [string, Type]) };
+  if (v && typeof v === 'object') return { t: 'rec', fields: Object.entries(v).map(([k, x]) => [k, yamlType(x, `${what}.${k}`, false)] as [string, Type]) };
   throw new Error(`${what} has no value`);
 }
 

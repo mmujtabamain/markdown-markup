@@ -39,6 +39,8 @@ export interface DocFile {
 
 export interface DocCheckOptions extends DefCheckOptions {
   docFile?: DocFile;
+  /** a pack whose private definitions the document may use (its fixture cases) */
+  privateOf?: string;
 }
 
 /** Every mkp fence of a document, containers included. */
@@ -140,6 +142,10 @@ function documentDefs(prog: Program, syn: DocSyn, src: string, file: string, dia
 
 export function checkDocument(prog0: Program, src: string, file: string, diags: Diagnostics, opts: DocCheckOptions): CheckedDoc {
   const syn = parseDoc(src, file, diags);
+  if (opts.privateOf) {
+    prog0 = prog0.overlay(diags);
+    prog0.privateFor = opts.privateOf;
+  }
   const own = documentDefs(prog0, syn, src, file, diags, opts);
   const prog = own.prog;
   opts = { ...opts, sigs: own.sigs };
@@ -355,11 +361,16 @@ class DocChecker {
     const params = sig.params!;
     const bound: Record<string, Type> = {};
     const env = this.prog.typeEnv(sig.pack);
+    // only data tells a parameter (rows: list(R)); a path or an expression in R only reads it
+    const holds = (t: Type): boolean => {
+      if ((t.t === 'named' || t.t === 'param') && params.includes(t.name)) return true;
+      if (t.t === 'list' || t.t === 'dict') return holds(t.of);
+      if (t.t === 'rec') return t.fields.some(([, f]) => holds(f));
+      return false;
+    };
     for (const [k, v] of Object.entries(obj)) {
       const inp = sig.inputs.get(k);
-      if (!inp || resolve(inp.type, env).t === 'path') continue;
-      const mentions = JSON.stringify(inp.type).match(/"name":"([A-Z][A-Za-z0-9]*)"/g)?.some((m) => params.includes(m.slice(8, -1)));
-      if (!mentions) continue;
+      if (!inp || !holds(inp.type)) continue;
       let got: Type;
       try {
         got = yamlType(v, k);
