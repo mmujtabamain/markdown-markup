@@ -117,7 +117,7 @@ class Memo {
 type InputBinding =
   | { k: 'value'; get: () => V }
   | { k: 'ref'; cell: () => Cell }
-  | { k: 'slot'; nodes: IRNode[]; env: Env; inst: Inst }
+  | { k: 'slot'; nodes: IRNode[] }
   | { k: 'records'; get: () => V };
 
 interface SlotValue {
@@ -143,6 +143,8 @@ export class Inst {
   /** this render's ids → view keys */
   ids = new Map<string, string>();
   children: Inst[] = [];
+  /** bumped when the caller's scope changes, so inputs read in it are computed again (GAPS 153) */
+  readonly scope = new Cell(0);
   error: { code: string; message: string } | null = null;
   errorSent = false;
   env!: Env;
@@ -178,7 +180,8 @@ export class Inst {
         case 'ref':
           return b.cell().get();
         case 'slot':
-          return { __slot: true, nodes: b.nodes, env: b.env, inst: b.inst } as unknown as V;
+          this.scope.get();
+          return { __slot: true, nodes: b.nodes, env: this.callerEnv ?? this.env, inst: this.caller ?? this } as unknown as V;
       }
     }
     throw new EvalError('mkp.unbound', `"${name}" has no value in ${this.def.name}`);
@@ -388,22 +391,23 @@ export class Runtime {
         const slotName = inp.name;
         const firstSlot = def.inputs.find((i) => this.resolveType(i.type).t === 'slot')?.name;
         const nodes = slotName === firstSlot ? use?.children ?? [] : use?.fills?.[slotName] ?? [];
-        inst.inputs.set(inp.name, { k: 'slot', nodes, env: inst.callerEnv ?? env, inst: inst.caller ?? inst });
+        inst.inputs.set(inp.name, { k: 'slot', nodes });
         continue;
       }
       if (t.t === 'records') {
         const recs = (use?.records ?? []).filter((r) => r.input === inp.name || (r.node === 'each' || r.node === 'switch'));
-        const callerEnv = inst.callerEnv ?? env;
-        const caller = inst.caller ?? inst;
-        // memoised like a derived value: rebuilt only when state its records read (if=, fields) changes
-        const memo = new Memo(() => this.recordValues(recs, inp.name, callerEnv, caller, t), `${def.name}.${inp.name}`);
+        // memoised like a derived value: rebuilt only when state its records read (if=, fields) changes,
+        // or when the caller's scope does
+        const memo = new Memo(() => {
+          inst.scope.get();
+          return this.recordValues(recs, inp.name, inst.callerEnv ?? env, inst.caller ?? inst, t);
+        }, `${def.name}.${inp.name}`);
         inst.inputs.set(inp.name, { k: 'records', get: () => memo.get() });
         continue;
       }
       if (given && 'ref' in given) {
-        const caller = inst.caller!;
         const name = (given as { ref: string }).ref;
-        inst.inputs.set(inp.name, { k: 'ref', cell: () => caller.cellOf(name) ?? this.fail('mkp.not-state', `${name} is not state in ${caller.label()}`) });
+        inst.inputs.set(inp.name, { k: 'ref', cell: () => inst.caller!.cellOf(name) ?? this.fail('mkp.not-state', `${name} is not state in ${inst.caller!.label()}`) });
         continue;
       }
       const val = given ?? inp.default;
@@ -411,8 +415,12 @@ export class Runtime {
         inst.inputs.set(inp.name, { k: 'value', get: () => this.fail('mkp.missing-input', `${def.name} was not given ${inp.name}`) });
         continue;
       }
-      const evalEnv = given ? inst.callerEnv ?? env : new Env(null, null, null, this.prog);
-      const memo = new Memo(() => this.valueOf(val, evalEnv, inst.caller ?? inst), `${def.name}.${inp.name}`);
+      const constEnv = new Env(null, null, null, this.prog);
+      const memo = new Memo(() => {
+        if (!given) return this.valueOf(val, constEnv, inst);
+        inst.scope.get();
+        return this.valueOf(val, inst.callerEnv ?? env, inst.caller ?? inst);
+      }, `${def.name}.${inp.name}`);
       inst.inputs.set(inp.name, { k: 'value', get: () => memo.get() });
     }
     // values in order
@@ -595,12 +603,13 @@ export class Runtime {
     if (n.in && 'range' in n.in) {
       isRange = true;
       const [a, b] = this.rangeOf(n.in, env, inst);
-      for (let v = Math.ceil(a); v <= b && items.length <= 200; v++) items.push(v);
+      for (let v = Math.ceil(a); v <= b && items.length <= EVAL_LIMITS.list; v++) items.push(v);
     } else if (n.in) {
       const v = this.valueOf(n.in, env, inst);
       if (Array.isArray(v)) items.push(...v);
     }
-    if (items.length > 200) throw new EvalError('mkp.each', `each over ${items.length} items; at most 200`);
+    // the list limit; the rendered-node count and the budget are what bound a large each (GAPS 112)
+    if (items.length > EVAL_LIMITS.list) throw new EvalError('mkp.each', `each over ${items.length} items; at most ${EVAL_LIMITS.list}`);
     const seen = new Set<string>();
     return items.map((item, idx) => {
       const e = env.child({ [n.var!]: item });
@@ -731,6 +740,8 @@ export class Runtime {
         child.error = { code: (e as EvalError).code ?? 'mkp.runtime', message: (e as Error).message };
       }
     } else {
+      // a keyed instance can move (each key=): its inputs read the scope it is in now
+      if (child.caller !== inst || !sameScope(child.callerEnv, env)) child.scope.set(child.scope.value + 1);
       child.callerEnv = env;
       child.caller = inst;
     }
@@ -1534,6 +1545,21 @@ function quantize(v: number, min: number, max: number, step: number): number {
 function toKey(v: V): string | number {
   if (typeof v === 'string' || typeof v === 'number') return v;
   return JSON.stringify(toJson(v));
+}
+
+/** Whether two scopes bind the same values (each makes a new scope per item on every render). */
+function sameScope(a: Env | null, b: Env | null): boolean {
+  while (a && b) {
+    if (a === b) return true;
+    if (a.inst !== b.inst || !!a.vars !== !!b.vars) return false;
+    if (a.vars && b.vars) {
+      const ka = Object.keys(a.vars);
+      if (ka.length !== Object.keys(b.vars).length || ka.some((k) => !deepEqual(a!.vars![k], b!.vars![k]))) return false;
+    }
+    a = a.parent;
+    b = b.parent;
+  }
+  return a === b;
 }
 
 export function findType(b: IRBundle, name: string): Type | undefined {

@@ -16,7 +16,7 @@ export const LIMITS = {
   children: 32,
   elements: 300,
   defDepth: 12,
-  eachItems: 200,
+  eachItems: 10000,
   nodes: 5000,
   listSize: 10000,
   budget: 1_000_000,

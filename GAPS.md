@@ -373,7 +373,8 @@ rule of the spec, not a defect), *in progress*.
      `count`, `s` to `turn`, `w` to `fz`). (83 is the same trap.)
 111. **MKP: `at(xs, -1, d)` returns the last item, not `d`.** This broke the heat-map runs. *Worked
      around.* *Open:* document it, or return the default.
-112. **MKP: an `each` takes at most 200 items.** *Worked around:* split per row or column.
+112. **MKP: an `each` takes at most 200 items.** *Fixed:* the limit is the list limit, 10,000; the
+     rendered-node count bounds it first.
 113. **MKP: `line … arrow` draws an 8 px head at any length.** *Worked around:* line plus path head.
 114. **MKP (web renderer): a 3D canvas ignores a changed `view`.** surface's turn slider moves the value
      but not the drawing; this was there before. *Open.*
@@ -474,9 +475,9 @@ rule of the spec, not a defect), *in progress*.
 153. **MKP runtime: a part reused by `each key=` keeps the binding from its first render.** `setupInst`
      memoises a part's inputs with the caller env from when the instance was created. When a keyed item
      moves to another position (a query stage that sorts), its input is recomputed with the old index.
-     It showed as `mkp.index` in `query/filter-project` (FROM → ORDER BY). *Worked around:* `reltable`
-     keys rows by `id + "@" + k`. *Open:* a reused instance's input memos should use its current
-     caller env.
+     It showed as `mkp.index` in `query/filter-project` (FROM → ORDER BY). *Fixed:* a reused
+     instance's inputs, records and slots read its current caller scope, and are computed again when
+     that scope's values change (`keyed instances` in `language.test.ts`).
 154. **MKP: no one-sided rules or line widths.** A column rule is `stack pad=xs tint=ink` (4px against
      Study Pad's 2px); a rail line is an empty `stack stroke=`. *Worked around.*
 155. **MKP: a YAML record can't hold a colour, and a pack function can't name a colour token.** Tones in

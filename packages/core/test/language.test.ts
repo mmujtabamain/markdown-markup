@@ -182,7 +182,7 @@ describe('safety (17)', () => {
     expect(sanitizeSvg('<!DOCTYPE svg [<!ENTITY x "y">]><svg/>')).toBeNull();
   });
   it('caps each items and lists', () => {
-    const { b } = build('w@1 "w"\n  in n int = 300\n  each k in 1..n\n    text "\\val{k}"\n', '```w\nsummary: s\n```\n');
+    const { b } = build('w@1 "w"\n  in n int = 20000\n  each k in 1..n\n    text "\\val{k}"\n', '```w\nsummary: s\n```\n');
     expect(JSON.stringify(new Runtime(b!).view())).toContain('mkp.each');
     expect(JSON.stringify(new Runtime(build('w@1 "w"\n  r = len(range(1, 20000))\n  text "\\val{r}"\n', '```w\nsummary: s\n```\n').b!).view())).toContain('mkp.list-size');
   });
@@ -299,5 +299,67 @@ describe('versions and the lock (6.17)', () => {
     expect(Object.keys(b3!.defs)).toContain('t:w@1');
     const c4 = compile({ packs: [p3] });
     expect(Object.keys(c4.document('```w\nsummary: s\n```\n', 'd.mkp.md')!.defs)).toContain('t:w@2');
+  });
+});
+
+describe('keyed instances (6.10)', () => {
+  // GAPS 153: a reused keyed part read its inputs in the scope it was made in
+  const src = [
+    'part cell@1 "c"',
+    '  fields label',
+    '  in label text',
+    '  in body slot',
+    '  stack',
+    '    text label',
+    '    slot body',
+    'w@1 "w"',
+    '  var flipped bool = false',
+    '  items = if(flipped, ["b", "a"], ["a", "b"])',
+    '  stack',
+    '    each k in 0..(len(items) - 1) key=items[k]',
+    '      cell ("\\val{items[k]} at \\val{k}")',
+    '        text "slot \\val{k}"',
+    '    press id=flip',
+    '      text "flip"',
+    '      @click set flipped=(not flipped)',
+    '',
+  ].join('\n');
+  const texts = (rt: Runtime) => {
+    const out: string[] = [];
+    const visit = (ns: { t: string; p: Record<string, unknown>; kids?: unknown[] }[]): void => {
+      for (const n of ns) {
+        if (n.t === 'text') out.push((n.p.runs as { v?: string }[]).map((r) => r.v ?? '').join(''));
+        if (n.kids) visit(n.kids as never);
+      }
+    };
+    visit(rt.view() as never);
+    return out.filter((t) => t !== 'flip');
+  };
+  it('read their inputs and slots in the current scope after they move', () => {
+    const { b, all } = build(src, '```w\nsummary: s\n```\n');
+    expect(all).toEqual([]);
+    const rt = new Runtime(b!);
+    expect(texts(rt)).toEqual(['a at 0', 'slot 0', 'b at 1', 'slot 1']);
+    expect(rt.press('flip')).toBe(true);
+    expect(texts(rt)).toEqual(['b at 0', 'slot 0', 'a at 1', 'slot 1']);
+    expect(rt.press('flip')).toBe(true);
+    expect(texts(rt)).toEqual(['a at 0', 'slot 0', 'b at 1', 'slot 1']);
+  });
+  it('can number more than 200 (GAPS 112)', () => {
+    const { b, all } = build('w@1 "w"\n  stack\n    each k in 0..499 key=k\n      text "\\val{k}"\n', '```w\nsummary: s\n```\n');
+    expect(all).toEqual([]);
+    const rt = new Runtime(b!);
+    expect(texts(rt)).toHaveLength(500);
+  });
+  it('keep their own state when they move', () => {
+    const counter = src.replace('  in body slot\n', '  in body slot\n  var n int = 0\n').replace('    text label\n', '    text label\n    press id=(label)\n      text "n \\val{n}"\n      @click set n=(n + 1)\n');
+    const { b, all } = build(counter, '```w\nsummary: s\n```\n');
+    expect(all).toEqual([]);
+    const rt = new Runtime(b!);
+    expect(rt.press('a at 0')).toBe(true);
+    expect(texts(rt)).toContain('n 1');
+    rt.press('flip');
+    // the instance keyed "a" moved to index 1 and kept n = 1
+    expect(texts(rt).slice(0, 6)).toEqual(['b at 0', 'n 0', 'slot 0', 'a at 1', 'n 1', 'slot 1']);
   });
 });

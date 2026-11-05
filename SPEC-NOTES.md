@@ -186,7 +186,7 @@ spec doesn't have that the implementation needed), **Deviation** (differs from t
     - Signals: 30 a second per runtime, payloads at most 16 KB.
     - Host inputs: at most 64 KB.
     - Rendered nodes are counted per document: 5,000 per widget instance.
-    - `each` over more than 200 items is a runtime error.
+    - `each` over more than 10,000 items (the list limit) is a runtime error. It was 200 until GAPS 112.
 49. **Speech is computed lazily at runtime.** The Speech Rule Engine takes about 26 ms per formula on
     Node and about 134 ms on Hermes, too slow for every frame of a playing slider. Static formulas
     carry their speech from the build.

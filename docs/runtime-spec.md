@@ -44,7 +44,8 @@ Each `ast` node evaluates as below; every node costs one operation, list builtin
 
 An **evaluation** (one derived value, one condition, one prop) has a budget of 1,000,000 operations,
 or the definition's `budget` (at most 20,000,000; a provider may cap it lower). Lists are capped at
-10,000 items, `iterate`/`scan` at 10,000 steps, `each` at 200 items.
+10,000 items, `iterate`/`scan` at 10,000 steps, and `each` at 10,000 items, the list limit; the
+rendered-node count (5,000 per widget instance) is usually reached first.
 
 ## Instances and state
 
