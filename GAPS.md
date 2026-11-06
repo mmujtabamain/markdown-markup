@@ -308,7 +308,8 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     the fields show empty. *Open*, minor.
 88. **MKP: a fixture's slot can hold Markdown only.** A widget block there shows as code, and a code
     fence breaks the round-trip test. *Worked around:* LaTeX `\rule` bars for the chart, and inline code
-    for the requests.
+    for the requests. *Superseded (SN 136):* slots are filled only by `:::` containers; a slot in YAML
+    is `mkp.slot-in-yaml`, and a fixture case that fills a slot is written as a container.
 89. **MKP (@mkp/shadcn): a plain press centres its text.** `press kind=plain` is a `<button>`, so its
     content inherited centred text. *Fixed:* `.mkp-plain` keeps its content's alignment (SN 110).
 

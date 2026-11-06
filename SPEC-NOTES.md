@@ -610,3 +610,11 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      author's own terms (`Write align=center`, `Quote the value: title: "Hello: world"`). It points
      at the line to change. Library text (YAML, zip) is said in plain words. Codes and severities
      are unchanged. The style and the reader feedback behind it are in `docs/error-messages/`.
+136. **A slot is filled only by a container.** *Departure (6.16).* A widget's content (a `slot`
+     input, or the content of a record with a slot) is written between `:::name` … `:::` lines, with
+     `:::fill other` and `:::record "…"` inside, and never as a YAML value: `slot: |` and `body: "…"`
+     are refused with `mkp.slot-in-yaml`, whose fix names the container. The YAML block holds a
+     widget's data and the containers its content, so content nests with plain ```` ``` ```` fences
+     and still reads as Markdown on a renderer without MKP. A fixture's JSON may still give a slot as
+     text; `caseDocument` writes such a case as a container (its other inputs on the `:::` line), so
+     `mkp show` prints the form a document uses. This replaces GAPS 88's fragment-in-YAML.

@@ -809,13 +809,9 @@ class DocChecker {
     const env = this.prog.typeEnv(sig.pack);
     const t = resolve(inp.type, env);
     if (t.t === 'slot') {
-      if (typeof v !== 'string') throw new MkpError('mkp.input-type', `${k} is a slot, which takes Markdown written as one piece of text; found ${sortOf(v)}. Write it as text, e.g. ${k}: "Some words.", or as ${k}: | with the Markdown indented on the lines below`, p);
-      // a slot may hold a fragment of a document, widget blocks and containers too (GAPS 88)
-      const fragment = /^(`{3,}|~{3,}|:{3,})/m.test(v);
-      const nodes = fragment ? this.items(parseDoc('\n'.repeat(Math.max(0, p.line)) + v, this.file, this.diags).items, false) : markdownToNodes(v, p.line);
-      if (sig.slots[0] === k) node.children = nodes;
-      else (node.fills ??= {})[k] = nodes;
-      return;
+      // a slot's content is written between ::: lines, never in YAML: YAML holds a widget's data
+      const head = sig.slots[0] === k ? `:::${sig.name} … :::` : `:::${sig.name} with :::fill ${k} … ::: inside it`;
+      throw new MkpError('mkp.slot-in-yaml', `${k} is a slot, so its content is written between ::: lines, not in the YAML block; found ${k}: ${typeof v === 'string' && v.length < 40 ? JSON.stringify(v) : sortOf(v)}. Write the widget as ${head}, put its other inputs on the ::: line (e.g. :::${sig.name} title="…"), and the content on the lines between`, p);
     }
     if (t.t === 'records') {
       if (!Array.isArray(v)) throw new MkpError('mkp.input-type', `${k} is a list of ${t.kind} records, each written as its fields (${this.fieldList(t)}); found ${sortOf(v)}. Write it as a YAML list, e.g. ${k}: ${example(t, env, this.dc.opts.tokenNames)}`, p);
@@ -833,9 +829,8 @@ class DocChecker {
     const out: IRNode = { node: '$record', record: t.kind, input, props, pos: [p.line, p.col] };
     for (const [k, v] of Object.entries(obj)) {
       if (k === 'slot' && t.slot) {
-        if (typeof v !== 'string') throw new MkpError('mkp.input-type', `slot in ${path} is the ${t.kind}'s Markdown content, written as one piece of text; found ${sortOf(v)}. Write it as text, e.g. slot: "Some words."`, this.at(`${path}.slot`, p));
-        out.children = markdownToNodes(v, p.line);
-        continue;
+        const rec = [...sig.records].find(([, r]) => r.input === input)?.[0] ?? t.kind;
+        throw new MkpError('mkp.slot-in-yaml', `slot in ${path} is the ${t.kind}'s content, which is written between ::: lines, not in YAML. Write ${input} as :::${sig.name} … ::: holding one :::${rec} "…" … ::: for each ${t.kind}, with its fields on the ::: line and its content on the lines between`, this.at(`${path}.slot`, p));
       }
       const f = t.fields.find((x) => x[0] === k);
       if (!f) {

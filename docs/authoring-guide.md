@@ -44,7 +44,28 @@ what the reader sees).
   YAML 1.2, not false. LaTeX goes in single quotes (`'\theta'`): in double quotes `\t` is a tab.
 - **Shared state**: a ```` ```state ```` block (`t = slider 0..1 "turn"`) and `t: {ref: t}` in each
   block that reads it (example 07).
-- **A container** puts Markdown into a widget's slot: `:::box` … `:::`; `:::fill name` fills another.
+- **A container** fills a widget's slots: what goes inside a widget (Markdown, widget blocks, other
+  containers) is written between `:::name` and `:::`, never in YAML. Its other inputs go on the `:::`
+  line (`:::card title="Note" tone=info`). The content goes to its first slot, `:::fill name` … `:::` fills
+  another, and a list of records with content is one `:::record "field"` … `:::` each. A slot given in
+  YAML is refused (`mkp.slot-in-yaml`). The YAML block holds a widget's data, the containers its
+  content:
+
+  ````markdown
+  :::tabs
+  :::tab "Idea"
+  Split, sort each half, merge.
+  :::
+  :::tab "Try it"
+  ```question
+  prompt: How many passes for 8 items?
+  kind: number
+  value: 3
+  summary: Passes for eight items.
+  ```
+  :::
+  :::
+  ````
 
 ## Your own widget
 
@@ -326,6 +347,7 @@ The examples in `examples/limits` each fail, with these codes:
 | `mkp.style-token` | a written-out colour |
 | `mkp.unknown-widget` | a pack's name used without `depends` |
 | `mkp.interface` | an interface not met |
+| `mkp.slot-in-yaml` | a slot's content written in YAML: write the widget as `:::name` … `:::` |
 
 ## Checklist before you hand in
 

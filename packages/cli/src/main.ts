@@ -274,7 +274,7 @@ function show(a: Args): number {
   }
   process.stdout.write(signatureText(d, c.prog.typeEnv(d.pack)) + '\n');
   const first = fixtureCases(c).find((fc) => fc.pack === d.pack && fc.widget === `${d.name}@${d.version}` && !fc.expect?.errors?.length);
-  if (first) process.stdout.write(`\nexample (fixture ${first.name}):\n${caseDocument(first)}`);
+  if (first) process.stdout.write(`\nexample (fixture ${first.name}):\n${caseDocument(first, c)}`);
   return 0;
 }
 

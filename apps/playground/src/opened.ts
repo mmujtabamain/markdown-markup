@@ -43,7 +43,7 @@ export async function openFiles(picked: File[], before: Opened): Promise<{ opene
       packs.splice(0, packs.length, ...packs.filter((p) => p.label !== f.name), pack);
       for (const fc of fixtureCases(c)) {
         const path = `${fc.pack}/${fc.file}#${fc.name}`;
-        add({ id: `open:${f.name}#${fc.widget}/${fc.name}`, kind: 'opened', group: 'Opened', num: '', title: `${fc.widget} · ${fc.name}`, teaches: fc.summary ?? `a fixture case of ${f.name}`, files: [{ path, text: caseDocument(fc), role: 'doc' }], assets: {}, build: { allowParts: true, privateOf: fc.pack } });
+        add({ id: `open:${f.name}#${fc.widget}/${fc.name}`, kind: 'opened', group: 'Opened', num: '', title: `${fc.widget} · ${fc.name}`, teaches: fc.summary ?? `a fixture case of ${f.name}`, files: [{ path, text: caseDocument(fc, c), role: 'doc' }], assets: {}, build: { allowParts: true, privateOf: fc.pack } });
       }
     } else if (/\.(md|mkp)$/.test(f.name)) texts.set(f.name, await f.text());
     else notes.push(`${f.name}: open a .mkp.md, its .mkp, or a .mkpack`);

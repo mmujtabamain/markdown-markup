@@ -4,7 +4,8 @@
 import YAML from 'yaml';
 import type { Compiled } from './build';
 import { closest, Diagnostics } from './diag';
-import type { IRBundle } from './ir';
+import type { IRBundle, IRDef } from './ir';
+import { resolve, type Type, type TypeEnv } from './types';
 
 export interface PlayStep {
   press?: string;
@@ -103,7 +104,7 @@ export function fixtureCases(c: Compiled, diags = c.diags): FixtureCase[] {
 }
 
 /** The document a case stands for: one widget block whose YAML body is the case's props. */
-export function caseDocument(fc: FixtureCase): string {
+export function caseDocument(fc: FixtureCase, c?: Compiled): string {
   const body: Record<string, unknown> = { ...fc.props, summary: fc.summary ?? `${fc.widget}: ${fc.name}` };
   // {"state": v} gives a ref input state of its own: a document state var bound with {ref}
   const vars: string[] = [];
@@ -116,8 +117,81 @@ export function caseDocument(fc: FixtureCase): string {
     }
   }
   const state = vars.length ? `\`\`\`state\n${vars.join('\n')}\n\`\`\`\n\n` : '';
+  // a case that fills a slot is a container, as a document writes it: slots never go in YAML
+  const def = c ? [...c.defs.values()].find((d) => d.pack === fc.pack && `${d.name}@${d.version}` === fc.widget) : undefined;
+  if (def && c) {
+    const container = containerCase(fc, body, def, c.prog.typeEnv(def.pack));
+    if (container !== null) return state + container;
+  }
   // YAML, as a document writes it (GAPS 168)
   return `${state}\`\`\`${fc.pack}:${fc.widget}\n${YAML.stringify(body, { lineWidth: 0 }).trimEnd()}\n\`\`\`\n`;
+}
+
+/** A case whose props fill a slot, written as :::widget … :::, or null when it fills none. */
+function containerCase(fc: FixtureCase, body: Record<string, unknown>, def: IRDef, env: TypeEnv): string | null {
+  const types = new Map(def.inputs.map((i) => [i.name, resolve(i.type, env)] as const));
+  const isSlot = (k: string): boolean => types.get(k)?.t === 'slot';
+  const isSlotRecords = (k: string): boolean => {
+    const t = types.get(k);
+    return t?.t === 'records' && t.slot;
+  };
+  if (!Object.keys(body).some((k) => isSlot(k) || isSlotRecords(k))) return null;
+  const slots = def.inputs.filter((i) => types.get(i.name)?.t === 'slot').map((i) => i.name);
+  const args: string[] = [];
+  const inner: string[] = [];
+  let first = '';
+  for (const [k, v] of Object.entries(body)) {
+    if (k === 'summary') continue;
+    const t = types.get(k);
+    if (!t) return null;
+    if (t.t === 'slot') {
+      if (k === slots[0]) first = String(v);
+      else inner.push(`:::fill ${k}\n${String(v)}\n:::`);
+    } else if (t.t === 'records' && t.slot) {
+      if (!Array.isArray(v)) return null;
+      for (const r of v as Record<string, unknown>[]) {
+        const fargs: string[] = [];
+        for (const [f, fv] of Object.entries(r)) {
+          if (f === 'slot') continue;
+          const ft = t.fields.find((x) => x[0] === f)?.[1];
+          const src = ft ? argSrc(fv, resolve(ft, env)) : null;
+          if (src === null) return null;
+          fargs.push(`${f}=${src}`);
+        }
+        inner.push(`:::${t.kind}${fargs.length ? ' ' + fargs.join(' ') : ''}\n${String(r.slot ?? '')}\n:::`);
+      }
+    } else {
+      const src = argSrc(v, t);
+      if (src === null) return null;
+      args.push(`${k}=${src}`);
+    }
+  }
+  const content = [first, ...inner].filter((x) => x !== '').join('\n\n');
+  return `:::${fc.pack}:${fc.widget}${args.length ? ' ' + args.join(' ') : ''}\n${content}\n:::\n`;
+}
+
+/** A fixture value as an argument on a ::: line, or null when it can't be one. */
+function argSrc(v: unknown, t: Type): string | null {
+  if (v && typeof v === 'object' && !Array.isArray(v) && 'ref' in v) return `(${String((v as { ref: unknown }).ref)})`;
+  switch (t.t) {
+    case 'text':
+    case 'latex':
+      return typeof v === 'string' && !v.includes('"') && !v.includes('\n') ? `"${v}"` : null;
+    case 'num':
+    case 'int':
+    case 'bool':
+      return typeof v === 'number' || typeof v === 'boolean' ? String(v) : null;
+    case 'choice':
+    case 'token':
+      return typeof v === 'string' && /^[A-Za-z0-9_-]+$/.test(v) ? v : null;
+    case 'list': {
+      if (!Array.isArray(v)) return null;
+      const items = v.map((x) => argSrc(x, t.of));
+      return items.some((x) => x === null) ? null : `[${items.join(', ')}]`;
+    }
+    default:
+      return null;
+  }
 }
 
 export interface CaseResult {
@@ -130,7 +204,7 @@ export interface CaseResult {
 export function compileCase(c: Compiled, fc: FixtureCase): CaseResult {
   const diags = new Diagnostics();
   // a pack's fixture cases see its private parts too: every definition has a case
-  const bundle = c.document(caseDocument(fc), `${fc.pack}/${fc.file}#${fc.name}`, diags, { allowParts: true, privateOf: fc.pack });
+  const bundle = c.document(caseDocument(fc, c), `${fc.pack}/${fc.file}#${fc.name}`, diags, { allowParts: true, privateOf: fc.pack });
   const want = fc.expect?.errors;
   if (want?.length) {
     const got = new Set(diags.errors.map((d) => d.code));

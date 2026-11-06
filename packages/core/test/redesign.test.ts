@@ -2,6 +2,7 @@
 // fns, interfaces, type parameters and typed paths, answers, the containers and width.
 import { describe, expect, it } from 'vitest';
 import { compile, type PackSource } from '../src/build';
+import { caseDocument, compileCase, fixtureCases } from '../src/fixtures';
 import { formatDiagnostic } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
@@ -352,11 +353,37 @@ describe('profiles: positions and the body’s shape (GAPS 12, 35)', () => {
   });
 });
 
-describe('a slot holds a fragment of a document (GAPS 88)', () => {
-  it('with widget blocks in it', () => {
-    const src = fence(greeting) + fence('boxed "b"\n  in body slot\n  column\n    slot body') + '````boxed\nbody: |\n  Before.\n\n  ```greeting\n  name: inside\n  summary: s\n  ```\nsummary: s\n````\n';
-    const r = doc(src);
+describe('slots are filled only with ::: containers, never in YAML', () => {
+  const boxed = fence(greeting) + fence('boxed "b"\n  in title text = ""\n  in body slot\n  in more slot\n  column\n    text title\n    slot body\n    slot more');
+  it('refuses a slot written in a YAML block, and says to use :::', () => {
+    const r = doc(boxed + '````boxed\nbody: |\n  Before.\n\n  ```greeting\n  name: inside\n  summary: s\n  ```\nsummary: s\n````\n');
+    expect(r.errors).toContain('mkp.slot-in-yaml');
+    expect(r.all.join('\n')).toContain(':::boxed');
+  });
+  it('takes Markdown and widget blocks between ::: lines, and :::fill for another slot', () => {
+    const r = doc(boxed + ':::boxed title="Top"\nBefore.\n\n```greeting\nname: inside\nsummary: s\n```\n:::fill more\nAfter.\n:::\n:::\n');
     expect(r.all).toEqual([]);
     expect(texts(new Runtime(r.b!).view()).join(' ')).toContain('inside');
+    expect(JSON.stringify(r.b)).toContain('After.');
+  });
+  it('refuses a record slot written in YAML, naming the record container', () => {
+    const tabs = fence('tabbed "t"\n  in pages list(record page {title: text} slot)\n  column\n    each k in 0..(len(pages) - 1) key=k\n      slot pages[k].slot');
+    const bad = doc(tabs + '```tabbed\npages:\n  - title: One\n    slot: Hello.\nsummary: s\n```\n');
+    expect(bad.errors).toContain('mkp.slot-in-yaml');
+    expect(bad.all.join('\n')).toContain(':::page');
+    const good = doc(tabs + ':::tabbed\n:::page "One"\nHello.\n:::\n:::\n');
+    expect(good.all).toEqual([]);
+  });
+  it("writes a pack's slot-filling fixture case as a container, so it compiles", () => {
+    const p = pack('lib', {
+      'card.mkp': 'card@1 "c"\n  in title text = ""\n  in tone color = surface\n  in body slot\n  column tint=tone\n    text title\n    slot body\n',
+      'card.fixture.json': JSON.stringify({ widget: 'card@1', cases: { one: { props: { title: 'Hi', tone: 'info', body: 'Some **words**.' }, summary: 's' } } }),
+    });
+    const c = compile({ packs: [p] });
+    const fc = fixtureCases(c).find((x) => x.widget === 'card@1')!;
+    const text = caseDocument(fc, c);
+    expect(text).toContain(':::lib:card@1 title="Hi" tone=info');
+    expect(text).not.toContain('body:');
+    expect(compileCase(c, fc).ok).toBe(true);
   });
 });
