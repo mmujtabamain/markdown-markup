@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['packages/core/test/**/*.test.ts', 'packages/cli/test/**/*.test.ts', 'packages/react/test/**/*.test.tsx', 'packages/shadcn/test/**/*.test.tsx', 'packages/page/test/**/*.test.ts', 'apps/playground/test/**/*.test.tsx'],
+    include: ['scripts/**/*.test.ts', 'packages/core/test/**/*.test.ts', 'packages/cli/test/**/*.test.ts', 'packages/react/test/**/*.test.tsx', 'packages/shadcn/test/**/*.test.tsx', 'packages/page/test/**/*.test.ts', 'apps/playground/test/**/*.test.tsx'],
     testTimeout: 60000,
     hookTimeout: 120000,
     pool: 'threads',

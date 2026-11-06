@@ -626,3 +626,14 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      `--target html-md` writes `name.md.html`: that Markdown alone, with no script. The Markdown is
      drawn by `markdownToHtml` (moved to `@mkp/page` from the playground, which uses it with
      DOMPurify); without a sanitiser, raw HTML in it shows as text.
+138. **Releases.** *Extension (15).* `VERSION` at the root holds MKP's version (whole numbers and
+     dots, no `v`); every merge request into `main` raises it and adds `notes/<version>.md` (front
+     matter `version`, `date`, `summary` of at most 140 characters; then `## New`, `## Changed`,
+     `## Fixed`), which `scripts/check-notes.mjs` checks in CI. Each push to `main` whose `VERSION`
+     has no release yet publishes `v<version>`: `mkp-web-<version>.zip` (`mkp.js`, `mkp.d.ts`,
+     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `README.txt`, in one folder),
+     `mkp-cli.mjs` and `SHA256SUMS`, built by `scripts/dist.mjs`; its notes are the note, then how to
+     use each asset (`scripts/release-body.mjs`). The web files of the last 50 releases are also on
+     the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version
+     (a `/*! mkp <version> <commit> */` banner, `VERSION` from `mkp.js`, `mkp --version`). The npm
+     packages are gone; the workspace packages stay private.

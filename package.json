@@ -18,12 +18,15 @@
     "cli": "node packages/cli/dist/mkp.cjs",
     "examples:coverage": "node scripts/examples.mjs coverage",
     "examples:sync": "node scripts/examples.mjs sync",
-    "check:neutral": "node scripts/neutral.mjs"
+    "check:neutral": "node scripts/neutral.mjs",
+    "check:notes": "node scripts/check-notes.mjs",
+    "dist": "node scripts/dist.mjs"
   },
   "devDependencies": {
     "@swc/core": "1.10.1",
     "@types/node": "^22.10.0",
     "ajv": "^8.17.1",
+    "dts-bundle-generator": "9.5.1",
     "esbuild": "0.24.2",
     "typescript": "~5.9.3",
     "vitest": "^5.0.5"

@@ -82,15 +82,26 @@ any other stack, or Markdown only), follow `docs/integration-guide.md`.
 
 ## Install
 
-The packages are published to GitHub Packages as `@mmujtabamain/mkp-core`, `-react`, `-shadcn`,
-`-react-native` and `-cli`. Add to your `.npmrc`:
+Each merge to `main` is a release (`v` + `VERSION`; its notes are `notes/<version>.md`). A release
+has three files, no npm and no token:
 
-```ini
-@mmujtabamain:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+| File | What it is |
+|---|---|
+| `mkp-web-<version>.zip` | The web files, which import each other: keep them in one folder. `mkp.js` (the core) with `mkp.d.ts` (its types, one self-contained header), `maths-engine.js` (loaded by `mkp.js` when maths shows), `mkp-react.js` (draws documents with your React 19: MKP's own look, or your components) with `mkp-react.d.ts`. |
+| `mkp-cli.mjs` | The CLI, in one file: `node mkp-cli.mjs check / build / …`. Node 20.19+. |
+| `SHA256SUMS` | Their checksums. |
+
+```sh
+v=0.1.0; base=https://github.com/mmujtabamain/markdown-markup/releases/download/v$v
+curl -LO $base/mkp-cli.mjs && node mkp-cli.mjs build lesson.mkp.md --target html --out out
+curl -LO $base/mkp-web-$v.zip && mkdir -p vendor/mkp && unzip -j mkp-web-$v.zip -d vendor/mkp
 ```
 
-and `npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react`. A release is published by
-publishing a GitHub Release (tag `vX.Y.Z`); `.github/workflows/release.yml` builds, tests and
-publishes, and attaches each package's `.tgz` to the release. `node scripts/release.mjs --pack`
-builds the same packages locally, into `release/`.
+```ts
+import { compile, Runtime } from './vendor/mkp/mkp.js';
+import { MkpDocument } from './vendor/mkp/mkp-react.js';
+```
+
+The web files are also served, unpacked, at `https://mmujtabamain.github.io/markdown-markup/v/<version>/`
+(and `/latest/`). `pnpm dist` builds the same files into `dist/`. To release: raise `VERSION` and add
+`notes/<version>.md` in the merge request (`pnpm check:notes` checks both); the merge publishes it.

@@ -35,43 +35,43 @@ from them), do step 6.
 | `@mkp/react-native` | The React Native renderer | React 19, React Native ≥ 0.78, react-native-svg 15; Skia optional |
 | `@mkp/cli` | `mkp`: check, build, index, show, schema, fmt, pack, cases | Node, or nothing (the single executable) |
 
-Each is published to GitHub Packages as `@mmujtabamain/mkp-<name>` (`@mmujtabamain/mkp-core`,
-`@mmujtabamain/mkp-react`, …): built JavaScript, type declarations and ordinary dependencies. That
-is the way in for almost every project (step 1.0). The snippets below import `@mkp/*`, the names
-inside this repo; in your app, import `@mmujtabamain/mkp-*` instead, or alias one to the other.
+A release (step 1.0) carries `@mkp/core` as `mkp.js` + `mkp.d.ts`, `@mkp/react` as `mkp-react.js` +
+`mkp-react.d.ts`, and `@mkp/cli` as `mkp-cli.mjs`. The snippets below import `@mkp/*`, the names
+inside this repo; in your app, import the vendored files (`./vendor/mkp/mkp.js`), or alias
+`@mkp/core` and `@mkp/react` to them. `@mkp/shadcn` and `@mkp/react-native` are used from source
+(step 1.0a) until a release carries them.
 
 ---
 
 ## Step 1. Get MKP into the project
 
-### 1.0 Install the published packages (recommended)
+### 1.0 Vendor a release (recommended)
 
-Tell npm where the scope lives, once, in your project's `.npmrc`, with a GitHub token that has
-`read:packages` (GitHub Packages asks for one even for public packages; in CI, a workflow's own
-`GITHUB_TOKEN` with `packages: read` will do):
-
-```ini
-@mmujtabamain:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Then install what you need, like any npm package:
+Every merge to MKP's `main` is a release `v<version>` with `mkp-web-<version>.zip` (the web files),
+`mkp-cli.mjs` (the CLI) and `SHA256SUMS`. Nothing to install, no registry, no token. Put the web files
+in one folder of your app; they import each other:
 
 ```sh
-npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react   # web
-npm install @mmujtabamain/mkp-core @mmujtabamain/mkp-react-native react-native-svg   # phone
-npm install -D @mmujtabamain/mkp-cli   # the mkp command: npx mkp check …
+v=0.1.0; base=https://github.com/mmujtabamain/markdown-markup/releases/download/v$v
+curl -LO $base/mkp-web-$v.zip && mkdir -p src/vendor/mkp && unzip -j mkp-web-$v.zip -d src/vendor/mkp
+curl -LO $base/mkp-cli.mjs    # node mkp-cli.mjs check …, build …, --target html …
 ```
+
+| File | Use it for |
+|---|---|
+| `mkp.js` + `mkp.d.ts` | compile and run documents, write their Markdown; `mkp.d.ts` is the whole API's types in one file, which TypeScript reads beside `mkp.js` |
+| `maths-engine.js` | nothing directly: `mkp.js` loads it when a document shows maths |
+| `mkp-react.js` + `mkp-react.d.ts` | drawing in React 19 (any React framework, Next.js included): `<MkpDocument>` with MKP's own look, or `components=` for your design system (4.1, 4.2). It imports React from your app |
 
 ```tsx
-import { compile } from '@mmujtabamain/mkp-core';
-import { MkpDocument } from '@mmujtabamain/mkp-react';
+import { compile, Runtime } from './vendor/mkp/mkp.js';
+import { MkpDocument } from './vendor/mkp/mkp-react.js';
 ```
 
-No aliases, no source paths. Each GitHub Release also carries the packages as `.tgz` files, which
-`npm install <url-of-the-tgz>` takes without the registry. Releases are made by
-`.github/workflows/release.yml` when a release is published on GitHub (the tag, e.g. `v0.3.0`, is
-the version). The rest of step 1 is for working on MKP itself, or for a commit no release has.
+The same files are served at `https://mmujtabamain.github.io/markdown-markup/v/<version>/` (and
+`/latest/`) for a page that imports them by URL. `mkp.js` needs no framework: a stack without React
+draws `rt.view()` itself (4.4). The rest of step 1 is for working on MKP itself, or at a commit no
+release has.
 
 ### 1.0a Or use a pinned commit, as source
 
@@ -278,27 +278,16 @@ to resolve `@babel/runtime/helpers/interopRequireDefault` from MKP's files. Not 
 
 ### 1.5 The CLI, for any stack
 
-After step 1.2 the CLI is one file, `mkp/packages/cli/dist/mkp.cjs`, run with Node:
+A release's `mkp-cli.mjs` is the whole CLI in one file (the core, the maths engine and
+`--target html`'s page script inside), run with Node 20.19+ from anywhere:
 
 ```text
-$ node mkp/packages/cli/dist/mkp.cjs version
-0.2.0
+$ node mkp-cli.mjs --version
+0.1.0
+$ node mkp-cli.mjs check lesson.mkp.md --pack lib --format json
 ```
 
-For a server or CI image without Node, build a single executable (Node's single-executable
-applications):
-
-```text
-$ cd mkp && pnpm --filter @mkp/cli sea
-dist/mkp.cjs: 4.59 MB in 478 ms
-…
-dist/mkp: 131.6 MB single executable
-$ packages/cli/dist/mkp check examples/05-counter/doc.mkp.md
-ok
-```
-
-It is a copy of the Node binary that built it, so build it on the OS and CPU you will run it on
-(`mkp.exe` on Windows). It includes the maths engine.
+From source, after step 1.2, the same CLI is `mkp/packages/cli/dist/mkp.cjs`.
 
 ---
 
@@ -1282,10 +1271,8 @@ script leaves a symlink alone.
 
 Things you will hit, as of this commit:
 
-- **Published to GitHub Packages, not the public npm registry,** so an `.npmrc` with a token is
-  needed (step 1.0). Declarations use extensionless relative imports, which suits
-  `"moduleResolution": "bundler"` (Vite, Metro, webpack); `node16`/`nodenext` projects may need
-  `skipLibCheck`.
+- **A release carries the core, the React renderer and the CLI only.** The shadcn provider and the
+  React Native renderer are used from source (step 1.0a). `mkp-react.js` needs React 19.
 - **`rt.widget('#id')` doesn't work.** The message says a block can be found by its `#anchor`, but
   only the index works (the same for `hosts` keys). Look the index up:
   `bundle.doc.body.find((n) => n.meta?.anchor === 'sensor')?.meta?.block`.

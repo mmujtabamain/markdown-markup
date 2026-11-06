@@ -30,6 +30,8 @@ await build({
   outfile: join(dist, 'mkp.cjs'),
   alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts'), '@mkp/page': resolve(page, 'src/index.ts') },
   plugins: [pageScript],
+  // the version: MKP_VERSION when scripts/dist.mjs builds a release, else the repository's VERSION
+  define: { __MKP_VERSION__: JSON.stringify(process.env.MKP_VERSION ?? readFileSync(resolve(pkg, '../../VERSION'), 'utf8').trim()) },
   banner: { js: '#!/usr/bin/env node' },
   legalComments: 'none',
   logLevel: 'warning',

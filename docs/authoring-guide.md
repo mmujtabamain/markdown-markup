@@ -12,6 +12,8 @@ This guide is the working subset, with the mistakes the compiler catches. The ex
 
 ## The loop
 
+`mkp` below is the CLI: `node mkp-cli.mjs` from a release (one file), or `mkp` where a host installed it.
+
 ```sh
 mkp check lesson.mkp.md --pack … --format json   # every error: code, file, line, column, a fix
 mkp build lesson.mkp.md --pack … --target md     # the Markdown a reader without MKP gets

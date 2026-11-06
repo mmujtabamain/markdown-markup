@@ -28,3 +28,4 @@ export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
 export { indexLine, signatureText, copySource } from './catalog';
 export { checkDocument } from './check/doc';
 export { ICON_GLYPHS, ICON_NAMES } from './icons';
+export { VERSION } from './version';

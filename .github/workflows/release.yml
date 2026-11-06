@@ -1,32 +1,100 @@
-# Publishing MKP's packages to GitHub Packages (npm.pkg.github.com, scope @mmujtabamain), and attaching
-# each package's .tgz to the GitHub Release. Publishing a release on GitHub (Releases → Draft a new
-# release → a tag like v0.3.0 → Publish) runs it; the tag is the version.
-# Which packages go out: PACKAGES below (any of core, react, shadcn, react-native, cli).
-# GitHub Packages takes a scope only from the repo's owner: @mmujtabamain while the repo is
-# github.com/mmujtabamain/markdown-markup.
+# Releases and the GitHub Pages site (spec note 138).
+#
+# A push to main is a release: the CI gates, then scripts/dist.mjs, then a GitHub Release v<VERSION>
+# with mkp-web-<VERSION>.zip, mkp-cli.mjs and SHA256SUMS, its notes notes/<VERSION>.md followed by
+# how to use each asset (scripts/release-body.mjs). If v<VERSION> already exists (a re-run, or a push
+# that didn't raise VERSION), nothing is released.
+#
+# Every push then rebuilds the Pages site: the playground at /, and the web files of the last 50
+# releases unpacked at /v/<version>/, the newest also at /latest/, listed in /v/index.json.
+# Needs: Settings → Actions → General → Workflow permissions: Read and write.
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version to publish (e.g. 0.3.0)
-        required: true
 
 permissions:
   contents: write
-  packages: write
-
-env:
-  PACKAGES: core,react,shadcn,react-native,cli
+  pages: write
+  id-token: write
 
 jobs:
-  publish:
-    name: Build, test and publish
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      released: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: The version, and whether it is new
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/check-notes.mjs
+          v="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" > /dev/null 2>&1 || git rev-parse -q --verify "refs/tags/v$v" > /dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "v$v is already released: nothing to do (raise VERSION and add notes/<version>.md to release)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.v.outputs.new == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Types, tests (the release files' own tests among them), conformance, neutrality
+        if: steps.v.outputs.new == 'true'
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm conformance
+          pnpm check:neutral
+      - name: Build the release files
+        if: steps.v.outputs.new == 'true'
+        run: node scripts/dist.mjs --version "${{ steps.v.outputs.version }}" --out dist
+      - name: Publish v${{ steps.v.outputs.version }}
+        if: steps.v.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          node scripts/release-body.mjs --version "$v" > /tmp/release.md
+          title="$(head -n 1 /tmp/release.md)"
+          tail -n +2 /tmp/release.md > /tmp/body.md
+          gh release create "v$v" --target "$GITHUB_SHA" --title "$title" --notes-file /tmp/body.md \
+            "dist/mkp-web-$v.zip" dist/mkp-cli.mjs dist/SHA256SUMS
+          echo "Released [v$v](${{ github.server_url }}/${{ github.repository }}/releases/tag/v$v)" >> "$GITHUB_STEP_SUMMARY"
+
+  pages:
+    name: Pages
+    needs: release
+    # after a release on main, and on every other push (the playground only changes)
+    if: always() && (needs.release.result == 'success' || needs.release.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,30 +105,30 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-          registry-url: https://npm.pkg.github.com
-          scope: '@mmujtabamain'
       - run: pnpm install --frozen-lockfile
-      - name: Types and tests
-        run: |
-          pnpm typecheck
-          pnpm test
-      - name: Version
-        id: v
-        run: |
-          v="${{ github.event.release.tag_name || inputs.version }}"
-          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
-      - name: Build the packages
-        run: node scripts/release.mjs --version "${{ steps.v.outputs.version }}" --only "$PACKAGES" --pack
-      - name: Publish to GitHub Packages
+      - run: pnpm --filter @mkp/playground build
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLAYGROUND_BASE: /markdown-markup/
+      - name: The last 50 releases' web files, at /v/<version>/ and /latest/
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # in dependency order: core, then react (shadcn needs it), then the rest
-          for p in core react shadcn react-native cli; do
-            case ",$PACKAGES," in *",$p,"*) (cd "release/$p" && npm publish) ;; esac
+          site=apps/playground/dist
+          mkdir -p "$site/v" /tmp/rel
+          versions=()
+          for tag in $(gh release list --limit 50 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); do
+            v="${tag#v}"
+            gh release download "$tag" --pattern "mkp-web-$v.zip" --dir /tmp/rel --clobber || continue
+            mkdir -p "$site/v/$v"
+            unzip -q -o -j "/tmp/rel/mkp-web-$v.zip" -d "$site/v/$v"
+            versions+=("$v")
           done
-      - name: Attach the packages to the release
-        if: github.event_name == 'release'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" release/*.tgz --clobber
+          latest="$(printf '%s\n' "${versions[@]}" | sort -V | tail -n 1)"
+          if [ -n "$latest" ]; then cp -r "$site/v/$latest" "$site/latest"; fi
+          printf '%s\n' "${versions[@]}" | sort -V -r | node -e 'const v=require("fs").readFileSync(0,"utf8").split("\n").filter(Boolean);process.stdout.write(JSON.stringify({latest:v[0]??null,versions:v},null,1)+"\n")' > "$site/v/index.json"
+          cat "$site/v/index.json"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/playground/dist
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -44,6 +44,7 @@ import {
   printFile,
   signatureText,
   stripPos,
+  VERSION,
   writeMarkdown,
   writeZip,
   type Compiled,
@@ -56,7 +57,8 @@ import { htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAs
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
 
-export const VERSION = '0.2.0';
+// VERSION: the repository's VERSION file, put in by the build (scripts/build.mjs)
+export { VERSION };
 
 interface Args {
   cmd: string;
