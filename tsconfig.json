@@ -23,7 +23,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "apps/playground/src/*"
+        "apps/site/src/*"
       ],
       "@mkp/shadcn": [
         "packages/shadcn/src/index.tsx"
@@ -40,6 +40,6 @@
     "packages/shadcn/src",
     "packages/page/src",
     "packages/cli/src",
-    "apps/playground/src"
+    "apps/site/src"
   ]
 }

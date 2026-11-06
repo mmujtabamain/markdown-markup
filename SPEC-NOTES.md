@@ -419,7 +419,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     call the shared `Canvas` and `MathSpan`: spec 6.15 asks for one maths engine everywhere, and a
     canvas is a drawing engine, not a design choice.
 104. **`@mkp/shadcn`.** *Extension (15).* The definition of the whole base set in terms of shadcn-style
-    components, which a provider passes in as a kit, typed with every one required. Study Pad's
+    components, which a provider passes in as a kit, typed with every one required. The host's
     `ui` package and the playground differ in their components, not in how a base widget maps to
     them, so the mapping is written once. Everything is controlled: the runtime owns the state, and
     a component's change comes back as the base widget's own event. A row of `press kind=tab` is
@@ -431,15 +431,15 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     `Progress` to. `toggle`, `quiz.choice`, `select` and `progress` use them now. `meter` also ends
     the 48:1 canvas that made a bar's height follow its width. `quiz.choice` passes `tone` on a checked
     answer, so a provider can mark the row right or wrong. Adding to core@1 changes its digest in
-    every lock. Nothing outside this repo is locked to it but Study Pad's fixture lesson, which is
+    every lock. Nothing outside this repo is locked to it but the host's fixture lesson, which is
     relocked.
-106. **`trace` is Study Pad's two-pane design.** *Extension (8), and a change to a pack's look.* Mujtaba
+106. **`trace` is the host's two-pane design.** *Extension (8), and a change to a pack's look.* Mujtaba
     asked for it over the design I had drawn. It is a frame with a header and the bar inside, code on
     the left, and on the right the note in a reserved box and a table of the variables whose rows
     never come or go, so nothing moves as it plays. Panes wrap into a column under two `m` widths.
     What it needed from the base set:
     - `code line=N`: a numbered listing with line N marked. A listing is a thing hosts already have,
-      so it is the provider's to draw, and Study Pad's is its `CodeListing`. Drawing one from
+      so it is the provider's to draw, and the host's is its `CodeListing`. Drawing one from
       `stack` and `text` was what made the chips in GAPS 65.
     - `text literal=true`: the value as it is, not read as inline Markdown. A variable called `*p` or
       a value of `2*3*4` must not turn into emphasis.
@@ -451,7 +451,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     `run` gains `watch`, the variables to point out, and `trace` gains `title`.
 
 107. **Diagram lines.** *Extension (6.10).* Layered diagrams drew slanted lines between lanes, and a
-    link from a node to itself drew nothing. Mujtaba, of Study Pad's graphs: "the lines are always
+    link from a node to itself drew nothing. Mujtaba, of the host's graphs: "the lines are always
     straight, the node can reference itself, and lines combine when required", then "just reduce
     overlaps unless absolutely necessary". *Decided:* `arrow route=down|right`, level and upright runs
     only, and `arrowPaths` lays out a scope's arrows together, so they can combine: one source, one
@@ -461,7 +461,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     `force` keeps direct lines, because its nodes sit where the physics puts them, and `join`'s are row
     to row. `route.mkp` leaves room beside a node for its loop and balances a row's lanes, so a lane
     no longer pushes the row's boxes off centre. `graph` drops the links that close a cycle from its
-    rows, as `flow` does. Study Pad's NodeGraph (ELK) has the first two and not the third; its
+    rows, as `flow` does. The host's NodeGraph (ELK) has the first two and not the third; its
     LinkedCards has all three.
 
 108. **A widget's shell.** *Extension (8).* GAPS 74. *Decided:* four base widgets, so a provider draws
@@ -484,7 +484,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     renderers draw all four; `@mkp/shadcn` takes a kit's `Frame`, `Pane` and `Zoom` when it has them
     and otherwise draws MKP's own with the kit's buttons, and its icons are lucide's.
 
-109. **Line looks, code marks, plain presses.** *Extension (6.10, 8).* Study Pad's diagrams draw lines in
+109. **Line looks, code marks, plain presses.** *Extension (6.10, 8).* the host's diagrams draw lines in
     tones, dashed or dotted, with a crow's foot, a bar or a hollow triangle at their ends, faded when
     something else is chosen and drawn strong when they are. Its listings tint added and removed lines
     and mark a part of a line, with a note at its end. And its nodes and cards are pressed as
@@ -504,7 +504,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     long status gives up width before the count and start over are pushed out.
 
 111. **A zoom fits what it holds.** *Extension (8).* A diagram wider than its frame was cut at both sides
-    at rest, on a phone or in a narrow column; Study Pad's views are seen whole. *Decided:* `zoom fit`
+    at rest, on a phone or in a narrow column; the host's views are seen whole. *Decided:* `zoom fit`
     (default true): at rest, what is wider than the view is shrunk to fit it, never enlarged, leaving
     the lock its own room; the reader zooms in from there. Arrows measure in their scope's own units,
     so a scale above them (a zoom, a fit) no longer throws them off their ends.
@@ -513,7 +513,7 @@ the base set, documents laid out in the host's own page). Each is product-neutra
     the rest of the bar and under the Views it replaces, where it is the line that says what is going
     on. *Decided:* the status line is body text; the bar's counts and values stay small.
 
-113. **A profile's block attributes, and a CLI a host can drive.** *Extension (12, 16).* Study Pad moves
+113. **A profile's block attributes, and a CLI a host can drive.** *Extension (12, 16).* the host moves
     its lessons to MKP, and a lesson cites a lecture's slides block by block; the host also compiles on
     its server. *Decided:* a profile may declare `attr name type ["about"]` (no default; `id` and `role`
     are taken). A document writes it on any block, `{cite="lecture-2 3 s3-1"}`; the value is kept as
@@ -609,7 +609,7 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      written (`found …`), says what is allowed, and ends with an instruction and an example in the
      author's own terms (`Write align=center`, `Quote the value: title: "Hello: world"`). It points
      at the line to change. Library text (YAML, zip) is said in plain words. Codes and severities
-     are unchanged. The style and the reader feedback behind it are in `docs/error-messages/`.
+     are unchanged. The style is `docs/error-style.md`.
 136. **A slot is filled only by a container.** *Departure (6.16).* A widget's content (a `slot`
      input, or the content of a record with a slot) is written between `:::name` … `:::` lines, with
      `:::fill other` and `:::record "…"` inside, and never as a YAML value: `slot: |` and `body: "…"`

@@ -16,13 +16,14 @@ JavaScript, CSS or shaders in content.
 | `packages/shadcn` | A provider's definition of the whole base set, drawn with the shadcn-style components it passes in. |
 | `packages/cli` | `mkp`: build, check, index, show, schema, fmt, pack — also as one executable. |
 | `packages/page` | A document as one standalone HTML page (`mkp build --target html`: `@mkp/react`'s neutral renderer, the runtime and the maths engine inlined, with the Markdown inside for readers with scripts off), and its Markdown drawn as HTML (`--target html-md`). The playground's Markdown preview is this one too. |
-| `apps/playground` | Write a document and see it drawn, its Markdown, that Markdown drawn, its IR and its errors, at phone or desktop width. |
+| `apps/site` | The website (https://mmujtabamain.github.io/markdown-markup/): the landing page at `/`, and the docs at `/docs/`, where every example, base widget and limit opens with its source, the drawn document, its Markdown, that Markdown drawn, its IR and its errors, at phone or desktop width. |
 | `examples/` | 31 documents in reading order, each one idea, and `examples/limits`: 14 that fail on purpose. Each has its Markdown committed as `doc.md`. |
 | `widgets/` | The playground's component pages: `base/`, each of the 25 base widgets on its own in its states, and `derived/`, everyday widgets (a card, tabs, an accordion, a stepper…) composed from them. |
 | `conformance/` | Golden cases any provider or port runs: a test-only pack that uses every extern and prop (`conformance/packs/base`), and every example. |
-| `docs/` | The authoring guide for agents and the written runtime spec. |
+| `docs/` | The authoring guide for agents, the integration guide, the written runtime spec, and how an error message reads (`error-style.md`). |
 | `SPEC-NOTES.md` | Every place the implementation reads, extends or departs from the spec. |
 | `GAPS.md` | What building a real provider turned up, fixed or still open. |
+| `VERSION`, `notes/` | The version, and one release note per version (see Install). |
 
 MKP ships no widgets of its own: a host brings its own library as a pack, and declares the
 interfaces its features look for. MKP names no host anywhere (`pnpm check:neutral`).
@@ -65,7 +66,7 @@ pnpm test:rn                     # the React Native renderer
 pnpm examples:coverage           # every extern, control, action, event and feature in an example
 pnpm examples:sync               # the guide's copies of the examples are the examples
 pnpm check:neutral               # no host's name in MKP
-pnpm --filter @mkp/playground dev   # the playground at http://localhost:5181
+pnpm --filter @mkp/site dev   # the playground at http://localhost:5181
 pnpm --filter @mkp/cli sea       # packages/cli/dist/mkp, a single executable
 ```
 
@@ -105,3 +106,17 @@ import { MkpDocument } from './vendor/mkp/mkp-react.js';
 The web files are also served, unpacked, at `https://mmujtabamain.github.io/markdown-markup/v/<version>/`
 (and `/latest/`). `pnpm dist` builds the same files into `dist/`. To release: raise `VERSION` and add
 `notes/<version>.md` in the merge request (`pnpm check:notes` checks both); the merge publishes it.
+
+## Coming soon
+
+MKP's core (`mkp.js`) needs no framework: it compiles a document, runs it and hands back a view tree
+of plain data. Today the ready-made way to draw that tree on the web is React (`mkp-react.js`), which
+already covers **Next.js** and every other React framework. Next:
+
+- **`mkp-dom.js`, a framework-free renderer.** `render(el, runtime)` with plain DOM, in MKP's own look,
+  so **Vue, Svelte, Solid, Angular, Astro or plain JavaScript** draw documents with no React in the
+  page. Any framework mounts it in a component.
+- **Recipes for those stacks** in the docs: a component that mounts a document, keeps its state across
+  renders and passes signals back to the app, for each of them, tested like the React one.
+- **The React Native renderer and the shadcn provider in a release**, beside the web files (today
+  they're used from source).

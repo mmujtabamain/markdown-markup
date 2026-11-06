@@ -14,7 +14,7 @@
     "test:rn": "pnpm --filter @mkp/react-native test",
     "conformance": "node scripts/conformance.mjs",
     "hermes": "node scripts/hermes-run.mjs",
-    "e2e": "pnpm --filter @mkp/playground e2e",
+    "e2e": "pnpm --filter @mkp/site e2e",
     "cli": "node packages/cli/dist/mkp.cjs",
     "examples:coverage": "node scripts/examples.mjs coverage",
     "examples:sync": "node scripts/examples.mjs sync",

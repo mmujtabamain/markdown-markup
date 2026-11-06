@@ -1,11 +1,11 @@
-# Gaps found while building the Study Pad provider
+# Gaps found while building a host's provider
 
 A running log, kept as each gap turned up (Mujtaba asked for every one, verbatim and summarised, at
-the finish line). It moved here from Study Pad with MKP, so new gaps go here. **MKP** entries concern
+the finish line). It moved here from the host with MKP, so new gaps go here. **MKP** entries concern
 MKP itself (language, runtime, renderer, CLI, packs) and are product-neutral. Those that changed MKP
-also have a note in `SPEC-NOTES.md` (cited as SN n). **Provider** entries concern Study Pad's provider
-(`ui/src/derived/mkp` in study-pad) or how a host's CSS meets MKP's. Older entries keep the paths they
-were written with: `mkp/` is this repo's root as it was inside study-pad.
+also have a note in `SPEC-NOTES.md` (cited as SN n). **Provider** entries concern the host's provider
+(`ui/src/derived/mkp` in the host's repository) or how a host's CSS meets MKP's. Older entries keep the paths they
+were written with: `mkp/` is this repo's root as it was inside the host's repository.
 Status: *fixed* (and where), *worked around* (in the provider, MKP unchanged), *open*, *reading* (a
 rule of the spec, not a defect), *in progress*.
 
@@ -20,7 +20,7 @@ positions (12, 34, 35, 163, 165), the CLI and fixtures (14, 15, 48, 49, 87, 88, 
 runtime (112, 153). 105 is resolved another way: an answer expression is text compared with
 `equivalent()`, so no `expr` input takes its names from another input. 162 is open: with no packs
 shipped a build checks only what the host loads. The library fixes (11, 13, 17, 20–24, 31, 32, 38,
-59–61, 71, 72, 78, 118, 119, 131, 133) live in Study Pad's library, each with a `gaps-<n>` fixture
+59–61, 71, 72, 78, 118, 119, 131, 133) live in the host's library, each with a `gaps-<n>` fixture
 case. 45 is DevBench's (a bug report is drafted: DevBench doc biuIXHAgRryv3mSRGaL8kA); 85 is won't
 do (↑ and ↓ work and are accessible). The examples prove the fixes a reader can see
 (`pnpm examples:coverage`).
@@ -114,10 +114,10 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `ω³` overlaps its dot (bottom left). The other labels clear theirs. *Open.*
 24. **MKP (mkp-learn): a theorem's ∎ sits alone in a wide band.** Below the proof, the end-of-proof
     mark has a line to itself and a large empty space under it. *Open*, minor.
-25. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
-26. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
-27. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
-28. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+25. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
+26. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
+27. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
+28. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
 29. **MKP (mkp-data, mkp-cs): side-by-side columns never stacked on a phone.** `grow` is `flex: 1 1 0`,
     a basis of 0, so a row of grown stacks never wraps. Grid columns are `minmax(0, 1fr)`, so they
     clip instead: the join's depts table cut "Engineering" off, and the trace squeezed its code until
@@ -142,7 +142,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 34. **MKP: footnotes show their label, not a number.** `[^engine]` draws "engine" as the reference
     and as the note's marker, where GitHub numbers footnotes in order. *Open*, minor. A label is
     an author's name for the note, so the renderer could number them by first reference.
-35. **MKP: a profile checks front matter and roles, not the body's shape.** Study Pad Markdown also
+35. **MKP: a profile checks front matter and roles, not the body's shape.** the host Markdown also
     requires: content only after a `#` heading, headings at most three deep with no level
     skipped, and one-line list items. It also checks citations against the lesson's sources (and,
     with the library, that a pinned source and page exist). None of that can be a profile `rule`.
@@ -150,7 +150,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     clamps the depth at 3 and hangs a skipped level on the nearest open parent. The rest stays the
     host's validation. *Open:* structure rules in profiles (heading depth, content before the first
     heading), and a cross-field check (an id in one field must appear in another).
-36. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+36. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
 
 37. **MKP: `arrow` had no waypoints.** It could only join two outlines with a line or one bend, and
     the compute layer can't know where flex rows put the boxes, so no expression could steer an edge
@@ -179,7 +179,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 45. **Environment (DevBench): the gatekeeper refuses shell text containing a dot followed by `key`**
     (it reads it as a secret file), which MKP code like `c.key` hits. *Worked around:* the field is
     named `id`, and such code is edited with the editor tools.
-46. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+46. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
 47. **MKP: a provided name is visible to every pack, depended on or not** (`program.ts:131`
     `visible()`). An undeclared dependency compiles whenever the other pack happens to be loaded.
     *Open.*
@@ -215,7 +215,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `@mkp/shadcn` maps the eight glyphs the packs use to lucide icons. An `icon` base widget with a
     fixed set of names would say what is meant. *Fixed:* `icon@1` (SN 108), drawn by the provider's
     own icon set (lucide in `@mkp/shadcn`).
-58. *Provider: moved to study-pad, `dev-notes/mkp-provider-gaps.md`.*
+58. *Provider: moved to the host's repository, `dev-notes/mkp-provider-gaps.md`.*
 59. **MKP: packs hand-drew controls a design system has.** A switch was a track of boxes, a tick was ☑
     in text, a progress bar a canvas, and a select's arrow a "▾". None could reach a real component.
     *Fixed:* `press kind=switch|check|radio`, `overlay mode=menu` and `meter` (SN 105).
@@ -235,9 +235,9 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     surface colour behind them. *Fixed:* the web does too, with a test.
 65. **MKP (mkp-cs): `trace` draws each line of code as inline code.** `text` reads its string as inline
     Markdown, so a line of code can't be shown literally, and `trace` wraps each line in backticks.
-    A host that gives inline code a background (Study Pad does, and it is right in prose) then shows
+    A host that gives inline code a background (the host does, and it is right in prose) then shows
     a listing of separate chips of different widths. A literal mode on `text`, or a code block with
-    one marked line, would fix it. *Fixed:* Mujtaba asked for Study Pad's own trace design, so `trace`
+    one marked line, would fix it. *Fixed:* Mujtaba asked for the host's own trace design, so `trace`
     is that now, and both of those went in: `code line=` is a listing with a marked line, and
     `text literal=true` shows a string as it is. A provider gives the listing to its own component.
 66. **MKP: a canvas label can sit on the axis.** `orbit`'s $f(z)$ starts on the real axis, which runs
@@ -246,13 +246,13 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `mkp.unknown-name`, and worse, the node is dropped from the definition, so a fixture case whose
     own compile is clean draws nothing there (only the pack build reports it). `trace` uses
     `surface` for "no wash". `quiz.choice` hit the same thing with `ink`. *Open.*
-68. **MKP: `trace` can't jump to a line.** Study Pad's listing lets a reader press or drag to a line.
+68. **MKP: `trace` can't jump to a line.** the host's listing lets a reader press or drag to a line.
     `code` has no event for it, so the listing is read-only here. *Open.*
-69. **MKP: the bar's own status is fixed.** `steps` says "step 3 / 8", where Study Pad's says "Step 3 of 8
+69. **MKP: the bar's own status is fixed.** `steps` says "step 3 / 8", where the host's says "Step 3 of 8
     · line 3" with a reset button on the right, and its Play is the primary button. *Fixed:* the steps
     control is ‹ ▶ ›, the frame's status, a track from 7 steps, `3/8` and start over, with Play the
     high-emphasis button (SN 108).
-70. **MKP: a header can't uppercase.** Study Pad's `TRACE · PYTHON` is CSS uppercase. MKP has no
+70. **MKP: a header can't uppercase.** the host's `TRACE · PYTHON` is CSS uppercase. MKP has no
     `upper()` or text case, so the language keeps the case it was written in. *Fixed:* `text caps=true`,
     and a frame's kind and a pane's title are captions (SN 108).
 71. **MKP (mkp-diagrams): `graph` turned upside down on a cycle.** Its rows counted every link, so a link
@@ -263,30 +263,30 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 73. **MKP: lanes in different rows don't line up.** Rows are centred on their own, so a long edge's lane
     moves from row to row and the line steps sideways between them (53 says the same of the bow).
     *Open:* it wants one grid for all the rows.
-74. **MKP: widgets had no shell.** Mujtaba, of the Views tab: "everything in the view tab for study pad
+74. **MKP: widgets had no shell.** Mujtaba, of the Views tab: "everything in the view tab for the host
     is miles ahead of your design, mkp is supposed to replaced that", "the locking beheviour and other
-    stuff included", and "in terms of design as well, the study pad one design is better". Each MKP
-    widget drew its own outlined box with a bar of loose buttons under it; Study Pad's views share one
+    stuff included", and "in terms of design as well, the host one design is better". Each MKP
+    widget drew its own outlined box with a bar of loose buttons under it; the host's views share one
     frame (kind and title, full screen, About and Details drawers, a resizable stage, a tinted bar),
     one playback bar, titled panes that scroll on their own, and a view lock over anything that zooms.
     None of it could be said in the base set. *Fixed:* `frame`, `pane`, `zoom` and `icon` base widgets
-    (SN 108), which Study Pad's provider draws with WidgetFrame, Pane and ZoomPane. The widgets are
+    (SN 108), which the host's provider draws with WidgetFrame, Pane and ZoomPane. The widgets are
     moved onto them one by one (board #7954).
 
 ### Views parity: questions and predict (mkp-learn)
 
 75. **MKP: a frame's status is one line, and the only part of the bar announced.** A verdict with its
-    reason needs up to three lines, as Study Pad gives it; `status=` is cut off with an ellipsis.
+    reason needs up to three lines, as the host gives it; `status=` is cut off with an ellipsis.
     *Worked around:* each quiz draws its own wrapping line in `fill bar`, which loses `role=status`.
     *Fixed in the base:* `frame statuslines=1..3` (SN 110); the quizzes keep their own line, with its icon.
 76. **MKP: an overlay's anchor is always an outline button.** The header's hint and book buttons are
-    outline; Study Pad's are ghost. *Fixed:* `overlay emphasis=low` (SN 110); the quiz tools use it.
-77. **MKP: an answer row has no letter.** Study Pad's rows show A, B, C in the mark until picked;
+    outline; the host's are ghost. *Fixed:* `overlay emphasis=low` (SN 110); the quiz tools use it.
+77. **MKP: an answer row has no letter.** the host's rows show A, B, C in the mark until picked;
     `press kind=radio|check` had no place for one, and a letter in the content gives two marks.
-    *Fixed:* `press mark="A"` (SN 110), drawn by Study Pad's provider as its lettered tile.
-78. **MKP: no dashed outline.** Study Pad's drop area and gate box are dashed; `stroke=` is solid only.
+    *Fixed:* `press mark="A"` (SN 110), drawn by the host's provider as its lettered tile.
+78. **MKP: no dashed outline.** the host's drop area and gate box are dashed; `stroke=` is solid only.
     *Fixed:* `line=dashed|dotted` on stack, flex and grid (SN 110); both are dashed now.
-79. **MKP: a box can't sit over another.** Study Pad's predict card floats over the blurred chart, and a
+79. **MKP: a box can't sit over another.** the host's predict card floats over the blurred chart, and a
     set is as tall as its tallest question. *Worked around:* the card sits beside the content; the set
     takes each question's own height, so stepping can resize it.
 80. **MKP: no multi-line field.** *Worked around:* write mode uses a one-line field.
@@ -315,7 +315,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 
 ### Views parity: sequences and code (mkp-diagrams, mkp-cs)
 
-90. **MKP arrows: no cross mark for a lost message.** Study Pad ends a lost message in a red ×. Arrow ends
+90. **MKP arrows: no cross mark for a lost message.** the host ends a lost message in a red ×. Arrow ends
     were only arrow, hollow, one, many or none, and a "×" text either makes its row taller or sits above
     the line. *Fixed:* `head=cross`, drawn in the bad tone (SN 110); sequence and exchange use it.
 91. **MKP frame bar: a long status pushes the count and start over out of the bar.** The steps group is
@@ -330,9 +330,9 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
     `includes('n')`, and "center" contains both, so every centred canvas label sat up and to the right.
     *Fixed* in both renderers.
 95. **MKP code marks: one mark per line.** Both providers drew only a line's first mark, so a line couldn't
-    have a tone and a toned part. *Fixed:* the playground's and Study Pad's listings draw every mark on
+    have a tone and a toned part. *Fixed:* the playground's and the host's listings draw every mark on
     a line (a tone for the line, each toned part, the last note).
-96. **MKP code: a listing's lines can't be pressed.** Study Pad moves the current line on a press or a
+96. **MKP code: a listing's lines can't be pressed.** the host moves the current line on a press or a
     pointer drag; `code` has no events (68 says the same of trace). *Open.*
 97. **MKP playground CodeBlock: marks without a current line drew a bordered box with margins.** In
     `apps/playground/src/components/ui/code-block.tsx`. *Fixed:* a listing with marks fills its pane.
@@ -385,13 +385,13 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      top-down on a narrow screen; the fitted drawing is small on a phone.
 120. **MKP layout: a centred row that overflows loses its start.** A cut pipeline lost Push as well as
      Live. *Fixed* by 119 at rest; *Open* for a centred row outside a zoom.
-121. **MKP box: no dashed outline.** Study Pad draws groups, io nodes and label nodes dashed. *Fixed:*
+121. **MKP box: no dashed outline.** the host draws groups, io nodes and label nodes dashed. *Fixed:*
      `line=dashed` (SN 110); groups, io and label nodes use it.
 122. **MKP arrow: no quieter tone than muted.** *Worked around:* a quiet line is dashed and `dim`, and
      its label chip stays readable.
 123. **MKP steps: no "nothing chosen".** *Worked around:* `steps (n) = -1`. It shows 0/N, doesn't wrap,
      and ↺ goes to the first node, not to none. Pressing the chosen node again clears it.
-124. **MKP steps: a track from 7 steps.** Stepping through 7 or more nodes draws a track Study Pad
+124. **MKP steps: a track from 7 steps.** Stepping through 7 or more nodes draws a track the host
      doesn't have, and a long status then pushed the count off a narrow bar. *Fixed* for the bar (91);
      the track stays.
 125. **MKP press: no click on empty space.** A stack or zoom has no click, and a press around the
@@ -437,7 +437,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 141. **MKP arrow: a label sits halfway along its path as plain text.** It can cover another line (one
      label was dropped for that reason) and can't be a pill. *Worked around:* wider gaps where labels
      cross. *Open.*
-142. **MKP layout: no minimum width.** Row links squeeze at 390px, where Study Pad's panes scroll
+142. **MKP layout: no minimum width.** Row links squeeze at 390px, where the host's panes scroll
      sideways. *Open.*
 143. **MKP arrows: lines don't follow a scrolling pane.** *Worked around:* no frame `height` for row
      links and join. (93 is the same.)
@@ -458,7 +458,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      squeezes its cells, and unwrapped values run over each other. *Worked around:* a blank line of
      figure spaces (U+2007) in an unwrapped flex sets a least width, so the pane scrolls (datagrid and
      board trays). It costs one blank line. (142 is the same.) *Open.*
-150. **MKP: an element can't be kept in view.** Study Pad's grid and rail scroll themselves to keep the
+150. **MKP: an element can't be kept in view.** the host's grid and rail scroll themselves to keep the
      current row or stop visible. *Worked around:* `window=` shows N rows or stops around the current
      one, with the edge ones faded. *Open.*
 151. **MKP: text can't truncate to one line with an ellipsis.** `wrap=false` overflows its box, and
@@ -473,7 +473,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      instance's inputs, records and slots read its current caller scope, and are computed again when
      that scope's values change (`keyed instances` in `language.test.ts`).
 154. **MKP: no one-sided rules or line widths.** A column rule is `stack pad=xs tint=ink` (4px against
-     Study Pad's 2px); a rail line is an empty `stack stroke=`. *Worked around.*
+     the host's 2px); a rail line is an empty `stack stroke=`. *Worked around.*
 155. **MKP: a YAML record can't hold a colour, and a pack function can't name a colour token.** Tones in
      records are choices or text, and each definition carries its own tone-to-colour function.
      *Worked around.* (117 and 138 are the same.)
@@ -498,7 +498,7 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      rail from scrolling its current stop into view). *Open:* a value a widget can read for the width
      it has, or a canvas that keeps a least height by widening its shorter range.
 
-### Study Pad lessons in MKP
+### The host lessons in MKP
 
 161. **MKP: a widget whose exclusive branches share an id had no Markdown text.** A snapshot (the
      Markdown target) draws every branch whose condition reads state, so `quiz.choice`, `predict` and
@@ -508,16 +508,16 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
 162. **MKP: every build checks every pack again.** A five-section lesson takes about 1.2 s and peaks
      near 195 MB (140 MB with a 2 MB young generation), almost all of it spent parsing and checking
      the seven packs, whose own warnings (`mkp.each-unkeyed` in plane, contour and others) come out
-     of every lesson's build. Study Pad runs one compile at a time per service to stay inside the
+     of every lesson's build. The host runs one compile at a time per service to stay inside the
      API's memory. *Open:* a checked-pack cache keyed by the packs' digests (or a long-lived build
      server), and a pack's warnings reported when the pack is built, not with each document.
-     *Measured after the redesign* (2c3323b, Study Pad's library of 46 definitions, `mkp check` of a
+     *Measured after the redesign* (2c3323b, the host's library of 46 definitions, `mkp check` of a
      demo lesson): 0.99 s, of which about 0.2 s is starting node, 0.1 s parsing the 4.4 MB CLI and
      0.12 s starting the maths engine; digests of every definition (canonical JSON and SHA-256) take
      about 0.12 s, and the checking itself the rest. A cache of checked packs would save the checking
      but not the start: a long-lived build server is the larger win for a host that compiles often.
      Still open.
-163. **MKP: four of Study Pad's old widgets have no counterpart.** `map.geo` (places and routes on a
+163. **MKP: four of the host's old widgets have no counterpart.** `map.geo` (places and routes on a
      world outline): MKP has no map. `math.annotated` (one formula with numbered notes on its parts):
      `annotated-source` notes lines of code, but nothing marks a part of a formula, as KaTeX draws it
      whole. `lab.process-feedback` (when feedback arrives under waterfall, incremental and spiral) and
@@ -527,24 +527,24 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      if a course needs one.
 164. **MKP: two blocks may have the same anchor.** `#id` twice in one document, or two headings whose
      titles slug to the same id, compile clean, so links, workbook ids and progress keyed by the
-     anchor point at the first and silently lose the second. Study Pad's workbook falls back to the
+     anchor point at the first and silently lose the second. The host's workbook falls back to the
      block's index for the second one. *Open:* `mkp.duplicate-anchor` as an error, counting the ids
      headings take from their titles.
      *Fixed:* `mkp.duplicate-anchor` is an error at the second block, containers included. Ids a
      host derives from heading titles are the host's to check.
 165. **MKP: an item of a YAML list has no line of its own.** Options and steps written as a list all
      carry the line of the list's key, so a review flag on one option can only point at the list.
-     Neither `{cite=…}` attributes nor front-matter fields have a line in the bundle; Study Pad's
+     Neither `{cite=…}` attributes nor front-matter fields have a line in the bundle; the host's
      report finds them by scanning the source. *Open:* a position per list item and per attribute
      (the front matter's keys too), kept in the IR beside `pos`.
 166. **MKP: the Markdown target can't leave answers out.** It prints `**Answer:**` and the answer
      inline with nothing marking where it ends, so a search index or a summary built from it shows
-     the answers. Study Pad walks the bundle instead, leaving out what a definition marks as an
+     the answers. The host walks the bundle instead, leaving out what a definition marks as an
      answer by input name. *Open:* a `--no-answers` snapshot, with each widget saying which inputs
      are answers (an `answer` flag on `in`), which also lets a host find them without knowing names.
 167. **MKP CLI: `mkp build` without `--out` cuts its output at 64 KiB into a pipe.** It writes the IR
      to stdout and exits before a piped stdout drains, so a caller reading the bundle from a pipe gets
-     65,536 bytes of it. Study Pad's backend and CLI pass `--out`. *Open:* end with `process.exitCode`
+     65,536 bytes of it. The host's backend and CLI pass `--out`. *Open:* end with `process.exitCode`
      (or wait for the write's callback) instead of `process.exit()`.
      *Fixed:* the CLI exits once stdout and stderr have drained (a pipe got 128 KiB of a 322 KiB
      bundle before).
@@ -553,23 +553,23 @@ do (↑ and ↓ work and are accessible). The examples prove the fixes a reader 
      YAML, so an agent copying them writes the wrong syntax. *Open:* required only for an `in` with no
      default, and examples printed as the fence body they would be.
 169. **MKP: no clock.** A widget can't count time down (or up): `play=` steps a fixed sequence, and
-     nothing reads the time. Study Pad's Workbook exam had an optional time limit; `quiz.set exam=true`
+     nothing reads the time. The host's Workbook exam had an optional time limit; `quiz.set exam=true`
      (no verdicts, reasons, hints or solutions until Submit, the last saved answer counting) leaves the
      timer to the host, which can only show it beside the set, not end the set when it runs out.
      *Partly fixed:* a host input is that input. `quiz.choice`, `quiz.numeric` and `quiz.expression`
-     take `host ended`: a host drawing questions in exam mode (Study Pad's Workbook, one question per
+     take `host ended`: a host drawing questions in exam mode (the host's Workbook, one question per
      lesson block, with its own Submit and time limit) sets it with `widget(block).host("ended", true)`
      and each marks the answer saved last, as when a caller sets `exam` back to false. *Open:* a
      `clock` control (seconds since a state change, paused when hidden), for a timer inside a widget.
 170. **MKP core loaded its 2.7 MB maths engine with the package.** `maths.ts` imported the vendored
      MathJax and Speech Rule Engine at the top, so a page drawing a lesson whose maths was rendered at
-     build fetched it anyway (Study Pad's lesson chunk was 3.6 MB, 1.07 MB gzipped). *Fixed:* the
+     build fetched it anyway (the host's lesson chunk was 3.6 MB, 1.07 MB gzipped). *Fixed:* the
      first `MathsEngine.create()` loads it; React Native's Jest setup turns that `import()` into a
      deferred `require` (Metro handles it itself).
 
-### Study Pad's library on the redesign
+### The host's library on the redesign
 
-Found while building Study Pad's own library (packs/studypad: graph, plot, walk and the rest) on the
+Found while building the host's own library (packs/host: graph, plot, walk and the rest) on the
 redesigned language.
 
 171. **Types that read plainly didn't check.** `[0] + map(xs, x => x / 2)` (ints joined to nums), a

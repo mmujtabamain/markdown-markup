@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+/* shadcn/ui's neutral theme, with MKP's teal for primary, ring and accent. tw-animate-css is left out. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-info: var(--info);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-warm: var(--brand-warm);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.53 0.105 183);
+  --primary-foreground: oklch(0.985 0.01 180);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.96 0.025 180);
+  --accent-foreground: oklch(0.33 0.07 184);
+  --brand: oklch(0.53 0.105 183);
+  --brand-soft: oklch(0.95 0.035 180);
+  --brand-warm: oklch(0.74 0.15 62);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.65 0.09 182);
+  --info: oklch(0.546 0.215 262.881);
+  --ok: oklch(0.527 0.154 150.069);
+  --warn: oklch(0.555 0.163 48.998);
+  --pg-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --pg-selection: oklch(0.85 0.06 250 / 55%);
+  --pg-active-line: oklch(0.97 0.005 250 / 70%);
+  --pg-hl-comment: oklch(0.55 0.02 250);
+  --pg-hl-string: oklch(0.48 0.12 150);
+  --pg-hl-number: oklch(0.5 0.15 30);
+  --pg-hl-keyword: oklch(0.45 0.18 300);
+  --pg-hl-def: oklch(0.45 0.15 255);
+  --pg-hl-attr: oklch(0.5 0.13 210);
+  --pg-hl-event: oklch(0.52 0.16 60);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.78 0.12 179);
+  --primary-foreground: oklch(0.2 0.035 186);
+  --brand: oklch(0.78 0.12 179);
+  --brand-soft: oklch(0.27 0.045 183);
+  --brand-warm: oklch(0.8 0.14 70);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.27 0.035 183);
+  --accent-foreground: oklch(0.93 0.04 180);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0.09 180);
+  --info: oklch(0.707 0.165 254.624);
+  --ok: oklch(0.792 0.209 151.711);
+  --warn: oklch(0.828 0.189 84.429);
+  --pg-selection: oklch(0.45 0.08 250 / 60%);
+  --pg-active-line: oklch(1 0 0 / 4%);
+  --pg-hl-comment: oklch(0.65 0.02 250);
+  --pg-hl-string: oklch(0.8 0.13 150);
+  --pg-hl-number: oklch(0.8 0.12 50);
+  --pg-hl-keyword: oklch(0.78 0.13 310);
+  --pg-hl-def: oklch(0.8 0.11 250);
+  --pg-hl-attr: oklch(0.8 0.1 210);
+  --pg-hl-event: oklch(0.82 0.14 80);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.pg-pre {
+  @apply m-0 p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap;
+}
+
+/* the three panes: side by side when wide, one at a time (tabs) when narrow */
+.pg-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.pg-pane {
+  @apply flex min-h-0 min-w-0 flex-col;
+  grid-row: 1;
+  grid-column: 1;
+}
+.pg-pane-title {
+  @apply hidden shrink-0 border-b bg-muted/40 px-3 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase;
+}
+.pg-pane > :last-child {
+  @apply min-h-0 flex-1;
+}
+@media (max-width: 1023.98px) {
+  .pg-pane:not([data-active]) {
+    display: none;
+  }
+}
+@media (min-width: 1024px) {
+  .pg-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+  .pg-pane:nth-child(2) {
+    grid-column: 2;
+  }
+  .pg-pane:nth-child(3) {
+    grid-column: 3;
+  }
+  .pg-pane + .pg-pane {
+    @apply border-l;
+  }
+  .pg-pane-title {
+    display: block;
+  }
+}
+
+.pg-editor {
+  height: 100%;
+  min-height: 0;
+}
+.pg-editor .cm-editor {
+  height: 100%;
+}
+
+.pg-stage .mkp-root {
+  background: transparent;
+}
+/* outlines of boxes are shadcn's border, lighter than muted text */
+.mkp-root {
+  --mkp-stroke-muted: var(--border);
+}
+
+.pg-table {
+  @apply w-full border-collapse text-left text-sm;
+}
+.pg-table th {
+  @apply border-b px-2 py-1 text-xs font-medium text-muted-foreground;
+}
+.pg-table td {
+  @apply border-b px-2 py-1.5 align-top;
+}
+
+/* The Markdown preview: GitHub's look for rendered Markdown, in the page's tokens */
+.pg-md {
+  @apply p-4 text-sm leading-relaxed break-words;
+  --pg-md-note: oklch(0.55 0.17 255);
+  --pg-md-tip: oklch(0.55 0.15 150);
+  --pg-md-important: oklch(0.55 0.2 300);
+  --pg-md-warning: oklch(0.62 0.14 75);
+  --pg-md-caution: oklch(0.58 0.2 27);
+}
+.dark .pg-md {
+  --pg-md-note: oklch(0.7 0.14 255);
+  --pg-md-tip: oklch(0.72 0.15 150);
+  --pg-md-important: oklch(0.72 0.15 300);
+  --pg-md-warning: oklch(0.78 0.14 80);
+  --pg-md-caution: oklch(0.7 0.17 27);
+}
+.pg-md > :first-child {
+  margin-top: 0;
+}
+.pg-md :is(p, ul, ol, blockquote, table, pre, details, .markdown-alert, .mkp-math-display) {
+  margin-block: 0 1rem;
+}
+.pg-md h1,
+.pg-md h2 {
+  @apply border-b pb-1.5;
+}
+.pg-md h1 {
+  @apply mt-6 mb-4 text-2xl font-semibold;
+}
+.pg-md h2 {
+  @apply mt-6 mb-4 text-xl font-semibold;
+}
+.pg-md h3 {
+  @apply mt-5 mb-3 text-base font-semibold;
+}
+.pg-md :is(h4, h5, h6) {
+  @apply mt-4 mb-2 text-sm font-semibold;
+}
+.pg-md a {
+  @apply text-info underline-offset-2 hover:underline;
+}
+.pg-md ul {
+  @apply list-disc pl-6;
+}
+.pg-md ol {
+  @apply list-decimal pl-6;
+}
+.pg-md li + li {
+  margin-top: 0.25rem;
+}
+.pg-md li:has(> input[type='checkbox']) {
+  list-style: none;
+  margin-left: -1.25rem;
+}
+.pg-md li > input[type='checkbox'] {
+  margin-right: 0.4rem;
+  vertical-align: -1px;
+}
+.pg-md blockquote {
+  @apply border-l-4 pl-3 text-muted-foreground;
+}
+.pg-md code {
+  @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+}
+.pg-md pre {
+  @apply overflow-x-auto rounded-md bg-muted p-3 text-xs leading-normal;
+}
+.pg-md pre code {
+  @apply bg-transparent p-0 text-xs;
+}
+.pg-md .mkp-code-label {
+  @apply mb-1 text-xs text-muted-foreground;
+}
+.pg-md table {
+  @apply block w-max max-w-full overflow-x-auto border-collapse;
+}
+.pg-md :is(th, td) {
+  @apply border px-3 py-1.5;
+}
+.pg-md th {
+  @apply font-semibold;
+}
+.pg-md tr:nth-child(2n) td {
+  @apply bg-muted/50;
+}
+.pg-md hr {
+  @apply my-6 h-1 rounded border-0 bg-border;
+}
+.pg-md img {
+  @apply max-w-full;
+}
+.pg-md details {
+  @apply rounded-md border px-3 py-2;
+}
+.pg-md summary {
+  @apply cursor-pointer font-medium;
+}
+.pg-md .mkp-math svg {
+  display: inline-block;
+}
+.pg-md .mkp-math-display {
+  @apply overflow-x-auto text-center;
+}
+.pg-md .mkp-math-error {
+  @apply text-destructive;
+}
+.pg-md .markdown-alert {
+  @apply border-l-4 py-1 pl-3;
+  border-color: var(--pg-md-alert);
+}
+.pg-md .markdown-alert > :last-child {
+  margin-bottom: 0;
+}
+.pg-md .markdown-alert-title {
+  @apply mb-1 flex items-center gap-2 font-medium;
+  color: var(--pg-md-alert);
+}
+.pg-md .markdown-alert-note {
+  --pg-md-alert: var(--pg-md-note);
+}
+.pg-md .markdown-alert-tip {
+  --pg-md-alert: var(--pg-md-tip);
+}
+.pg-md .markdown-alert-important {
+  --pg-md-alert: var(--pg-md-important);
+}
+.pg-md .markdown-alert-warning {
+  --pg-md-alert: var(--pg-md-warning);
+}
+.pg-md .markdown-alert-caution {
+  --pg-md-alert: var(--pg-md-caution);
+}
+.pg-md .footnotes {
+  @apply mt-8 border-t pt-3 text-xs text-muted-foreground;
+}
+.pg-md .footnotes ol {
+  @apply pl-5;
+}
+.pg-md sup a {
+  @apply px-px text-[0.75em];
+}
