@@ -5,7 +5,7 @@
 # how to use each asset (scripts/release-body.mjs). If v<VERSION> already exists (a re-run, or a push
 # that didn't raise VERSION), nothing is released.
 #
-# Every push then rebuilds the Pages site: the playground at /, and the web files of the last 50
+# Every push to main then rebuilds the Pages site: the playground at /, and the web files of the last 50
 # releases unpacked at /v/<version>/, the newest also at /latest/, listed in /v/index.json.
 # Needs: Settings → Actions → General → Workflow permissions: Read and write.
 name: Release
@@ -85,8 +85,9 @@ jobs:
   pages:
     name: Pages
     needs: release
-    # after a release on main, and on every other push (the playground only changes)
-    if: always() && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    # from main only (the github-pages environment allows main): after its release, or after a push
+    # to main that released nothing
+    if: always() && github.ref == 'refs/heads/main' && (needs.release.result == 'success' || needs.release.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
