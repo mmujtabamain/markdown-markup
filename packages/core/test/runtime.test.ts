@@ -70,6 +70,13 @@ describe('runtime: steps, switch and reveal (example 13)', () => {
     rt.tick(2050);
     expect(texts(rt)).toContain('Add a spoon of green tea per cup.');
   });
+  it("draws the bar's glyphs in their press's own colour, so ▶ shows on a dark play button", () => {
+    const rt = new Runtime(bundle('controls'), { now: () => 0 });
+    const presses = find(rt.view(), (n) => n.t === 'press' && /\.(play|prev|next|reset)$/.test(n.key));
+    expect(presses.length).toBeGreaterThanOrEqual(4);
+    expect(presses.find((p) => p.key.endsWith('.play'))!.p.emphasis).toBe('high');
+    for (const p of presses) for (const t of find(p.kids ?? [], (n) => n.t === 'text')) expect(t.p.tone, p.key).toBe('none');
+  });
   it('reveals what is hidden, keeping its place', () => {
     const rt = new Runtime(bundle('controls'), { now: () => 0 });
     const why = () => find(rt.view(), (n) => n.id === 'why')[0];

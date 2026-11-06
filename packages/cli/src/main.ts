@@ -2,8 +2,11 @@
 // so hosts in any language call it at write time, in an editor or in CI.
 //
 //   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-//             [--target ir|ir-expanded|md[,…]] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
-//             [--diagnostics json]
+//             [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+//             [--lock mkp.lock] [--diagnostics json]
+//             html: a standalone page that draws the document (name.html: one file, offline, the
+//             renderer inlined, the Markdown inside it for readers with scripts off); html-md: the
+//             document's Markdown drawn as HTML, with no script (name.md.html)
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
@@ -45,9 +48,13 @@ import {
   writeZip,
   type Compiled,
   type IRLock,
+  type IRBundle,
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
+import { htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
+// the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
+import PAGE_SCRIPT from 'mkp:page-script';
 
 export const VERSION = '0.2.0';
 
@@ -157,6 +164,22 @@ function docFiles(paths: string[]): string[] {
   return out;
 }
 
+const PICTURE_TYPES: Record<string, string> = { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif' };
+
+function dataUrl(name: string, bytes: Buffer): string {
+  return `data:${PICTURE_TYPES[extname(name).toLowerCase()] ?? 'application/octet-stream'};base64,${bytes.toString('base64')}`;
+}
+
+/** The pictures a bundle names that are files beside its document, as data: URLs, by name. */
+function docPictures(bundle: IRBundle, dir: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of pictureNames(bundle)) {
+    const f = resolve(dir, name);
+    if (existsSync(f) && statSync(f).isFile()) out[name] = dataUrl(name, readFileSync(f));
+  }
+  return out;
+}
+
 async function build(a: Args): Promise<number> {
   const c = compiled(a);
   let ok = report(c.diags);
@@ -164,6 +187,8 @@ async function build(a: Args): Promise<number> {
   const toggles = (typeof a.opts.md === 'string' ? a.opts.md.split(',').filter(Boolean) : []) as MdToggle[];
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
   if (targets.length > 1 && !outDir) throw new Error('several targets need --out');
+  const known = ['ir', 'ir-expanded', 'md', 'html', 'html-md'];
+  for (const t of targets) if (!known.includes(t)) throw new Error(`--target takes ${known.join(', ')}; found ${t}`);
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
   // a document from stdin (-), named by --name
   const docs = a.pos.includes('-')
@@ -186,6 +211,23 @@ async function build(a: Args): Promise<number> {
         text = r.md;
         ext = '.md';
         for (const [k, v] of r.files) files.set(k, v);
+      } else if (target === 'html' || target === 'html-md') {
+        // the Markdown drawn as HTML: the whole of html-md, and html's fallback for readers with
+        // scripts off; GitHub's flavour and maths unless --md says otherwise
+        const r = writeMarkdown(bundle, { toggles: toggles.length ? toggles : ['gfm', 'math'], maths: maths ?? undefined, imageBase: stem, answers: !a.opts['no-answers'] });
+        // one file: the pictures beside the document, and those the Markdown writer drew, go inside
+        // the page as data: URLs
+        const pictures = docPictures(bundle, a.pos.includes('-') ? process.cwd() : dirname(file));
+        for (const [k, v] of r.files) pictures[k] = dataUrl(k, Buffer.from(v));
+        const drawn = markdownToHtml(r.md, { maths, image: (href) => pictures[href.replace(/^\.\//, '')] });
+        const title = pageTitle(r.md, stem);
+        if (target === 'html') {
+          text = htmlPage({ title, bundleJson: JSON.stringify(withAssets(bundle, pictures)), script: PAGE_SCRIPT, fallbackHtml: drawn });
+          ext = '.html';
+        } else {
+          text = markdownPage({ title, html: drawn });
+          ext = '.md.html';
+        }
       } else {
         text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
         ext = target === 'ir-expanded' ? '.expanded.json' : '.ir.json';
@@ -384,8 +426,8 @@ function pack(a: Args): number {
 const HELP = `mkp ${VERSION}: Markdown Markup
 
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-            [--target ir|ir-expanded|md[,…]] [--md gfm,math,mermaid,html,images] [--out dir] [--lock mkp.lock]
-            [--diagnostics json]
+            [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+            [--lock mkp.lock] [--diagnostics json]
   mkp check [docs…] --pack … [--format json]
   mkp index --pack …
   mkp show <name> --pack … [--source [--as new-name]]

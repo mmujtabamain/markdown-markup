@@ -105,19 +105,10 @@ for (const n of only) {
     ...(p.bundle ? {} : { type: 'module' }),
   };
   if (p.bundle) {
-    // the CLI: core bundled in, the maths engine with it
-    await build({
-      entryPoints: [join(root, 'packages/cli/src/bin.ts')],
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-      target: 'node20',
-      outfile: join(dir, 'dist/mkp.cjs'),
-      alias: { '@mkp/core': join(root, 'packages/core/src/index.ts') },
-      banner: { js: '#!/usr/bin/env node' },
-      legalComments: 'none',
-      logLevel: 'warning',
-    });
+    // the CLI: its own build (core, the maths engine and --target html's page script inside it)
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore' });
+    mkdirSync(join(dir, 'dist'), { recursive: true });
+    cpSync(join(root, 'packages/cli/dist/mkp.cjs'), join(dir, 'dist/mkp.cjs'));
     Object.assign(pkg, { bin: { mkp: 'dist/mkp.cjs' }, files: ['dist'], engines: { node: '>=20.19' } });
   } else {
     const external = [...Object.keys(src.dependencies ?? {}), ...Object.keys(src.peerDependencies ?? {}), ...Object.keys(src.peerDependenciesMeta ?? {})];

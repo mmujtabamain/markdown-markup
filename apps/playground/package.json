@@ -19,6 +19,7 @@
     "@codemirror/view": "^6.43.15",
     "@lezer/highlight": "^1.2.5",
     "@mkp/core": "workspace:*",
+    "@mkp/page": "workspace:*",
     "@mkp/react": "workspace:*",
     "@mkp/shadcn": "workspace:*",
     "class-variance-authority": "^0.7.1",

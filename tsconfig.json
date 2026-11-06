@@ -27,6 +27,9 @@
       ],
       "@mkp/shadcn": [
         "packages/shadcn/src/index.tsx"
+      ],
+      "@mkp/page": [
+        "packages/page/src/index.ts"
       ]
     }
   },
@@ -35,6 +38,7 @@
     "packages/core/test",
     "packages/react/src",
     "packages/shadcn/src",
+    "packages/page/src",
     "packages/cli/src",
     "apps/playground/src"
   ]

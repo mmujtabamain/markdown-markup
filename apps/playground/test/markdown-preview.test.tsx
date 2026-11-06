@@ -26,8 +26,8 @@ describe('the Markdown preview', () => {
     const html = markdownToHtml('Costs \\$5, and $x^2$ is a square.\n\n$$\n\\frac{a}{b}\n$$\n\n```math\ny = 1\n```\n', { maths });
     const d = document.createElement('div');
     d.innerHTML = html;
-    expect(d.querySelectorAll('.pg-math svg')).toHaveLength(3);
-    expect(d.querySelectorAll('.pg-math-display')).toHaveLength(2);
+    expect(d.querySelectorAll('.mkp-math svg')).toHaveLength(3);
+    expect(d.querySelectorAll('.mkp-math-display')).toHaveLength(2);
     expect(d.textContent).toContain('Costs $5');
   });
 

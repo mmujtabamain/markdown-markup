@@ -15,6 +15,7 @@ This guide is the working subset, with the mistakes the compiler catches. The ex
 ```sh
 mkp check lesson.mkp.md --pack … --format json   # every error: code, file, line, column, a fix
 mkp build lesson.mkp.md --pack … --target md     # the Markdown a reader without MKP gets
+mkp build lesson.mkp.md --pack … --target html --out shots   # one page that draws it: open it, or screenshot it
 mkp index --pack …                               # the widgets a host's packs give, one a line
 mkp show walk --pack …                           # one widget's inputs and an example
 mkp show walk --pack … --source --as my-walk     # its source, renamed, to copy and edit

@@ -15,6 +15,7 @@ export default defineConfig({
       '@mkp/core': at('../../packages/core/src/index.ts'),
       '@mkp/react': at('../../packages/react/src/index.tsx'),
       '@mkp/shadcn': at('../../packages/shadcn/src/index.tsx'),
+      '@mkp/page': at('../../packages/page/src/index.ts'),
       '@': at('src'),
     },
   },

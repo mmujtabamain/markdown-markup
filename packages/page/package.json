@@ -1,0 +1,23 @@
+{
+  "name": "@mkp/page",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "An MKP document as one standalone HTML page (mkp build --target html), and its Markdown drawn as HTML (--target html-md).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@mkp/core": "workspace:*",
+    "@mkp/react": "workspace:*",
+    "marked": "^18.1.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
+  }
+}

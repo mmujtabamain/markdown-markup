@@ -57,6 +57,31 @@ describe('mkp CLI', () => {
     // no pack, no lock
     expect(existsSync(join(ex('25-roots-of-unity'), 'mkp.lock'))).toBe(false);
   });
+  it('build --target html writes one offline page that draws the document, its Markdown inside it', () => {
+    const out = mkdtempSync(join(tmpdir(), 'mkp-'));
+    const r = run(['build', join(ex('18-frame-pane-zoom'), 'doc.mkp.md'), '--target', 'html,html-md', '--out', out, '--no-speech']);
+    expect(r.status, r.stderr).toBe(0);
+    const page = readFileSync(join(out, 'doc.html'), 'utf8');
+    expect(page).toMatch(/^<!doctype html>/);
+    expect(page).toContain('<title>A floor plan</title>');
+    // the bundle, the page script and the Markdown for readers with scripts off
+    const json = /<script type="application\/json" id="mkp-bundle">([\s\S]*?)<\/script>/.exec(page)![1];
+    expect(JSON.parse(json).level).toBe('bundle');
+    expect(page).toContain('<article class="mkp-md">');
+    expect(page).toContain('createRoot');
+    // the picture beside the document is inside the page: no file to carry along
+    expect(json).toContain('data:image/svg+xml;base64,');
+    expect(json).not.toContain('"plan.svg"');
+    const md = readFileSync(join(out, 'doc.md.html'), 'utf8');
+    expect(md).toContain('<h1>A floor plan</h1>');
+    expect(md).not.toContain('mkp-bundle');
+    expect(md.length).toBeLessThan(page.length / 50);
+  });
+  it('build refuses a target it does not know, naming the ones it does', () => {
+    const r = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'pdf', '--no-maths']);
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain('--target takes ir, ir-expanded, md, html, html-md; found pdf');
+  });
   it('build reads the document file beside a document', () => {
     const r = run(['build', join(ex('27-document-file'), 'doc.mkp.md'), '--target', 'md', '--no-maths']);
     expect(r.status, r.stderr).toBe(0);

@@ -601,3 +601,12 @@ redesigned language.
      passed where an `expr` parameter is expected, and YAML can't give a list of expressions; a local
      fn can't call one declared below it; an option word of a definition's own choices can't be a name
      anywhere in it; any gfx use makes the whole widget require gfx@1.
+
+### Pages (mkp build --target html)
+
+177. **The neutral renderer's play button was blank.** The runtime drew a control bar's glyphs
+     (▶ ⏸ ‹ › ↺ and a choice's options) as text in `ink`, so on a high-emphasis press, whose
+     background is `ink`, ▶ was dark on dark. shadcn hid it by swapping glyphs for icons; the
+     neutral renderer (and so every standalone page) showed an empty black square. *Fixed:* the
+     glyphs take tone `none`, the press's own colour (runtime test; the pages e2e checks every
+     button label's contrast in light and dark).

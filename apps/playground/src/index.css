@@ -197,7 +197,7 @@
 .pg-md > :first-child {
   margin-top: 0;
 }
-.pg-md :is(p, ul, ol, blockquote, table, pre, details, .markdown-alert, .pg-math-display) {
+.pg-md :is(p, ul, ol, blockquote, table, pre, details, .markdown-alert, .mkp-math-display) {
   margin-block: 0 1rem;
 }
 .pg-md h1,
@@ -248,7 +248,7 @@
 .pg-md pre code {
   @apply bg-transparent p-0 text-xs;
 }
-.pg-md .pg-code-label {
+.pg-md .mkp-code-label {
   @apply mb-1 text-xs text-muted-foreground;
 }
 .pg-md table {
@@ -275,13 +275,13 @@
 .pg-md summary {
   @apply cursor-pointer font-medium;
 }
-.pg-md .pg-math svg {
+.pg-md .mkp-math svg {
   display: inline-block;
 }
-.pg-md .pg-math-display {
+.pg-md .mkp-math-display {
   @apply overflow-x-auto text-center;
 }
-.pg-md .pg-math-error {
+.pg-md .mkp-math-error {
   @apply text-destructive;
 }
 .pg-md .markdown-alert {

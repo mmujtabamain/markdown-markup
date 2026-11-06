@@ -1,8 +1,9 @@
 // Builds dist/mkp.cjs (one file, Node 20+), and with --sea the single executable dist/mkp
 // (Node's single-executable applications: the bundle injected into a copy of the node binary).
+// The page script of --target html (packages/page, built first) goes inside it as text.
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, chmodSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,6 +12,15 @@ const pkg = resolve(here, '..');
 const dist = join(pkg, 'dist');
 mkdirSync(dist, { recursive: true });
 const t0 = Date.now();
+const page = resolve(pkg, '../page');
+execFileSync(process.execPath, [join(page, 'scripts/build.mjs')], { stdio: 'ignore' });
+const pageScript = {
+  name: 'page-script',
+  setup(b) {
+    b.onResolve({ filter: /^mkp:page-script$/ }, () => ({ path: join(page, 'dist/page.js'), namespace: 'page-script' }));
+    b.onLoad({ filter: /.*/, namespace: 'page-script' }, (a) => ({ contents: readFileSync(a.path, 'utf8'), loader: 'text' }));
+  },
+};
 await build({
   entryPoints: [join(pkg, 'src/bin.ts')],
   bundle: true,
@@ -18,7 +28,8 @@ await build({
   format: 'cjs',
   target: 'node20',
   outfile: join(dist, 'mkp.cjs'),
-  alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts') },
+  alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts'), '@mkp/page': resolve(page, 'src/index.ts') },
+  plugins: [pageScript],
   banner: { js: '#!/usr/bin/env node' },
   legalComments: 'none',
   logLevel: 'warning',

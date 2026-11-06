@@ -1305,6 +1305,7 @@ export class Runtime {
     const value = cell.get();
     const label = s.label ?? name;
     const env = inst.env;
+    // a glyph inside a press takes tone none: it is the press's own colour (white on a high press)
     const text = (k: string, t: string, tone = 'ink'): VNode => ({ t: 'text', key: k, p: { runs: this.runs(t), tone, font: 'body', weight: 'regular', size: 'small', align: 'start', wrap: true } });
     const press = (k: string, id: string, lbl: string, kids: VNode[], f: () => void, extra: Record<string, unknown> = {}): VNode => {
       inst.ids.set(id, k);
@@ -1318,7 +1319,7 @@ export class Runtime {
         const kids: VNode[] = [];
         if (s.play) {
           const playing = inst.playing.has(name);
-          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing }));
+          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶', 'none')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing }));
         }
         kids.push(text(`${key}.label`, label, 'muted'));
         inst.ids.set(name, key);
@@ -1335,7 +1336,7 @@ export class Runtime {
       case 'choice': {
         const opts = ((s.args.opts as { lit: string[] }).lit ?? []) as string[];
         const kids: VNode[] = [text(`${key}.label`, label, 'muted')];
-        for (const o of opts) kids.push(press(`${key}.${o}`, `${name}.${o}`, o, [text(`${key}.${o}.t`, o)], () => this.setCell(inst, name, o), { kind: 'option', selected: value === o }));
+        for (const o of opts) kids.push(press(`${key}.${o}`, `${name}.${o}`, o, [text(`${key}.${o}.t`, o, 'none')], () => this.setCell(inst, name, o), { kind: 'option', selected: value === o }));
         inst.ids.set(name, key);
         return { t: 'row', key, id: name, p: { gap: 'xs', align: 'center', justify: 'start', wrap: true, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'radiogroup', label }, kids };
       }
@@ -1346,12 +1347,12 @@ export class Runtime {
         const go = (to: number): void => this.setCell(inst, name, Math.max(none ? -1 : 0, Math.min(n - 1, to)));
         // back, play, next; a track once there are enough steps to need one; where it is; start over.
         // Every part keeps its width, so nothing moves as it plays.
-        const kids: VNode[] = [press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹')], () => go(Math.max(0, at - 1)), { disabled: at <= 0, emphasis: 'low' })];
+        const kids: VNode[] = [press(`${key}.prev`, `${name}.prev`, `previous: ${label}`, [text(`${key}.prev.t`, '‹', 'none')], () => go(Math.max(0, at - 1)), { disabled: at <= 0, emphasis: 'low' })];
         if (s.play) {
           const playing = inst.playing.has(name);
-          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'high' }));
+          kids.push(press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `play ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶', 'none')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'high' }));
         }
-        kids.push(press(`${key}.next`, `${name}.next`, `next: ${label}`, [text(`${key}.next.t`, '›')], () => go(at + 1), { disabled: at >= n - 1, emphasis: 'low' }));
+        kids.push(press(`${key}.next`, `${name}.next`, `next: ${label}`, [text(`${key}.next.t`, '›', 'none')], () => go(at + 1), { disabled: at >= n - 1, emphasis: 'low' }));
         // a track only where the widget asks for one (GAPS 124)
         if (s.args.track && 'lit' in s.args.track && s.args.track.lit) {
           kids.push({ t: 'range', key: `${key}.range`, p: { value: Math.max(0, at), min: 0, max: n - 1, step: 1, label }, ev: ['change'] });
@@ -1360,7 +1361,7 @@ export class Runtime {
         const count = text(`${key}.at`, `${at < 0 ? '—' : at + 1}/${n}`, 'muted');
         count.p.font = 'mono';
         kids.push(count);
-        kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺')], () => go(none ? -1 : 0), { disabled: at <= (none ? -1 : 0), emphasis: 'low' }));
+        kids.push(press(`${key}.reset`, `${name}.reset`, `start over: ${label}`, [text(`${key}.reset.t`, '↺', 'none')], () => go(none ? -1 : 0), { disabled: at <= (none ? -1 : 0), emphasis: 'low' }));
         inst.ids.set(name, key);
         return { t: 'row', key, id: name, p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'steps' }, kids };
       }
@@ -1376,7 +1377,7 @@ export class Runtime {
           key,
           id: name,
           p: { gap: 's', align: 'center', justify: 'start', wrap: false, pad: 'none', fill: 'none', stroke: 'none', radius: 'none', shadow: 'none', role: 'group', label, control: 'clock' },
-          kids: [press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `resume ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'low' }), time],
+          kids: [press(`${key}.play`, `${name}.play`, playing ? `pause ${label}` : `resume ${label}`, [text(`${key}.play.t`, playing ? '⏸' : '▶', 'none')], () => (playing ? this.pause(inst, name) : this.play(inst, name)), { kind: 'toggle', selected: playing, emphasis: 'low' }), time],
         };
       }
       default:

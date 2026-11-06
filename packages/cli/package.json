@@ -9,6 +9,6 @@
     "build": "node scripts/build.mjs",
     "sea": "node scripts/build.mjs --sea"
   },
-  "dependencies": { "@mkp/core": "workspace:*" },
+  "dependencies": { "@mkp/core": "workspace:*", "@mkp/page": "workspace:*" },
   "devDependencies": { "postject": "1.0.0-alpha.6" }
 }

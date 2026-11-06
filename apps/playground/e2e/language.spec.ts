@@ -89,8 +89,8 @@ test('the Markdown preview draws the exported Markdown: alerts, a table, a pictu
   await expect(md.locator('img')).toHaveJSProperty('complete', true);
   expect(await md.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
   await go(page, { e: 'ex:03-code-and-maths', out: 'preview' });
-  await expect(md.locator('.pg-math svg').first()).toBeVisible();
-  await expect(md.locator('.pg-math-display svg').first()).toBeVisible();
+  await expect(md.locator('.mkp-math svg').first()).toBeVisible();
+  await expect(md.locator('.mkp-math-display svg').first()).toBeVisible();
   await go(page, { e: 'ex:01-markdown-text', out: 'preview' });
   await expect(md.locator('section.footnotes li')).toHaveCount(2);
   await expect(md.locator('input[type=checkbox]')).toHaveCount(3);

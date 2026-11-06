@@ -15,6 +15,7 @@ JavaScript, CSS or shaders in content.
 | `packages/react-native` | The React Native renderer. |
 | `packages/shadcn` | A provider's definition of the whole base set, drawn with the shadcn-style components it passes in. |
 | `packages/cli` | `mkp`: build, check, index, show, schema, fmt, pack — also as one executable. |
+| `packages/page` | A document as one standalone HTML page (`mkp build --target html`: `@mkp/react`'s neutral renderer, the runtime and the maths engine inlined, with the Markdown inside for readers with scripts off), and its Markdown drawn as HTML (`--target html-md`). The playground's Markdown preview is this one too. |
 | `apps/playground` | Write a document and see it drawn, its Markdown, that Markdown drawn, its IR and its errors, at phone or desktop width. |
 | `examples/` | 31 documents in reading order, each one idea, and `examples/limits`: 14 that fail on purpose. Each has its Markdown committed as `doc.md`. |
 | `widgets/` | The playground's component pages: `base/`, each of the 25 base widgets on its own in its states, and `derived/`, everyday widgets (a card, tabs, an accordion, a stepper…) composed from them. |
@@ -71,6 +72,7 @@ pnpm --filter @mkp/cli sea       # packages/cli/dist/mkp, a single executable
 ```sh
 mkp check lesson.mkp.md --pack lib --format json   # errors, one a line, at the exact line and column
 mkp build lesson.mkp.md --pack lib --target md --md gfm,math [--no-answers]
+mkp build lesson.mkp.md --pack lib --target html,html-md --out site   # site/lesson.html: one offline page; lesson.md.html: its Markdown
 mkp index --pack lib                               # the catalog
 mkp show walk --pack lib [--source --as my-walk]   # a signature, or a copy to edit
 ```

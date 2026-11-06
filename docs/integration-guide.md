@@ -821,6 +821,19 @@ kept as TeX), `mermaid` (`project mermaid` diagrams), `html` (`<details>` and th
 At run time: `writeMarkdown(bundle, { toggles: ['gfm', 'math'], answers: false, maths })` returns
 `{ md, files }`.
 
+### 4.6 A page with no app: `--target html`
+
+To share a document with someone who has no app — a link, an attachment, a static site, a demo — build it as a page:
+
+```text
+$ mkp build lesson.mkp.md --pack lib --target html,html-md --out site
+```
+
+- `site/lesson.html` is **one file that opens offline in any browser**, from `file://` too, and shows only the document. Inside it: the bundle, the page script (`@mkp/page`: `@mkp/react`'s neutral renderer, the runtime and the maths engine, about 3.4 MB), and the pictures beside the document as `data:` URLs. It follows the reader's light or dark setting; `#theme=dark` or `#theme=light` in the URL overrides it. With scripts off, or if the renderer can't start, it shows the document's Markdown, drawn as HTML, which is in the page too.
+- `site/lesson.md.html` is that Markdown alone, drawn the way a plain GitHub-style renderer would (GFM, alerts, footnotes, maths as SVG), with no script. `--md` and `--no-answers` apply to both, as they do to `--target md`.
+
+The page is MKP's own neutral look. To draw documents in your design system, use 4.1–4.2 instead.
+
 ---
 
 ## Step 5. Your own widgets: a pack

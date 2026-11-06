@@ -618,3 +618,11 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      and still reads as Markdown on a renderer without MKP. A fixture's JSON may still give a slot as
      text; `caseDocument` writes such a case as a container (its other inputs on the `:::` line), so
      `mkp show` prints the form a document uses. This replaces GAPS 88's fragment-in-YAML.
+137. **A document as a standalone page.** *Extension (12).* `mkp build --target html` writes
+     `name.html`: one offline page holding the bundle, `@mkp/page`'s script (`@mkp/react`'s neutral
+     renderer, the runtime and the maths engine) and the pictures beside the document as `data:`
+     URLs. It shows only the document, follows the system's theme (`#theme=` overrides it), and
+     carries the document's Markdown, drawn as HTML, for readers with scripts off.
+     `--target html-md` writes `name.md.html`: that Markdown alone, with no script. The Markdown is
+     drawn by `markdownToHtml` (moved to `@mkp/page` from the playground, which uses it with
+     DOMPurify); without a sanitiser, raw HTML in it shows as text.
