@@ -54,7 +54,7 @@ export function Sidebar({ entries, selected, hrefFor, onSelect, edited }: Sideba
                         href={hrefFor(e.id)}
                         data-pg-entry={e.id}
                         aria-current={e.id === selected ? 'page' : undefined}
-                        className="group block rounded-md px-2 py-1.5 text-sm hover:bg-accent aria-[current=page]:bg-accent"
+                        className="group block rounded-md px-2 py-1 text-sm hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
                         onClick={(ev) => {
                           if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
                           ev.preventDefault();
@@ -66,7 +66,7 @@ export function Sidebar({ entries, selected, hrefFor, onSelect, edited }: Sideba
                           <span className={cn('min-w-0 flex-1 truncate group-aria-[current=page]:font-medium', e.kind === 'case' && 'font-mono text-xs')}>{e.title}</span>
                           {edited.has(e.id) ? <span className="size-1.5 shrink-0 self-center rounded-full bg-info" title="edited" aria-label="edited" /> : null}
                         </span>
-                        {e.teaches ? <span className={cn('mt-0.5 block text-xs leading-snug text-muted-foreground', e.num && 'pl-9')}>{e.teaches}</span> : null}
+                        {e.teaches ? <span className="sr-only">{e.teaches}</span> : null}
                         {e.expect ? (
                           <span className={cn('mt-1 flex flex-wrap items-center gap-1 text-xs', e.num && 'pl-9')}>
                             <code className="rounded bg-destructive/10 px-1 py-px font-mono text-[11px] text-destructive">{e.expect.code}</code>

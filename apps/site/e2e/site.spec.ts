@@ -47,3 +47,24 @@ test('the landing page fits a phone, in light and dark', async ({ browser }) => 
     await ctx.close();
   }
 });
+
+test('the docs: one result at a time, switched in place, with the entry named above', async ({ page }) => {
+  await page.goto('/docs/#e=ex:13-controls');
+  await expect(page.locator('[data-pg-entry-head]')).toContainText('Brewing tea');
+  // the preview is what shows first; the output is one switch away
+  await expect(page.locator('[data-pg-stage]')).toBeVisible();
+  await expect(page.locator('[data-pg-pane="output"]')).toBeHidden();
+  await page.locator('[data-pg-result="md"]').click();
+  await expect(page.locator('[data-pg-out="md"]')).toBeVisible();
+  await expect(page.locator('[data-pg-stage]')).toBeHidden();
+  await expect(page).toHaveURL(/out=md/);
+  await page.locator('[data-pg-result="problems"]').click();
+  await expect(page.locator('[data-pg-out="diagnostics"]')).toBeVisible();
+  await page.locator('[data-pg-result="preview"]').click();
+  await expect(page.locator('[data-pg-stage]')).toBeVisible();
+  // next and previous follow the list
+  await page.locator('[data-pg-next]').click();
+  await expect(page).toHaveURL(/e=ex%3A14|e=ex:14/);
+  await page.locator('[data-pg-prev]').click();
+  await expect(page.locator('[data-pg-title]')).toHaveText('Brewing tea');
+});

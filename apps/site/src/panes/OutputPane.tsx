@@ -3,11 +3,12 @@
 // diagnostics as a list and as the JSON lines `mkp check --format json` prints.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, SlidersHorizontal } from 'lucide-react';
 import { expand, showType, stripPos, writeMarkdown, type IRBundle, type IRNode, type MathsEngine, type MdToggle } from '@mkp/core';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { markdownToHtml } from '../markdown-preview';
@@ -19,6 +20,22 @@ export interface MdSettings {
   toggles: MdToggle[];
   answers: boolean;
 }
+
+/** The result pane's groups: each shows some of the tabs, as small toggles under the group's switch. */
+export type OutputGroup = 'md' | 'ir' | 'problems';
+export const GROUP_TABS: Record<OutputGroup, { value: string; label: string }[]> = {
+  md: [
+    { value: 'md', label: 'Text' },
+    { value: 'preview', label: 'Rendered' },
+  ],
+  ir: [
+    { value: 'ir', label: 'Bundle' },
+    { value: 'expanded', label: 'Expanded' },
+    { value: 'interfaces', label: 'Interfaces' },
+  ],
+  problems: [{ value: 'diagnostics', label: 'Problems' }],
+};
+export const groupOf = (tab: string): OutputGroup => (tab === 'ir' || tab === 'expanded' || tab === 'interfaces' ? 'ir' : tab === 'diagnostics' ? 'problems' : 'md');
 
 export interface OutputPaneProps {
   bundle: IRBundle | null;
@@ -69,7 +86,7 @@ function Empty({ children }: { children: ReactNode }): ReactNode {
   return <p className="p-4 text-sm text-muted-foreground">{children}</p>;
 }
 
-const NO_BUNDLE = 'No bundle: the document has errors. See Diagnostics.';
+const NO_BUNDLE = 'No bundle: the document has errors. See Problems.';
 
 function Interfaces({ bundle }: { bundle: IRBundle }): ReactNode {
   const blocks = bundle.doc.body.filter((n: IRNode) => n.meta?.block !== undefined);
@@ -217,39 +234,59 @@ export function OutputPane(p: OutputPaneProps): ReactNode {
   const errors = p.diags.filter((d) => d.severity === 'error').length;
   const mdBar = (
     <Bar>
-      {TOGGLES.map((t) => (
-        <Label key={t} className="gap-1.5 text-xs font-normal">
-          <Checkbox
-            checked={p.md.toggles.includes(t)}
-            data-pg-toggle={t}
-            onCheckedChange={(c) => p.onMd({ ...p.md, toggles: c === true ? TOGGLES.filter((x) => x === t || p.md.toggles.includes(x)) : p.md.toggles.filter((x) => x !== t) })}
-          />
-          <code className="font-mono">{t}</code>
-        </Label>
-      ))}
-      <Label className="gap-1.5 text-xs font-normal" title="Off: the Markdown a reader sees before answering (mkp build --no-answers)">
-        <Checkbox checked={p.md.answers} data-pg-toggle="answers" onCheckedChange={(c) => p.onMd({ ...p.md, answers: c === true })} />
-        <code className="font-mono">answers</code>
-      </Label>
+      <TabsList className="h-7 group-data-[orientation=horizontal]/tabs:h-7">
+        {GROUP_TABS.md.map((t) => (
+          <TabsTrigger key={t.value} value={t.value} className="h-6 flex-none px-2.5 text-xs" data-pg-out-tab={t.value}>
+            {t.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="xs" data-pg-md-options="">
+            <SlidersHorizontal /> Options
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64">
+          <p className="mb-2 text-xs font-medium">What the Markdown may use</p>
+          <div className="grid grid-cols-2 gap-2">
+            {TOGGLES.map((t) => (
+              <Label key={t} className="gap-1.5 text-xs font-normal">
+                <Checkbox
+                  checked={p.md.toggles.includes(t)}
+                  data-pg-toggle={t}
+                  onCheckedChange={(c) => p.onMd({ ...p.md, toggles: c === true ? TOGGLES.filter((x) => x === t || p.md.toggles.includes(x)) : p.md.toggles.filter((x) => x !== t) })}
+                />
+                <code className="font-mono">{t}</code>
+              </Label>
+            ))}
+            <Label className="col-span-2 gap-1.5 text-xs font-normal" title="Off: the Markdown a reader sees before answering (mkp build --no-answers)">
+              <Checkbox checked={p.md.answers} data-pg-toggle="answers" onCheckedChange={(c) => p.onMd({ ...p.md, answers: c === true })} />
+              <span>
+                <code className="font-mono">answers</code> <span className="text-muted-foreground">(off: before answering)</span>
+              </span>
+            </Label>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <span className="truncate text-muted-foreground">{p.md.toggles.join(', ') || 'plain Markdown'}{p.md.answers ? '' : ', no answers'}</span>
       <span className="flex-1" />
       {md ? <CopyButton text={md.md} /> : null}
     </Bar>
   );
   return (
     <Tabs value={tab} onValueChange={p.onTab} className="flex h-full min-h-0 flex-col gap-0" data-pg-pane="output">
-      <div className="shrink-0 border-b px-2 py-1.5">
-        <TabsList className="flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto">
-          <TabsTrigger value="md" className="h-7 flex-none px-2 text-xs">Markdown</TabsTrigger>
-          <TabsTrigger value="preview" className="h-7 flex-none px-2 text-xs">Markdown preview</TabsTrigger>
-          <TabsTrigger value="ir" className="h-7 flex-none px-2 text-xs">IR</TabsTrigger>
-          <TabsTrigger value="expanded" className="h-7 flex-none px-2 text-xs">Expanded IR</TabsTrigger>
-          <TabsTrigger value="interfaces" className="h-7 flex-none px-2 text-xs">Interfaces</TabsTrigger>
-          <TabsTrigger value="diagnostics" className="h-7 flex-none px-2 text-xs" data-pg-diag-count={p.diags.length}>
-            Diagnostics
-            {p.diags.length ? <span className={cn('rounded-full px-1.5 text-[10px] leading-4', errors ? 'bg-destructive text-white' : 'bg-warn text-white')}>{p.diags.length}</span> : null}
-          </TabsTrigger>
-        </TabsList>
-      </div>
+      {groupOf(tab) === 'ir' ? (
+        <div className="shrink-0 border-b px-3 py-1.5">
+          <TabsList className="h-7 group-data-[orientation=horizontal]/tabs:h-7">
+            {GROUP_TABS[groupOf(tab)].map((t) => (
+              <TabsTrigger key={t.value} value={t.value} className="h-6 flex-none px-2.5 text-xs" data-pg-out-tab={t.value}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+      ) : null}
       <TabsContent value="md" className="flex min-h-0 flex-col">
         {mdBar}
         <div className="min-h-0 flex-1 overflow-auto">

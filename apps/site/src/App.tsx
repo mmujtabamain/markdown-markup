@@ -4,7 +4,7 @@
 // the example and any edits, so a document can be shared by link.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { BookOpen, Check, FolderOpen, Link2, Menu, PanelLeft } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, FolderOpen, Github, Link2, Menu, Moon, PanelLeft, Sun } from 'lucide-react';
 import { MathsEngine } from '@mkp/core';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -15,7 +15,7 @@ import { build, jsonLine, type DrawnError } from './build';
 import { catalog, type ConfCase, type Entry, type SourceFile } from './catalog';
 import { openedDoc, openFiles, type Opened } from './opened';
 import type { DiagItem } from './panes/DiagList';
-import { OutputPane, type MdSettings } from './panes/OutputPane';
+import { groupOf, OutputPane, type MdSettings, type OutputGroup } from './panes/OutputPane';
 import { PreviewPane, type PreviewSettings, type WidthPreset } from './panes/PreviewPane';
 import { Sidebar } from './panes/Sidebar';
 import { SourcePane } from './panes/SourcePane';
@@ -25,10 +25,17 @@ import type { Jump } from './editor/Editor';
 declare const __PG_COMMIT__: string;
 
 type Pane = 'source' | 'preview' | 'output';
-const PANES: { id: Pane; label: string }[] = [
-  { id: 'source', label: 'Source' },
+/** The result pane shows the drawing, or one group of the output. */
+type Result = 'preview' | OutputGroup;
+const RESULTS: { id: Result; label: string; out?: string }[] = [
   { id: 'preview', label: 'Preview' },
-  { id: 'output', label: 'Output' },
+  { id: 'md', label: 'Markdown', out: 'md' },
+  { id: 'ir', label: 'IR', out: 'ir' },
+  { id: 'problems', label: 'Problems', out: 'diagnostics' },
+];
+const PANES: { id: 'source' | 'result'; label: string }[] = [
+  { id: 'source', label: 'Source' },
+  { id: 'result', label: 'Result' },
 ];
 
 const prefersDark = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
@@ -101,6 +108,10 @@ export function App(): ReactNode {
   };
   const pane: Pane = hash.pane ?? 'preview';
   const outTab = hash.out ?? 'md';
+  // what the result pane shows: the drawing, unless the URL names an output tab (or, on a phone, the output pane)
+  const shown: Result = hash.out ? groupOf(hash.out) : pane === 'output' ? 'md' : 'preview';
+  const narrow = pane === 'source' ? 'source' : 'result';
+  const showResult = (r: Result): void => update({ out: RESULTS.find((x) => x.id === r)?.out, pane: undefined });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
@@ -239,6 +250,9 @@ export function App(): ReactNode {
 
   const image = useCallback((href: string) => assetUrl(shownEntry.assets, href), [shownEntry]);
   const loading = mathsError ? `The maths engine didn't load: ${mathsError}` : !maths ? 'Loading the maths engine…' : isCase && !caseReady ? 'Loading the case…' : !current ? 'Compiling…' : undefined;
+  const at = entries.findIndex((e) => e.id === selected.id);
+  const prev = at > 0 ? entries[at - 1] : undefined;
+  const next = at >= 0 && at < entries.length - 1 ? entries[at + 1] : undefined;
   const sidebar = <Sidebar entries={entries} selected={selected.id} hrefFor={hrefFor} onSelect={select} edited={editedEntries} />;
 
   return (
@@ -251,7 +265,6 @@ export function App(): ReactNode {
           <Button variant="ghost" size="icon-sm" className="hidden xl:inline-flex" aria-label={side ? 'Hide the examples' : 'Show the examples'} aria-pressed={side} onClick={() => setSide(!side)}>
             <PanelLeft />
           </Button>
-          <BookOpen className="hidden size-4 text-muted-foreground sm:block xl:hidden" aria-hidden />
           <h1 className="flex shrink-0 items-center gap-2 text-sm font-semibold">
             <a href="../" className="flex items-center gap-2" aria-label="MKP home" data-pg-home="">
               <span className="grid size-6 place-items-center rounded-md bg-brand font-mono text-[10px] font-bold text-primary-foreground" aria-hidden>
@@ -262,13 +275,7 @@ export function App(): ReactNode {
             <span className="font-normal text-muted-foreground">docs</span>
             {__PG_COMMIT__ ? <span className="font-mono text-xs font-normal text-muted-foreground">{__PG_COMMIT__}</span> : null}
           </h1>
-          <span className="hidden text-muted-foreground sm:inline" aria-hidden>
-            /
-          </span>
-          <p className="min-w-0 flex-1 truncate text-sm" data-pg-title="">
-            {selected.num ? <span className="mr-1.5 font-mono text-xs text-muted-foreground">{selected.num}</span> : null}
-            {selected.title}
-          </p>
+          <span className="flex-1" />
           <Button variant="outline" size="sm" asChild>
             <label className="cursor-pointer has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50" title="Open a .mkp.md (with its .mkp) or a .mkpack">
               <FolderOpen /> <span className="hidden sm:inline">Open</span>
@@ -277,6 +284,14 @@ export function App(): ReactNode {
           </Button>
           <Button variant="outline" size="sm" onClick={() => void share()} title="Copy a link to this document, with your edits" data-pg-share="">
             {copied ? <Check /> : <Link2 />} <span className="hidden sm:inline">{copied ? 'Copied' : 'Share'}</span>
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={() => update({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} aria-label={settings.theme === 'dark' ? 'Light theme' : 'Dark theme'} data-pg-site-theme="">
+            {settings.theme === 'dark' ? <Sun /> : <Moon />}
+          </Button>
+          <Button variant="ghost" size="icon-sm" asChild className="hidden sm:inline-flex">
+            <a href="https://github.com/mmujtabamain/markdown-markup" aria-label="MKP on GitHub">
+              <Github />
+            </a>
           </Button>
         </header>
         {notes.length ? (
@@ -299,16 +314,36 @@ export function App(): ReactNode {
             </SheetContent>
           </Sheet>
           <main className="flex min-w-0 flex-1 flex-col">
+            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2.5" data-pg-entry-head="">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium tracking-wider text-brand uppercase">
+                  {selected.group}
+                  {selected.num ? <span className="ml-1.5 font-mono normal-case">{selected.num}</span> : null}
+                </p>
+                <h2 className="truncate text-base font-semibold" data-pg-title="">
+                  {selected.title}
+                </h2>
+                {selected.teaches ? <p className="hidden truncate text-xs text-muted-foreground sm:block">{selected.teaches}</p> : null}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon-sm" disabled={!prev} aria-label={prev ? `Previous: ${prev.title}` : 'Previous'} onClick={() => prev && select(prev.id)} data-pg-prev="">
+                  <ChevronLeft />
+                </Button>
+                <Button variant="outline" size="icon-sm" disabled={!next} aria-label={next ? `Next: ${next.title}` : 'Next'} onClick={() => next && select(next.id)} data-pg-next="">
+                  <ChevronRight />
+                </Button>
+              </div>
+            </div>
             <div className="flex shrink-0 border-b lg:hidden" role="tablist" aria-label="Panes">
               {PANES.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   role="tab"
-                  aria-selected={pane === p.id}
+                  aria-selected={narrow === p.id}
                   data-pg-pane-tab={p.id}
-                  className={cn('flex flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent py-2 text-sm text-muted-foreground', pane === p.id && 'border-foreground font-medium text-foreground')}
-                  onClick={() => update({ pane: p.id })}
+                  className={cn('flex flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent py-2 text-sm text-muted-foreground', narrow === p.id && 'border-brand font-medium text-foreground')}
+                  onClick={() => update({ pane: p.id === 'source' ? 'source' : undefined })}
                 >
                   {p.label}
                   {p.id === 'source' && errors ? <span className="rounded-full bg-destructive px-1.5 text-[10px] leading-4 text-white">{errors}</span> : null}
@@ -316,8 +351,7 @@ export function App(): ReactNode {
               ))}
             </div>
             <div className="pg-panes min-h-0 flex-1">
-              <section className="pg-pane" data-active={pane === 'source' || undefined} aria-label="Source">
-                <h2 className="pg-pane-title">Source</h2>
+              <section className="pg-pane" data-active={narrow === 'source' || undefined} aria-label="Source">
                 <SourcePane
                   files={files}
                   active={active}
@@ -339,8 +373,26 @@ export function App(): ReactNode {
                   expect={selected.expect}
                 />
               </section>
-              <section className="pg-pane" data-active={pane === 'preview' || undefined} aria-label="Preview">
-                <h2 className="pg-pane-title">Preview</h2>
+              <section className="pg-pane pg-result" data-active={narrow === 'result' || undefined} aria-label="Result">
+                <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5" role="tablist" aria-label="Result">
+                  <div className="inline-flex rounded-lg bg-muted p-[3px]">
+                    {RESULTS.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={shown === r.id}
+                        data-pg-result={r.id}
+                        className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors', shown === r.id && 'bg-background text-foreground shadow-sm')}
+                        onClick={() => showResult(r.id)}
+                      >
+                        {r.label}
+                        {r.id === 'problems' && diags.length ? <span className={cn('rounded-full px-1.5 text-[10px] leading-4 text-white', errors ? 'bg-destructive' : 'bg-warn')}>{diags.length}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={cn('min-h-0 flex-1', shown !== 'preview' && 'hidden')}>
                 <PreviewPane
                   entry={shownEntry}
                   builtFor={current?.id ?? ''}
@@ -361,10 +413,10 @@ export function App(): ReactNode {
                   onDrawn={onDrawn}
                   loading={loading}
                 />
-              </section>
-              <section className="pg-pane" data-active={pane === 'output' || undefined} aria-label="Output">
-                <h2 className="pg-pane-title">Output</h2>
-                <OutputPane bundle={current?.bundle ?? null} maths={maths} diags={diags} json={json} onJump={onJump} tab={outTab} onTab={(t) => update({ out: t === 'md' ? undefined : t })} md={md} onMd={setMd} image={image} docFile={files[0]?.path} />
+                </div>
+                <div className={cn('min-h-0 flex-1', shown === 'preview' && 'hidden')}>
+                <OutputPane bundle={current?.bundle ?? null} maths={maths} diags={diags} json={json} onJump={onJump} tab={outTab} onTab={(t) => update({ out: t })} md={md} onMd={setMd} image={image} docFile={files[0]?.path} />
+                </div>
               </section>
             </div>
           </main>

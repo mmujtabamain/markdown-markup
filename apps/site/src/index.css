@@ -145,19 +145,13 @@
 }
 @media (min-width: 1024px) {
   .pg-panes {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   }
   .pg-pane:nth-child(2) {
     grid-column: 2;
   }
-  .pg-pane:nth-child(3) {
-    grid-column: 3;
-  }
   .pg-pane + .pg-pane {
     @apply border-l;
-  }
-  .pg-pane-title {
-    display: block;
   }
 }
 

@@ -2,12 +2,13 @@
 // width, in light or dark, with reduced motion and gfx@1 on or off; and the signals log under it.
 
 import { Component, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { CircleAlert, CircleCheck, CircleX, Moon, Play, Sun } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleX, Play, SlidersHorizontal } from 'lucide-react';
 import { Runtime, type IRBundle, type MathsEngine, type SignalEvent } from '@mkp/core';
 import { MkpDocument, widthClass } from '@mkp/react';
 import { shadcnTokens } from '@mkp/shadcn';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -148,31 +149,37 @@ export function PreviewPane(p: PreviewPaneProps): ReactNode {
   const met = expect ? p.diags.some((d) => d.code === expect.code && (expect.line === 0 ? d.stage === 'draw' : d.line === expect.line)) : false;
   return (
     <div className="flex h-full min-h-0 flex-col" data-pg-pane="preview">
-      <div className="pg-preview-bar flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-1.5 text-sm">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={s.theme === 'dark' ? 'Light' : 'Dark'} data-pg-theme-toggle="" onClick={() => p.onSettings({ theme: s.theme === 'dark' ? 'light' : 'dark' })}>
-              {s.theme === 'dark' ? <Sun /> : <Moon />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{s.theme === 'dark' ? 'Light' : 'Dark'}</TooltipContent>
-        </Tooltip>
-        <Label className="gap-1.5 text-xs font-normal">
-          <Switch checked={s.reduced} onCheckedChange={(v) => p.onSettings({ reduced: v })} aria-label="Reduced motion" /> Reduced motion
-        </Label>
-        <Label className="gap-1.5 text-xs font-normal">
-          <Switch checked={s.gfx} onCheckedChange={(v) => p.onSettings({ gfx: v })} aria-label="gfx@1" /> <code className="font-mono">gfx@1</code>
-        </Label>
+      <div className="pg-preview-bar flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-sm">
         <ToggleGroup type="single" size="sm" variant="outline" value={s.width} onValueChange={(v) => v && p.onSettings({ width: v as WidthPreset })} aria-label="Width">
           {(Object.keys(WIDTHS) as WidthPreset[]).map((k) => (
-            <ToggleGroupItem key={k} value={k} className="px-2 text-xs" data-pg-width={k}>
+            <ToggleGroupItem key={k} value={k} className="h-7 px-2 text-xs" data-pg-width={k}>
               {WIDTHS[k].label}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <span className="font-mono text-xs text-muted-foreground" data-pg-measured={measured} title="The width the document has, and what the runtime reads as width">
+        <span className="hidden truncate font-mono text-xs text-muted-foreground sm:inline" data-pg-measured={measured} title="The width the document has, and what the runtime reads as width">
           {measured ? `${measured} px · ${widthClass(measured)}` : ''}
         </span>
+        <span className="flex-1" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs" data-pg-view="">
+              <SlidersHorizontal /> View
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="flex w-60 flex-col gap-3 text-sm">
+            <Label className="justify-between font-normal">
+              Reduced motion
+              <Switch checked={s.reduced} onCheckedChange={(v) => p.onSettings({ reduced: v })} aria-label="Reduced motion" />
+            </Label>
+            <Label className="justify-between font-normal">
+              <span>
+                <code className="font-mono">gfx@1</code> <span className="text-xs text-muted-foreground">pixels and 3D</span>
+              </span>
+              <Switch checked={s.gfx} onCheckedChange={(v) => p.onSettings({ gfx: v })} aria-label="gfx@1" />
+            </Label>
+          </PopoverContent>
+        </Popover>
       </div>
       <div className="min-h-0 flex-1 overflow-auto" data-pg-scroll="preview">
         {expect ? (
@@ -214,15 +221,15 @@ export function PreviewPane(p: PreviewPaneProps): ReactNode {
           ) : null}
         </div>
       </div>
-      <section className="max-h-[30%] shrink-0 overflow-y-auto border-t" aria-label="Signals">
-        <div className="sticky top-0 flex items-center justify-between bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-          <span>Signals {log.length ? `(${log.length})` : ''}</span>
+      <details className="pg-signals max-h-[30%] shrink-0 overflow-y-auto border-t" aria-label="Signals">
+        <summary className="sticky top-0 flex cursor-pointer items-center justify-between bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground select-none">
+          <span>Signals {log.length ? <span className="ml-1 rounded-full bg-brand-soft px-1.5 text-[10px] text-accent-foreground">{log.length}</span> : null}</span>
           {log.length ? (
-            <Button variant="ghost" size="xs" onClick={() => setLog([])}>
+            <Button variant="ghost" size="xs" onClick={(e) => (e.preventDefault(), setLog([]))}>
               Clear
             </Button>
           ) : null}
-        </div>
+        </summary>
         {log.length ? (
           <ol className="px-3 pb-2 font-mono text-xs" data-pg-signals={log.length}>
             {log.map((l) => (
@@ -239,7 +246,7 @@ export function PreviewPane(p: PreviewPaneProps): ReactNode {
         ) : (
           <p className="px-3 pb-2 text-xs text-muted-foreground">A widget's signals to its host show here as they are sent.</p>
         )}
-      </section>
+      </details>
     </div>
   );
 }
