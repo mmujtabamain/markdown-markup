@@ -34,6 +34,8 @@ export interface Drawn {
   bold?: boolean;
   opacity?: number;
   behind?: boolean;
+  /** it turns in a gap too narrow to keep its turn apart from the others' (data-crowded) */
+  crowded?: boolean;
 }
 
 /** The arrows drawn in one layer, and the layer's size. */
@@ -361,6 +363,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
           bold: a.bold,
           opacity: a.opacity,
           behind: a.layer === 'behind',
+          ...(p.crowded ? { crowded: true } : {}),
         });
         lines.push(polyline(end.d));
       });
@@ -451,7 +454,7 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
         {paths.map((p) => {
           const width = p.bold ? 2 : 1.5;
           return (
-            <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} style={fade(p)}>
+            <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} data-crowded={p.crowded ? '' : undefined} style={fade(p)}>
               <path d={p.d} fill="none" stroke={ink(p)} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
               {p.head ? <polygon points={p.head} fill={ink(p)} /> : null}
               {p.marks.filter((m) => once(m, p)).map((m, i) => (

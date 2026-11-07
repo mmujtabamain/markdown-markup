@@ -334,7 +334,10 @@ the theme on their own; read `theme` only for what can't use them, such as a `pi
 nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`), `line=`,
 `layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20), `corner=m|s|none` (how
 round its turns are: 12 px, 6 px, square). An arrow's ends touch the outlines it joins, and a routed
-line keeps a straight run before its head (the head and 6 px) and after its tail.
+line keeps a straight run before its head (the head and 6 px) and after its tail. Routed lines that
+turn in the same gap get tracks of their own, at least 8 px apart, ordered so they don't cross; a
+gap needs about 19 px for the runs plus 8 px for each line turning in it. In a narrower one the
+turns crowd together, and the web renderer marks those arrows `data-crowded`: widen the gap.
 
 ## Types
 

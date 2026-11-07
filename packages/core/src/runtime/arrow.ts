@@ -19,6 +19,8 @@ export interface ArrowPath {
   align?: 'start' | 'end';
   /** the marks at its ends other than a plain head: path data, and how it is filled */
   marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
+  /** a routed arrow that turns in a gap too narrow for its turns to keep TRACK_GAP apart: widen the gap */
+  crowded?: boolean;
 }
 
 /** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
@@ -272,6 +274,8 @@ interface Hop {
   track?: number;
   /** which way it runs across its gap: 1 towards hi, -1 towards lo */
   dir?: 1 | -1;
+  /** its track is nearer than TRACK_GAP to another's that runs beside it: the gap is too narrow */
+  crowded?: boolean;
 }
 
 interface Plan {
@@ -316,27 +320,8 @@ const RUN_OUT = 6;
  *  arrive at by RUN_IN, so a head is never on a bend, and of the side tails leave by RUN_OUT; in a
  *  gap too narrow for both, the heads' run comes first. */
 function layTracks(band: Hop[], headSize: number): void {
-  let lo = Math.max(...band.map((h) => h.lo));
-  let hi = Math.min(...band.map((h) => h.hi));
-  if (hi - lo < 1) {
-    // no height all of them cross (their ends aren't in rows): each takes the middle of its own
-    for (const h of band) h.track = (h.lo + h.hi) / 2;
-    return;
-  }
   // the room a straight run needs at each side: heads arrive at hi going down (dir 1), at lo going up
-  const need = (side: 1 | -1): number => Math.max(0, ...band.map((h) => (h.in && h.dir === side ? RUN_IN(headSize) : h.out && h.dir === -side ? RUN_OUT : 0)));
-  const atHi = need(1);
-  const atLo = need(-1);
-  if (hi - lo >= atLo + atHi) {
-    lo += atLo;
-    hi -= atHi;
-  } else {
-    // not room for both: the heads' run first, then what is left for the tails'
-    const heads = band.some((h) => h.in && h.dir === 1) ? 1 : band.some((h) => h.in && h.dir === -1) ? -1 : 0;
-    const t = heads === 1 ? Math.max(lo, hi - atHi) : heads === -1 ? Math.min(hi, lo + atLo) : (lo + hi) / 2;
-    for (const h of band) h.track = t;
-    return;
-  }
+  const need = (hs: Hop[], side: 1 | -1): number => Math.max(0, ...hs.map((h) => (h.in && h.dir === side ? RUN_IN(headSize) : h.out && h.dir === -side ? RUN_OUT : 0)));
   const count = (k: string): number => band.filter((h) => h.out === k || h.in === k).length;
   const groups = new Map<string, Hop[]>();
   band.forEach((h, n) => {
@@ -346,6 +331,30 @@ function layTracks(band: Hop[], headSize: number): void {
   const spans = [...groups.values()]
     .map((hops) => ({ hops, l: Math.min(...hops.map((h) => Math.min(h.from, h.to))), r: Math.max(...hops.map((h) => Math.max(h.from, h.to))) }))
     .sort((p, q) => p.l - q.l || p.r - q.r);
+  let lo = Math.max(...band.map((h) => h.lo));
+  let hi = Math.min(...band.map((h) => h.hi));
+  if (hi - lo < 1) {
+    // no height all of them cross (their ends aren't in rows): each group turns within its own
+    // height, as near its middle as it can while keeping TRACK_GAP from the tracks beside it
+    placeApart(spans, need);
+    return;
+  }
+  const atHi = need(band, 1);
+  const atLo = need(band, -1);
+  if (hi - lo >= atLo + atHi) {
+    lo += atLo;
+    hi -= atHi;
+  } else if (spans.length > 1) {
+    // the height they share has no room for their runs: each turns within its own instead
+    placeApart(spans, need);
+    return;
+  } else {
+    // not room for both: the heads' run first, then what is left for the tails'
+    const heads = band.some((h) => h.in && h.dir === 1) ? 1 : band.some((h) => h.in && h.dir === -1) ? -1 : 0;
+    const t = heads === 1 ? Math.max(lo, hi - atHi) : heads === -1 ? Math.min(hi, lo + atLo) : (lo + hi) / 2;
+    for (const h of band) h.track = t;
+    return;
+  }
   const ends: number[] = [];
   const at = spans.map((s) => {
     let k = ends.findIndex((e) => e + TRACK_GAP <= s.l);
@@ -353,9 +362,49 @@ function layTracks(band: Hop[], headSize: number): void {
     ends[k] = s.r;
     return k;
   });
+  // fewer than TRACK_GAP between neighbouring tracks reads as one line
+  const crowded = ends.length > 1 && (hi - lo) / (ends.length + 1) < TRACK_GAP;
   spans.forEach((s, n) => {
-    for (const h of s.hops) h.track = lo + ((hi - lo) * (at[n] + 1)) / (ends.length + 1);
+    for (const h of s.hops) {
+      h.track = lo + ((hi - lo) * (at[n] + 1)) / (ends.length + 1);
+      if (crowded) h.crowded = true;
+    }
   });
+}
+
+/**
+ * Tracks for hops that don't all cross one height: each group gets the point of its own height
+ * (less its runs) nearest its middle that keeps TRACK_GAP from every track already laid that runs
+ * beside it (their spans along the gap overlap); one with no such point is crowded, at the point
+ * furthest from them.
+ */
+function placeApart(spans: { hops: Hop[]; l: number; r: number }[], need: (hs: Hop[], side: 1 | -1) => number): void {
+  const laid: { l: number; r: number; y: number }[] = [];
+  for (const s of spans) {
+    let lo = Math.max(...s.hops.map((h) => h.lo));
+    let hi = Math.min(...s.hops.map((h) => h.hi));
+    const [atLo, atHi] = [need(s.hops, -1), need(s.hops, 1)];
+    if (hi - lo >= atLo + atHi) {
+      lo += atLo;
+      hi -= atHi;
+    }
+    if (hi < lo) [lo, hi] = [(lo + hi) / 2, (lo + hi) / 2];
+    const beside = laid.filter((t) => t.l < s.r + TRACK_GAP && s.l < t.r + TRACK_GAP && t.y >= lo - TRACK_GAP && t.y <= hi + TRACK_GAP);
+    const clearance = (y: number): number => Math.min(Infinity, ...beside.map((t) => Math.abs(t.y - y)));
+    const mid = (lo + hi) / 2;
+    // the middle first, then outwards a step at a time, both ways
+    const tries = [mid];
+    for (let k = 1; mid - k * TRACK_GAP >= lo || mid + k * TRACK_GAP <= hi; k++) for (const y of [mid - k * TRACK_GAP, mid + k * TRACK_GAP]) if (y >= lo && y <= hi) tries.push(y);
+    tries.push(lo, hi);
+    let y = tries.find((t) => clearance(t) >= TRACK_GAP);
+    const crowded = y === undefined;
+    if (y === undefined) y = tries.reduce((b, t) => (clearance(t) > clearance(b) ? t : b), mid);
+    for (const h of s.hops) {
+      h.track = y;
+      if (crowded) h.crowded = true;
+    }
+    laid.push({ l: s.l, r: s.r, y });
+  }
 }
 
 /** Splits hops into the gaps they cross (hops whose heights overlap) and lays each gap's tracks. */
@@ -514,7 +563,9 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       if (h) pts.push([h.from, h.track!], [h.to, h.track!]);
       pts.push([s.x, s.y]);
     });
-    out[p.i] = draw(tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q)), headSize, arrows[p.i].corner ?? CORNER);
+    const drawn = draw(tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q)), headSize, arrows[p.i].corner ?? CORNER);
+    if (drawn && hops.some((h) => h?.crowded)) drawn.crowded = true;
+    out[p.i] = drawn;
   }
 }
 

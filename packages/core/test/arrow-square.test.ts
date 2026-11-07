@@ -73,6 +73,36 @@ describe('arrow route=down', () => {
     expect(level(p!.d)).not.toBeCloseTo(level(q!.d));
   });
 
+  it('gives links that only partly share a gap tracks of their own, apart, and not crowded', () => {
+    // a's gap is 30..70 and b's 60..130: the 10 px they share has no room for a head's run, so each
+    // turns within its own, a track's width from the other where their runs lie side by side
+    const f = { a: box(0, 0), b: box(100, 30), c: box(150, 70), d: box(300, 130) };
+    const [p, q] = arrowPaths([link('a', 'c', f), link('b', 'd', f)]);
+    const level = (d: string) => runs(d).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)!.a[1];
+    expect(Math.abs(level(p!.d) - level(q!.d))).toBeGreaterThanOrEqual(8);
+    expect(allSquare(p!.d) && allSquare(q!.d)).toBe(true);
+    expect(p!.crowded || q!.crowded).toBeFalsy();
+  });
+
+  it('keeps the turns in a shared gap at least 8 px apart, and says when the gap is too narrow for that', () => {
+    const across = (gap: number) => {
+      const f: Record<string, Rect> = {};
+      const ends: ArrowEnds[] = [];
+      for (let k = 0; k < 4; k++) {
+        f[`s${k}`] = box(k * 80, 0);
+        f[`t${k}`] = box(40 + ((k + 2) % 4) * 80, 30 + gap);
+        ends.push(link(`s${k}`, `t${k}`, f));
+      }
+      return arrowPaths(ends);
+    };
+    const level = (d: string) => runs(d).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)?.a[1];
+    const roomy = across(120);
+    expect(roomy.some((p) => p!.crowded)).toBe(false);
+    const ys = roomy.map((p) => level(p!.d)).filter((y): y is number => y !== undefined).sort((x, y) => x - y);
+    for (let k = 1; k < ys.length; k++) if (Math.abs(ys[k] - ys[k - 1]) > 0.5) expect(ys[k] - ys[k - 1]).toBeGreaterThanOrEqual(8);
+    expect(across(26).some((p) => p!.crowded)).toBe(true);
+  });
+
   it('shares a track along a gap where the runs do not touch', () => {
     const f = { a: box(0, 0), c: box(70, 100), b: box(300, 0), d: box(370, 100) };
     const [p, q] = arrowPaths([link('a', 'c', f), link('b', 'd', f)]);
