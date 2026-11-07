@@ -39,6 +39,8 @@ export interface VArrow {
   corner?: 'none' | 's' | 'm';
   /** the keys of the elements the path runs through, in order (via=, 6.10) */
   via?: string[];
+  /** turn: it runs along a via lane only as far as it must, so a lane says where it turns, not how far */
+  lanes?: 'turn';
 }
 
 /**

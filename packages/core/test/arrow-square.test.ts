@@ -283,3 +283,30 @@ describe('arrow corner=', () => {
     expect(allSquare(none!.d)).toBe(true);
   });
 });
+
+describe('arrow lanes=turn', () => {
+  const ys = (d: string) => corners(d).map(([, y]) => y);
+
+  it('on a route, a lane across the way says where the line turns: one run across the gap, there', () => {
+    // route=right through a tall lane in the gap: full passes through the lane's middle height,
+    // turn keeps the ends' heights and makes its one upright run at the lane
+    const g = { a: box(0, 0), b: box(300, 200), lane: { x: 150, y: -100, w: 10, h: 500 } };
+    const [full] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], route: 'right' }]);
+    const [turn] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], route: 'right', lanes: 'turn' }]);
+    expect(ys(full!.d).some((y) => Math.abs(y - 150) < 0.5)).toBe(true);
+    const upright = runs(turn!.d).filter((u) => Math.abs(u.a[0] - u.b[0]) < 0.11);
+    expect(upright).toHaveLength(1);
+    expect(upright[0].a[0]).toBeCloseTo(155);
+    expect(ys(turn!.d).every((y) => y >= 15 - 0.5 && y <= 215 + 0.5)).toBe(true);
+    expect(allSquare(turn!.d)).toBe(true);
+  });
+
+  it('on a free path, joins the lane level with where it comes from and leaves level with where it goes', () => {
+    const g = { a: box(0, 0), b: box(300, 0), lane: { x: 150, y: -200, w: 10, h: 400 } };
+    const [full] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane] }]);
+    const [turn] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], lanes: 'turn' }]);
+    expect(Math.min(...ys(full!.d))).toBeLessThan(-100);
+    expect(Math.min(...ys(turn!.d))).toBeGreaterThan(-1);
+    expect(Math.max(...ys(turn!.d))).toBeLessThan(31);
+  });
+});

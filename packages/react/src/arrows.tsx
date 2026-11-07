@@ -334,7 +334,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
       const g = groups.get(host) ?? { arrows: [], ends: [] };
       g.arrows.push(a);
       // the ends are the renderer's own (dot and ring among them), so the core draws only the shaft and head
-      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
+      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined, ...(a.lanes ? { lanes: a.lanes } : {}) });
       groups.set(host, g);
     }
     const out: Layer[] = [];

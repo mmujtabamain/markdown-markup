@@ -51,9 +51,12 @@ const dist = (p: Pt, q: Pt): number => Math.hypot(q[0] - p[0], q[1] - p[1]);
  * a tall one, side to side through a wide one), whichever way round is shorter from `prev` on to
  * `next`; through the centre of a square or empty one.
  */
-function lane(r: Rect, prev: Pt, next: Pt): Pt[] {
+function lane(r: Rect, prev: Pt, next: Pt, turn = false): Pt[] {
   const [cx, cy] = centre(r);
   if (Math.abs(r.h - r.w) < 1) return [[cx, cy]];
+  const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v));
+  // lanes=turn: along it only from level with where the line comes from to level with where it goes
+  if (turn) return r.h > r.w ? [[cx, clamp(prev[1], r.y, r.y + r.h)], [cx, clamp(next[1], r.y, r.y + r.h)]] : [[clamp(prev[0], r.x, r.x + r.w), cy], [clamp(next[0], r.x, r.x + r.w), cy]];
   const ends: [Pt, Pt] = r.h > r.w ? [[cx, r.y], [cx, r.y + r.h]] : [[r.x, cy], [r.x + r.w, cy]];
   return dist(prev, ends[0]) + dist(ends[1], next) <= dist(prev, ends[1]) + dist(ends[0], next) ? ends : [ends[1], ends[0]];
 }
@@ -62,11 +65,11 @@ function lane(r: Rect, prev: Pt, next: Pt): Pt[] {
 const CORNER = 12;
 
 /** An arrow through waypoints: straight runs between them, rounded where it turns. */
-function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, corner = CORNER): ArrowPath | null {
+function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, corner = CORNER, turn = false): ArrowPath | null {
   const mid: Pt[] = [];
   let prev = centre(a);
   via.forEach((r, i) => {
-    const run = lane(r, prev, centre(i + 1 < via.length ? via[i + 1] : b));
+    const run = lane(r, prev, centre(i + 1 < via.length ? via[i + 1] : b), turn);
     mid.push(...run);
     prev = run[run.length - 1];
   });
@@ -123,8 +126,8 @@ function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
  * The path from one element's outline to another's. With `via` (the waypoints' rects, in order) it
  * runs through each of them (see `lane`) with rounded corners, and `curve` does not apply.
  */
-export function arrowPath(a: Rect, b: Rect, curve = false, gap = 0, headSize = 7, via: Rect[] = [], corner = CORNER): ArrowPath | null {
-  if (via.length) return routed(a, b, via, gap, headSize, corner);
+export function arrowPath(a: Rect, b: Rect, curve = false, gap = 0, headSize = 7, via: Rect[] = [], corner = CORNER, turn = false): ArrowPath | null {
+  if (via.length) return routed(a, b, via, gap, headSize, corner, turn);
   const ac: [number, number] = [a.x + a.w / 2, a.y + a.h / 2];
   const bc: [number, number] = [b.x + b.w / 2, b.y + b.h / 2];
   if (Math.hypot(bc[0] - ac[0], bc[1] - ac[1]) < 1) return null;
@@ -179,6 +182,8 @@ export interface ArrowEnds {
   a: Rect;
   b: Rect;
   via?: Rect[];
+  /** turn: a via lane says where the line turns, and it runs along the lane only as far as it must */
+  lanes?: 'full' | 'turn';
   curve?: boolean;
   route?: 'down' | 'right';
   /** the mark at `to` (default an arrow head) and at `from` (default none) */
@@ -292,6 +297,8 @@ interface Plan {
   last: 1 | -1;
   between: Stop[];
   keys: [string, string];
+  /** where lanes=turn lanes put its runs across a gap */
+  tracks: number[];
 }
 
 /** x and y swapped: a run across is routed as a run down, so the routing only ever thinks in rows. */
@@ -459,7 +466,11 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       out[i] = arrowPath(ar.a, ar.b, false, gap, headSize, [], ar.corner);
       continue;
     }
-    const via = (ar.via ?? []).map(turned);
+    // lanes=turn: a lane lying across the way the line runs says only where it turns (its run across
+    // the gap is at the lane), not a point to pass through; a lane lying along it is run along as far
+    // as the line must
+    const tracks: number[] = [];
+    const via = (ar.via ?? []).map(turned).filter((r) => !(ar.lanes === 'turn' && r.w > r.h && tracks.push(midY(r))));
     const stops = [a, ...via, b];
     const first = way(a, stops[1]);
     const last = way(stops[stops.length - 2], b);
@@ -471,7 +482,19 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       else {
         const before = between[between.length - 1];
         const x = before && Math.abs(before.x - midX(r)) < JOG ? before.x : midX(r);
-        between.push({ x, y: inward > 0 ? r.y : r.y + r.h }, { x, y: inward > 0 ? r.y + r.h : r.y });
+        let [enter, leave] = inward > 0 ? [r.y, r.y + r.h] : [r.y + r.h, r.y];
+        if (ar.lanes === 'turn') {
+          // only the part of the lane between where the line comes from and where it goes, with
+          // room left in the gaps for its turns (a tail's run and a track, a head's run and a track)
+          const from = inward > 0 ? stops[j].y + stops[j].h : stops[j].y;
+          const to = inward > 0 ? stops[j + 2].y : stops[j + 2].y + stops[j + 2].h;
+          const [top, bottom] = [r.y, r.y + r.h];
+          const clamp = (v: number): number => Math.min(bottom, Math.max(top, v));
+          enter = clamp(from + inward * (RUN_OUT + TRACK_GAP));
+          leave = clamp(to - inward * (RUN_IN(headSize) + TRACK_GAP));
+          if ((leave - enter) * inward < 0) leave = enter;
+        }
+        between.push({ x, y: enter }, { x, y: leave });
       }
     });
     // a line back up keeps clear of the lines coming down: it leaves or arrives by the side where
@@ -485,7 +508,7 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
     const axis = across ? 'h' : 'v';
     const names: [string, string] = [`${axis}|${ar.from}|${first}|out`, `${axis}|${ar.to}|${-last}|in`];
     plans.push({
-      i, across, a, b, first, last, between, keys: names,
+      i, across, a, b, first, last, between, keys: names, tracks,
       sides: [leave, reach],
       out: leave ? undefined : port(names[0], a, first, true, midX(stops[1])),
       in: reach ? undefined : port(names[1], b, last > 0 ? -1 : 1, false, midX(stops[stops.length - 2])),
@@ -549,7 +572,7 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
         lo: Math.min(s.y, q.y), hi: Math.max(s.y, q.y), from: s.x, to: q.x,
         out: k === 0 ? p.keys[0] : undefined,
         in: k === stops.length - 2 ? p.keys[1] : undefined,
-        track: level ? s.y : s.turn ? s.y : q.turn ? q.y : undefined,
+        track: level ? s.y : s.turn ? s.y : q.turn ? q.y : p.tracks.find((t) => t >= Math.min(s.y, q.y) && t <= Math.max(s.y, q.y)),
         dir: q.y > s.y ? 1 : -1,
       };
     });
@@ -582,7 +605,7 @@ export function arrowPaths(arrows: ArrowEnds[], gap = 0, headSize = 7, width = I
   arrows.forEach((a, i) => {
     if (a.from === a.to) out[i] = selfLoop(a.a, gap, headSize, width, a.corner);
     else if (a.route) square.push(i);
-    else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via, a.corner);
+    else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via, a.corner, a.lanes === 'turn');
   });
   squarePaths(arrows, square, out, gap, headSize);
   return out.map((p, i) => (p ? withEnds(p, arrows[i].head ?? 'arrow', arrows[i].tail ?? 'none') : p));

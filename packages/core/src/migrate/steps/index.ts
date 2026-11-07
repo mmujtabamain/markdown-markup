@@ -2,5 +2,6 @@
 import type { Step } from '../index';
 import { step_0_2_2 } from './0.2.2';
 import { step_0_2_3 } from './0.2.3';
+import { step_0_2_4 } from './0.2.4';
 
-export const STEPS: Step[] = [step_0_2_2, step_0_2_3];
+export const STEPS: Step[] = [step_0_2_2, step_0_2_3, step_0_2_4];

@@ -953,7 +953,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
       shown.push(a);
       // the ends are drawn here (dot and ring among them), so the core draws only the shaft and head
-      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
+      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined, ...(a.lanes ? { lanes: a.lanes } : {}) });
     }
     const lines: Pt[][] = [];
     arrowPaths(ends).forEach((raw, i) => {
