@@ -59,6 +59,15 @@ describe('the difference', () => {
     expect(w[1]).toContain('no ## Breaking section');
     expect(missing('## Breaking\n- **gone** is gone.\n## API\n- `mkp migrate`\n- `gone`\n', items)).toEqual([]);
   });
+  it('counts a record field or a base widget’s input as named by the line it wrote, and not by its parts on separate lines', () => {
+    const items = [
+      { kind: 'added', surface: 'Language', key: 'layer.clip', text: "`canvas`'s `layer` record: `clip: list(point) = []`" },
+      { kind: 'added', surface: 'Language', key: 'zoom in minscale', text: '`zoom`: `in minscale num = 0.6 "…"`' },
+    ];
+    const api = '## API\n### Added\n- `canvas`\'s `layer` record: `clip: list(point) = []`, so a layer clips\n- `zoom`: `in minscale num = 0.6`, the least it shrinks\n';
+    expect(missing(api, items)).toEqual([]);
+    expect(missing('## API\n- `layer` changed\n- `clip` is new\n- `zoom`\n', items)).toHaveLength(2);
+  });
 });
 
 describe('two published releases, 0.2.1 and 0.2.2', () => {

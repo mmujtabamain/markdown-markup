@@ -50,6 +50,11 @@ function StepView({ s, theme }: { s: Step; theme: 'light' | 'dark' }): ReactNode
         {s.from} → {s.to}
       </h2>
       <p className="mt-2 text-muted-foreground">{s.summary}</p>
+      {!s.renames.length && !s.changes.length && !s.removes.length ? (
+        <p className="mt-3 text-sm text-muted-foreground" data-change="none">
+          Nothing to change: <code>mkp migrate</code> only restamps each file.
+        </p>
+      ) : (
       <div className="mt-5 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-muted-foreground">
@@ -94,7 +99,8 @@ function StepView({ s, theme }: { s: Step; theme: 'light' | 'dark' }): ReactNode
           </tbody>
         </table>
       </div>
-      {!s.removes.length ? <p className="mt-3 text-sm text-muted-foreground">Nothing was removed.</p> : null}
+      )}
+      {!s.removes.length && (s.renames.length || s.changes.length) ? <p className="mt-3 text-sm text-muted-foreground">Nothing was removed.</p> : null}
       {ex ? (
         <>
           <h3 className="mt-8 text-lg font-semibold">Before and after</h3>

@@ -403,8 +403,12 @@ export function missing(changelog, items) {
   const body = changelog.replace(/^---[\s\S]*?\n---\n/, '');
   const at = body.search(/^## API\s*$/m);
   const api = at < 0 ? '' : body.slice(at).replace(/\n## (?!API)[\s\S]*$/, '');
-  const named = (key) => api.includes(`\`${key}\``) || api.includes(`\`${key.split(' ').pop()}\``);
-  const warnings = items.filter((i) => !named(i.key)).map((i) => `## API doesn't name \`${i.key}\` (${KINDS[i.kind].toLowerCase()}, ${i.surface}): add "- ${i.text}" under ### ${KINDS[i.kind]}`);
+  const lines = api.split('\n').filter((l) => l.includes('`'));
+  const word = (l, w) => new RegExp(`(^|[^\\w])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\w]|$)`).test(l);
+  // `layer.clip` is named by "`canvas`'s `layer` record: `clip: …`", `zoom in minscale` by "`zoom`: `in minscale …`": every part on one line
+  const parts = (key) => key.split(/[.\s]+/).filter((w) => w && w !== 'in' && w !== 'out');
+  const named = (i) => api.includes(`\`${i.key}\``) || api.includes(`\`${i.key.split(' ').pop()}\``) || api.includes(i.text) || lines.some((l) => parts(i.key).every((w) => word(l, w)));
+  const warnings = items.filter((i) => !named(i)).map((i) => `## API doesn't name \`${i.key}\` (${KINDS[i.kind].toLowerCase()}, ${i.surface}): add "- ${i.text}" under ### ${KINDS[i.kind]}`);
   const breaking = /^## Breaking\s*$/m.test(body) && /^## Breaking\s*\n+(?!##)\S/m.test(body);
   if (!breaking && items.some((i) => i.kind === 'removed' || i.kind === 'changed')) warnings.push(`something was removed or changed, but there is no ## Breaking section: say what breaks and what to do instead (or why nothing does)`);
   return warnings;

@@ -52,7 +52,10 @@ beforeAll(async () => {
 
 describe('the steps', () => {
   it('run from 0.2.1 to this release, with no hole in the chain', () => {
-    expect(stepsBetween(OLD).map((s) => `${s.from} -> ${s.to}`)).toEqual(['0.2.1 -> 0.2.2']);
+    const chain = stepsBetween(OLD).map((s) => `${s.from} -> ${s.to}`);
+    expect(chain[0]).toBe('0.2.1 -> 0.2.2');
+    expect(chain.at(-1)!.endsWith(`-> ${RELEASE}`)).toBe(true);
+    for (let i = 1; i < chain.length; i++) expect(chain[i].split(' -> ')[0]).toBe(chain[i - 1].split(' -> ')[1]);
     expect(stepsBetween(RELEASE)).toEqual([]);
     expect(() => stepsBetween('0.2.2', '0.2.1')).toThrow(/can't migrate back/);
   });
@@ -170,7 +173,7 @@ describe('mkp migrate, the command', () => {
     expect(await main(['migrate', ...args, '--check'])).toBe(1);
     expect(await main(['migrate', ...args, '--write'])).toBe(0);
     expect(readFileSync(join(p, 'badge.mkp'), 'utf8')).toContain('zoom minscale=0');
-    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8')).toMatch(/^---\nmkp: 0\.2\.2\nir: 1\n---\n[\s\S]*look: loud/);
+    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8')).toMatch(new RegExp(`^---\\nmkp: ${RELEASE.replace(/\./g, '\\.')}\\nir: 1\\n---\\n[\\s\\S]*look: loud`));
     // now written for this release: nothing to do
     expect(await main(['migrate', ...args.slice(0, 2), '--check'])).toBe(0);
   }, 120000);
@@ -275,7 +278,7 @@ describe('a released .mkpack from 0.2.1', () => {
     expect(r.status, r.stderr).toBe(0);
     const files = readZip(new Uint8Array(readFileSync(zip)), 'looks.mkpack', new Diagnostics())!.files;
     const text = (f: string) => new TextDecoder().decode(files.get(f));
-    expect(text('badge.mkp')).toMatch(/^# mkp 0\.2\.2 ir 1\n/);
+    expect(text('badge.mkp').startsWith(`# mkp ${RELEASE} ir 1\n`)).toBe(true);
     expect(text('badge.mkp')).toContain('in look text = "x"');
     expect(JSON.parse(text('badge.fixture.json')).cases.one.props).toEqual({ word: 'a', look: 'y' });
   }, 120000);
@@ -286,7 +289,8 @@ describe('the Migrations tab’s example', () => {
     const dir = 'apps/site/migrations/0.2.2';
     const m = await migrateDocument(join(dir, 'before.mkp.md'), { keep: [], core: process.env.MKP_CORE_0_2_1 });
     expect(m.errors).toEqual([]);
-    expect([...m.files.values()][0]).toBe(readFileSync(join(dir, 'after.mkp.md'), 'utf8'));
+    // the after is as that release wrote it: today's mkp migrate stamps this release, and does the same otherwise
+    expect([...m.files.values()][0].replace(`mkp: ${RELEASE}\n`, 'mkp: 0.2.2\n')).toBe(readFileSync(join(dir, 'after.mkp.md'), 'utf8'));
     const said = readFileSync(join(dir, 'said.txt'), 'utf8');
     for (const w of m.result!.warnings) expect(said).toContain(`before.mkp.md:${w.pos!.line}:${w.pos!.col} warning ${w.code}: ${w.message}`);
   });

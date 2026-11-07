@@ -74,12 +74,17 @@ describe("What's new", () => {
     expect(container.querySelector('[data-site-section="whats-new"]')?.getAttribute('aria-current')).toBe('page');
     expect(container.querySelector('nav[aria-label="Versions"]')).not.toBeNull();
   });
-  it('draws the demos of the newest version where its items say', async () => {
+  it('draws the demos of the newest version with any, where its items say', async () => {
     const { container } = render(<WhatsNew />);
     await settle();
-    const newest = container.querySelector('[data-version]')!;
-    expect(newest.querySelectorAll('[data-demo]').length).toBe(list[0].widgets);
-    expect(newest.querySelector('[data-demo] [data-mkp]')).not.toBeNull();
+    const r = list.find((x) => x.widgets > 0)!;
+    const at = container.querySelector(`[data-version="${r.version}"]`)!;
+    // an older version is folded: open it to draw its demos
+    const open = at.querySelector<HTMLElement>('button[aria-expanded="false"]');
+    if (open) fireEvent.click(open);
+    await settle();
+    expect(at.querySelectorAll('[data-demo]').length).toBe(r.widgets);
+    expect(at.querySelector('[data-demo] [data-mkp]')).not.toBeNull();
   });
   it('filters by kind with counts, by words with marks, and says when nothing matches', async () => {
     const { container } = render(<WhatsNew />);
