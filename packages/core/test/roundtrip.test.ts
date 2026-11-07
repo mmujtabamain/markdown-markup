@@ -55,3 +55,28 @@ describe('round trip of documents, with their own definitions', () => {
     expect(own(b2)).toEqual(own(b1));
   });
 });
+
+describe('a record list written as YAML', () => {
+  it('prints back only what the author gave: a field equal to its default is left out, as a record line leaves it out', () => {
+    const src = '```mkp\nchecklist "Items."\n  in items list(record item {name: text, state: choice(done|todo) = todo, note: text = ""})\n  column\n    each it in items key=it.name\n      text it.name\n  project md = "list"\n```\n\n```checklist\nitems:\n  - {name: Tea, state: done}\n  - {name: Post}\n  - {name: Bins, state: todo, note: kerb}\nsummary: s\n```\n';
+    const c = compile({ packs: [] });
+    const b = c.document(src, 'doc.mkp.md')!;
+    expect(c.diags.errors).toEqual([]);
+    const text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body, undefined, c.documentDefs(src, 'doc.mkp.md') ?? undefined);
+    expect(text).toContain('items:\n  - name: Tea\n    state: done\n  - name: Post\n  - name: Bins\n    note: kerb\nsummary: s');
+    const b2 = c.document(text, 'doc.mkp.md')!;
+    expect(stripPos(b2.doc.body)).toEqual(stripPos(b.doc.body));
+  });
+});
+
+describe('YAML text a YAML 1.1 reader would take for a boolean', () => {
+  it('is quoted when printed, and reads back as the same text', () => {
+    const src = '```mkp\nanswers_list "Answers."\n  in replies list(text)\n  column\n    each a in replies key=a\n      text a\n  project md = join(replies, ", ")\n```\n\n```answers_list\nreplies: [Yes, no, ON, off, y, N, maybe]\nsummary: s\n```\n';
+    const c = compile({ packs: [] });
+    const b = c.document(src, 'doc.mkp.md')!;
+    expect(c.diags.errors).toEqual([]);
+    const text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body, undefined, c.documentDefs(src, 'doc.mkp.md') ?? undefined);
+    expect(text).toContain('replies:\n  - "Yes"\n  - "no"\n  - "ON"\n  - "off"\n  - "y"\n  - "N"\n  - maybe\n');
+    expect(stripPos(c.document(text, 'doc.mkp.md')!.doc.body)).toEqual(stripPos(b.doc.body));
+  });
+});

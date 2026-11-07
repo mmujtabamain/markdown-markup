@@ -62,6 +62,10 @@ const ARROW_LOOK: Record<string, Type> = {
   opacity: { t: 'num', lo: 0, hi: 1 },
   // how round its turns are: m (12 px, the default), s (6 px) or none (square)
   corner: { t: 'choice', opts: ['none', 's', 'm'] },
+  // full: a line follows a via lane its whole length; turn: only as far as it must, so a lane says where to turn
+  lanes: { t: 'choice', opts: ['full', 'turn'] },
+  // auto: where it crosses another line one of them hops; none: never, either way (a lifeline, a rule)
+  hop: { t: 'choice', opts: ['auto', 'none'] },
 };
 const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
 const META_FLAGS = new Set(['hidden', 'grow']);
@@ -1614,7 +1618,7 @@ export class DefChecker {
         const owner = word ? Object.entries(ARROW_LOOK).find(([, t]) => t.t === 'choice' && t.opts.includes(word))?.[0] : undefined;
         const near = a.key ? (['colour', 'color'].includes(a.key) ? 'tone' : closest(a.key, keys)) : undefined;
         const fix = owner ? `Write ${owner}=${word}` : near ? `Write ${near}=${a.value.src}` : 'Remove it or use one of those';
-        this.fail(a.p, `arrow has no ${a.key ? `prop "${a.key}"` : `setting "${a.value.src}"`}; found ${a.key ? `${a.key}=${a.value.src}` : a.value.src}. It takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim=, bold=, layer=, opacity= and corner=. ${fix}`, 'mkp.unknown-prop');
+        this.fail(a.p, `arrow has no ${a.key ? `prop "${a.key}"` : `setting "${a.value.src}"`}; found ${a.key ? `${a.key}=${a.value.src}` : a.value.src}. It takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim=, bold=, layer=, opacity=, corner=, lanes= and hop=. ${fix}`, 'mkp.unknown-prop');
       }
     }
     if (!out.from || !out.to) {

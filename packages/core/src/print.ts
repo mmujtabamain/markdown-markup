@@ -569,18 +569,28 @@ export class DocPrinter {
     }
     const obj: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(n.props ?? {})) obj[k] = this.yamlValue(v, d?.inputs.find((x) => x.name === k)?.type);
-    // records as YAML lists of mappings, with records nested in records as lists of their own
-    const recordObj = (r: IRNode): Record<string, unknown> => {
+    // records as YAML lists of mappings, with records nested in records as lists of their own; a
+    // field equal to its default is left out, as a record line leaves it out (the compiler fills it in)
+    const recordsOf = (t: Type | undefined): Extract<Type, { t: 'records' }> | undefined => {
+      const r = t ? resolve(t, this.ctx.env) : undefined;
+      return r?.t === 'records' ? r : undefined;
+    };
+    const recordObj = (r: IRNode, rt?: Extract<Type, { t: 'records' }>): Record<string, unknown> => {
       const o: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(r.props ?? {})) o[k] = this.yamlValue(v);
-      for (const x of r.records ?? []) ((o[x.input!] ??= []) as unknown[]).push(recordObj(x));
+      const types = new Map(rt?.fields ?? []);
+      for (const [k, v] of Object.entries(r.props ?? {})) {
+        const d = rt?.defaults?.[k];
+        if (d !== undefined && valSrc(v, types.get(k), this.ctx.env) === d.trim()) continue;
+        o[k] = this.yamlValue(v);
+      }
+      for (const x of r.records ?? []) ((o[x.input!] ??= []) as unknown[]).push(recordObj(x, recordsOf(types.get(x.input!))));
       if (r.children?.length) o.slot = this.blocks(r.children, 3).join('\n\n');
       return o;
     };
     const recLists = new Map<string, unknown[]>();
     for (const r of n.records ?? []) {
       const list = recLists.get(r.input!) ?? [];
-      list.push(recordObj(r));
+      list.push(recordObj(r, recordsOf(d?.inputs.find((x) => x.name === r.input)?.type)));
       recLists.set(r.input!, list);
     }
     for (const [k, v] of recLists) obj[k] = v;
@@ -606,12 +616,20 @@ export class DocPrinter {
   }
 }
 
-/** YAML with the maths guard (5): strings holding backslashes are written in single quotes. */
+/** Words a YAML 1.1 reader takes for true or false; MKP (YAML 1.2) reads them as text either way. */
+const YAML11_BOOLS = /^(y|n|yes|no|on|off)$/i;
+
+/**
+ * YAML with the maths guard (5): strings holding backslashes are written in single quotes. Text a
+ * YAML 1.1 reader would take for a boolean (yes, no, on, off, y, n) is quoted too.
+ */
 export function yamlText(v: unknown): string {
   const doc = new YAML.Document(v);
   YAML.visit(doc, {
     Scalar(_key, node) {
-      if (typeof node.value === 'string' && (node.value.includes('\\') || node.value.includes('$'))) node.type = node.value.includes('\n') ? 'BLOCK_LITERAL' : 'QUOTE_SINGLE';
+      if (typeof node.value !== 'string') return;
+      if (node.value.includes('\\') || node.value.includes('$')) node.type = node.value.includes('\n') ? 'BLOCK_LITERAL' : 'QUOTE_SINGLE';
+      else if (YAML11_BOOLS.test(node.value)) node.type = 'QUOTE_DOUBLE';
     },
   });
   return doc.toString({ lineWidth: 0 });

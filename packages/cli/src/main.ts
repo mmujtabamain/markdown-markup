@@ -3,12 +3,13 @@
 //
 //   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
 //             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
-//             [--lock mkp.lock] [--diagnostics json]
+//             [--lock mkp.lock] [--diagnostics json] [--styles inline|external]
 //             html: a standalone page that draws the document (name.html: one file, offline, the
 //             renderer inlined, the Markdown inside it for readers with scripts off); html-md: the
 //             document's Markdown drawn as HTML, with no script (name.md.html); fragment: the
 //             document's first paint (name.fragment.html), for the element that mount(el, bundle,
-//             { hydrate: true }) takes over in place, with the bundle from the same build's ir
+//             { hydrate: true }) takes over in place, with the bundle from the same build's ir;
+//             --styles external leaves MKP's stylesheet out of it (the page loads mkp.css once)
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
@@ -53,6 +54,7 @@ import {
   writeZip,
   checkMoves,
   readZip,
+  RELEASE,
   type Choice,
   type Compiled,
   type IRLock,
@@ -83,7 +85,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core', 'styles'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -241,7 +243,9 @@ async function build(a: Args): Promise<number> {
       } else if (target === 'fragment') {
         // the document's first paint, for the element mount(el, bundle, { hydrate: true }) takes over;
         // the bundle to mount is this build's (--target ir,fragment)
-        text = firstPaint(bundle, { maths: maths ?? undefined });
+        // --styles external: MKP's stylesheet left out (the page loads mkp.css once), the document's tokens kept
+        if (a.opts.styles !== undefined && a.opts.styles !== 'inline' && a.opts.styles !== 'external') throw new Error(`--styles takes inline or external; found ${a.opts.styles}`);
+        text = firstPaint(bundle, { maths: maths ?? undefined, styles: a.opts.styles === 'external' ? 'external' : 'inline' });
         ext = '.fragment.html';
       } else {
         text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
@@ -387,15 +391,29 @@ async function migrate(a: Args): Promise<number> {
   }
   // packs first: the documents that use them compile against them as they were, and are checked
   // against them as they will be
+  // a pack given both to migrate and with --pack is given once; each pack is compiled with the other
+  // packs of the run, as they were (one may depend on another)
+  const same = (a: string, b: string): boolean => resolve(a) === resolve(b);
+  const others = opts.packs.filter((x) => !packTargets.some((p) => same(p, x.label)));
   const migratedPacks = new Map<string, Migrated>();
-  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, opts));
-  const sources = [...packTargets.map(packSource), ...opts.packs.filter((x) => !packTargets.some((p) => resolve(p) === resolve(x.label)))];
+  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, { ...opts, packs: [...packTargets.filter((q) => !same(q, p)).map(packSource), ...others] }));
+  const failedPacks = packTargets.filter((p) => migratedPacks.get(resolve(p))!.errors.length);
+  const sources = [...packTargets.map(packSource), ...others];
   Object.assign(opts, { packs: sources, packsAfter: sources.map((s) => (migratedPacks.has(resolve(s.label)) ? packAfter(s, migratedPacks.get(resolve(s.label))!) : s)) });
   targets.unshift(...packTargets);
   if (targets.length > 1 && !a.opts.write && !a.opts.check) throw new Error('several files need --write (or --check)');
   let ok = true;
   let pending = false;
   for (const t of targets) {
+    // a document goes with the packs it is given: while one of them failed, it is left as it is,
+    // rather than written for a pack that stays as it was
+    if (failedPacks.length && !t.endsWith('.json') && !packTargets.includes(t)) {
+      const d = new Diagnostics();
+      d.error('mkp.migrate-failed', `${t} is left as it is: ${failedPacks.join(', ')} didn't migrate in this run, and a document migrates with its packs, so it would be out of step with them. Fix the pack and run again`);
+      report(d);
+      ok = false;
+      continue;
+    }
     const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : migratedPacks.get(resolve(t)) ?? (await migrateDocument(t, opts));
     const d = new Diagnostics();
     for (const w of m.result?.warnings ?? []) d.add(w);
@@ -403,7 +421,13 @@ async function migrate(a: Args): Promise<number> {
       for (const e of m.errors) d.error('mkp.migrate-failed', e);
       ok = false;
     }
-    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; rewritten in canonical form\n`);
+    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; ${a.opts.check ? 'would be rewritten' : 'rewritten'} in canonical form\n`);
+    // a file already written for this release changes only by its stamp: say so, so --check never fails in silence
+    for (const p of m.stamped ?? []) {
+      const how = p.endsWith('.mkp.md') ? `mkp: ${RELEASE} and ir: 1 in its front matter` : `# mkp ${RELEASE} ir 1 as its first line`;
+      d.warn('mkp.migrate-stamp', `${p} has no stamp of its own; the file that sets its release says ${RELEASE}, so the only change ${a.opts.check ? 'would be' : 'is'} its stamp: ${how}`, { file: p, line: 1, col: 1 });
+    }
+    if (!m.errors.length && !m.changed.length && !jsonDiagnostics) process.stderr.write(`${t}: up to date (${RELEASE})\n`);
     report(d);
     if (m.errors.length) continue;
     if (m.changed.length) pending = true;
@@ -517,7 +541,7 @@ const HELP = `mkp ${VERSION}: Markdown Markup
 
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
-            [--lock mkp.lock] [--diagnostics json]
+            [--lock mkp.lock] [--diagnostics json] [--styles inline|external]
   mkp check [docs…] --pack … [--format json]
   mkp index --pack …
   mkp show <name> --pack … [--source [--as new-name]]

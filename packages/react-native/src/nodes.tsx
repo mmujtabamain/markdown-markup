@@ -921,6 +921,8 @@ interface Drawn {
   behind?: boolean;
   /** the label's size: measured, or estimated until it is */
   size?: [number, number];
+  /** its hops' arcs: a dashed or dotted line draws each unbroken, so the hop always shows */
+  hops?: string[];
 }
 const DASH: Record<string, string | undefined> = { solid: undefined, dashed: '5 4', dotted: '2 3' };
 
@@ -953,7 +955,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
       shown.push(a);
       // the ends are drawn here (dot and ring among them), so the core draws only the shaft and head
-      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
+      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined, ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.hop ? { hop: a.hop } : {}) });
     }
     const lines: Pt[][] = [];
     arrowPaths(ends).forEach((raw, i) => {
@@ -963,7 +965,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const pth = e.curve && !e.via?.length && !e.route && e.from !== e.to ? curve(e.a, e.b) : raw;
       if (!pth) return;
       const end = withEnds(pth, a.head ?? 'arrow', a.tail ?? 'none');
-      out.push({ key: a.key, d: end.d, head: end.head.map((q) => q.join(',')).join(' '), marks: end.marks, label: a.label ? pth.label : undefined, align: pth.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold, opacity: a.opacity, behind: a.layer === 'behind' });
+      out.push({ key: a.key, d: end.d, head: end.head.map((q) => q.join(',')).join(' '), marks: end.marks, label: a.label ? pth.label : undefined, align: pth.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold, opacity: a.opacity, behind: a.layer === 'behind', ...(pth.hops ? { hops: pth.hops } : {}) });
       lines.push(polyline(end.d));
     });
     // labels are chips, moved along their line clear of the others (GAPS 141)
@@ -1087,6 +1089,23 @@ function Arrows({ paths, sized, testID }: { paths: Drawn[]; sized: (key: string,
             </G>
           );
         })}
+        {/* the hops last, over every line, each on a thin edge of the surface */}
+        {paths
+          .filter((p) => p.hops?.length)
+          .map((p) => {
+            const ink = (p.tone ? theme.color(p.tone) : undefined) ?? muted;
+            const width = p.bold ? 2 : 1.5;
+            return (
+              <G key={`hops-${p.key}`} opacity={(p.dim ? 0.3 : 1) * (p.opacity ?? 1)}>
+                {p.hops!.map((h, i) => (
+                  <G key={i}>
+                    <Path d={h} fill="none" stroke={surface} strokeWidth={width + 3} />
+                    <Path d={h} fill="none" stroke={ink} strokeWidth={width} />
+                  </G>
+                ))}
+              </G>
+            );
+          })}
       </Svg>
       {paths.map((p) => {
         if (!p.label || !p.runs) return null;

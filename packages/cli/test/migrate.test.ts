@@ -258,6 +258,28 @@ describe('a pack’s move to another widget', () => {
     expect(readFileSync(doc, 'utf8')).toContain('```rows\n');
     expect(main(['migrate', doc, '--pack', p, '--check'])).toBe(0);
   }, 120000);
+
+  it('says what --check would change when a pack file only lacks its stamp, and says when everything is up to date', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const run = (argv: string[]) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env });
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-stamp-'));
+    const p = join(dir, 'looks');
+    mkdirSync(p);
+    writeFileSync(join(p, 'manifest.mkp'), `# mkp ${RELEASE} ir 1\npack looks@1 "Looks."\n  requires core@1\n  provides badge\n`);
+    writeFileSync(join(p, 'badge.mkp'), 'badge@1 "A word."\n  in word text\n  text word\n  project md = word\n');
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a' }, summary: 'One.' } } }));
+    const check = run(['migrate', p, '--check']);
+    expect(check.status).toBe(1);
+    expect(check.stderr).toContain(`warning mkp.migrate-stamp: ${join(relative(root, p), 'badge.mkp')} has no stamp of its own; the file that sets its release says ${RELEASE}, so the only change would be its stamp: # mkp ${RELEASE} ir 1 as its first line`);
+    const json = run(['migrate', p, '--check', '--format', 'json']);
+    expect(json.stderr.split('\n').filter(Boolean).map((l) => JSON.parse(l).code)).toEqual(['mkp.migrate-stamp']);
+    expect(run(['migrate', p, '--write']).status).toBe(0);
+    expect(readFileSync(join(p, 'badge.mkp'), 'utf8').startsWith(`# mkp ${RELEASE} ir 1\n`)).toBe(true);
+    const again = run(['migrate', p, '--check']);
+    expect(again.status).toBe(0);
+    expect(again.stderr).toContain(`up to date (${RELEASE})`);
+  }, 120000);
 });
 
 describe('a released .mkpack from 0.2.1', () => {
@@ -281,6 +303,60 @@ describe('a released .mkpack from 0.2.1', () => {
     expect(text('badge.mkp').startsWith(`# mkp ${RELEASE} ir 1\n`)).toBe(true);
     expect(text('badge.mkp')).toContain('in look text = "x"');
     expect(JSON.parse(text('badge.fixture.json')).cases.one.props).toEqual({ word: 'a', look: 'y' });
+  }, 120000);
+});
+
+describe('a pack given to migrate and with --pack', () => {
+  it('is compiled once by the older release’s core; a document in a run whose pack fails is left as it is', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
+    const run = (argv: string[], cwd: string) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv, ...core], { cwd, encoding: 'utf8', timeout: 120000, env: process.env });
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-twice-'));
+    // DevBench's repro: a pack with no stamp (so written for 0.2.1), given both ways
+    mkdirSync(join(dir, 'tiny'));
+    writeFileSync(join(dir, 'tiny/manifest.mkp'), 'pack tiny@1 "A one-widget pack."\n  requires core@1\n  provides hello\n  unpublished\n');
+    writeFileSync(join(dir, 'tiny/hello.mkp'), 'hello@1 "Says hello."\n  in who text = "world" "who to greet"\n  text "hello"\n  project md = "hello"\n');
+    writeFileSync(join(dir, 'note.mkp.md'), '# A note\n\n```hello\nwho: you\nsummary: s\n```\n');
+    const check = run(['migrate', 'tiny', 'note.mkp.md', '--pack', 'tiny', '--check'], dir);
+    expect(check.stderr).not.toContain('mkp.pack-duplicate');
+    expect(check.stderr).toContain('tiny: 0.2.1 -> 0.2.2');
+    expect(check.status).toBe(1);
+    expect(run(['migrate', 'tiny', 'note.mkp.md', '--pack', join(dir, 'tiny'), '--take', 'all', '--write'], dir).status).toBe(0);
+    expect(readFileSync(join(dir, 'tiny/manifest.mkp'), 'utf8').startsWith(`# mkp ${RELEASE} ir 1`)).toBe(true);
+    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8').startsWith(`---\nmkp: ${RELEASE}`)).toBe(true);
+    // a pack that fails: the document with it isn't written for a pack that stays as it was
+    mkdirSync(join(dir, 'bad'));
+    writeFileSync(join(dir, 'bad/manifest.mkp'), 'pack bad@1 "A pack that doesn\'t compile."\n  requires core@1\n  provides oops\n');
+    writeFileSync(join(dir, 'bad/oops.mkp'), 'oops@1 "Broken."\n  text (nothing_here)\n  project md = "x"\n');
+    const before = '# Another\n\nSome text.\n';
+    writeFileSync(join(dir, 'other.mkp.md'), before);
+    const failed = run(['migrate', 'bad', 'other.mkp.md', '--take', 'all', '--write'], dir);
+    expect(failed.status).toBe(1);
+    expect(failed.stderr).toContain("other.mkp.md is left as it is: bad didn't migrate in this run");
+    expect(readFileSync(join(dir, 'other.mkp.md'), 'utf8')).toBe(before);
+  }, 120000);
+});
+
+describe('a document migrated after its pack', () => {
+  it('says the order is the cause when a pack is already newer than the document', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-order-'));
+    const p = join(dir, 'looks');
+    mkdirSync(p);
+    // migrated in an earlier run: stamped for this release, and using what 0.2.1 doesn't have (padx)
+    writeFileSync(join(p, 'manifest.mkp'), `# mkp ${RELEASE} ir 1\npack looks@1 "Looks."\n  requires core@1\n  provides badge\n`);
+    writeFileSync(join(p, 'badge.mkp'), `# mkp ${RELEASE} ir 1\nbadge@1 "A word."\n  in word text\n  column padx=s\n    text word\n  project md = word\n`);
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a' }, summary: 'One.' } } }));
+    const doc = join(dir, 'note.mkp.md');
+    writeFileSync(doc, '# A note\n\n```badge\nword: hi\nsummary: s\n```\n');
+    const m = await migrateDocument(relative(process.cwd(), doc), { packs: [folder(p)], core: process.env.MKP_CORE_0_2_1 });
+    expect(m.errors[0]).toContain(`is written for MKP ${OLD}, but ${relative(process.cwd(), p)} is already migrated to ${RELEASE}`);
+    expect(m.errors[0]).toContain('migrate it in the same run as its packs');
+    // the same pack as it was for 0.2.1, in one run with the document: no such line
+    writeFileSync(join(p, 'manifest.mkp'), 'pack looks@1 "Looks."\n  requires core@1\n  provides badge\n');
+    writeFileSync(join(p, 'badge.mkp'), 'badge@1 "A word."\n  in word text\n  column pad=s\n    text word\n  project md = word\n');
+    const ok = await migrateDocument(relative(process.cwd(), doc), { packs: [folder(p)], core: process.env.MKP_CORE_0_2_1 });
+    expect(ok.errors).toEqual([]);
   }, 120000);
 });
 

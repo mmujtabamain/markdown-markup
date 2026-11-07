@@ -333,14 +333,26 @@ the theme on their own; read `theme` only for what can't use them, such as a `pi
 `arrow from=a to=b ["label"]` joins two elements by id, inside the instance or the instances
 nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`), `line=`,
 `layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20), `corner=m|s|none` (how
-round its turns are: 12 px, 6 px, square). An arrow's ends touch the outlines it joins, and a routed
-line keeps a straight run before its head (the head and 6 px) and after its tail.
+round its turns are: 12 px, 6 px, square), `lanes=full|turn` (`full`, the default: a line passes
+through a via lane at its middle, along its length; `turn`: a lane across the line's way says only
+where it turns, at the lane, keeping its ends' heights, and one along its way is followed only as far
+as the line must), `hop=auto|none`. An arrow's ends touch the outlines it joins, and a routed
+line keeps a straight run before its head (the head and 6 px) and after its tail. Routed lines that
+turn in the same gap get tracks of their own, at least 8 px apart, ordered so they don't cross; a
+gap needs about 19 px for the runs plus 8 px for each line turning in it. In a narrower one the
+turns crowd together, and the web renderer marks those arrows `data-crowded`: widen the gap. The tracks of a gap
+are ordered so the fewest runs cross, and two runs of different links never sit closer than 8 px
+side by side (a line that would turn right beside another turns 8 px before it instead). Where a
+crossing remains, the flatter line hops over the steeper one with a small arc (a level run upwards,
+an upright one to the left); crossings closer than a hop make one wider hop, and there is no hop at a
+join, along a shared trunk, or at a corner or an end; a dashed or dotted line draws its hop unbroken. `hop=none` (a sequence's lifelines, a rule)
+never hops, and nothing hops over it.
 
 ## Types
 
 Named records with defaults (`type task = {title: text, tone: color = muted}`) fill what a literal
 leaves out; a literal is typed by where it goes, so `{tone: ok}` reads `ok` as a colour; `none`
-is a value of every token kind; `iconname` is the icons' type (`none` draws nothing); types may be recursive (example 23).
+is a value of every token kind; `iconname` is the icons' type (`none` draws nothing; `prev`/`next` and `less`/`more` are the four chevrons, `left`/`right`/`up`/`down` the arrows, so a disclosure writes `icon name=(if(open, more, next))`); types may be recursive (example 23).
 A record kind of an input (`list(record mark {…})`) is a type its definition's fns can take.
 
 <!-- example 24-type-parameters -->

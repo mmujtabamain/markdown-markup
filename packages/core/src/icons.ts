@@ -6,6 +6,9 @@ export const ICON_GLYPHS: Record<string, string> = {
   pause: '⏸',
   prev: '‹',
   next: '›',
+  // the chevrons down and up, as prev and next are left and right: a disclosure's pair (if(open, more, next))
+  more: '∨',
+  less: '∧',
   first: '⏮',
   last: '⏭',
   reset: '↺',

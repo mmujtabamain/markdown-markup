@@ -29,7 +29,7 @@ import {
   writeZip,
 } from '@mkp/core';
 import * as thisCore from '@mkp/core';
-import { applyMove, moveNames, moveSummary, usesOf, type IRDef } from '@mkp/core';
+import { applyMove, compareReleases, moveNames, moveSummary, usesOf, type IRDef } from '@mkp/core';
 import { documentItemsOf, releaseCore, type ReleaseCore } from './release-core';
 
 export interface Migrated {
@@ -41,6 +41,8 @@ export interface Migrated {
   result: MigrateResult | null;
   /** problems that stop it: nothing is written */
   errors: string[];
+  /** files already written for this release that only lack their stamp: the one change made to them */
+  stamped?: string[];
 }
 
 export interface SourceOptions {
@@ -68,6 +70,7 @@ function current(out: Migrated, files: [string, string][]): Migrated {
     if (readStamp(t, p)) continue;
     out.files.set(p, writeStamp(t, p, stampNow));
     out.changed.push(p);
+    (out.stamped ??= []).push(p);
   }
   return out;
 }
@@ -100,6 +103,12 @@ function recheck(files: Map<string, string>, packs: PackSource[], packFolder?: {
 
 const fmtD = (d: { code: string; message: string; pos?: { file: string; line: number; col: number } }): string => `${d.pos ? `${d.pos.file}:${d.pos.line}:${d.pos.col} ` : ''}${d.code}: ${d.message}`;
 
+/** The release a pack's manifest is stamped with, if it has one. */
+function packRelease(p: PackSource): string | undefined {
+  const m = p.files?.get('manifest.mkp');
+  return m ? readStamp(new TextDecoder().decode(m), 'manifest.mkp')?.mkp : undefined;
+}
+
 /** A document (and the .mkp beside it, if it has one), migrated. */
 export async function migrateDocument(path: string, opts: SourceOptions = {}): Promise<Migrated> {
   const text = readFileSync(path, 'utf8');
@@ -113,6 +122,13 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const bundle = c.document(text, file, undefined, beside ? { docFile: beside } : {}) as IRBundle | null;
   const errs = c.diags.errors;
   if (!bundle || errs.length) {
+    // a pack already migrated in an earlier run is newer than the document: its errors point at the
+    // pack, but the cause is the order, so say that first
+    const newer = (opts.packs ?? []).map((p) => [p.label, packRelease(p)] as const).filter(([, v]) => v && compareReleases(v, from) > 0);
+    if (newer.length)
+      out.errors.push(
+        `${file} is written for MKP ${from}, but ${newer.map(([l, v]) => `${l} is already migrated to ${v}`).join(', ')}: the document is compiled as it was written, against its packs as they were, so migrate it in the same run as its packs (mkp migrate <packs> <documents> --write), or pass --pack a copy of each pack as it was for ${from}.`,
+      );
     out.errors.push(`${file} doesn't compile as MKP ${from}${readStamp(text, file) ? '' : ' (it has no stamp, so it is taken as ' + UNSTAMPED + '; pass --from if it was written for another release)'}:`, ...errs.map(fmtD));
     return out;
   }

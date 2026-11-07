@@ -37,10 +37,13 @@ from them), do step 6.
 | `@mkp/cli` | `mkp`: check, build, index, show, schema, fmt, pack, cases | Node, or nothing (the single executable) |
 
 A release (step 1.0) carries `@mkp/core` as `mkp.js` + `mkp.d.ts`, `@mkp/react` as `mkp-react.js` +
-`mkp-react.d.ts`, and `@mkp/cli` as `mkp-cli.mjs`. The snippets below import `@mkp/*`, the names
-inside this repo; in your app, import the vendored files (`./vendor/mkp/mkp.js`), or alias
-`@mkp/core` and `@mkp/react` to them. `@mkp/shadcn` and `@mkp/react-native` are used from source
-(step 1.0a) until a release carries them.
+`mkp-react.d.ts`, `mount()` as `mkp-dom.js`, `firstPaint()` as `mkp-page.js` (for a build on Node),
+and `@mkp/cli` as `mkp-cli.mjs`, and from 0.2.4 `@mkp/react-native` as
+`mkp-react-native-<version>.zip`: its source, for Metro to build with your app, with `@mkp/core`
+aliased to the web zip's `mkp-runtime.js` (its README shows the alias). The snippets below import
+`@mkp/*`, the names inside this repo; in your app, import the vendored files
+(`./vendor/mkp/mkp.js`), or alias `@mkp/core` and `@mkp/react` to them. `@mkp/shadcn` is used from
+source (step 1.0a) until a release carries it.
 
 ---
 
@@ -582,6 +585,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `tokens` | your values for token names (step 7) |
 | `components` | your own components for base widgets (4.2) |
 | `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
+| `styles` | `'inline'` (the default) or `'external'`: MKP's stylesheet left to your page (below) |
 | `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
 | `options` | `RuntimeOptions`: `onSignal`, `onWarn`, `hosts`, `budgetCap`, `capabilities`, `answers`… |
@@ -598,6 +602,10 @@ What to know:
   colour. The box stays MKP's (`.mkp-icon`, `data-name`, `data-size`, `data-tone`, the label as
   `role=img`), so your icon needs no label of its own, and MKP's text symbol is left out.
   Documents still only name icons from the fixed set; what draws them is yours.
+- **Many documents on a page?** Each writes MKP's stylesheet (about 19 KB) and its tokens (about
+  2 KB). With `styles="external"` it writes only its tokens: load MKP's stylesheet once yourself,
+  as `mkp.css` from the web zip, or `mkpCss()` (`mkpCss({ neutral: false })` with your own
+  `components`) in your own stylesheet.
 - **CSS.** `MkpDocument` writes its own `<style>`: the layout rules, the shell, the neutral look and
   your tokens as `--mkp-*` custom properties, all in `@layer mkp`. There is no stylesheet to
   import. Any unlayered rule of yours beats it; if you use cascade layers, place it in your order
@@ -889,13 +897,18 @@ view.unmount();
   so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
+- **Many documents or first paints on one page.** Each writes MKP's stylesheet (about 19 KB) with
+  its own tokens (about 2 KB). Pass `styles: 'external'` to `mount()`, `firstPaint()` or
+  `mkp build --target fragment --styles external`, and load the web zip's `mkp.css` once in the
+  page: each then writes only its tokens. A first paint and the `mount()` that takes it over must be
+  told the same, or it is drawn again.
 - **Text and widgets at first paint.** `mkp build --target ir,fragment` also writes
   `name.fragment.html`: the document as `mount()` first draws it. Put it in the element on the
   server, then mount the same build's bundle with `hydrate: true`; `mount()` takes the HTML over
   in place, so nothing is swapped and nothing moves, and it stays as it is until the runtime is
   ready. Pass `mount()` the theme, tokens, icons and class the fragment was drawn with (the CLI draws
-  it with none; `firstPaint(bundle, { theme, tokens, icons, className })` from `@mkp/page` takes
-  them). An SVG string is in the first paint; a function's box is empty there and filled once
+  it with none; `firstPaint(bundle, { theme, tokens, icons, className })` takes them: `mkp-page.js`
+  in the web zip, for a build on Node 20+, or `@mkp/page` in this repo). An SVG string is in the first paint; a function's box is empty there and filled once
   mounted.
   A fragment that isn't this bundle's is drawn again, with a warning on the console.
 
@@ -1378,13 +1391,16 @@ Every bundle, lock and source says which release wrote it: `"mkp": "0.2.2"` besi
 bundle and a lock, `mkp: 0.2.2` and `ir: 1` in a document's front matter, and a first line
 `# mkp 0.2.2 ir 1` in a `.mkp` file (a pack's files, its manifest, a document's own `.mkp`). The
 stamp is no comment of what follows and not part of a pack's digest, so restamping never trips the
-lock. A file without one was written for 0.2.1. `mkp fmt` writes it.
+lock. A file without one was written for 0.2.1. `mkp fmt` writes it. Every `.mkp` file of a pack
+carries its own stamp, not only `manifest.mkp`; `mkp migrate` adds a missing one, and says so
+(`mkp.migrate-stamp`), so `--check` never fails without saying why. A tree that was never stamped
+but is written for this release takes `--from <this release> --write` once.
 
 Each release ships one step that brings the previous release's IR up to date, and `mkp migrate`
 runs every step from a file's release to this one:
 
 ```sh
-mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything is written for an older release
+mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything would change, each change said; "up to date" otherwise
 mkp migrate lib/ notes/ --write                  # packs first, then the documents that use them
 mkp migrate notes/ --keep zoom-minscale --write  # keep an old look where it can be kept (--keep all)
 mkp migrate notes/ --take all --write            # take every new behaviour, without asking
@@ -1397,12 +1413,18 @@ mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's 
   (its `mkp.js`, downloaded once from the release into `~/.cache/mkp/<version>/` or `MKP_CACHE`,
   and checked against the release's `SHA256SUMS`; or given with `--core`). Then the steps run, and
   this release's printer writes it back **in canonical form** (layout normalised, comments kept)
-  with its new stamp. This release then compiles the result, and nothing is written if it doesn't
+  with its new stamp. Canonical form puts each member and expression on one line, puts a blank line
+  between members and around headings, writes YAML lists as blocks, and leaves out a record field
+  that only holds its default. This release then compiles the result, and nothing is written if it doesn't
   compile.
+- **Packs and their documents go together.** Give a pack to migrate and with `--pack` as you
+  like: it is taken once. If a pack in the run doesn't migrate, the documents in it are left as
+  they are (an error says which pack), so they are never written for a pack that stays as it was.
 - **Nothing changes silently.** Each change is a warning at its line: `mkp.migrate-renamed` (a name
   a release took for itself, renamed in what you wrote, with every use of it),
   `mkp.migrate-changed` (it draws differently now), `mkp.migrate-kept` (you kept the old look),
-  `mkp.migrate-removed`, and for packs `mkp.migrate-moved`.
+  `mkp.migrate-removed`, for packs `mkp.migrate-moved`, and `mkp.migrate-stamp` for a file whose
+  only change is its stamp.
 - **The old look, where it can be kept, is yours to choose.** On a terminal it asks, one change at
   a time; `--keep id,…`, `--keep all` and `--take all` answer for CI. A kept look is written into
   the source (`zoom minscale=0`), where it can be seen and later removed. Where it can't be kept,
@@ -1477,8 +1499,8 @@ migrate walk@1 -> walk@2
 
 Things you will hit, as of this commit:
 
-- **A release carries the core, the React renderer and the CLI only.** The shadcn provider and the
-  React Native renderer are used from source (step 1.0a). `mkp-react.js` needs React 19.
+- **A release doesn't carry the shadcn provider.** It is used from source (step 1.0a).
+  `mkp-react.js` needs React 19.
 - **`rt.widget('#id')` doesn't work.** The message says a block can be found by its `#anchor`, but
   only the index works (the same for `hosts` keys). Look the index up:
   `bundle.doc.body.find((n) => n.meta?.anchor === 'sensor')?.meta?.block`.

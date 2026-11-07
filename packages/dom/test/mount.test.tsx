@@ -90,6 +90,24 @@ describe('mount', () => {
   });
 });
 
+describe('mount, styles: external', () => {
+  it('takes over a first paint drawn without MKP’s stylesheet, in place, when it is told the same', async () => {
+    const b = bundle(counter);
+    const el = document.body.appendChild(document.createElement('div'));
+    const full = firstPaint(b);
+    el.innerHTML = firstPaint(b, { styles: 'external' });
+    expect(el.innerHTML.length).toBeLessThan(full.length / 3);
+    expect(el.querySelector('style')!.textContent).not.toContain('.mkp-frame');
+    const press = el.querySelector('[data-mkp-id=up]');
+    const warn = vi.spyOn(console, 'warn');
+    const error = vi.spyOn(console, 'error');
+    await mounted(el, b, { hydrate: true, styles: 'external' });
+    expect(el.querySelector('[data-mkp-id=up]')).toBe(press);
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+});
+
 describe('mount, a host’s icons', () => {
   const icons = bundle('```mkp\nicons "Two icons."\n  row\n    icon name=help label="Help"\n    icon name=info tone=accent\n  project md = "i"\n```\n\n```icons\nsummary: s\n```\n');
   const HELP = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>';

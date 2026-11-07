@@ -876,6 +876,10 @@ export class Runtime {
           if (typeof x === 'number' && x < 1) a.opacity = Math.max(0, x);
         } else if (k === 'layer') {
           if (x === 'behind') a.layer = 'behind';
+        } else if (k === 'lanes') {
+          if (x === 'turn') a.lanes = 'turn';
+        } else if (k === 'hop') {
+          if (x === 'none') a.hop = 'none';
         } else if (x !== 'none' || k === 'head' || k === 'corner') (a as unknown as Record<string, unknown>)[k] = String(x);
       }
       // an empty label draws nothing, not an empty box (GAPS 129)

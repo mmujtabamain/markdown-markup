@@ -73,6 +73,36 @@ describe('arrow route=down', () => {
     expect(level(p!.d)).not.toBeCloseTo(level(q!.d));
   });
 
+  it('gives links that only partly share a gap tracks of their own, apart, and not crowded', () => {
+    // a's gap is 30..70 and b's 60..130: the 10 px they share has no room for a head's run, so each
+    // turns within its own, a track's width from the other where their runs lie side by side
+    const f = { a: box(0, 0), b: box(100, 30), c: box(150, 70), d: box(300, 130) };
+    const [p, q] = arrowPaths([link('a', 'c', f), link('b', 'd', f)]);
+    const level = (d: string) => runs(d).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)!.a[1];
+    expect(Math.abs(level(p!.d) - level(q!.d))).toBeGreaterThanOrEqual(8);
+    expect(allSquare(p!.d) && allSquare(q!.d)).toBe(true);
+    expect(p!.crowded || q!.crowded).toBeFalsy();
+  });
+
+  it('keeps the turns in a shared gap at least 8 px apart, and says when the gap is too narrow for that', () => {
+    const across = (gap: number) => {
+      const f: Record<string, Rect> = {};
+      const ends: ArrowEnds[] = [];
+      for (let k = 0; k < 4; k++) {
+        f[`s${k}`] = box(k * 80, 0);
+        f[`t${k}`] = box(40 + ((k + 2) % 4) * 80, 30 + gap);
+        ends.push(link(`s${k}`, `t${k}`, f));
+      }
+      return arrowPaths(ends);
+    };
+    const level = (d: string) => runs(d).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)?.a[1];
+    const roomy = across(120);
+    expect(roomy.some((p) => p!.crowded)).toBe(false);
+    const ys = roomy.map((p) => level(p!.d)).filter((y): y is number => y !== undefined).sort((x, y) => x - y);
+    for (let k = 1; k < ys.length; k++) if (Math.abs(ys[k] - ys[k - 1]) > 0.5) expect(ys[k] - ys[k - 1]).toBeGreaterThanOrEqual(8);
+    expect(across(26).some((p) => p!.crowded)).toBe(true);
+  });
+
   it('shares a track along a gap where the runs do not touch', () => {
     const f = { a: box(0, 0), c: box(70, 100), b: box(300, 0), d: box(370, 100) };
     const [p, q] = arrowPaths([link('a', 'c', f), link('b', 'd', f)]);
@@ -251,5 +281,112 @@ describe('arrow corner=', () => {
     expect(Math.max(...q(s!.d))).toBeCloseTo(6, 0);
     expect(Math.max(...q(none!.d))).toBeCloseTo(0, 0);
     expect(allSquare(none!.d)).toBe(true);
+  });
+});
+
+describe('arrow lanes=turn', () => {
+  const ys = (d: string) => corners(d).map(([, y]) => y);
+
+  it('on a route, a lane across the way says where the line turns: one run across the gap, there', () => {
+    // route=right through a tall lane in the gap: full passes through the lane's middle height,
+    // turn keeps the ends' heights and makes its one upright run at the lane
+    const g = { a: box(0, 0), b: box(300, 200), lane: { x: 150, y: -100, w: 10, h: 500 } };
+    const [full] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], route: 'right' }]);
+    const [turn] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], route: 'right', lanes: 'turn' }]);
+    expect(ys(full!.d).some((y) => Math.abs(y - 150) < 0.5)).toBe(true);
+    const upright = runs(turn!.d).filter((u) => Math.abs(u.a[0] - u.b[0]) < 0.11);
+    expect(upright).toHaveLength(1);
+    expect(upright[0].a[0]).toBeCloseTo(155);
+    expect(ys(turn!.d).every((y) => y >= 15 - 0.5 && y <= 215 + 0.5)).toBe(true);
+    expect(allSquare(turn!.d)).toBe(true);
+  });
+
+  it('on a free path, joins the lane level with where it comes from and leaves level with where it goes', () => {
+    const g = { a: box(0, 0), b: box(300, 0), lane: { x: 150, y: -200, w: 10, h: 400 } };
+    const [full] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane] }]);
+    const [turn] = arrowPaths([{ from: 'a', to: 'b', a: g.a, b: g.b, via: [g.lane], lanes: 'turn' }]);
+    expect(Math.min(...ys(full!.d))).toBeLessThan(-100);
+    expect(Math.min(...ys(turn!.d))).toBeGreaterThan(-1);
+    expect(Math.max(...ys(turn!.d))).toBeLessThan(31);
+  });
+});
+
+describe('crossings: fewer, then a hop where one remains', () => {
+  const level = (d: string) => runs(d.replace(/ A[^L]*/g, ' ')).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)!.a[1];
+  const arcs = (d: string) => [...d.matchAll(/A(-?[\d.]+),(-?[\d.]+) 0 0 ([01]) (-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({ rx: Number(m[1]), ry: Number(m[2]), sweep: Number(m[3]) }));
+  const plain = (from: string, to: string, boxes: Record<string, Rect>, more: Partial<ArrowEnds> = {}): ArrowEnds => ({ from, to, a: boxes[from], b: boxes[to], ...more });
+
+  it('orders the tracks of a gap so the fewest runs cross, and keeps today’s order where nothing crosses', () => {
+    // P (a to d) above Q (b to c) crosses Q's way down and Q crosses P's: below it, neither does
+    const f = { a: box(0, 0), b: box(150, 0), d: box(300, 100), c: box(400, 100) };
+    const [p, q] = arrowPaths([link('a', 'd', f), link('b', 'c', f)]);
+    expect(level(p!.d)).toBeGreaterThan(level(q!.d));
+    expect(arcs(p!.d)).toEqual([]);
+    expect(arcs(q!.d)).toEqual([]);
+    // nothing crosses: the order is as before (the first span on the first track)
+    const g = { a: box(0, 0), c: box(70, 100), b: box(300, 0), d: box(370, 100) };
+    const [r, s] = arrowPaths([link('a', 'c', g), link('b', 'd', g)]);
+    expect(level(r!.d)).toBeCloseTo(level(s!.d));
+  });
+
+  it('puts one upward hop on the level line where two links cross at right angles; the upright stays straight', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(arcs(h!.d)).toEqual([{ rx: 5, ry: 5, sweep: 1 }]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('gives each hop’s arc on its own too, for a dashed line to draw unbroken over its dashes', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(h!.hops).toHaveLength(1);
+    expect(h!.hops![0]).toMatch(/^M[\d.]+,[\d.]+ A5\.0,5\.0 0 0 1 [\d.]+,[\d.]+$/);
+    // the same arc as in the whole path
+    expect(h!.d).toContain(h!.hops![0].replace(/^M([^ ]+) /, 'L$1 '));
+    expect(v!.hops).toBeUndefined();
+  });
+
+  it('draws no hop where a line is hop=none: a lifeline and the messages across it', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f, { hop: 'none', head: 'none' })]);
+    expect(arcs(h!.d)).toEqual([]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('hops once over a shared trunk, not once per link in it', () => {
+    // two links from t straight down, one longer: one line where they overlap
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230), c: box(150, 330) };
+    const [h] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f), plain('t', 'c', f)]);
+    expect(arcs(h!.d)).toHaveLength(1);
+  });
+
+  it('makes crossings closer than a hop one wider hop', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0, 6, 30), b: box(150, 230, 6, 30), u: box(156, 0, 6, 30), w: box(156, 230, 6, 30) };
+    const [h] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f), plain('u', 'w', f)]);
+    expect(arcs(h!.d)).toEqual([{ rx: 8, ry: 5, sweep: 1 }]);
+  });
+
+  it('draws no hop at a corner or an end: a run that ends on another is a join', () => {
+    // the upright reaches the level line's element edge right where the level run ends
+    const f = { l: box(0, 100), r: box(140, 100), t: box(165, 0, 20, 30), b: box(165, 230, 20, 30) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(arcs(h!.d)).toEqual([]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('moves a turn that would hug another line, or cross it at its corner, to before the line', () => {
+    // a's line comes from the left and turns down to c 4 px beside the line from t to b (the image:
+    // its corner seems to join that line). Its run down moves 8 px clear, on the side it comes from,
+    // so its level run doesn't cross the other line at all
+    const xs = (d: string) => runs(d.replace(/ A[^L]*/g, ' ')).filter((u) => Math.abs(u.a[0] - u.b[0]) < 0.11).map((u) => u.a[0]);
+    for (const cx of [104, 96]) {
+      const f = { a: box(0, 0), c: box(cx, 100, 60, 30), t: box(100, -60, 60, 30), b: box(100, 300, 60, 30) };
+      const [p, q] = arrowPaths([link('a', 'c', f), { from: 't', to: 'b', a: f.t, b: f.b }]);
+      const line = xs(q!.d)[0];
+      const down = xs(p!.d).at(-1)!;
+      expect(line - down).toBeGreaterThanOrEqual(8 - 0.11);
+      expect(arcs(p!.d)).toEqual([]);
+      expect(arcs(q!.d)).toEqual([]);
+    }
   });
 });

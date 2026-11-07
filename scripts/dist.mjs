@@ -7,9 +7,14 @@
 //                          maths-engine.js (loaded when maths shows),
 //                          mkp.d.ts (the core's types, one self-contained header), mkp-react.js (the
 //                          React renderer, React left out), mkp-react.d.ts, mkp-dom.js (mount() for any
-//                          framework or none, React inside), mkp-dom.d.ts, README.txt
+//                          framework or none, React inside), mkp-dom.d.ts, mkp-page.js (firstPaint()
+//                          for a Node build: a document's first paint, React's server renderer
+//                          inside), mkp-page.d.ts, mkp.css (MKP's stylesheet, for documents drawn
+//                          with styles: 'external'), README.txt
+//   mkp-react-native-<version>.zip  the React Native renderer as source, for Metro to build with
+//                          the app (it imports @mkp/core: alias it to the web zip's mkp-runtime.js)
 //   mkp-cli.mjs            the CLI in one file (core, maths engine, --target html's page script inside)
-//   SHA256SUMS             checksums of the two
+//   SHA256SUMS             checksums of the three
 //   web/                   the web files unpacked, as GitHub Pages serves them under /v/<version>/
 //
 //   node scripts/dist.mjs [--version 0.3.0] [--out dist]     (the version is VERSION's by default)
@@ -116,6 +121,36 @@ await build({
   logLevel: 'warning',
 });
 
+// mkp-page.js: firstPaint() for a build that runs on Node, drawing the HTML mount() takes over. The
+// same renderer as mkp-dom.js with React's server renderer inside: its Node build (the browser one
+// schedules with a MessageChannel, which keeps Node from exiting), whose built-ins it requires
+// through a require made for the module, so the file stays plain ESM
+await build({
+  entryPoints: [join(root, 'packages/page/src/first-paint.tsx')],
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  target: 'node20',
+  jsx: 'automatic',
+  minify: true,
+  outfile: join(web, 'mkp-page.js'),
+  plugins: [coreBeside],
+  define,
+  banner: { js: `${banner}\nimport { createRequire as __mkpRequire } from 'node:module';\nconst require = __mkpRequire(import.meta.url);` },
+  legalComments: 'none',
+  logLevel: 'warning',
+});
+
+// mkp.css: MKP's stylesheet in MKP's own look, with no document's tokens, for a page that draws
+// many fragments or documents with styles: 'external' to load once. Taken from the renderer itself
+// (mkpCss()), so it is the stylesheet each document would otherwise write
+{
+  const cssOut = join(mkdtempSync(join(tmpdir(), 'mkp-css-')), 'css.mjs');
+  await build({ stdin: { contents: "export { mkpCss } from './packages/react/src/index.tsx';", resolveDir: root, loader: 'ts' }, bundle: true, format: 'esm', platform: 'node', jsx: 'automatic', outfile: cssOut, define, logLevel: 'warning', banner: { js: "import { createRequire as __r } from 'node:module'; const require = __r(import.meta.url);" } });
+  const { mkpCss } = await import(cssOut);
+  writeFileSync(join(web, 'mkp.css'), `${banner}\n${mkpCss()}\n`);
+}
+
 // the headers: one self-contained .d.ts for the core, and one for React that imports it. The React
 // one is generated against the core's header posing as a package, so its core types stay imports
 const tmp = mkdtempSync(join(tmpdir(), 'mkp-dts-'));
@@ -130,6 +165,7 @@ mkdirSync(fake, { recursive: true });
 copyFileSync(join(web, 'mkp.d.ts'), join(fake, 'index.d.ts'));
 dts({ include: [join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')] } } }, join(root, 'packages/react/src/index.tsx'), join(web, 'mkp-react.d.ts'), ['--external-imports', '@mkp/core', 'react', 'react-dom']);
 dts({ include: [join(root, 'packages/dom/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/dom/src/index.tsx'), join(web, 'mkp-dom.d.ts'), ['--external-imports', '@mkp/core']);
+dts({ include: [join(root, 'packages/page/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/page/src/first-paint.tsx'), join(web, 'mkp-page.d.ts'), ['--external-imports', '@mkp/core']);
 rmSync(tmp, { recursive: true, force: true });
 // mkp-runtime.d.ts names the runtime half's exports from mkp.d.ts, so a Runtime is one type whichever
 // file it came from (its private fields make a second declaration of the class a different type)
@@ -142,7 +178,7 @@ rmSync(tmp, { recursive: true, force: true });
   if (!names.includes('Runtime')) throw new Error(`mkp-runtime.d.ts: found no Runtime among the runtime half's exports (${names.length} names)`);
   writeFileSync(join(web, 'mkp-runtime.d.ts'), `// the runtime half of the core (mkp-runtime.js): its types are the core's, declared in mkp.d.ts\nexport {\n${names.map((n) => `  ${n},`).join('\n')}\n} from '@mkp/core';\n`);
 }
-for (const f of ['mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts']) {
+for (const f of ['mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts', 'mkp-page.d.ts']) {
   const p = join(web, f);
   const text = readFileSync(p, 'utf8').replace(/from ["']@mkp\/core["']/g, "from './mkp.js'");
   writeFileSync(p, `${banner}\n${text}`);
@@ -162,10 +198,16 @@ writeFileSync(
                   for your design system. Types: mkp-react.d.ts
   mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's
                   own look, its own React inside. Types: mkp-dom.d.ts
+  mkp.css         MKP's stylesheet in its own look, for a page whose documents or first paints are
+                  drawn with styles: 'external' (each then writes only its own tokens): load it once
+  mkp-page.js     firstPaint(bundle, options): a document's first paint as HTML, for a build on
+                  Node 20+ to put in the page; mount(el, bundle, { hydrate: true }) takes it over.
+                  React's server renderer inside. Types: mkp-page.d.ts
 
   import { compile, Runtime } from './vendor/mkp/mkp.js';
   import { MkpDocument } from './vendor/mkp/mkp-react.js';     // React
   import { mount } from './vendor/mkp/mkp-dom.js';             // anything else
+  import { firstPaint } from './vendor/mkp/mkp-page.js';       // a build on Node
 
 Unlicensed: all rights reserved. https://github.com/mmujtabamain/markdown-markup
 `,
@@ -188,11 +230,47 @@ for (const f of readdirSync(web).sort()) entries[`${folder}/${f}`] = [readFileSy
 const zipName = `${folder}.zip`;
 writeFileSync(join(out, zipName), zipSync(entries, { level: 9 }));
 
+// the React Native renderer as source: React Native apps build their dependencies with Metro, from
+// TypeScript, so it ships as its src/ with a package.json, and imports @mkp/core, which the app
+// aliases to the web zip's mkp-runtime.js (it uses the runtime half only)
+const rnPkg = JSON.parse(readFileSync(join(root, 'packages/react-native/package.json'), 'utf8'));
+const rnFolder = `mkp-react-native-${version}`;
+const rnEntries = {};
+const at1980 = { mtime: new Date(Date.UTC(1980, 0, 1)) };
+const addTree = (dir, into) => {
+  for (const n of readdirSync(dir).sort()) {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) addTree(p, `${into}/${n}`);
+    else rnEntries[`${into}/${n}`] = [readFileSync(p), at1980];
+  }
+};
+addTree(join(root, 'packages/react-native/src'), `${rnFolder}/src`);
+const rnManifest = { name: '@mkp/react-native', version, description: rnPkg.description, main: 'src/index.tsx', types: 'src/index.tsx', 'react-native': 'src/index.tsx', peerDependencies: rnPkg.peerDependencies, peerDependenciesMeta: rnPkg.peerDependenciesMeta };
+rnEntries[`${rnFolder}/package.json`] = [new TextEncoder().encode(JSON.stringify(rnManifest, null, 2) + '\n'), at1980];
+rnEntries[`${rnFolder}/README.txt`] = [
+  new TextEncoder().encode(`MKP ${version} (${commit}): the React Native renderer, as source for Metro to build with your app.
+
+  1. Unzip it into your app, e.g. vendor/mkp-react-native, and the web zip beside it (vendor/mkp).
+  2. It imports @mkp/core: alias that to the web zip's mkp-runtime.js (the runtime half: it draws
+     bundles compiled ahead of time, with no compiler). In metro.config.js:
+       resolver.extraNodeModules = { '@mkp/core': path.resolve(__dirname, 'vendor/mkp/mkp-runtime.js') };
+     and in tsconfig.json, for types: "paths": { "@mkp/core": ["vendor/mkp/mkp-runtime.d.ts"] }
+  3. Peer dependencies: ${Object.entries(rnPkg.peerDependencies).map(([k, v]) => `${k} ${v}`).join(', ')}; @shopify/react-native-skia only for gfx@1.
+
+  import { MkpDocument } from './vendor/mkp-react-native/src';
+
+Unlicensed: all rights reserved. https://github.com/mmujtabamain/markdown-markup
+`),
+  at1980,
+];
+const rnZip = `${rnFolder}.zip`;
+writeFileSync(join(out, rnZip), zipSync(rnEntries, { level: 9 }));
+
 const sha = (f) => createHash('sha256').update(readFileSync(join(out, f))).digest('hex');
-writeFileSync(join(out, 'SHA256SUMS'), [zipName, 'mkp-cli.mjs'].map((f) => `${sha(f)}  ${f}\n`).join(''));
+writeFileSync(join(out, 'SHA256SUMS'), [zipName, rnZip, 'mkp-cli.mjs'].map((f) => `${sha(f)}  ${f}\n`).join(''));
 
 const mb = (f) => `${(statSync(f).size / 1e6).toFixed(2)} MB`;
 console.log(`mkp ${version} (${commit}) in ${Date.now() - t0} ms:`);
 for (const f of readdirSync(web).sort()) console.log(`  web/${f.padEnd(18)} ${mb(join(web, f))}`);
-console.log(`  ${zipName.padEnd(22)} ${mb(join(out, zipName))}\n  mkp-cli.mjs            ${mb(join(out, 'mkp-cli.mjs'))}\n  SHA256SUMS`);
+console.log(`  ${zipName.padEnd(22)} ${mb(join(out, zipName))}\n  ${rnZip.padEnd(22)} ${mb(join(out, rnZip))}\n  mkp-cli.mjs            ${mb(join(out, 'mkp-cli.mjs'))}\n  SHA256SUMS`);
 

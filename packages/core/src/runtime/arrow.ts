@@ -19,6 +19,10 @@ export interface ArrowPath {
   align?: 'start' | 'end';
   /** the marks at its ends other than a plain head: path data, and how it is filled */
   marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
+  /** a routed arrow that turns in a gap too narrow for its turns to keep TRACK_GAP apart: widen the gap */
+  crowded?: boolean;
+  /** each hop's arc on its own (also inside `d`), for a dashed or dotted line to draw unbroken over its dashes */
+  hops?: string[];
 }
 
 /** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
@@ -49,9 +53,12 @@ const dist = (p: Pt, q: Pt): number => Math.hypot(q[0] - p[0], q[1] - p[1]);
  * a tall one, side to side through a wide one), whichever way round is shorter from `prev` on to
  * `next`; through the centre of a square or empty one.
  */
-function lane(r: Rect, prev: Pt, next: Pt): Pt[] {
+function lane(r: Rect, prev: Pt, next: Pt, turn = false): Pt[] {
   const [cx, cy] = centre(r);
   if (Math.abs(r.h - r.w) < 1) return [[cx, cy]];
+  const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v));
+  // lanes=turn: along it only from level with where the line comes from to level with where it goes
+  if (turn) return r.h > r.w ? [[cx, clamp(prev[1], r.y, r.y + r.h)], [cx, clamp(next[1], r.y, r.y + r.h)]] : [[clamp(prev[0], r.x, r.x + r.w), cy], [clamp(next[0], r.x, r.x + r.w), cy]];
   const ends: [Pt, Pt] = r.h > r.w ? [[cx, r.y], [cx, r.y + r.h]] : [[r.x, cy], [r.x + r.w, cy]];
   return dist(prev, ends[0]) + dist(ends[1], next) <= dist(prev, ends[1]) + dist(ends[0], next) ? ends : [ends[1], ends[0]];
 }
@@ -60,11 +67,16 @@ function lane(r: Rect, prev: Pt, next: Pt): Pt[] {
 const CORNER = 12;
 
 /** An arrow through waypoints: straight runs between them, rounded where it turns. */
-function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, corner = CORNER): ArrowPath | null {
+function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, corner = CORNER, turn = false): ArrowPath | null {
+  return draw(routedPoints(a, b, via, gap, turn), headSize, corner);
+}
+
+/** The points an arrow through waypoints runs through, before its corners are rounded. */
+function routedPoints(a: Rect, b: Rect, via: Rect[], gap: number, turn = false): Pt[] {
   const mid: Pt[] = [];
   let prev = centre(a);
   via.forEach((r, i) => {
-    const run = lane(r, prev, centre(i + 1 < via.length ? via[i + 1] : b));
+    const run = lane(r, prev, centre(i + 1 < via.length ? via[i + 1] : b), turn);
     mid.push(...run);
     prev = run[run.length - 1];
   });
@@ -73,11 +85,20 @@ function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, co
   const p1 = exit(b, last[0], last[1], gap);
   const pts: Pt[] = [];
   for (const p of [p0, ...mid, p1]) if (!pts.length || dist(pts[pts.length - 1], p) >= 0.5) pts.push(p);
-  return draw(pts, headSize, corner);
+  return pts;
 }
 
-/** The shaft through these points, rounded where it turns (by `corner`, less on short runs), with the head on the last run. */
-function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
+/** A hop on run `seg` of a path (from point seg to seg + 1): centred `at` along it, `w` either side, `h` high, towards `side`. */
+interface HopArc {
+  seg: number;
+  at: number;
+  w: number;
+  h: number;
+  side: Pt;
+}
+
+/** The shaft through these points, rounded where it turns (by `corner`, less on short runs), with the head on the last run, and a hop over each line it crosses (`hops`). */
+function draw(pts: Pt[], headSize: number, corner = CORNER, hops: HopArc[] = []): ArrowPath | null {
   if (pts.length < 2) return null;
   const p1 = pts[pts.length - 1];
   const from = pts[pts.length - 2];
@@ -91,7 +112,29 @@ function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
   const f = (n: number): string => n.toFixed(1);
   const shaft: Pt[] = [...pts.slice(0, -1), back];
   let d = `M${f(shaft[0][0])},${f(shaft[0][1])}`;
+  // the hops along run k: a line to where each starts, then a half-ellipse over to where it ends
+  const alone: string[] = [];
+  const arcs = (k: number): string => {
+    const [pa, pb] = [shaft[k], shaft[k + 1]];
+    const len = dist(pa, pb);
+    if (len < 1) return '';
+    const u: Pt = [(pb[0] - pa[0]) / len, (pb[1] - pa[1]) / len];
+    return hops
+      .filter((h) => h.seg === k)
+      .sort((x, y) => x.at - y.at)
+      .map((h) => {
+        const a: Pt = [pa[0] + u[0] * (h.at - h.w), pa[1] + u[1] * (h.at - h.w)];
+        const b: Pt = [pa[0] + u[0] * (h.at + h.w), pa[1] + u[1] * (h.at + h.w)];
+        // sweep 1 turns clockwise on screen: over the top of a run going right, round the left of one going up
+        const sweep = u[0] * h.side[1] - u[1] * h.side[0] < 0 ? 1 : 0;
+        const arc = `A${f(h.w)},${f(h.h)} 0 0 ${sweep} ${f(b[0])},${f(b[1])}`;
+        alone.push(`M${f(a[0])},${f(a[1])} ${arc}`);
+        return ` L${f(a[0])},${f(a[1])} ${arc}`;
+      })
+      .join('');
+  };
   for (let i = 1; i < shaft.length - 1; i++) {
+    d += arcs(i - 1);
     const [pa, pb, pc] = [shaft[i - 1], shaft[i], shaft[i + 1]];
     const l1 = dist(pa, pb);
     const l2 = dist(pb, pc);
@@ -101,7 +144,7 @@ function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
     d += ` L${f(u[0])},${f(u[1])} Q${f(pb[0])},${f(pb[1])} ${f(w[0])},${f(w[1])}`;
   }
   const end = shaft[shaft.length - 1];
-  d += ` L${f(end[0])},${f(end[1])}`;
+  d += `${arcs(shaft.length - 2)} L${f(end[0])},${f(end[1])}`;
   // the label: halfway along the path
   const lens = pts.slice(1).map((p, i) => dist(pts[i], p));
   let left = lens.reduce((s, l) => s + l, 0) / 2;
@@ -114,15 +157,15 @@ function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
     }
     left -= lens[i];
   }
-  return { d, head, label };
+  return { d, head, label, ...(alone.length ? { hops: alone } : {}) };
 }
 
 /**
  * The path from one element's outline to another's. With `via` (the waypoints' rects, in order) it
  * runs through each of them (see `lane`) with rounded corners, and `curve` does not apply.
  */
-export function arrowPath(a: Rect, b: Rect, curve = false, gap = 0, headSize = 7, via: Rect[] = [], corner = CORNER): ArrowPath | null {
-  if (via.length) return routed(a, b, via, gap, headSize, corner);
+export function arrowPath(a: Rect, b: Rect, curve = false, gap = 0, headSize = 7, via: Rect[] = [], corner = CORNER, turn = false): ArrowPath | null {
+  if (via.length) return routed(a, b, via, gap, headSize, corner, turn);
   const ac: [number, number] = [a.x + a.w / 2, a.y + a.h / 2];
   const bc: [number, number] = [b.x + b.w / 2, b.y + b.h / 2];
   if (Math.hypot(bc[0] - ac[0], bc[1] - ac[1]) < 1) return null;
@@ -177,6 +220,10 @@ export interface ArrowEnds {
   a: Rect;
   b: Rect;
   via?: Rect[];
+  /** turn: a via lane says where the line turns, and it runs along the lane only as far as it must */
+  lanes?: 'full' | 'turn';
+  /** none: it never hops over another line, and nothing hops over it (a sequence's lifelines) */
+  hop?: 'auto' | 'none';
   curve?: boolean;
   route?: 'down' | 'right';
   /** the mark at `to` (default an arrow head) and at `from` (default none) */
@@ -272,6 +319,18 @@ interface Hop {
   track?: number;
   /** which way it runs across its gap: 1 towards hi, -1 towards lo */
   dir?: 1 | -1;
+  /** its track is nearer than TRACK_GAP to another's that runs beside it: the gap is too narrow */
+  crowded?: boolean;
+  /** the arrow it is part of */
+  route?: number;
+}
+
+/** An upright run that passes through a gap without turning in it: another line's level run may cross it. */
+interface Upright {
+  x: number;
+  lo: number;
+  hi: number;
+  route: number;
 }
 
 interface Plan {
@@ -288,6 +347,8 @@ interface Plan {
   last: 1 | -1;
   between: Stop[];
   keys: [string, string];
+  /** where lanes=turn lanes put its runs across a gap */
+  tracks: number[];
 }
 
 /** x and y swapped: a run across is routed as a run down, so the routing only ever thinks in rows. */
@@ -315,28 +376,9 @@ const RUN_OUT = 6;
  *  along the gap wherever their runs don't touch. The tracks keep clear of the side the heads
  *  arrive at by RUN_IN, so a head is never on a bend, and of the side tails leave by RUN_OUT; in a
  *  gap too narrow for both, the heads' run comes first. */
-function layTracks(band: Hop[], headSize: number): void {
-  let lo = Math.max(...band.map((h) => h.lo));
-  let hi = Math.min(...band.map((h) => h.hi));
-  if (hi - lo < 1) {
-    // no height all of them cross (their ends aren't in rows): each takes the middle of its own
-    for (const h of band) h.track = (h.lo + h.hi) / 2;
-    return;
-  }
+function layTracks(band: Hop[], headSize: number, fixed: Upright[] = []): void {
   // the room a straight run needs at each side: heads arrive at hi going down (dir 1), at lo going up
-  const need = (side: 1 | -1): number => Math.max(0, ...band.map((h) => (h.in && h.dir === side ? RUN_IN(headSize) : h.out && h.dir === -side ? RUN_OUT : 0)));
-  const atHi = need(1);
-  const atLo = need(-1);
-  if (hi - lo >= atLo + atHi) {
-    lo += atLo;
-    hi -= atHi;
-  } else {
-    // not room for both: the heads' run first, then what is left for the tails'
-    const heads = band.some((h) => h.in && h.dir === 1) ? 1 : band.some((h) => h.in && h.dir === -1) ? -1 : 0;
-    const t = heads === 1 ? Math.max(lo, hi - atHi) : heads === -1 ? Math.min(hi, lo + atLo) : (lo + hi) / 2;
-    for (const h of band) h.track = t;
-    return;
-  }
+  const need = (hs: Hop[], side: 1 | -1): number => Math.max(0, ...hs.map((h) => (h.in && h.dir === side ? RUN_IN(headSize) : h.out && h.dir === -side ? RUN_OUT : 0)));
   const count = (k: string): number => band.filter((h) => h.out === k || h.in === k).length;
   const groups = new Map<string, Hop[]>();
   band.forEach((h, n) => {
@@ -346,6 +388,30 @@ function layTracks(band: Hop[], headSize: number): void {
   const spans = [...groups.values()]
     .map((hops) => ({ hops, l: Math.min(...hops.map((h) => Math.min(h.from, h.to))), r: Math.max(...hops.map((h) => Math.max(h.from, h.to))) }))
     .sort((p, q) => p.l - q.l || p.r - q.r);
+  let lo = Math.max(...band.map((h) => h.lo));
+  let hi = Math.min(...band.map((h) => h.hi));
+  if (hi - lo < 1) {
+    // no height all of them cross (their ends aren't in rows): each group turns within its own
+    // height, as near its middle as it can while keeping TRACK_GAP from the tracks beside it
+    placeApart(spans, need);
+    return;
+  }
+  const atHi = need(band, 1);
+  const atLo = need(band, -1);
+  if (hi - lo >= atLo + atHi) {
+    lo += atLo;
+    hi -= atHi;
+  } else if (spans.length > 1) {
+    // the height they share has no room for their runs: each turns within its own instead
+    placeApart(spans, need);
+    return;
+  } else {
+    // not room for both: the heads' run first, then what is left for the tails'
+    const heads = band.some((h) => h.in && h.dir === 1) ? 1 : band.some((h) => h.in && h.dir === -1) ? -1 : 0;
+    const t = heads === 1 ? Math.max(lo, hi - atHi) : heads === -1 ? Math.min(hi, lo + atLo) : (lo + hi) / 2;
+    for (const h of band) h.track = t;
+    return;
+  }
   const ends: number[] = [];
   const at = spans.map((s) => {
     let k = ends.findIndex((e) => e + TRACK_GAP <= s.l);
@@ -353,24 +419,112 @@ function layTracks(band: Hop[], headSize: number): void {
     ends[k] = s.r;
     return k;
   });
+  // fewer than TRACK_GAP between neighbouring tracks reads as one line
+  const crowded = ends.length > 1 && (hi - lo) / (ends.length + 1) < TRACK_GAP;
+  // which height each row of tracks takes: the order with the fewest crossings, today's on a tie
+  const order = fewestCrossings(spans, at, ends.length, (row) => lo + ((hi - lo) * (row + 1)) / (ends.length + 1), fixed);
   spans.forEach((s, n) => {
-    for (const h of s.hops) h.track = lo + ((hi - lo) * (at[n] + 1)) / (ends.length + 1);
+    for (const h of s.hops) {
+      h.track = lo + ((hi - lo) * (order[at[n]] + 1)) / (ends.length + 1);
+      if (crowded) h.crowded = true;
+    }
   });
 }
 
+/** Rows of tracks this many or fewer are ordered by trying every order (7! = 5040). */
+const MAX_ORDERED = 7;
+
+/**
+ * The order of a gap's rows of tracks (row → position) under which the fewest level runs cross an
+ * upright run: the hops' own (from the line's start to its track, and from its track on) and those
+ * of lines passing through the gap. Today's order (row k at position k) is kept unless another
+ * crosses strictly less, so a graph that crosses nothing draws as it did.
+ */
+function fewestCrossings(spans: { hops: Hop[] }[], at: number[], rows: number, y: (pos: number) => number, fixed: Upright[]): number[] {
+  const identity = [...Array(rows).keys()];
+  if (rows < 2 || rows > MAX_ORDERED) return identity;
+  const hops = spans.flatMap((s, n) => s.hops.map((h) => ({ h, row: at[n] })));
+  const crossings = (order: number[]): number => {
+    const t = (row: number): number => y(order[row]);
+    const level = hops.map(({ h, row }) => ({ x0: Math.min(h.from, h.to), x1: Math.max(h.from, h.to), y: t(row), route: h.route }));
+    // a hop's uprights: from its start's side of the gap to its track, and from its track to its end's
+    const ups: Upright[] = [
+      ...fixed,
+      ...hops.flatMap(({ h, row }) => {
+        const y0 = t(row);
+        const start = h.dir === -1 ? { lo: y0, hi: h.hi } : { lo: h.lo, hi: y0 };
+        const end = h.dir === -1 ? { lo: h.lo, hi: y0 } : { lo: y0, hi: h.hi };
+        return [{ x: h.from, ...start, route: h.route ?? -1 }, { x: h.to, ...end, route: h.route ?? -1 }];
+      }),
+    ];
+    let n = 0;
+    for (const l of level) for (const u of ups) if (u.route !== l.route && u.x > l.x0 + 0.5 && u.x < l.x1 - 0.5 && l.y > u.lo + 0.5 && l.y < u.hi - 0.5) n++;
+    return n;
+  };
+  let best = identity;
+  let least = crossings(identity);
+  if (!least) return identity;
+  const permute = (rest: number[], done: number[]): void => {
+    if (!least) return;
+    if (!rest.length) {
+      const n = crossings(done);
+      if (n < least) [best, least] = [[...done], n];
+      return;
+    }
+    for (let k = 0; k < rest.length; k++) permute([...rest.slice(0, k), ...rest.slice(k + 1)], [...done, rest[k]]);
+  };
+  permute(identity, []);
+  return best;
+}
+
+/**
+ * Tracks for hops that don't all cross one height: each group gets the point of its own height
+ * (less its runs) nearest its middle that keeps TRACK_GAP from every track already laid that runs
+ * beside it (their spans along the gap overlap); one with no such point is crowded, at the point
+ * furthest from them.
+ */
+function placeApart(spans: { hops: Hop[]; l: number; r: number }[], need: (hs: Hop[], side: 1 | -1) => number): void {
+  const laid: { l: number; r: number; y: number }[] = [];
+  for (const s of spans) {
+    let lo = Math.max(...s.hops.map((h) => h.lo));
+    let hi = Math.min(...s.hops.map((h) => h.hi));
+    const [atLo, atHi] = [need(s.hops, -1), need(s.hops, 1)];
+    if (hi - lo >= atLo + atHi) {
+      lo += atLo;
+      hi -= atHi;
+    }
+    if (hi < lo) [lo, hi] = [(lo + hi) / 2, (lo + hi) / 2];
+    const beside = laid.filter((t) => t.l < s.r + TRACK_GAP && s.l < t.r + TRACK_GAP && t.y >= lo - TRACK_GAP && t.y <= hi + TRACK_GAP);
+    const clearance = (y: number): number => Math.min(Infinity, ...beside.map((t) => Math.abs(t.y - y)));
+    const mid = (lo + hi) / 2;
+    // the middle first, then outwards a step at a time, both ways
+    const tries = [mid];
+    for (let k = 1; mid - k * TRACK_GAP >= lo || mid + k * TRACK_GAP <= hi; k++) for (const y of [mid - k * TRACK_GAP, mid + k * TRACK_GAP]) if (y >= lo && y <= hi) tries.push(y);
+    tries.push(lo, hi);
+    let y = tries.find((t) => clearance(t) >= TRACK_GAP);
+    const crowded = y === undefined;
+    if (y === undefined) y = tries.reduce((b, t) => (clearance(t) > clearance(b) ? t : b), mid);
+    for (const h of s.hops) {
+      h.track = y;
+      if (crowded) h.crowded = true;
+    }
+    laid.push({ l: s.l, r: s.r, y });
+  }
+}
+
 /** Splits hops into the gaps they cross (hops whose heights overlap) and lays each gap's tracks. */
-function layGaps(hops: Hop[], headSize: number): void {
+function layGaps(hops: Hop[], headSize: number, fixed: Upright[] = []): void {
   let band: Hop[] = [];
   let end = -Infinity;
   for (const h of hops.filter((x) => x.track === undefined).sort((p, q) => p.lo - q.lo)) {
     if (band.length && h.lo >= end) {
-      layTracks(band, headSize);
+      layTracks(band, headSize, fixed);
       band = [];
     }
     band.push(h);
     end = Math.max(end, h.hi);
   }
-  if (band.length) layTracks(band, headSize);
+  if (band.length) layTracks(band, headSize, fixed);
 }
 
 /** Drops repeated points and points along a straight run. */
@@ -388,7 +542,7 @@ function tidy(pts: Pt[]): Pt[] {
 }
 
 /** The square arrows of a scope: level and upright runs only, sharing ports and tracks. */
-function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | null)[], gap: number, headSize: number): void {
+function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | null)[], gap: number, headSize: number, lines: (Pt[] | null)[]): void {
   const ports = new Map<string, Port>();
   const port = (name: string, rect: Rect, side: 1 | -1, isOut: boolean, toward: number): Port => {
     const p = ports.get(name) ?? { rect, side, out: isOut, toward: [], x: midX(rect) };
@@ -408,9 +562,14 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
     const b = turned(ar.b);
     if (!hasVia && !apart(a, b)) {
       out[i] = arrowPath(ar.a, ar.b, false, gap, headSize, [], ar.corner);
+      lines[i] = straightPoints(ar.a, ar.b, gap);
       continue;
     }
-    const via = (ar.via ?? []).map(turned);
+    // lanes=turn: a lane lying across the way the line runs says only where it turns (its run across
+    // the gap is at the lane), not a point to pass through; a lane lying along it is run along as far
+    // as the line must
+    const tracks: number[] = [];
+    const via = (ar.via ?? []).map(turned).filter((r) => !(ar.lanes === 'turn' && r.w > r.h && tracks.push(midY(r))));
     const stops = [a, ...via, b];
     const first = way(a, stops[1]);
     const last = way(stops[stops.length - 2], b);
@@ -422,7 +581,19 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       else {
         const before = between[between.length - 1];
         const x = before && Math.abs(before.x - midX(r)) < JOG ? before.x : midX(r);
-        between.push({ x, y: inward > 0 ? r.y : r.y + r.h }, { x, y: inward > 0 ? r.y + r.h : r.y });
+        let [enter, leave] = inward > 0 ? [r.y, r.y + r.h] : [r.y + r.h, r.y];
+        if (ar.lanes === 'turn') {
+          // only the part of the lane between where the line comes from and where it goes, with
+          // room left in the gaps for its turns (a tail's run and a track, a head's run and a track)
+          const from = inward > 0 ? stops[j].y + stops[j].h : stops[j].y;
+          const to = inward > 0 ? stops[j + 2].y : stops[j + 2].y + stops[j + 2].h;
+          const [top, bottom] = [r.y, r.y + r.h];
+          const clamp = (v: number): number => Math.min(bottom, Math.max(top, v));
+          enter = clamp(from + inward * (RUN_OUT + TRACK_GAP));
+          leave = clamp(to - inward * (RUN_IN(headSize) + TRACK_GAP));
+          if ((leave - enter) * inward < 0) leave = enter;
+        }
+        between.push({ x, y: enter }, { x, y: leave });
       }
     });
     // a line back up keeps clear of the lines coming down: it leaves or arrives by the side where
@@ -436,7 +607,7 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
     const axis = across ? 'h' : 'v';
     const names: [string, string] = [`${axis}|${ar.from}|${first}|out`, `${axis}|${ar.to}|${-last}|in`];
     plans.push({
-      i, across, a, b, first, last, between, keys: names,
+      i, across, a, b, first, last, between, keys: names, tracks,
       sides: [leave, reach],
       out: leave ? undefined : port(names[0], a, first, true, midX(stops[1])),
       in: reach ? undefined : port(names[1], b, last > 0 ? -1 : 1, false, midX(stops[stops.length - 2])),
@@ -500,13 +671,19 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
         lo: Math.min(s.y, q.y), hi: Math.max(s.y, q.y), from: s.x, to: q.x,
         out: k === 0 ? p.keys[0] : undefined,
         in: k === stops.length - 2 ? p.keys[1] : undefined,
-        track: level ? s.y : s.turn ? s.y : q.turn ? q.y : undefined,
+        track: level ? s.y : s.turn ? s.y : q.turn ? q.y : p.tracks.find((t) => t >= Math.min(s.y, q.y) && t <= Math.max(s.y, q.y)),
         dir: q.y > s.y ? 1 : -1,
+        route: p.i,
       };
     });
     return { p, stops, hops };
   });
-  for (const across of [false, true]) layGaps(routes.filter((r) => r.p.across === across).flatMap((r) => r.hops.filter((h): h is Hop => !!h)), headSize);
+  for (const across of [false, true]) {
+    const these = routes.filter((r) => r.p.across === across);
+    // the runs that pass straight down through a gap: a level run laid across one crosses it
+    const fixed: Upright[] = these.flatMap(({ p, stops, hops }) => hops.flatMap((h, k) => (h ? [] : [{ x: stops[k].x, lo: Math.min(stops[k].y, stops[k + 1].y), hi: Math.max(stops[k].y, stops[k + 1].y), route: p.i }])));
+    layGaps(these.flatMap((r) => r.hops.filter((h): h is Hop => !!h)), headSize, fixed);
+  }
   for (const { p, stops, hops } of routes) {
     const pts: Pt[] = [];
     stops.forEach((s, k) => {
@@ -514,7 +691,11 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       if (h) pts.push([h.from, h.track!], [h.to, h.track!]);
       pts.push([s.x, s.y]);
     });
-    out[p.i] = draw(tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q)), headSize, arrows[p.i].corner ?? CORNER);
+    const line = tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q));
+    const drawn = draw(line, headSize, arrows[p.i].corner ?? CORNER);
+    if (drawn && hops.some((h) => h?.crowded)) drawn.crowded = true;
+    out[p.i] = drawn;
+    lines[p.i] = line;
   }
 }
 
@@ -527,12 +708,261 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
  */
 export function arrowPaths(arrows: ArrowEnds[], gap = 0, headSize = 7, width = Infinity): (ArrowPath | null)[] {
   const out: (ArrowPath | null)[] = arrows.map(() => null);
+  // each straight-run arrow's points before its corners are rounded: what untangle works on
+  const lines: (Pt[] | null)[] = arrows.map(() => null);
   const square: number[] = [];
   arrows.forEach((a, i) => {
     if (a.from === a.to) out[i] = selfLoop(a.a, gap, headSize, width, a.corner);
     else if (a.route) square.push(i);
-    else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via, a.corner);
+    else if (a.curve && !a.via?.length) out[i] = arrowPath(a.a, a.b, true, gap, headSize, [], a.corner);
+    else {
+      const line = a.via?.length ? routedPoints(a.a, a.b, a.via, gap, a.lanes === 'turn') : straightPoints(a.a, a.b, gap);
+      lines[i] = line;
+      out[i] = line && draw(line, headSize, a.corner ?? CORNER);
+    }
   });
-  squarePaths(arrows, square, out, gap, headSize);
+  squarePaths(arrows, square, out, gap, headSize, lines);
+  const hops = untangle(arrows, lines, headSize);
+  lines.forEach((line, i) => {
+    if (!line || !(hops[i].length || hops.moved.has(i))) return;
+    const crowded = out[i]?.crowded;
+    out[i] = draw(line, headSize, arrows[i].corner ?? CORNER, hops[i]);
+    if (out[i] && crowded) out[i]!.crowded = true;
+  });
   return out.map((p, i) => (p ? withEnds(p, arrows[i].head ?? 'arrow', arrows[i].tail ?? 'none') : p));
+}
+
+/** A straight arrow's two points: where the line between the centres leaves each element. */
+function straightPoints(a: Rect, b: Rect, gap: number): Pt[] | null {
+  const [ac, bc] = [centre(a), centre(b)];
+  if (dist(ac, bc) < 1) return null;
+  return [exit(a, bc[0], bc[1], gap), exit(b, ac[0], ac[1], gap)];
+}
+
+/** How far apart two runs of different links must be, side by side, not to read as one. */
+const CLEAR_RUN = TRACK_GAP;
+/** A hop's radius: about three times the stroke (1.5 px). */
+const HOP = 5;
+
+/**
+ * The finishing pass over a scope's arrows, on their points before corners are rounded. First, two
+ * runs of different links side by side closer than CLEAR_RUN (a line that turns right beside
+ * another, so its corner seems to join it) are moved apart, where one of them can move without its
+ * ends leaving their elements. Then each crossing that remains gets a hop: the flatter run lifts over
+ * the steeper (a level run upwards, an upright one to the left). Not crossings: a run ending on
+ * another, runs along one line (a shared trunk), and one within a hop of a corner, head or tail.
+ * Crossings closer than a hop's width make one wider hop. hop=none lines neither hop nor are hopped.
+ */
+function untangle(arrows: ArrowEnds[], lines: (Pt[] | null)[], headSize: number): HopArc[][] & { moved: Set<number> } {
+  const hops = Object.assign(
+    arrows.map((): HopArc[] => []),
+    { moved: new Set<number>() },
+  );
+  const takes = (i: number): boolean => !!lines[i] && arrows[i].hop !== 'none';
+  const shares = (i: number, j: number): boolean => arrows[i].from === arrows[j].from || arrows[i].to === arrows[j].to || arrows[i].from === arrows[j].to || arrows[i].to === arrows[j].from;
+  const level = (p: Pt, q: Pt): boolean => Math.abs(p[1] - q[1]) < 0.5;
+  const upright = (p: Pt, q: Pt): boolean => Math.abs(p[0] - q[0]) < 0.5;
+
+  // 1. runs side by side: move one apart
+  const ends = (i: number): [Rect, Rect] => [arrows[i].a, arrows[i].b];
+  /** Whether run k of line i can move by d across itself (dx for an upright, dy for a level run). */
+  const canMove = (i: number, k: number, d: number): boolean => {
+    const L = lines[i]!;
+    const n = L.length;
+    const along = upright(L[k], L[k + 1]) ? 1 : 0;
+    const across = 1 - along;
+    for (const [j, nb] of [[k, k - 1], [k + 1, k + 1]] as const) {
+      if (nb >= 0 && nb + 1 < n) {
+        // a neighbouring run, across this one: it lengthens or shortens, and must keep its way and some length
+        const other = nb === k - 1 ? L[nb] : L[nb + 1];
+        const before = L[j][across] - other[across];
+        const after = before + d;
+        if (Math.sign(before) !== Math.sign(after) || Math.abs(after) < 2) return false;
+      } else {
+        // an end: it slides along its element's edge, and must stay on it, clear of the corners
+        const r = ends(i)[j === 0 ? 0 : 1];
+        const lo = across === 0 ? r.x : r.y;
+        const size = across === 0 ? r.w : r.h;
+        const inset = Math.min(INSET, size / 2);
+        const v = L[j][across] + d;
+        if (v < lo + inset || v > lo + size - inset) return false;
+      }
+    }
+    return true;
+  };
+  const shift = (i: number, k: number, d: number): void => {
+    const L = lines[i]!;
+    const across = upright(L[k], L[k + 1]) ? 0 : 1;
+    L[k][across] += d;
+    L[k + 1][across] += d;
+    hops.moved.add(i);
+  };
+  const steep = (p: Pt, q: Pt): number => Math.abs(q[1] - p[1]) / (Math.abs(q[0] - p[0]) + 1e-9);
+  /** How far from each end of run k a crossing must be: a corner's rounding, or a head's or a tail's length. */
+  const trims = (i: number, k: number): [number, number] => {
+    const L = lines[i]!;
+    const n = L.length;
+    const corner = arrows[i].corner ?? CORNER;
+    const len = (q: number): number => dist(L[q], L[q + 1]);
+    const at = (q: number): number => Math.min(corner, len(q - 1) / 2, len(q) / 2);
+    const start = k === 0 ? ((arrows[i].tail ?? 'none') === 'none' ? 0 : headSize) : at(k);
+    const end = k === n - 2 ? headSize : at(k + 1);
+    return [start, end];
+  };
+  /** Where runs p–p2 and q–q2 cross, as distances along each, or null if they don't. */
+  const crossing = (p: Pt, p2: Pt, q: Pt, q2: Pt): { ta: number; tb: number } | null => {
+    const r: Pt = [p2[0] - p[0], p2[1] - p[1]];
+    const s2: Pt = [q2[0] - q[0], q2[1] - q[1]];
+    const den = r[0] * s2[1] - r[1] * s2[0];
+    if (Math.abs(den) < 1e-6) return null;
+    const t = ((q[0] - p[0]) * s2[1] - (q[1] - p[1]) * s2[0]) / den;
+    const u = ((q[0] - p[0]) * r[1] - (q[1] - p[1]) * r[0]) / den;
+    if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+    return { ta: t * Math.hypot(...r), tb: u * Math.hypot(...s2) };
+  };
+  // how badly line i sits among the others: a run side by side with another's closer than
+  // CLEAR_RUN, or a crossing too near a corner or an end to hop, counts 3; a crossing that can hop, 1
+  type Bad = { k: number; j: number; m: number; kind: 'side' | 'corner'; near?: number };
+  const assess = (i: number): { score: number; bad: Bad[] } => {
+    const A = lines[i]!;
+    const bad: Bad[] = [];
+    let score = 0;
+    for (let j = 0; j < arrows.length; j++) {
+      if (j === i || !lines[j] || shares(i, j)) continue;
+      const B = lines[j]!;
+      for (let k = 0; k + 1 < A.length; k++) {
+        for (let m = 0; m + 1 < B.length; m++) {
+          const [p, p2, q, q2] = [A[k], A[k + 1], B[m], B[m + 1]];
+          const vert = upright(p, p2) && upright(q, q2);
+          const horiz = level(p, p2) && level(q, q2);
+          if (vert || horiz) {
+            const ax = vert ? 0 : 1;
+            const along = 1 - ax;
+            const apart = Math.abs(q[ax] - p[ax]);
+            const overlap = Math.min(Math.max(p[along], p2[along]), Math.max(q[along], q2[along])) - Math.max(Math.min(p[along], p2[along]), Math.min(q[along], q2[along]));
+            if (apart >= 0.5 && apart < CLEAR_RUN && overlap >= 2) {
+              score += 3;
+              bad.push({ k, j, m, kind: 'side' });
+            }
+            continue;
+          }
+          const x = crossing(p, p2, q, q2);
+          if (!x) continue;
+          const [ia, ea] = trims(i, k);
+          const [ib, eb] = trims(j, m);
+          const [la, lb] = [dist(p, p2), dist(q, q2)];
+          // a run ending on another is a join, not a crossing
+          if (x.ta < 0.5 || x.ta > la - 0.5 || x.tb < 0.5 || x.tb > lb - 0.5) continue;
+          if (x.ta < ia + HOP || x.ta > la - ea - HOP || x.tb < ib + HOP || x.tb > lb - eb - HOP) {
+            score += 3;
+            // which of line i's own corners it is too near, if one: that corner's next run can move
+            const near = x.ta < ia + HOP && k > 0 ? k - 1 : x.ta > la - ea - HOP && k + 2 < A.length ? k + 1 : undefined;
+            bad.push({ k, j, m, kind: 'corner', near });
+          } else score += 1;
+        }
+      }
+    }
+    return { score, bad };
+  };
+  /** Where run k of line i may go instead, across itself, to clear run m of line j. */
+  const places = (i: number, b: Bad): { k: number; to: number[] }[] => {
+    const [A, B] = [lines[i]!, lines[b.j]!];
+    if (b.kind === 'side') {
+      const ax = upright(A[b.k], A[b.k + 1]) ? 0 : 1;
+      const at = B[b.m][ax];
+      return [{ k: b.k, to: [at - CLEAR_RUN, at + CLEAR_RUN] }];
+    }
+    if (b.near === undefined) return [];
+    // the corner's other run, which is parallel to B's run: before the line, or past it with room to hop
+    const run = b.near;
+    const ax = upright(A[run], A[run + 1]) ? 0 : 1;
+    if (!(ax === 0 ? upright(B[b.m], B[b.m + 1]) : level(B[b.m], B[b.m + 1]))) return [];
+    const at = B[b.m][ax];
+    const room = (arrows[i].corner ?? CORNER) + HOP + 2;
+    return [{ k: run, to: [at - CLEAR_RUN, at + CLEAR_RUN, at - room, at + room] }];
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < arrows.length; i++) {
+      if (!lines[i]) continue;
+      let now = assess(i);
+      for (const b of now.bad) {
+        for (const { k, to } of places(i, b)) {
+          const L = lines[i]!;
+          const ax = upright(L[k], L[k + 1]) ? 0 : 1;
+          let best: { d: number; score: number } | null = null;
+          for (const t of to) {
+            const d = t - L[k][ax];
+            if (Math.abs(d) < 0.01 || !canMove(i, k, d)) continue;
+            L[k][ax] += d;
+            L[k + 1][ax] += d;
+            const score = assess(i).score;
+            L[k][ax] -= d;
+            L[k + 1][ax] -= d;
+            if (score < now.score && (!best || score < best.score || (score === best.score && Math.abs(d) < Math.abs(best.d)))) best = { d, score };
+          }
+          if (best) {
+            shift(i, k, best.d);
+            now = assess(i);
+          }
+        }
+      }
+    }
+  }
+
+  // 2. crossings: a hop on the flatter run
+  const found = arrows.map((): { seg: number; at: number }[] => []);
+  for (let i = 0; i < arrows.length; i++) {
+    if (!takes(i)) continue;
+    for (let j = i + 1; j < arrows.length; j++) {
+      if (!takes(j)) continue;
+      const [A, B] = [lines[i]!, lines[j]!];
+      for (let k = 0; k + 1 < A.length; k++) {
+        for (let m = 0; m + 1 < B.length; m++) {
+          const [p, p2, q, q2] = [A[k], A[k + 1], B[m], B[m + 1]];
+          const r: Pt = [p2[0] - p[0], p2[1] - p[1]];
+          const s2: Pt = [q2[0] - q[0], q2[1] - q[1]];
+          const den = r[0] * s2[1] - r[1] * s2[0];
+          if (Math.abs(den) < 1e-6) continue; // parallel: a shared trunk, or apart
+          const t = ((q[0] - p[0]) * s2[1] - (q[1] - p[1]) * s2[0]) / den;
+          const u = ((q[0] - p[0]) * r[1] - (q[1] - p[1]) * r[0]) / den;
+          const [lr, ls] = [Math.hypot(...r), Math.hypot(...s2)];
+          const [ta, tb] = [t * lr, u * ls];
+          const [ia, ea] = trims(i, k);
+          const [ib, eb] = trims(j, m);
+          // a proper crossing: inside both runs, clear of their corners and ends by a hop
+          if (ta < ia + HOP || ta > lr - ea - HOP || tb < ib + HOP || tb > ls - eb - HOP) continue;
+          const [si, sj] = [steep(p, p2), steep(q, q2)];
+          if (si < sj - 1e-6 || (Math.abs(si - sj) <= 1e-6 && i > j)) found[i].push({ seg: k, at: ta });
+          else found[j].push({ seg: m, at: tb });
+        }
+      }
+    }
+  }
+  found.forEach((list, i) => {
+    const L = lines[i];
+    if (!L || !list.length) return;
+    for (const seg of [...new Set(list.map((c) => c.seg))]) {
+      // one hop per point (a shared trunk crossed), and crossings closer than a hop's width as one
+      const ats = list.filter((c) => c.seg === seg).map((c) => c.at).sort((x, y) => x - y);
+      const groups: number[][] = [];
+      for (const a of ats) {
+        const g = groups[groups.length - 1];
+        if (g && a - g[g.length - 1] < 2 * HOP + 2) g.push(a);
+        else groups.push([a]);
+      }
+      const [p, q] = [L[seg], L[seg + 1]];
+      const len = dist(p, q);
+      const u: Pt = [(q[0] - p[0]) / len, (q[1] - p[1]) / len];
+      // upwards for a run flatter than 45 degrees, else to the left
+      const n: Pt = Math.abs(u[0]) >= Math.abs(u[1]) ? (u[0] > 0 ? [u[1], -u[0]] : [-u[1], u[0]]) : u[1] > 0 ? [-u[1], u[0]] : [u[1], -u[0]];
+      const [s0, s1] = trims(i, seg);
+      for (const g of groups) {
+        const w = (g[g.length - 1] - g[0]) / 2 + HOP;
+        const at = (g[0] + g[g.length - 1]) / 2;
+        if (at - w < s0 || at + w > len - s1) continue;
+        hops[i].push({ seg, at, w, h: HOP, side: n });
+      }
+    }
+  });
+  return hops;
 }

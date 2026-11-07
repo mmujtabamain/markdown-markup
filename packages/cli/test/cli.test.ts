@@ -89,6 +89,20 @@ describe('mkp CLI', () => {
     expect(html).not.toContain('<script');
     expect(JSON.parse(readFileSync(join(out, 'doc.ir.json'), 'utf8')).level).toBe('bundle');
   });
+  it('build --target fragment --styles external leaves MKP’s stylesheet to the page, keeping the document’s tokens', () => {
+    const out = mkdtempSync(join(tmpdir(), 'mkp-'));
+    const full = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'fragment', '--out', join(out, 'a'), '--no-speech']);
+    const ext = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'fragment', '--styles', 'external', '--out', join(out, 'b'), '--no-speech']);
+    expect(full.status, full.stderr).toBe(0);
+    expect(ext.status, ext.stderr).toBe(0);
+    const [a, b] = ['a', 'b'].map((d) => readFileSync(join(out, d, 'doc.fragment.html'), 'utf8'));
+    expect(a).toContain('.mkp-frame');
+    expect(b).not.toContain('.mkp-frame');
+    expect(b).toContain('--mkp-color-ink');
+    expect(b.length).toBeLessThan(a.length / 3);
+    const bad = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'fragment', '--styles', 'none', '--no-speech']);
+    expect(bad.stderr).toContain('--styles takes inline or external; found none');
+  });
   it('build refuses a target it does not know, naming the ones it does', () => {
     const r = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'pdf', '--no-maths']);
     expect(r.status).not.toBe(0);

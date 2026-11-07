@@ -34,6 +34,11 @@ export interface Drawn {
   bold?: boolean;
   opacity?: number;
   behind?: boolean;
+  /** it turns in a gap too narrow to keep its turn apart from the others' (data-crowded) */
+  crowded?: boolean;
+  /** its hops' arcs, drawn again over every line of the layer (a line drawn later can't cover one),
+   *  unbroken on a dashed or dotted line, so the hop always shows on top */
+  hops?: string[];
 }
 
 /** The arrows drawn in one layer, and the layer's size. */
@@ -140,9 +145,22 @@ function withEnds(p: ArrowPath, head: End, tail: End): { d: string; head: Pt[]; 
 /** A path's points, its curves flattened. */
 function polyline(d: string): Pt[] {
   const out: Pt[] = [];
-  for (const m of d.matchAll(/([MLQ])([^MLQ]+)/g)) {
+  for (const m of d.matchAll(/([MLQA])([^MLQA]+)/g)) {
     const n = numbers(m[2]);
-    if (m[1] === 'Q' && out.length) {
+    if (m[1] === 'A' && out.length) {
+      // a hop: half an ellipse from the last point to (n[5], n[6]), rx n[0], ry n[1], bulging the way
+      // its sweep turns; sampled, so a label keeps off it as off the rest of its line
+      const p0 = out[out.length - 1];
+      const [rx, ry, sweep, x, y] = [n[0], n[1], n[4], n[5], n[6]];
+      const len = Math.hypot(x - p0[0], y - p0[1]) || 1;
+      const u: Pt = [(x - p0[0]) / len, (y - p0[1]) / len];
+      const side: Pt = sweep ? [u[1], -u[0]] : [-u[1], u[0]];
+      const c: Pt = [(p0[0] + x) / 2, (p0[1] + y) / 2];
+      for (let i = 1; i <= 8; i++) {
+        const a = Math.PI - (Math.PI * i) / 8;
+        out.push([c[0] + u[0] * rx * Math.cos(a) + side[0] * ry * Math.sin(a), c[1] + u[1] * rx * Math.cos(a) + side[1] * ry * Math.sin(a)]);
+      }
+    } else if (m[1] === 'Q' && out.length) {
       const p0 = out[out.length - 1];
       for (let i = 1; i <= 8; i++) {
         const t = i / 8;
@@ -332,7 +350,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
       const g = groups.get(host) ?? { arrows: [], ends: [] };
       g.arrows.push(a);
       // the ends are the renderer's own (dot and ring among them), so the core draws only the shaft and head
-      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
+      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined, ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.hop ? { hop: a.hop } : {}) });
       groups.set(host, g);
     }
     const out: Layer[] = [];
@@ -361,6 +379,8 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
           bold: a.bold,
           opacity: a.opacity,
           behind: a.layer === 'behind',
+          ...(p.crowded ? { crowded: true } : {}),
+          ...(p.hops ? { hops: p.hops } : {}),
         });
         lines.push(polyline(end.d));
       });
@@ -451,7 +471,7 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
         {paths.map((p) => {
           const width = p.bold ? 2 : 1.5;
           return (
-            <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} style={fade(p)}>
+            <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} data-crowded={p.crowded ? '' : undefined} style={fade(p)}>
               <path d={p.d} fill="none" stroke={ink(p)} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
               {p.head ? <polygon points={p.head} fill={ink(p)} /> : null}
               {p.marks.filter((m) => once(m, p)).map((m, i) => (
@@ -460,6 +480,23 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
             </g>
           );
         })}
+        {/* the hops last, over every line: a thin edge of the surface first, so the line passing
+            under an arc is seen to go under it */}
+        {paths
+          .filter((p) => p.hops?.length)
+          .map((p) => {
+            const width = p.bold ? 2 : 1.5;
+            return (
+              <g key={`hops-${p.key}`} data-mkp-hops={p.key} style={fade(p)}>
+                {p.hops!.map((h, i) => (
+                  <Fragment key={i}>
+                    <path d={h} fill="none" stroke="var(--mkp-color-surface)" strokeWidth={width + 3} />
+                    <path d={h} fill="none" stroke={ink(p)} strokeWidth={width} data-hop="" />
+                  </Fragment>
+                ))}
+              </g>
+            );
+          })}
       </svg>
       {labelled.length ? (
         <div className="mkp-arrow-labels" data-layer={behind ? 'behind' : undefined} aria-hidden="true">
