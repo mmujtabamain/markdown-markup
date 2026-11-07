@@ -118,5 +118,3 @@ already covers **Next.js** and every other React framework. Next:
   page. Any framework mounts it in a component.
 - **Recipes for those stacks** in the docs: a component that mounts a document, keeps its state across
   renders and passes signals back to the app, for each of them, tested like the React one.
-- **The React Native renderer and the shadcn provider in a release**, beside the web files (today
-  they're used from source).
