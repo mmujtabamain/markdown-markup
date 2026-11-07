@@ -29,7 +29,7 @@ import {
   writeZip,
 } from '@mkp/core';
 import * as thisCore from '@mkp/core';
-import { applyMove, usesOf, type IRDef } from '@mkp/core';
+import { applyMove, moveNames, moveSummary, usesOf, type IRDef } from '@mkp/core';
 import { documentItemsOf, releaseCore, type ReleaseCore } from './release-core';
 
 export interface Migrated {
@@ -123,14 +123,14 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const after = compile({ packs: opts.packsAfter ?? opts.packs ?? [] });
   const moves = after.moves.filter((m) => usesOf(roots, m).length);
   if (from === RELEASE && !moves.length) return current(out, [[file, text], ...(beside ? [[beside.file, beside.text] as [string, string]] : [])]);
-  const keep = await answers(roots, from, opts, moves.map((m) => ({ id: m.to.slice(m.pack.length + 1), what: `uses of ${m.from.slice(m.pack.length + 1)} move to ${m.to.slice(m.pack.length + 1)}`, how: m.keep.map((k) => `${k.name}=${JSON.stringify((k.value as { lit?: unknown; text?: unknown; tok?: unknown }).lit ?? (k.value as { text?: unknown }).text ?? (k.value as { tok?: unknown }).tok)}`).join(' ') || null, places: usesOf(roots, m).length, step: m.pack })));
+  const keep = await answers(roots, from, opts, moves.map((m) => ({ id: moveNames(m).to, what: `uses of ${moveNames(m).from} move to ${moveNames(m).to}`, how: m.keep.map((k) => `${k.name}=${JSON.stringify((k.value as { lit?: unknown; text?: unknown; tok?: unknown }).lit ?? (k.value as { text?: unknown }).text ?? (k.value as { tok?: unknown }).tok)}`).join(' ') || null, places: usesOf(roots, m).length, step: m.pack })));
   out.result = migrateRoots(roots, from, { keep });
   for (const m of moves) {
-    const toName = m.to.slice(m.pack.length + 1);
+    const toName = moveNames(m).to;
     const kept = !!m.keep.length && (keep === 'all' || keep.includes(toName));
     const hits = applyMove(roots, m, kept, after.defs.get(m.to) as IRDef);
     if (own) own.defs.set(m.to, after.defs.get(m.to)!);
-    const what = [...Object.entries(m.rename).map(([a, b]) => `${a} is now ${b}`), ...m.drop.map((d) => `${d.name} is gone (${d.why})`)].join('; ');
+    const what = moveSummary(m);
     const keepNote = !m.keep.length ? '' : kept ? ` Kept the old look: ${m.keep.map((k) => `${k.name} (${k.why})`).join(', ')}.` : ` To keep the old look, migrate with --keep ${toName}.`;
     const seen = new Set<string>();
     for (const h of hits) {
@@ -138,7 +138,7 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
       const k = `${h.file}:${pos}`;
       if (seen.has(k)) continue;
       seen.add(k);
-      out.result.warnings.push({ severity: 'warning', code: 'mkp.migrate-moved', message: `this use of ${m.from.slice(m.pack.length + 1)} moved to ${toName}${what ? `: ${what}` : ''}.${keepNote}`, pos: h.file && pos ? { file: h.file, line: pos[0], col: pos[1] } : undefined });
+      out.result.warnings.push({ severity: 'warning', code: 'mkp.migrate-moved', message: `this use of ${moveNames(m).from} moved to ${toName}${what ? `: ${what}` : ''}.${keepNote}`, pos: h.file && pos ? { file: h.file, line: pos[0], col: pos[1] } : undefined });
     }
     if (kept) out.result.kept.push(toName);
   }

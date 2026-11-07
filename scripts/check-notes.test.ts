@@ -92,3 +92,37 @@ describe('the check', () => {
     expect(r.warnings.map((w: { message: string }) => w.message).join('\n')).toMatch(/"## Added" is not one of[\s\S]*"## Fixed" has nothing in it/);
   });
 });
+
+describe('changelogs (changelog/<version>.mkp.md)', () => {
+  const log = (v: string, body: string, date = '2026-11-07') => `---\nversion: ${v}\ndate: ${date}\nsummary: A short summary.\n---\n# ${v}\n\n${body}`;
+  function withLogs(version: string, notes: Record<string, string>, logs: Record<string, string>): string {
+    const dir = repo(version, notes);
+    mkdirSync(join(dir, 'changelog'));
+    for (const [k, v] of Object.entries(logs)) writeFileSync(join(dir, 'changelog', k), v);
+    return dir;
+  }
+  it('are required for VERSION once a repo keeps them, with a template', () => {
+    const r = checkNotes({ root: withLogs('0.3.0', { '0.3.0.md': note('0.3.0') }, {}) });
+    expect(codes(r)[0]).toContain('there is no changelog for 0.3.0: add changelog/0.3.0.mkp.md');
+    expect(codes(r)[0]).toContain('## Breaking');
+    // a repo with no changelog folder isn't asked for one
+    expect(checkNotes({ root: repo('0.3.0', { '0.3.0.md': note('0.3.0') }) }).errors).toEqual([]);
+  });
+  it('pass with their sections in order, and warn on odd headings, the order, API kinds and a date that differs from the note', () => {
+    const good = log('0.3.0', '## Breaking\n- **x.** y\n## New\n- **a.** b\n```mkp\n## not a heading\n```\n## API\n### Added\n- `x`\n## Migration\n- m\n');
+    const r = checkNotes({ root: withLogs('0.3.0', { '0.3.0.md': note('0.3.0') }, { '0.3.0.mkp.md': good }) });
+    expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([]);
+    const odd = log('0.3.0', '## New\n- a\n## Breaking\n- b\n## Added\n- c\n## API\n### Kept\n- d\n', '2026-11-08');
+    const w = checkNotes({ root: withLogs('0.3.0', { '0.3.0.md': note('0.3.0') }, { '0.3.0.mkp.md': odd }) }).warnings.map((x: { message: string }) => x.message);
+    expect(w.some((m: string) => m.includes('"## Breaking" comes after "## New"'))).toBe(true);
+    expect(w.some((m: string) => m.includes('"## Added"') && m.includes('reads as ## New'))).toBe(true);
+    expect(w.some((m: string) => m.includes('"### Kept" is not one of'))).toBe(true);
+    expect(w.some((m: string) => m.includes('but its note says 2026-11-07'))).toBe(true);
+  });
+  it('fail on a wrong version, and warn when an older note has none', () => {
+    const r = checkNotes({ root: withLogs('0.3.0', { '0.2.0.md': note('0.2.0'), '0.3.0.md': note('0.3.0') }, { '0.3.0.mkp.md': log('0.3.1', '## New\n- a\n') }) });
+    expect(codes(r).some((m: string) => m.includes('says version "0.3.1"; it must say 0.3.0'))).toBe(true);
+    expect(r.warnings.some((w: { message: string }) => w.message.includes('0.2.0 has a note but no changelog'))).toBe(true);
+  });
+});

@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
-import { useCtx } from './context';
+import { useCtx, type IconComponent, type MkpIcons } from './context';
 import { Runs, useInk } from './runs';
 import { Kids, Scroller } from './nodes';
 
@@ -25,21 +25,40 @@ function ShellButton({ label, onPress, pressed, children }: { label: string; onP
   );
 }
 
+/** The host's icon for `name`, if it has one. */
+export function hostIcon(icons: MkpIcons | undefined, name: string): IconComponent | undefined {
+  if (!icons) return undefined;
+  // a function component, or memo()/forwardRef() (objects React knows by their $$typeof)
+  if (typeof icons === 'function' || '$$typeof' in icons) return icons as IconComponent;
+  return (icons as Partial<Record<string, IconComponent>>)[name];
+}
+
 export function Icon({ n }: { n: VNode }): ReactNode {
-  const { theme } = useCtx();
+  const { theme, icons } = useCtx();
   const ink = useInk();
   const body = theme.font('body').fontSize;
   const scale = n.p.size === 'small' ? 0.8 : n.p.size === 'large' ? 1.4 : 1;
   const label = n.p.label ? String(n.p.label) : undefined;
+  const name = String(n.p.name);
+  const tone: string = theme.color(n.p.tone) ?? ink ?? '#000';
+  const a11y = {
+    accessibilityRole: label ? ('image' as const) : undefined,
+    accessibilityLabel: label,
+    accessibilityElementsHidden: !label,
+    importantForAccessibility: label ? ('auto' as const) : ('no-hide-descendants' as const),
+  };
+  const Host = hostIcon(icons, name);
+  if (Host) {
+    const px = body * scale;
+    return (
+      <View {...a11y} testID={`mkp-icon-${name}`} style={{ width: px, height: px, alignItems: 'center', justifyContent: 'center' }}>
+        <Host name={name} size={(n.p.size ?? 'normal') as 'small' | 'normal' | 'large'} tone={n.p.tone ? String(n.p.tone) : 'none'} color={tone} px={px} label={label} />
+      </View>
+    );
+  }
   return (
-    <Text
-      accessibilityRole={label ? 'image' : undefined}
-      accessibilityLabel={label}
-      accessibilityElementsHidden={!label}
-      importantForAccessibility={label ? 'auto' : 'no-hide-descendants'}
-      style={{ color: theme.color(n.p.tone) ?? ink, fontSize: body * scale }}
-    >
-      {ICON_GLYPHS[String(n.p.name)] ?? '•'}
+    <Text {...a11y} style={{ color: tone, fontSize: body * scale }}>
+      {ICON_GLYPHS[name] ?? '•'}
     </Text>
   );
 }

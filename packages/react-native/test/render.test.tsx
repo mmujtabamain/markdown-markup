@@ -5,8 +5,9 @@
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import type { TestInstance } from 'test-renderer';
+import { Text } from 'react-native';
 import { compile, formatDiagnostic, MathsEngine, prerender, Runtime, TokenTable, walkView, type IRBundle, type VNode, type VRun, type VShape } from '@mkp/core';
-import { capabilities, markSvg, MkpDocument, placeCanvasLabels, setSkia, widthClass } from '../src';
+import { capabilities, markSvg, MkpDocument, placeCanvasLabels, setSkia, widthClass, type HostIconProps } from '../src';
 
 const H = { includeHiddenElements: true } as const;
 let maths: MathsEngine;
@@ -437,6 +438,34 @@ describe('play', () => {
     });
     expect(tick).toHaveBeenCalled();
     check(rt);
+    await act(async () => {
+      await screen.unmount();
+    });
+  });
+});
+
+describe('a host’s icons', () => {
+  it('draws the host’s component for one name or all, given name, size, tone, colour, points and label; no MKP symbol', async () => {
+    const b = doc(['row', '  icon name=help label="Help" size=large', '  icon name=info tone=accent']);
+    const seen: string[] = [];
+    const Glyph = ({ name, size, tone, px, label }: HostIconProps) => {
+      seen.push(`${name} ${size} ${tone} ${px} ${label ?? '-'}`);
+      return <Text>{`<${name}>`}</Text>;
+    };
+    const rt = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    await render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="light" icons={{ help: Glyph }} />);
+    expect(screen.getByText('<help>', H)).toBeTruthy();
+    expect(screen.queryByText('?', H)).toBeNull();
+    expect(screen.getByText('ⓘ', H)).toBeTruthy();
+    expect(screen.getByLabelText('Help', H)).toBeTruthy();
+    expect(seen[0]).toMatch(/^help large none [\d.]+ Help$/);
+    await act(async () => {
+      await screen.unmount();
+    });
+    const all = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    await render(<MkpDocument bundle={b} runtime={all} reducedMotion theme="light" icons={Glyph} />);
+    expect(screen.getByText('<info>', H)).toBeTruthy();
+    expect(seen.some((x) => x.startsWith('info normal accent'))).toBe(true);
     await act(async () => {
       await screen.unmount();
     });

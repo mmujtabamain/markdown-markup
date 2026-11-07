@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/whats-new.mjs && vite",
+    "build": "node scripts/whats-new.mjs && vite build",
     "preview": "vite preview",
     "e2e": "playwright test",
     "shot": "node scripts/shot.mjs"

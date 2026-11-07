@@ -11,7 +11,9 @@
 
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
-import { MkpDocument, type TokenMap } from '@mkp/react';
+import { domIcons, MkpDocument, type DomIcons, type MkpIcons, type TokenMap } from '@mkp/react';
+
+export type { DomIcon, DomIcons } from '@mkp/react';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
@@ -30,6 +32,13 @@ export interface MountOptions {
   /** a class for the document's root element */
   className?: string;
   /**
+   * your icons, for one name or all, drawn in place of MKP's text symbols: an SVG string (put in the
+   * icon's box as given, the same in a first paint), or a function that draws into the box,
+   * (box, { name, size, tone, color, label }) => cleanup. Documents still only name icons from the
+   * fixed set; the box keeps its data-name, data-size, colour and label
+   */
+  icons?: DomIcons;
+  /**
    * the element already holds this bundle's first paint (`mkp build --target fragment`, or
    * firstPaint() from @mkp/page), drawn with the same theme, tokens and class: take it over in
    * place rather than draw it again, so nothing moves. The bundle must be the one it was drawn from
@@ -47,7 +56,7 @@ export interface MountedDocument {
   readonly runtime: Runtime | null;
   /** resolves once the document is drawn (after the maths engine has loaded) */
   readonly ready: Promise<void>;
-  /** changes the theme, the signal handler, reduced motion, the tokens or the class; the state is kept */
+  /** changes the theme, the signal handler, reduced motion, the tokens, the icons or the class; the state is kept */
   update(opts: Partial<Omit<MountOptions, 'maths' | 'hydrate'>>): void;
   /** draws another document (or a recompiled one): its state starts again */
   setBundle(bundle: IRBundle): void;
@@ -76,6 +85,9 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   let maths: MathsRenderer | undefined;
   let runtime: Runtime | null = null;
   let gone = false;
+  // the icons as components, made again only when update() is given other icons (so none is redrawn)
+  let icons: { from: DomIcons | undefined; as: MkpIcons | undefined } = { from: undefined, as: undefined };
+  const iconsNow = (): MkpIcons | undefined => (icons.from === current.icons ? icons.as : (icons = { from: current.icons, as: domIcons(current.icons) }).as);
 
   const start = (): void => {
     if (gone) return;
@@ -86,7 +98,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   };
   const draw = (): void => {
     if (gone || !runtime) return;
-    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} reducedMotion={current.reducedMotion} className={current.className} />;
+    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} reducedMotion={current.reducedMotion} className={current.className} />;
     if (root) return root.render(view);
     if (opts.hydrate && el.firstElementChild)
       root = hydrateRoot(el, view, {

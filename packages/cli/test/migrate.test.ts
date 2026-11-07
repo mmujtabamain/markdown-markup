@@ -3,7 +3,7 @@
 // this release compiles it. (a) and (b) must be the same IR. The old core is the release's own
 // mkp.js, downloaded once into MKP_CACHE (or given with MKP_CORE_0_2_1, for working offline).
 import { beforeAll, describe, expect, it } from 'vitest';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,7 +52,10 @@ beforeAll(async () => {
 
 describe('the steps', () => {
   it('run from 0.2.1 to this release, with no hole in the chain', () => {
-    expect(stepsBetween(OLD).map((s) => `${s.from} -> ${s.to}`)).toEqual(['0.2.1 -> 0.2.2']);
+    const chain = stepsBetween(OLD).map((s) => `${s.from} -> ${s.to}`);
+    expect(chain[0]).toBe('0.2.1 -> 0.2.2');
+    expect(chain.at(-1)!.endsWith(`-> ${RELEASE}`)).toBe(true);
+    for (let i = 1; i < chain.length; i++) expect(chain[i].split(' -> ')[0]).toBe(chain[i - 1].split(' -> ')[1]);
     expect(stepsBetween(RELEASE)).toEqual([]);
     expect(() => stepsBetween('0.2.2', '0.2.1')).toThrow(/can't migrate back/);
   });
@@ -170,7 +173,7 @@ describe('mkp migrate, the command', () => {
     expect(await main(['migrate', ...args, '--check'])).toBe(1);
     expect(await main(['migrate', ...args, '--write'])).toBe(0);
     expect(readFileSync(join(p, 'badge.mkp'), 'utf8')).toContain('zoom minscale=0');
-    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8')).toMatch(/^---\nmkp: 0\.2\.2\nir: 1\n---\n[\s\S]*look: loud/);
+    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8')).toMatch(new RegExp(`^---\\nmkp: ${RELEASE.replace(/\./g, '\\.')}\\nir: 1\\n---\\n[\\s\\S]*look: loud`));
     // now written for this release: nothing to do
     expect(await main(['migrate', ...args.slice(0, 2), '--check'])).toBe(0);
   }, 120000);
@@ -199,6 +202,64 @@ describe('a pack’s own new version', () => {
   });
 });
 
+describe('a pack’s move to another widget', () => {
+  it('moves a document’s uses of statuslist@1 to rows@1: its items’ fields renamed and dropped, their values mapped', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-rows-'));
+    const p = join(dir, 'board');
+    mkdirSync(p);
+    writeFileSync(join(p, 'manifest.mkp'), 'pack board@1 "Boards."\n  requires core@1\n  provides statuslist rows\n');
+    writeFileSync(
+      join(p, 'list.mkp'),
+      [
+        'statuslist@1 "Items with a state."',
+        '  deprecated "use rows@1"',
+        '  in items list(record item {name: text, state: choice(done|todo|late) = todo, icon: text = ""})',
+        '  column',
+        '    each it in items key=it.name',
+        '      text "\\val{it.name}: \\val{it.state}"',
+        '  project md = join(map(items, i => i.name), ", ")',
+        '',
+        'rows@1 "Rows with a tone."',
+        '  in rows list(record row {title: text, tone: choice(ok|muted|bad) = muted})',
+        '  column',
+        '    each r in rows key=r.title',
+        '      text "\\val{r.title}" tone=(r.tone)',
+        '  project md = join(map(rows, r => r.title), ", ")',
+        '',
+        'migrate statuslist@1 -> rows@1',
+        '  rename items -> rows',
+        '  rename items.name -> rows.title',
+        '  rename items.state -> rows.tone',
+        '  drop items.icon "rows show no icon"',
+        '  map items.state: done -> ok, todo -> muted, late -> bad',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(join(p, 'statuslist.fixture.json'), JSON.stringify({ widget: 'statuslist@1', cases: { two: { props: { items: [{ name: 'Tea', state: 'done', icon: 'cup' }, { name: 'Post' }] }, summary: 'Two.' } } }));
+    writeFileSync(join(p, 'rows.fixture.json'), JSON.stringify({ widget: 'rows@1', cases: { one: { props: { rows: [{ title: 'Tea' }] }, summary: 'One.' } } }));
+    const doc = join(dir, 'today.mkp.md');
+    writeFileSync(doc, `---\nmkp: ${RELEASE}\nir: 1\n---\n# Today\n\n\`\`\`statuslist\nitems:\n  - {name: Tea, state: done, icon: cup}\n  - {name: Post, state: late}\nsummary: s\n\`\`\`\n`);
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const main = (argv: string[]): number => {
+      const r = spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env });
+      if (r.status) console.log(r.stdout, r.stderr);
+      return r.status ?? -1;
+    };
+    expect(main(['check', '--pack', p])).toBe(0);
+    const m = await migrateDocument(relative(process.cwd(), doc), { packs: [folder(p)] });
+    expect(m.errors).toEqual([]);
+    const text = [...m.files.values()][0];
+    expect(text).toMatch(/```rows\nrows:\n  - title: Tea\n    tone: ok\n  - title: Post\n    tone: bad\nsummary: s\n```/);
+    expect(m.result!.warnings.map((w) => w.message)).toEqual([
+      'this use of statuslist@1 moved to rows@1: items is now rows; items.name is now rows.title; items.state is now rows.tone; items.icon is gone (rows show no icon); items.state: done is now ok, todo is now muted, late is now bad.',
+    ]);
+    expect(main(['migrate', doc, '--pack', p, '--take', 'all', '--write'])).toBe(0);
+    expect(readFileSync(doc, 'utf8')).toContain('```rows\n');
+    expect(main(['migrate', doc, '--pack', p, '--check'])).toBe(0);
+  }, 120000);
+});
+
 describe('a released .mkpack from 0.2.1', () => {
   it('is migrated as the pack it holds, and written back as a .mkpack', async () => {
     const { writeZip, readZip, Diagnostics } = await import('@mkp/core');
@@ -217,7 +278,7 @@ describe('a released .mkpack from 0.2.1', () => {
     expect(r.status, r.stderr).toBe(0);
     const files = readZip(new Uint8Array(readFileSync(zip)), 'looks.mkpack', new Diagnostics())!.files;
     const text = (f: string) => new TextDecoder().decode(files.get(f));
-    expect(text('badge.mkp')).toMatch(/^# mkp 0\.2\.2 ir 1\n/);
+    expect(text('badge.mkp').startsWith(`# mkp ${RELEASE} ir 1\n`)).toBe(true);
     expect(text('badge.mkp')).toContain('in look text = "x"');
     expect(JSON.parse(text('badge.fixture.json')).cases.one.props).toEqual({ word: 'a', look: 'y' });
   }, 120000);
@@ -228,7 +289,8 @@ describe('the Migrations tab’s example', () => {
     const dir = 'apps/site/migrations/0.2.2';
     const m = await migrateDocument(join(dir, 'before.mkp.md'), { keep: [], core: process.env.MKP_CORE_0_2_1 });
     expect(m.errors).toEqual([]);
-    expect([...m.files.values()][0]).toBe(readFileSync(join(dir, 'after.mkp.md'), 'utf8'));
+    // the after is as that release wrote it: today's mkp migrate stamps this release, and does the same otherwise
+    expect([...m.files.values()][0].replace(`mkp: ${RELEASE}\n`, 'mkp: 0.2.2\n')).toBe(readFileSync(join(dir, 'after.mkp.md'), 'utf8'));
     const said = readFileSync(join(dir, 'said.txt'), 'utf8');
     for (const w of m.result!.warnings) expect(said).toContain(`before.mkp.md:${w.pos!.line}:${w.pos!.col} warning ${w.code}: ${w.message}`);
   });

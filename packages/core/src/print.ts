@@ -343,7 +343,7 @@ export type FileItem =
   | { macro: string; tex: string; comment?: string[] }
   | { tokens: IRTokenSet; comment?: string[] }
   | { iface: InterfaceSyn }
-  | { migrate: { from: string; to: string; lines: ({ k: 'rename'; from: string; to: string } | { k: 'drop'; name: string; why: string } | { k: 'keep'; name: string; value: string; why: string })[] }; comment?: string[] }
+  | { migrate: { from: string; to: string; lines: ({ k: 'rename'; from: string; to: string } | { k: 'drop'; name: string; why: string } | { k: 'keep'; name: string; value: string; why: string } | { k: 'map'; name: string; values: [string, string][] })[] }; comment?: string[] }
   | { pack: { kind: string; name: string; version: number; about?: string; requires: string[]; depends: string[]; provides: string[]; front: { name: string; type: Type; def?: string; about?: string }[]; attrs: { name: string; type: Type; about?: string }[]; roles: string[]; rules: { rule: string; path: string; args: string[]; message?: string }[]; unpublished?: boolean }; comment?: string[] };
 
 export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string, tokenIR: (name: string) => IRTokenSet | undefined): FileItem[] {
@@ -371,7 +371,7 @@ export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string,
           migrate: {
             from: it.from,
             to: it.to,
-            lines: it.lines.map((l) => (l.k === 'rename' ? { k: l.k, from: l.from, to: l.to } : l.k === 'drop' ? { k: l.k, name: l.name, why: l.why } : { k: l.k, name: l.name, value: l.value.src, why: l.why })),
+            lines: it.lines.map((l) => (l.k === 'rename' ? { k: l.k, from: l.from, to: l.to } : l.k === 'drop' ? { k: l.k, name: l.name, why: l.why } : l.k === 'map' ? { k: l.k, name: l.name, values: l.values } : { k: l.k, name: l.name, value: l.value.src, why: l.why })),
           },
           ...cm(it.comments),
         };
@@ -427,7 +427,7 @@ export function printFile(items: FileItem[], ctx: PrintContext): string {
     if ('tokens' in it) return [...c, `tokens ${it.tokens.name}@${it.tokens.version}${it.tokens.about !== undefined ? ' ' + encodeText(it.tokens.about) : ''}`, ...tokenLines(it.tokens)].join('\n');
     if ('migrate' in it) {
       const m = it.migrate;
-      return [...c, `migrate ${m.from} -> ${m.to}`, ...m.lines.map((l) => (l.k === 'rename' ? `  rename ${l.from} -> ${l.to}` : l.k === 'drop' ? `  drop ${l.name} ${encodeText(l.why)}` : `  keep ${l.name} = ${l.value} ${encodeText(l.why)}`))].join('\n');
+      return [...c, `migrate ${m.from} -> ${m.to}`, ...m.lines.map((l) => (l.k === 'rename' ? `  rename ${l.from} -> ${l.to}` : l.k === 'drop' ? `  drop ${l.name} ${encodeText(l.why)}` : l.k === 'map' ? `  map ${l.name}: ${l.values.map(([a, b]) => `${a} -> ${b}`).join(', ')}` : `  keep ${l.name} = ${l.value} ${encodeText(l.why)}`))].join('\n');
     }
     if ('iface' in it) {
       const f = it.iface;

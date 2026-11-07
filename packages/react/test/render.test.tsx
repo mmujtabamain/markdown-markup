@@ -5,7 +5,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { compile, formatDiagnostic, Runtime, type IRBundle } from '@mkp/core';
-import { BASE_CSS, keepInView, MkpDocument, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
+import { memo } from 'react';
+import { BASE_CSS, hostIcon, keepInView, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
 
@@ -530,6 +531,29 @@ describe('what a host styles and traces', () => {
     expect(one(container, '.mkp-icon[data-name=help]').textContent).toBe('?');
     expect(one(container, '.mkp-icon[data-name=info]').textContent).toBe('ⓘ');
     expect(SHELL_CSS).toMatch(/\.mkp-icon\[data-name=help\] \{[^}]*border-radius: 50%/);
+  });
+  it('draws a host’s icons in the box: any component, for one name or all, and no MKP symbol beside it', () => {
+    const b = doc(['row', '  icon name=help tone=accent label="Help"', '  icon name=info size=large']);
+    const Svg = ({ name, size, tone, color, label, className }: HostIconProps) => <svg className={className} data-host-name={name} data-host-size={size} data-host-tone={tone} data-host-color={color} data-host-label={label ?? ''} />;
+    const rt = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const { container } = render(<MkpDocument bundle={b} runtime={rt} reducedMotion icons={Svg} />);
+    const help = one(container, '.mkp-icon[data-name=help]');
+    expect(help.textContent).toBe('');
+    expect(help.getAttribute('role')).toBe('img');
+    expect(help.getAttribute('aria-label')).toBe('Help');
+    expect(help.getAttribute('data-tone')).toBe('accent');
+    expect(help.hasAttribute('data-host')).toBe(true);
+    const svg = help.querySelector('svg.mkp-icon-host')!;
+    expect([svg.getAttribute('data-host-name'), svg.getAttribute('data-host-size'), svg.getAttribute('data-host-tone'), svg.getAttribute('data-host-color'), svg.getAttribute('data-host-label')]).toEqual(['help', 'normal', 'accent', 'var(--mkp-color-accent)', 'Help']);
+    expect(one(container, '.mkp-icon[data-name=info] svg').getAttribute('data-host-size')).toBe('large');
+    // one per name: the rest stay MKP's symbols
+    const rt2 = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const two = render(<MkpDocument bundle={b} runtime={rt2} reducedMotion icons={{ info: memo(Svg) }} />);
+    expect(one(two.container, '.mkp-icon[data-name=help]').textContent).toBe('?');
+    expect(one(two.container, '.mkp-icon[data-name=info] svg')).not.toBeNull();
+    expect(one(two.container, '.mkp-icon[data-name=info]').textContent).toBe('');
+    expect(hostIcon(memo(Svg), 'x')).toBeDefined();
+    expect(hostIcon({ info: Svg }, 'help')).toBeUndefined();
   });
 });
 

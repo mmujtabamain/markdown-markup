@@ -4,12 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions, type VNode } from '@mkp/core';
 import { BASE_CSS, NEUTRAL_CSS, tokenCss, type TokenMap } from './style';
 import { Kids, RuntimeCtx, type MkpComponents } from './nodes';
+import type { MkpIcons } from './shell';
 import { SHELL_CSS } from './shell';
 
 export { Node, Kids, Runs, MathSpan, MathBlock, TextBlock, Box, CodeLines, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, boxStyle, flowStyle, gridTracks, rowRole, textStyle, hoverEvents, fieldTone, fieldKeys, keepInView, type BaseWidget, type CodeMark, type MathMark, type HostProps, type HostRoute, type MkpComponents } from './nodes';
 export { Arrows, curve, placeLabels, MIN_BEND, type Drawn } from './arrows';
 export { Canvas, placeCanvasLabels, pathHead } from './canvas';
-export { Frame, Pane, Zoom, FitBox, fitsWidth, zoomBounds, Icon, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps } from './shell';
+export { Frame, Pane, Zoom, FitBox, fitsWidth, zoomBounds, Icon, hostIcon, domIcons, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps, type HostIconProps, type IconComponent, type MkpIcons, type DomIcon, type DomIcons } from './shell';
 export { tokenCss, layer, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {
@@ -21,6 +22,12 @@ export interface MkpProviderProps {
   tokens?: TokenMap;
   /** a host's own components for base widgets and definitions */
   components?: MkpComponents;
+  /**
+   * a host's icons, for one name or all: any component, given { name, size, tone, color, label,
+   * className }. Documents still only name icons from the fixed set; the box keeps its data-name,
+   * size, colour and label, and MKP's text symbol is left out
+   */
+  icons?: MkpIcons;
   reducedMotion?: boolean;
   options?: RuntimeOptions;
   children?: ReactNode;
@@ -140,7 +147,7 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     return () => cancelAnimationFrame(raf);
   }, [rt]);
   const css = useMemo(() => BASE_CSS + SHELL_CSS + (props.components ? '' : NEUTRAL_CSS) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components]);
-  const ctx = useMemo(() => ({ rt, components: props.components }), [rt, props.components]);
+  const ctx = useMemo(() => ({ rt, components: props.components, icons: props.icons }), [rt, props.components, props.icons]);
   const measure = useWidthReport(rt);
   return (
     <RuntimeCtx.Provider value={ctx}>

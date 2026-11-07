@@ -16,9 +16,13 @@ describe('Migrations', () => {
     expect([...container.querySelectorAll('[data-step]')].map((e) => e.getAttribute('data-step'))).toEqual([...STEPS].reverse().map((s) => s.to));
     for (const s of STEPS) for (const c of s.changes) expect(container.querySelector(`[data-step="${s.to}"] [data-change="${c.id}"]`), c.id).not.toBeNull();
     expect(container.querySelector('[data-migrated-drawing] .mkp-root')).not.toBeNull();
+    for (const s of STEPS.filter((x) => !x.renames.length && !x.changes.length && !x.removes.length)) expect(container.querySelector(`[data-step="${s.to}"] [data-change="none"]`), s.to).not.toBeNull();
   });
-  it('shows a before and after for the newest step, the after compiling with this release', () => {
-    const ex = exampleOf(STEPS[STEPS.length - 1].to)!;
+  it('shows a before and after for the newest step that changes anything, the after compiling with this release', () => {
+    // a step that changes nothing (0.2.3) only restamps, so it has no example; one that changes something must
+    const changing = STEPS.filter((s) => s.renames.length || s.changes.length || s.removes.length);
+    for (const s of STEPS.filter((x) => !changing.includes(x))) expect(exampleOf(s.to)).toBeNull();
+    const ex = exampleOf(changing[changing.length - 1].to)!;
     expect(ex).not.toBeNull();
     const c = compile({ packs: [] });
     c.document(ex.after, 'after.mkp.md');

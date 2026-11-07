@@ -1,14 +1,33 @@
 // What every node reads: the runtime it reports events to, the resolved tokens,
 // and the measurement registries of the scopes above it (for arrows, spec 6.10).
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type ComponentType } from 'react';
 import type { LayoutRectangle } from 'react-native';
 import type { Runtime } from '@mkp/core';
 import type { Theme } from './theme';
 
+/** What a host's icon is given: the name a document chose (one of the fixed set), and how to draw it. */
+export interface HostIconProps {
+  name: string;
+  size: 'small' | 'normal' | 'large';
+  /** the tone the document asked for (a colour token's name: accent, ok…), or none for the text's own colour */
+  tone: string;
+  /** that tone resolved to a colour */
+  color: string;
+  /** its size in points: the body text's, scaled for small and large */
+  px: number;
+  /** what it says to a screen reader; the box carries it, so the icon itself needs no label */
+  label?: string;
+}
+export type IconComponent = ComponentType<HostIconProps>;
+/** A host's icons: one component for every name, or one per name (the rest stay MKP's). */
+export type MkpIcons = IconComponent | Partial<Record<string, IconComponent>>;
+
 export interface Ctx {
   rt: Runtime;
   theme: Theme;
+  /** a host's icons, drawn in place of MKP's text symbols */
+  icons?: MkpIcons;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);

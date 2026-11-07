@@ -2,14 +2,41 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import type { Plugin } from 'vite';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
+/**
+ * What's new, built with the site (scripts/whats-new.mjs writes .generated/): every release's text in
+ * the page's HTML before its script runs, and the Atom feed beside it.
+ */
+function whatsNew(): Plugin {
+  const gen = (f: string) => at(`.generated/${f}`);
+  return {
+    name: 'mkp-whats-new',
+    transformIndexHtml(html, ctx) {
+      if (!ctx.filename.replace(/\\/g, '/').endsWith('whats-new/index.html') || !existsSync(gen('whats-new.html'))) return html;
+      return html.replace('<div id="root"></div>', `<div id="root">${readFileSync(gen('whats-new.html'), 'utf8')}</div>`);
+    },
+    generateBundle() {
+      if (existsSync(gen('feed.xml'))) this.emitFile({ type: 'asset', fileName: 'whats-new/feed.xml', source: readFileSync(gen('feed.xml'), 'utf8') });
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.endsWith('/whats-new/feed.xml') || !existsSync(gen('feed.xml'))) return next();
+        res.setHeader('Content-Type', 'application/atom+xml');
+        res.end(readFileSync(gen('feed.xml')));
+      });
+    },
+  };
+}
+
 export default defineConfig({
   // GitHub Pages serves the build from /markdown-markup/
   base: process.env.PLAYGROUND_BASE ?? '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), whatsNew()],
   resolve: {
     alias: {
       '@mkp/core': at('../../packages/core/src/index.ts'),
