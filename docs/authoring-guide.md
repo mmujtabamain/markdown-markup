@@ -406,10 +406,29 @@ A pack is a folder: `manifest.mkp` (`pack name@N`, `requires core@1`, `depends o
 only through `depends`. To change a pack's widget, copy it (example 28): nothing links the copy to
 it, and the `# from …` line is only for review.
 
-A published version keeps its behaviour. A breaking change is a new version beside the old one:
-mark the old one `deprecated "use walk@2: …"` (its uses are warned), and say how a use moves with
-a top-level `migrate walk@1 -> walk@2` block (`rename a -> b`, `drop a "why"`, `keep a = value
-"why"`), which `mkp check` proves on the old version's fixtures and `mkp migrate` applies.
+A published version keeps its behaviour. **A breaking change to a pack's widget is always a new
+version beside the old one** (`callout@2` next to `callout@1`), never an edit of the old one, and it
+comes with a `migrate` block. Mark the old one `deprecated "use walk@2: …"` (its uses are warned),
+and say how a use moves with a top-level `migrate walk@1 -> walk@2` block (`rename a -> b`,
+`drop a "why"`, `keep a = value "why"`), which `mkp check` proves on the old version's fixtures and
+`mkp migrate` applies.
+
+A use can also move to another widget, in the same pack or in one it depends on
+(`migrate statuslist@1 -> ui:rows@1`). A dotted name reaches a field of each item of a record list,
+and `map` changes a choice's (or a text's) values one for one:
+
+```txt
+migrate statuslist@1 -> rows@1
+  rename items -> rows
+  rename items.name -> rows.title
+  rename items.state -> rows.tone
+  drop items.icon "rows show no icon"
+  map items.state: done -> ok, todo -> muted, late -> bad
+```
+
+The check is the same for fields and values: every field of the old items goes somewhere, every
+field the new items need is given or has a default, and every value of an old choice is one the new
+choice takes, as it is or mapped.
 
 A file's first line `# mkp 0.2.2 ir 1` (or `mkp:` and `ir:` in a document's front matter) says
 which release it was written for; `mkp migrate` brings it up to this one (the integration guide,

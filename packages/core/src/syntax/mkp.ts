@@ -147,9 +147,12 @@ export interface InterfaceSyn {
 
 /** How a use of one version of a pack's widget moves to another (migrate walk@1 -> walk@2). */
 export type MoveLine =
+  /** an input, or a field of each item of a record list (items.name) */
   | { k: 'rename'; from: string; to: string; p: Pos }
   | { k: 'drop'; name: string; why: string; p: Pos }
-  | { k: 'keep'; name: string; value: Val; why: string; p: Pos };
+  | { k: 'keep'; name: string; value: Val; why: string; p: Pos }
+  /** map items.state: done -> ok, todo -> muted: a choice's or a text's values, one for one */
+  | { k: 'map'; name: string; values: [string, string][]; p: Pos };
 
 export interface MigrateSyn {
   item: 'migrate';
@@ -566,6 +569,7 @@ function macroTrouble(text: string): string {
 /** migrate walk@1 -> walk@2, then its lines: rename a -> b, drop a "why", keep a = value "why". */
 function migrateItem(ctx: LineCtx, diags: Diagnostics, comments: string[]): MigrateSyn {
   const m = /^migrate\s+(\S+@\d+)\s*->\s*(\S+@\d+)\s*$/.exec(ctx.text);
+  const PATH = '([A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)?)';
   if (!m) ctx.fail(`\`migrate\` names two versions of a widget: the one uses move from, then -> and the one they move to; found ${q(ctx.text, 40)}. Write e.g. \`migrate walk@1 -> walk@2\``, 7);
   const out: MigrateSyn = { item: 'migrate', from: m![1], to: m![2], lines: [], p: ctx.pos(0), comments };
   for (const c of ctx.line.children) {
@@ -574,14 +578,19 @@ function migrateItem(ctx: LineCtx, diags: Diagnostics, comments: string[]): Migr
       const t = lc.text;
       const p = lc.pos(0);
       let r: RegExpExecArray | null;
-      if ((r = /^rename\s+([A-Za-z_]\w*)\s*->\s*([A-Za-z_]\w*)\s*$/.exec(t))) out.lines.push({ k: 'rename', from: r[1], to: r[2], p });
-      else if ((r = /^drop\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*")\s*$/.exec(t))) out.lines.push({ k: 'drop', name: r[1], why: decodeText(r[2]), p });
+      if ((r = new RegExp(`^rename\\s+${PATH}\\s*->\\s*${PATH}\\s*$`).exec(t))) out.lines.push({ k: 'rename', from: r[1], to: r[2], p });
+      else if ((r = new RegExp(`^drop\\s+${PATH}\\s+("(?:[^"\\\\]|\\\\.)*")\\s*$`).exec(t))) out.lines.push({ k: 'drop', name: r[1], why: decodeText(r[2]), p });
+      else if ((r = new RegExp(`^map\\s+${PATH}\\s*:\\s*(.+)$`).exec(t))) {
+        const pairs = r[2].split(',').map((x) => /^\s*([^\s,]+)\s*->\s*([^\s,]+)\s*$/.exec(x));
+        if (pairs.some((x) => !x)) lc.fail(`\`map\` pairs each old value with its new one, separated by commas; found ${q(r[2], 40)}. Write e.g. \`map ${r[1]}: done -> ok, late -> bad\``, t.indexOf(':') + 1);
+        out.lines.push({ k: 'map', name: r[1], values: pairs.map((x) => [x![1].replace(/^"|"$/g, ''), x![2].replace(/^"|"$/g, '')] as [string, string]), p });
+      }
       else if ((r = /^keep\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s+("(?:[^"\\]|\\.)*")\s*$/.exec(t))) {
         const at = t.indexOf(r[2], t.indexOf('=') + 1);
         out.lines.push({ k: 'keep', name: r[1], value: parseValueString(r[2], ctx.map.file, p.line, p.col + at), why: decodeText(r[3]), p });
       } else
         lc.fail(
-          `under \`migrate\`, a line renames an input, drops one, or keeps the old look by setting one; found ${q(t, 40)}. Write \`rename from -> start\`, \`drop speed "why it went"\` or \`keep look = "classic" "what it keeps"\``,
+          `under \`migrate\`, a line renames an input (or a field of a record list's items: items.name), drops one, maps its values, or keeps the old look by setting one; found ${q(t, 40)}. Write \`rename from -> start\`, \`rename items.name -> rows.title\`, \`drop speed "why it went"\`, \`map items.state: done -> ok\` or \`keep look = "classic" "what it keeps"\``,
           0,
         );
     } catch (e) {

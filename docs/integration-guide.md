@@ -1396,8 +1396,9 @@ a before and after.
 
 ### 8.4 A pack's own versions
 
-A published version keeps its behaviour (2.3). A breaking change is a new version beside the old
-one, and the old one says what to use instead:
+A published version keeps its behaviour (2.3). A breaking change to a pack's widget is a new
+version beside the old one (`callout@2` next to `callout@1`), never an edit of the old one, with a
+`migrate` block; the old one says what to use instead:
 
 ```txt
 walk@1 "A walk."
@@ -1425,6 +1426,24 @@ migrate walk@1 -> walk@2
   the kept look), must compile against the new one (`mkp.migrate-pack-case`).
 - **`mkp migrate doc.mkp.md --pack lib`** moves the uses, current release or not, asking whether
   to keep the old look (`--keep walk@2`).
+- **To another widget**, in the pack or in one it depends on (`migrate statuslist@1 -> ui:rows@1`;
+  the block always lives in the pack of the old widget). A dotted name reaches a field of each item
+  of a record list, and `map` changes a choice's or a text's values one for one:
+
+  ```txt
+  migrate statuslist@1 -> rows@1
+    rename items -> rows
+    rename items.name -> rows.title
+    rename items.state -> rows.tone
+    drop items.icon "rows show no icon"
+    map items.state: done -> ok, todo -> muted, late -> bad
+  ```
+
+  Fields are checked like inputs (every old field goes somewhere; every field the new items need is
+  given or has a default), and so are values: every value of the old choice is one the new choice
+  takes, as it is or mapped. Items written as YAML lists and as record lines (`item "Tea" done`)
+  both move; a value that is an expression, not a literal, is left as it is, and the recompile
+  that follows says if it no longer fits.
 - A copy made with `mkp show --source --as` is your own source: it migrates with releases like any
   file, and is never moved to the pack's new version.
 

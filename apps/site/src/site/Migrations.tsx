@@ -134,6 +134,13 @@ migrate walk@1 -> walk@2
   drop speed "walk@2 sets its own pace"
   keep look = classic "walk@1's look"`;
 
+const ACROSS = `migrate statuslist@1 -> rows@1
+  rename items -> rows
+  rename items.name -> rows.title
+  rename items.state -> rows.tone
+  drop items.icon "rows show no icon"
+  map items.state: done -> ok, todo -> muted, late -> bad`;
+
 export function Migrations(): ReactNode {
   const [theme, toggle] = useTheme();
   const steps = [...STEPS].reverse();
@@ -170,10 +177,16 @@ export function Migrations(): ReactNode {
             A pack's own versions
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            A version stays as it is once published. A breaking change is a new version beside the old one, which is marked <code>deprecated</code>, so every use is told what to use instead. The pack says how a use moves, in MKP: <code>mkp check</code> proves it on the old version's fixtures, and <code>mkp migrate</code> moves the uses, asking whether to keep the old look.
+            A version stays as it is once published. A breaking change is always a new version beside the old one (<code>callout@2</code> next to <code>callout@1</code>), which is marked <code>deprecated</code>, so every use is told what to use instead. The pack says how a use moves, in MKP: <code>mkp check</code> proves it on the old version's fixtures, and <code>mkp migrate</code> moves the uses, asking whether to keep the old look.
           </p>
           <div className="mt-4">
             <Code>{PACK}</Code>
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            A use can move to another widget too, in the pack or one it depends on (<code>ui:rows@1</code>). A dotted name reaches a field of each item of a record list, and <code>map</code> changes a choice's values. Every old field and every old value must go somewhere, or the check says which one doesn't.
+          </p>
+          <div className="mt-4">
+            <Code>{ACROSS}</Code>
           </div>
         </section>
 

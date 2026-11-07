@@ -698,3 +698,11 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      checked against both definitions, proven on the old version's fixtures by `mkp check`, and
      applied by `mkp migrate` to documents. A pack's migrate block is MKP, not code: no pack's
      code ever runs.
+
+151. **A pack's moves across widgets, into record lists.** *Extension (150).* `migrate a@N -> b@M`
+     may name another widget, in the same pack or (`pack:b@M`) in one the pack depends on. `rename`
+     and `drop` take `input.field` for a field of each item of a record list (the new side names
+     the list the old one became), and `map path: x -> y, …` changes a choice's or a text's literal
+     values. Checked like inputs: every old field goes somewhere, every field the new record needs is
+     given or defaulted (filled in stored bundles), and every value of an old choice lands in the
+     new one. A breaking change to a pack's widget is a new version with a migrate block.
