@@ -28,7 +28,7 @@ test('the landing page draws its demo, names the latest release, and links to th
   await page.goBack();
   await page.getByRole('link', { name: /Read the docs/ }).click();
   await expect(page).toHaveURL(/\/docs\/$/);
-  await expect(page.locator('[data-docs-article] .mkp-root h1')).toHaveText('Adding MKP to a project');
+  await expect(page.locator('article.doc h1')).toHaveText('Getting started');
   expect(errors).toEqual([]);
 });
 
@@ -45,43 +45,48 @@ test('the examples link home and to the docs, and links from before each move op
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Markdown that does things.');
 });
 
-test('the docs: each of docs/*.md drawn, with its outline, links between docs, and next', async ({ page }) => {
+test('the docs are static pages: no MKP, no script but the theme, every page linked in order', async ({ page }) => {
   const errors: string[] = [];
+  const scripts: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
-  await page.goto('/docs/#recipes');
-  const article = page.locator('[data-docs-article=recipes]');
-  await expect(article.locator('.mkp-root h1')).toHaveText('Recipes');
-  // the recipes' components are code, drawn as code
-  await expect(article.locator('.mkp-root')).toContainText("import { mount, type IRBundle, type MountedDocument, type SignalEvent } from './vendor/mkp/mkp-dom.js';");
-  await expect(page.locator('[data-docs-nav] [aria-current=page]')).toHaveText('Recipes');
-  // the outline goes to a heading
-  await page.locator('[data-docs-outline]').getByRole('link', { name: 'Angular' }).click();
-  await expect(page).toHaveURL(/#recipes\/angular$/);
-  await expect(article.locator('h2#angular')).toBeInViewport();
-  // previous and next follow the list
-  await page.locator('[data-docs-next]').click();
-  await expect(page.locator('[data-docs-article=authoring-guide] .mkp-root h1')).toHaveText('Writing MKP: a guide for agents');
-  // a link to another doc opens it here
-  await page.goto('/docs/#integration-guide');
-  await page.locator('[data-docs-article] a[href$="recipes.md"]').first().click();
-  await expect(page.locator('[data-docs-article=recipes]')).toBeVisible();
-  for (const slug of ['runtime-spec', 'error-style']) {
-    await page.goto(`/docs/#${slug}`);
-    await expect(page.locator(`[data-docs-article=${slug}] .mkp-root h1`)).toBeVisible();
+  page.on('request', (r) => void (['script', 'fetch', 'xhr'].includes(r.resourceType()) && scripts.push(r.url())));
+  await page.goto('/docs/');
+  await expect(page.locator('article.doc h1')).toHaveText('Getting started');
+  // the formula on Writing documents is an SVG written when the page was compiled
+  await page.locator('.pages-list').getByRole('link', { name: 'Writing documents' }).click();
+  await expect(page).toHaveURL(/\/docs\/writing\.html$/);
+  await expect(page.locator('article.doc .mkp-math-display svg')).toBeVisible();
+  // every page, in order, through next
+  const titles = ['Writing documents', 'Your own widgets', 'The base set', 'In your app', 'Recipes', 'The CLI'];
+  for (const t of titles.slice(1)) {
+    await page.locator('.prev-next .next').click();
+    await expect(page.locator('.pages-list [aria-current=page]')).toHaveText(t);
   }
+  // the outline goes to a heading
+  await page.goto('/docs/recipes.html');
+  await page.locator('.outline').getByRole('link', { name: 'Angular' }).click();
+  await expect(page.locator('h2#angular')).toBeInViewport();
+  await expect(page.locator('article.doc')).toContainText("import { mount, type IRBundle, type MountedDocument, type SignalEvent } from './vendor/mkp/mkp-dom.js';");
+  // a link to the examples opens them
+  await page.goto('/docs/base-set.html');
+  expect(scripts).toEqual([]);
+  await page.locator('article.doc').getByRole('link', { name: 'press', exact: true }).click();
+  await expect(page.locator('[data-pg-title]')).toContainText('press');
   expect(errors).toEqual([]);
 });
 
-test('the docs fit a phone, with the list in a menu', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+test('the docs keep the site theme, and fit a phone with the pages in a menu', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'light' });
   const page = await ctx.newPage();
-  await page.goto('/docs/#authoring-guide');
-  await expect(page.locator('[data-docs-article] .mkp-root h1')).toBeVisible();
+  await page.goto('/docs/in-your-app.html');
+  await expect(page.locator('article.doc h1')).toHaveText('In your app');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-  await page.locator('[data-docs-menu]').click();
-  await page.getByRole('dialog').getByRole('link', { name: 'Recipes' }).click();
-  await expect(page.locator('[data-docs-article=recipes] .mkp-root h1')).toHaveText('Recipes');
+  await page.locator('[data-theme-toggle]').click();
+  await page.locator('.pages-menu summary').click();
+  await page.locator('.pages-menu').getByRole('link', { name: 'The CLI' }).click();
+  await expect(page.locator('article.doc h1')).toHaveText('The CLI');
+  expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
   await ctx.close();
 });
 

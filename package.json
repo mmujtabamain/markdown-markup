@@ -20,6 +20,7 @@
     "examples:sync": "node scripts/examples.mjs sync",
     "check:neutral": "node scripts/neutral.mjs",
     "check:notes": "node scripts/check-notes.mjs",
+    "site:docs": "node apps/site/scripts/docs.mjs",
     "dist": "node scripts/dist.mjs"
   },
   "devDependencies": {
