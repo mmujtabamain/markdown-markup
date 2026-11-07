@@ -1,9 +1,13 @@
 # Markdown Markup (MKP): types, tests, conformance (Node and Hermes), the React Native renderer's
-# tests, the website end to end, and the release CLI on every example. The release-notes check is notes.yml.
+# tests, and the release CLI on every example. The website end to end is site.yml; the release-notes
+# check is notes.yml.
 name: MKP
 
 on:
+  # once per change: on merge requests, and on main after a merge (a branch push with an open merge
+  # request would otherwise run everything twice)
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -89,27 +93,6 @@ jobs:
         run: pnpm exec tsc -p packages/react-native/tsconfig.json --noEmit
       - name: Every fixture case and the section-18 document render in the RN renderer
         run: pnpm test:rn
-
-  web:
-    name: Website end to end
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - name: Chromium
-        working-directory: apps/site
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Every fixture case and document renders in the docs, and the release files and pages work
-        run: pnpm e2e
 
   cli:
     name: The release CLI on every example
