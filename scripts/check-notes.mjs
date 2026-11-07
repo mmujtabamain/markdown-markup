@@ -22,6 +22,31 @@ import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const SECTIONS = ['New', 'Changed', 'Fixed'];
+
+/** A changelog's sections (changelog/<version>.mkp.md), in this order, each optional. */
+export const CHANGELOG_SECTIONS = ['Breaking', 'New', 'Changed', 'Fixed', 'API', 'Migration'];
+/** The kinds an API change comes in, as ### headings under ## API, in this order. */
+export const API_KINDS = ['Added', 'Changed', 'Deprecated', 'Removed'];
+/** Headings people write instead, and the section they mean. */
+export const ALIASES = { Added: 'New', Improved: 'Changed', Updated: 'Changed', Fixes: 'Fixed', 'Bug fixes': 'Fixed', Removed: 'Breaking', 'Breaking changes': 'Breaking', Upgrading: 'Migration' };
+
+/** A Markdown body's headings of `level` (2 or 3) outside code fences, with their line in the body. */
+export function headingsOf(body, level) {
+  const out = [];
+  let fence = null;
+  body.split('\n').forEach((l, i) => {
+    const f = /^(\s*)(`{3,}|~{3,})/.exec(l);
+    if (f) {
+      if (!fence) fence = f[2];
+      else if (l.trim().startsWith(fence)) fence = null;
+      return;
+    }
+    if (fence) return;
+    const m = new RegExp(`^${'#'.repeat(level)}\\s+(.+?)\\s*$`).exec(l);
+    if (m) out.push({ name: m[1], line: i });
+  });
+  return out;
+}
 export const SUMMARY_MAX = 140;
 
 /** Why `s` is not a version, or null when it is one. */
@@ -110,8 +135,47 @@ export function template(version, date = new Date().toISOString().slice(0, 10)) 
   return `---\nversion: ${version}\ndate: ${date}\nsummary: One sentence on the biggest change, for MKP's users (at most ${SUMMARY_MAX} characters).\n---\n## New\n- **What it is.** What someone can now do, and how.\n## Changed\n- **What changed.** A breaking change comes first and says what to do instead.\n## Fixed\n- What went wrong, as the author saw it.\n`;
 }
 
+/** A changelog to copy when the one for `version` is missing. */
+export function changelogTemplate(version, date = new Date().toISOString().slice(0, 10)) {
+  return `---\nversion: ${version}\ndate: ${date}\nsummary: The note's summary, the same sentence.\n---\n# ${version}\n\n## Breaking\n- **What changed.** Why, and what to do instead (and the mkp migrate id, if there is one).\n## New\n- **What it is.** Why it's there and how to use it, with a demonstration under it where one helps.\n## Changed\n## Fixed\n## API\n### Added\n### Changed\n### Deprecated\n### Removed\n## Migration\n- From the previous release: what mkp migrate does, the looks you can keep, what to check by hand.\n`;
+}
+
+/** Checks one changelog's front matter and sections; problems go to err and warn. */
+function checkChangelog(rel, text, stem, noteFront, err, warn) {
+  const n = readNote(text);
+  for (const e of n.errors) err(rel, e.line, `${rel} cannot be read: ${e.message}`);
+  for (const w of n.warnings) warn(rel, w.line, w.message);
+  if (n.errors.length) return;
+  const { front, at } = n;
+  if (front.version !== stem) err(rel, at.version ?? 1, `${rel} says version ${quote(front.version ?? '')}; it must say ${stem}, its file's name`);
+  if (!front.date || !isDate(front.date)) err(rel, at.date ?? 1, `${rel} needs "date: YYYY-MM-DD", the day it ships`);
+  else if (noteFront?.date && noteFront.date !== front.date) warn(rel, at.date, `${rel} has the date ${front.date}, but its note says ${noteFront.date}: they are one release`);
+  if (!front.summary) err(rel, 1, `${rel} has no summary: add "summary: …", its note's sentence`);
+  const line = (l) => (n.bodyLine ?? 1) + l;
+  const heads = headingsOf(n.body, 2);
+  let last = -1;
+  for (const h of heads) {
+    const at2 = CHANGELOG_SECTIONS.indexOf(h.name);
+    if (at2 < 0) {
+      const meant = ALIASES[h.name];
+      warn(rel, line(h.line), `the heading "## ${h.name}" is not one of ${CHANGELOG_SECTIONS.map((x) => `## ${x}`).join(', ')}${meant ? `; it reads as ## ${meant}: rename it` : ''}`);
+      continue;
+    }
+    if (at2 < last) warn(rel, line(h.line), `"## ${h.name}" comes after "## ${CHANGELOG_SECTIONS[last]}"; the sections go ${CHANGELOG_SECTIONS.join(', ')}`);
+    last = Math.max(last, at2);
+  }
+  // ### headings under ## API are the kinds of change
+  const api = heads.find((h) => h.name === 'API');
+  if (api) {
+    const lines = n.body.split('\n');
+    const next = heads.find((h) => h.line > api.line);
+    const sub = headingsOf(lines.slice(api.line + 1, next ? next.line : lines.length).join('\n'), 3);
+    for (const k of sub) if (!API_KINDS.includes(k.name)) warn(rel, line(api.line + 1 + k.line), `under ## API, "### ${k.name}" is not one of ${API_KINDS.map((x) => `### ${x}`).join(', ')}`);
+  }
+}
+
 /** Checks VERSION and every note. Returns the problems, each with a file and line. */
-export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', notesDir = 'notes', baseVersion } = {}) {
+export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', notesDir = 'notes', baseVersion, changelogDir = 'changelog' } = {}) {
   const errors = [];
   const warnings = [];
   const err = (file, line, message) => errors.push({ file, line, message });
@@ -162,6 +226,28 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
       if (!content.trim()) warn(rel, line, `"## ${h.name}" has nothing in it: leave the section out`);
     });
     named.set(stem, rel);
+  }
+  // the descriptive changelog (changelog/<version>.mkp.md), once a repo has one: each release's, and
+  // the current version's above all
+  const cdir = join(root, changelogDir);
+  if (existsSync(cdir)) {
+    const logs = readdirSync(cdir).filter((f) => f.endsWith('.md') && f !== 'README.md');
+    const have = new Set();
+    for (const f of logs) {
+      const rel = `${changelogDir}/${f}`;
+      const stem = f.replace(/\.mkp\.md$|\.md$/, '');
+      if (!f.endsWith('.mkp.md') || versionProblem(stem)) {
+        warn(rel, 1, `${f} is not named for a version, so it is not a changelog; name it <version>.mkp.md, such as 0.3.0.mkp.md`);
+        continue;
+      }
+      have.add(stem);
+      const noteFile = join(dir, `${stem}.md`);
+      const noteFront = existsSync(noteFile) ? readNote(readFileSync(noteFile, 'utf8')).front : undefined;
+      if (!noteFront) warn(rel, 1, `${rel} has no note beside it: add ${notesDir}/${stem}.md, the short version for the release page`);
+      checkChangelog(rel, readFileSync(join(cdir, f), 'utf8'), stem, noteFront, err, warn);
+    }
+    for (const v of named.keys()) if (!have.has(v) && v !== version) warn(`${changelogDir}/${v}.mkp.md`, 1, `${v} has a note but no changelog: add ${changelogDir}/${v}.mkp.md, the full account of it`);
+    if (version && !have.has(version)) err(`${changelogDir}/${version}.mkp.md`, 1, `there is no changelog for ${version}: add ${changelogDir}/${version}.mkp.md beside its note. Start from:\n\n${changelogTemplate(version)}`);
   }
   if (version && !named.has(version) && !errors.some((e) => e.file === `${notesDir}/${version}.md`)) {
     const near = files.find((f) => f !== `${version}.md` && f.replace(/^v/i, '').replace(/\.(md|markdown)$/, '') === version);
@@ -217,7 +303,7 @@ function main(argv) {
   }
   for (const e of r.errors) console.log(`error   ${e.file}:${e.line}  ${e.message}`);
   for (const w of r.warnings) console.log(`warning ${w.file}:${w.line}  ${w.message}`);
-  if (!r.errors.length) console.log(`release notes: ${r.version} has its note${r.warnings.length ? `, with ${r.warnings.length} warning${r.warnings.length > 1 ? 's' : ''}` : ''}`);
+  if (!r.errors.length) console.log(`release notes: ${r.version} has its note${existsSync(join(process.cwd(), 'changelog')) ? ' and its changelog' : ''}${r.warnings.length ? `, with ${r.warnings.length} warning${r.warnings.length > 1 ? 's' : ''}` : ''}`);
   return r.errors.length ? 1 : 0;
 }
 
