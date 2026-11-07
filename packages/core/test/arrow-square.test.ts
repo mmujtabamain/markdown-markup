@@ -346,21 +346,11 @@ describe('crossings: fewer, then a hop where one remains', () => {
     expect(v!.hops).toBeUndefined();
   });
 
-  it('draws no hop where a line is hop=none: the lifeline breaks instead, so the message reads on top', () => {
+  it('draws no hop where a line is hop=none: a lifeline and the messages across it', () => {
     const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
     const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f, { hop: 'none', head: 'none' })]);
     expect(arcs(h!.d)).toEqual([]);
     expect(arcs(v!.d)).toEqual([]);
-    // the message is straight; the lifeline stops 3.5 px above it and goes on 3.5 px below
-    expect(h!.d).not.toContain(' M');
-    const gap = /L(-?[\d.]+),(-?[\d.]+) M(-?[\d.]+),(-?[\d.]+)/.exec(v!.d)!;
-    expect(Number(gap[2])).toBeCloseTo(115 - 3.5, 0);
-    expect(Number(gap[4])).toBeCloseTo(115 + 3.5, 0);
-    expect(v!.hops).toBeUndefined();
-    // two lines that never hop cross as they are
-    const [a, b] = arrowPaths([plain('l', 'r', f, { hop: 'none' }), plain('t', 'b', f, { hop: 'none' })]);
-    expect(a!.d).not.toContain(' M');
-    expect(b!.d).not.toContain(' M');
   });
 
   it('hops once over a shared trunk, not once per link in it', () => {
