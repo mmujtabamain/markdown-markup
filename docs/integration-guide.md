@@ -1417,6 +1417,9 @@ mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's 
   between members and around headings, writes YAML lists as blocks, and leaves out a record field
   that only holds its default. This release then compiles the result, and nothing is written if it doesn't
   compile.
+- **Packs and their documents go together.** Give a pack to migrate and with `--pack` as you
+  like: it is taken once. If a pack in the run doesn't migrate, the documents in it are left as
+  they are (an error says which pack), so they are never written for a pack that stays as it was.
 - **Nothing changes silently.** Each change is a warning at its line: `mkp.migrate-renamed` (a name
   a release took for itself, renamed in what you wrote, with every use of it),
   `mkp.migrate-changed` (it draws differently now), `mkp.migrate-kept` (you kept the old look),

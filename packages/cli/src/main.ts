@@ -391,15 +391,29 @@ async function migrate(a: Args): Promise<number> {
   }
   // packs first: the documents that use them compile against them as they were, and are checked
   // against them as they will be
+  // a pack given both to migrate and with --pack is given once; each pack is compiled with the other
+  // packs of the run, as they were (one may depend on another)
+  const same = (a: string, b: string): boolean => resolve(a) === resolve(b);
+  const others = opts.packs.filter((x) => !packTargets.some((p) => same(p, x.label)));
   const migratedPacks = new Map<string, Migrated>();
-  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, opts));
-  const sources = [...packTargets.map(packSource), ...opts.packs.filter((x) => !packTargets.some((p) => resolve(p) === resolve(x.label)))];
+  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, { ...opts, packs: [...packTargets.filter((q) => !same(q, p)).map(packSource), ...others] }));
+  const failedPacks = packTargets.filter((p) => migratedPacks.get(resolve(p))!.errors.length);
+  const sources = [...packTargets.map(packSource), ...others];
   Object.assign(opts, { packs: sources, packsAfter: sources.map((s) => (migratedPacks.has(resolve(s.label)) ? packAfter(s, migratedPacks.get(resolve(s.label))!) : s)) });
   targets.unshift(...packTargets);
   if (targets.length > 1 && !a.opts.write && !a.opts.check) throw new Error('several files need --write (or --check)');
   let ok = true;
   let pending = false;
   for (const t of targets) {
+    // a document goes with the packs it is given: while one of them failed, it is left as it is,
+    // rather than written for a pack that stays as it was
+    if (failedPacks.length && !t.endsWith('.json') && !packTargets.includes(t)) {
+      const d = new Diagnostics();
+      d.error('mkp.migrate-failed', `${t} is left as it is: ${failedPacks.join(', ')} didn't migrate in this run, and a document migrates with its packs, so it would be out of step with them. Fix the pack and run again`);
+      report(d);
+      ok = false;
+      continue;
+    }
     const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : migratedPacks.get(resolve(t)) ?? (await migrateDocument(t, opts));
     const d = new Diagnostics();
     for (const w of m.result?.warnings ?? []) d.add(w);

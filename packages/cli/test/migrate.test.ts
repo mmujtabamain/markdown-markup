@@ -306,6 +306,38 @@ describe('a released .mkpack from 0.2.1', () => {
   }, 120000);
 });
 
+describe('a pack given to migrate and with --pack', () => {
+  it('is compiled once by the older release’s core; a document in a run whose pack fails is left as it is', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
+    const run = (argv: string[], cwd: string) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv, ...core], { cwd, encoding: 'utf8', timeout: 120000, env: process.env });
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-twice-'));
+    // DevBench's repro: a pack with no stamp (so written for 0.2.1), given both ways
+    mkdirSync(join(dir, 'tiny'));
+    writeFileSync(join(dir, 'tiny/manifest.mkp'), 'pack tiny@1 "A one-widget pack."\n  requires core@1\n  provides hello\n  unpublished\n');
+    writeFileSync(join(dir, 'tiny/hello.mkp'), 'hello@1 "Says hello."\n  in who text = "world" "who to greet"\n  text "hello"\n  project md = "hello"\n');
+    writeFileSync(join(dir, 'note.mkp.md'), '# A note\n\n```hello\nwho: you\nsummary: s\n```\n');
+    const check = run(['migrate', 'tiny', 'note.mkp.md', '--pack', 'tiny', '--check'], dir);
+    expect(check.stderr).not.toContain('mkp.pack-duplicate');
+    expect(check.stderr).toContain('tiny: 0.2.1 -> 0.2.2');
+    expect(check.status).toBe(1);
+    expect(run(['migrate', 'tiny', 'note.mkp.md', '--pack', join(dir, 'tiny'), '--take', 'all', '--write'], dir).status).toBe(0);
+    expect(readFileSync(join(dir, 'tiny/manifest.mkp'), 'utf8').startsWith(`# mkp ${RELEASE} ir 1`)).toBe(true);
+    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8').startsWith(`---\nmkp: ${RELEASE}`)).toBe(true);
+    // a pack that fails: the document with it isn't written for a pack that stays as it was
+    mkdirSync(join(dir, 'bad'));
+    writeFileSync(join(dir, 'bad/manifest.mkp'), 'pack bad@1 "A pack that doesn\'t compile."\n  requires core@1\n  provides oops\n');
+    writeFileSync(join(dir, 'bad/oops.mkp'), 'oops@1 "Broken."\n  text (nothing_here)\n  project md = "x"\n');
+    const before = '# Another\n\nSome text.\n';
+    writeFileSync(join(dir, 'other.mkp.md'), before);
+    const failed = run(['migrate', 'bad', 'other.mkp.md', '--take', 'all', '--write'], dir);
+    expect(failed.status).toBe(1);
+    expect(failed.stderr).toContain("other.mkp.md is left as it is: bad didn't migrate in this run");
+    expect(readFileSync(join(dir, 'other.mkp.md'), 'utf8')).toBe(before);
+  }, 120000);
+});
+
 describe('a document migrated after its pack', () => {
   it('says the order is the cause when a pack is already newer than the document', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-order-'));
