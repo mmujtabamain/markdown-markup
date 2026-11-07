@@ -346,7 +346,7 @@ side by side (a line that would turn right beside another turns 8 px before it i
 crossing remains, the flatter line hops over the steeper one with a small arc (a level run upwards,
 an upright one to the left); crossings closer than a hop make one wider hop, and there is no hop at a
 join, along a shared trunk, or at a corner or an end; a dashed or dotted line draws its hop unbroken. `hop=none` (a sequence's lifelines, a rule)
-never hops, and nothing hops over it.
+never hops, and nothing hops over it: it breaks for a few pixels where another line crosses it, so that line reads as on top.
 
 ## Types
 

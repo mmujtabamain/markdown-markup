@@ -95,6 +95,8 @@ interface HopArc {
   w: number;
   h: number;
   side: Pt;
+  /** a break in the line instead of an arc: a hop=none line where another crosses it */
+  gap?: boolean;
 }
 
 /** The shaft through these points, rounded where it turns (by `corner`, less on short runs), with the head on the last run, and a hop over each line it crosses (`hops`). */
@@ -126,6 +128,7 @@ function draw(pts: Pt[], headSize: number, corner = CORNER, hops: HopArc[] = [])
         const a: Pt = [pa[0] + u[0] * (h.at - h.w), pa[1] + u[1] * (h.at - h.w)];
         const b: Pt = [pa[0] + u[0] * (h.at + h.w), pa[1] + u[1] * (h.at + h.w)];
         // sweep 1 turns clockwise on screen: over the top of a run going right, round the left of one going up
+        if (h.gap) return ` L${f(a[0])},${f(a[1])} M${f(b[0])},${f(b[1])}`;
         const sweep = u[0] * h.side[1] - u[1] * h.side[0] < 0 ? 1 : 0;
         const arc = `A${f(h.w)},${f(h.h)} 0 0 ${sweep} ${f(b[0])},${f(b[1])}`;
         alone.push(`M${f(a[0])},${f(a[1])} ${arc}`);
@@ -743,6 +746,8 @@ function straightPoints(a: Rect, b: Rect, gap: number): Pt[] | null {
 const CLEAR_RUN = TRACK_GAP;
 /** A hop's radius: about three times the stroke (1.5 px). */
 const HOP = 5;
+/** Half a break's width in a hop=none line where another crosses it. */
+const BREAK = 3.5;
 
 /**
  * The finishing pass over a scope's arrows, on their points before corners are rounded. First, two
@@ -911,10 +916,13 @@ function untangle(arrows: ArrowEnds[], lines: (Pt[] | null)[], headSize: number)
 
   // 2. crossings: a hop on the flatter run
   const found = arrows.map((): { seg: number; at: number }[] => []);
+  // a hop=none line (a lifeline, a rule) never hops; where a line crosses it, it breaks instead, so
+  // the line across reads as on top of it
+  const breaks = arrows.map((): { seg: number; at: number }[] => []);
   for (let i = 0; i < arrows.length; i++) {
-    if (!takes(i)) continue;
+    if (!lines[i]) continue;
     for (let j = i + 1; j < arrows.length; j++) {
-      if (!takes(j)) continue;
+      if (!lines[j] || (!takes(i) && !takes(j))) continue;
       const [A, B] = [lines[i]!, lines[j]!];
       for (let k = 0; k + 1 < A.length; k++) {
         for (let m = 0; m + 1 < B.length; m++) {
@@ -931,14 +939,18 @@ function untangle(arrows: ArrowEnds[], lines: (Pt[] | null)[], headSize: number)
           const [ib, eb] = trims(j, m);
           // a proper crossing: inside both runs, clear of their corners and ends by a hop
           if (ta < ia + HOP || ta > lr - ea - HOP || tb < ib + HOP || tb > ls - eb - HOP) continue;
-          const [si, sj] = [steep(p, p2), steep(q, q2)];
-          if (si < sj - 1e-6 || (Math.abs(si - sj) <= 1e-6 && i > j)) found[i].push({ seg: k, at: ta });
-          else found[j].push({ seg: m, at: tb });
+          if (!takes(i)) breaks[i].push({ seg: k, at: ta });
+          else if (!takes(j)) breaks[j].push({ seg: m, at: tb });
+          else {
+            const [si, sj] = [steep(p, p2), steep(q, q2)];
+            if (si < sj - 1e-6 || (Math.abs(si - sj) <= 1e-6 && i > j)) found[i].push({ seg: k, at: ta });
+            else found[j].push({ seg: m, at: tb });
+          }
         }
       }
     }
   }
-  found.forEach((list, i) => {
+  const place = (list: { seg: number; at: number }[], i: number, gap: boolean): void => {
     const L = lines[i];
     if (!L || !list.length) return;
     for (const seg of [...new Set(list.map((c) => c.seg))]) {
@@ -960,9 +972,12 @@ function untangle(arrows: ArrowEnds[], lines: (Pt[] | null)[], headSize: number)
         const w = (g[g.length - 1] - g[0]) / 2 + HOP;
         const at = (g[0] + g[g.length - 1]) / 2;
         if (at - w < s0 || at + w > len - s1) continue;
-        hops[i].push({ seg, at, w, h: HOP, side: n });
+        // a break is narrower than a hop: the line across and a little clear space either side
+        hops[i].push(gap ? { seg, at, w: w - HOP + BREAK, h: 0, side: n, gap: true } : { seg, at, w, h: HOP, side: n });
       }
     }
-  });
+  };
+  found.forEach((list, i) => place(list, i, false));
+  breaks.forEach((list, i) => place(list, i, true));
   return hops;
 }
