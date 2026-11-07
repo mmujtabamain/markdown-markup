@@ -421,7 +421,7 @@ async function migrate(a: Args): Promise<number> {
       for (const e of m.errors) d.error('mkp.migrate-failed', e);
       ok = false;
     }
-    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; ${a.opts.check ? 'would be rewritten' : 'rewritten'} in canonical form\n`);
+    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; ${m.restampedOnly ? `nothing in it changes, ${a.opts.check ? 'it would be restamped' : 'restamped'}` : `${a.opts.check ? 'would be rewritten' : 'rewritten'} in canonical form`}\n`);
     // a file already written for this release changes only by its stamp: say so, so --check never fails in silence
     for (const p of m.stamped ?? []) {
       const how = p.endsWith('.mkp.md') ? `mkp: ${RELEASE} and ir: 1 in its front matter` : `# mkp ${RELEASE} ir 1 as its first line`;
