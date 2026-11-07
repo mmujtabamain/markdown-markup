@@ -36,6 +36,8 @@ export interface Drawn {
   behind?: boolean;
   /** it turns in a gap too narrow to keep its turn apart from the others' (data-crowded) */
   crowded?: boolean;
+  /** its hops' arcs: a dashed or dotted line draws each unbroken, so the hop always shows */
+  hops?: string[];
 }
 
 /** The arrows drawn in one layer, and the layer's size. */
@@ -377,6 +379,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
           opacity: a.opacity,
           behind: a.layer === 'behind',
           ...(p.crowded ? { crowded: true } : {}),
+          ...(p.hops && a.line && a.line !== 'solid' ? { hops: p.hops } : {}),
         });
         lines.push(polyline(end.d));
       });
@@ -469,6 +472,7 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
           return (
             <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} data-crowded={p.crowded ? '' : undefined} style={fade(p)}>
               <path d={p.d} fill="none" stroke={ink(p)} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
+              {p.hops?.map((h, i) => <path key={`hop${i}`} d={h} fill="none" stroke={ink(p)} strokeWidth={width} data-hop="" />)}
               {p.head ? <polygon points={p.head} fill={ink(p)} /> : null}
               {p.marks.filter((m) => once(m, p)).map((m, i) => (
                 <path key={i} d={m.d} stroke={m.tone ? `var(--mkp-color-${m.tone})` : ink(p)} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink(p) : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" strokeLinecap="round" />

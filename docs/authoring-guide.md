@@ -345,7 +345,7 @@ are ordered so the fewest runs cross, and two runs of different links never sit 
 side by side (a line that would turn right beside another turns 8 px before it instead). Where a
 crossing remains, the flatter line hops over the steeper one with a small arc (a level run upwards,
 an upright one to the left); crossings closer than a hop make one wider hop, and there is no hop at a
-join, along a shared trunk, or at a corner or an end. `hop=none` (a sequence's lifelines, a rule)
+join, along a shared trunk, or at a corner or an end; a dashed or dotted line draws its hop unbroken. `hop=none` (a sequence's lifelines, a rule)
 never hops, and nothing hops over it.
 
 ## Types

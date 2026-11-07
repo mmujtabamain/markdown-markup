@@ -336,6 +336,16 @@ describe('crossings: fewer, then a hop where one remains', () => {
     expect(arcs(v!.d)).toEqual([]);
   });
 
+  it('gives each hop’s arc on its own too, for a dashed line to draw unbroken over its dashes', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(h!.hops).toHaveLength(1);
+    expect(h!.hops![0]).toMatch(/^M[\d.]+,[\d.]+ A5\.0,5\.0 0 0 1 [\d.]+,[\d.]+$/);
+    // the same arc as in the whole path
+    expect(h!.d).toContain(h!.hops![0].replace(/^M([^ ]+) /, 'L$1 '));
+    expect(v!.hops).toBeUndefined();
+  });
+
   it('draws no hop where a line is hop=none: a lifeline and the messages across it', () => {
     const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
     const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f, { hop: 'none', head: 'none' })]);

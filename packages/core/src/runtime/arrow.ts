@@ -21,6 +21,8 @@ export interface ArrowPath {
   marks?: { d: string; fill: 'solid' | 'none' | 'hollow'; tone?: string }[];
   /** a routed arrow that turns in a gap too narrow for its turns to keep TRACK_GAP apart: widen the gap */
   crowded?: boolean;
+  /** each hop's arc on its own (also inside `d`), for a dashed or dotted line to draw unbroken over its dashes */
+  hops?: string[];
 }
 
 /** How an arrow ends at an element: an arrow head, a hollow triangle (is a kind of), a bar (one), a
@@ -111,6 +113,7 @@ function draw(pts: Pt[], headSize: number, corner = CORNER, hops: HopArc[] = [])
   const shaft: Pt[] = [...pts.slice(0, -1), back];
   let d = `M${f(shaft[0][0])},${f(shaft[0][1])}`;
   // the hops along run k: a line to where each starts, then a half-ellipse over to where it ends
+  const alone: string[] = [];
   const arcs = (k: number): string => {
     const [pa, pb] = [shaft[k], shaft[k + 1]];
     const len = dist(pa, pb);
@@ -124,7 +127,9 @@ function draw(pts: Pt[], headSize: number, corner = CORNER, hops: HopArc[] = [])
         const b: Pt = [pa[0] + u[0] * (h.at + h.w), pa[1] + u[1] * (h.at + h.w)];
         // sweep 1 turns clockwise on screen: over the top of a run going right, round the left of one going up
         const sweep = u[0] * h.side[1] - u[1] * h.side[0] < 0 ? 1 : 0;
-        return ` L${f(a[0])},${f(a[1])} A${f(h.w)},${f(h.h)} 0 0 ${sweep} ${f(b[0])},${f(b[1])}`;
+        const arc = `A${f(h.w)},${f(h.h)} 0 0 ${sweep} ${f(b[0])},${f(b[1])}`;
+        alone.push(`M${f(a[0])},${f(a[1])} ${arc}`);
+        return ` L${f(a[0])},${f(a[1])} ${arc}`;
       })
       .join('');
   };
@@ -152,7 +157,7 @@ function draw(pts: Pt[], headSize: number, corner = CORNER, hops: HopArc[] = [])
     }
     left -= lens[i];
   }
-  return { d, head, label };
+  return { d, head, label, ...(alone.length ? { hops: alone } : {}) };
 }
 
 /**
