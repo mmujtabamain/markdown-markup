@@ -1413,7 +1413,9 @@ mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's 
   (its `mkp.js`, downloaded once from the release into `~/.cache/mkp/<version>/` or `MKP_CACHE`,
   and checked against the release's `SHA256SUMS`; or given with `--core`). Then the steps run, and
   this release's printer writes it back **in canonical form** (layout normalised, comments kept)
-  with its new stamp. Canonical form puts each member and expression on one line, puts a blank line
+  with its new stamp. A file the steps (and a pack's moves) change nothing in keeps its own text,
+  with only its stamp new ("nothing in it changes, restamped"). Canonical form puts each member and
+  expression on one line, puts a blank line
   between members and around headings, writes YAML lists as blocks, and leaves out a record field
   that only holds its default. This release then compiles the result, and nothing is written if it doesn't
   compile.

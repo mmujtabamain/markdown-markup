@@ -43,6 +43,8 @@ export interface Migrated {
   errors: string[];
   /** files already written for this release that only lack their stamp: the one change made to them */
   stamped?: string[];
+  /** the steps changed nothing in its files: each keeps its own text, with only its stamp new */
+  restampedOnly?: boolean;
 }
 
 export interface SourceOptions {
@@ -139,6 +141,24 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const after = compile({ packs: opts.packsAfter ?? opts.packs ?? [] });
   const moves = after.moves.filter((m) => usesOf(roots, m).length);
   if (from === RELEASE && !moves.length) return current(out, [[file, text], ...(beside ? [[beside.file, beside.text] as [string, string]] : [])]);
+  // the files as this release prints them before the steps run: a file the steps and moves leave
+  // printing the same keeps its own text, and only its stamp changes
+  const printed = (): Map<string, string> => {
+    const env = (own?.env ?? c.prog.typeEnv('$doc')) as never;
+    const defs = (own ? Object.fromEntries(own.defs) : bundle.defs) as never;
+    const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
+    const ownText = own ? own.items.map((items) => printFile(items as never, { defs, env })).join('\n') : undefined;
+    if (!beside) return new Map([[file, new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef, ownText)]]);
+    const m = new Map([[file, new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef)]]);
+    if (ownText !== undefined) m.set(beside.file, ownText);
+    return m;
+  };
+  let asItWas: Map<string, string> | null = null;
+  try {
+    asItWas = printed();
+  } catch {
+    // an older release's IR this printer can't print as it is: every file is printed afresh
+  }
   const keep = await answers(roots, from, opts, moves.map((m) => ({ id: moveNames(m).to, what: `uses of ${moveNames(m).from} move to ${moveNames(m).to}`, how: m.keep.map((k) => `${k.name}=${JSON.stringify((k.value as { lit?: unknown; text?: unknown; tok?: unknown }).lit ?? (k.value as { text?: unknown }).text ?? (k.value as { tok?: unknown }).tok)}`).join(' ') || null, places: usesOf(roots, m).length, step: m.pack })));
   out.result = migrateRoots(roots, from, { keep });
   for (const m of moves) {
@@ -161,16 +181,14 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   // what is said about the packs it uses belongs to migrating them: here, only its own files
   const mine = new Set([file, beside?.file]);
   out.result.warnings = out.result.warnings.filter((w) => !w.pos || mine.has(w.pos.file));
-  const env = (own?.env ?? c.prog.typeEnv('$doc')) as never;
-  const defs = (own ? Object.fromEntries(own.defs) : bundle.defs) as never;
-  const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
-  const ownText = own ? own.items.map((items) => printFile(items as never, { defs, env })).join('\n') : undefined;
-  if (beside) {
-    out.files.set(file, writeStamp(new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef), file, stampNow));
-    if (ownText !== undefined) out.files.set(beside.file, writeStamp(ownText, beside.file, stampNow));
-  } else out.files.set(file, writeStamp(new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef, ownText), file, stampNow));
-  out.errors.push(...recheck(out.files, opts.packsAfter ?? opts.packs ?? []));
   const before = new Map([[file, text], ...(beside ? [[beside.file, beside.text] as const] : [])]);
+  out.restampedOnly = true;
+  for (const [f, t] of printed()) {
+    const same = asItWas?.get(f) === t;
+    if (!same) out.restampedOnly = false;
+    out.files.set(f, writeStamp(same ? before.get(f)! : t, f, stampNow));
+  }
+  out.errors.push(...recheck(out.files, opts.packsAfter ?? opts.packs ?? []));
   out.changed = [...out.files].filter(([p, t]) => before.get(p) !== t).map(([p]) => p);
   return out;
 }
@@ -239,10 +257,25 @@ export async function migratePack(folder: string, opts: SourceOptions = {}): Pro
   const itemsOf = new Map<string, unknown[]>();
   for (const f of pk.files) if (f.file.endsWith('.mkp')) itemsOf.set(f.file, core.fileItems(f, c.defs, pk.name, (n) => c.tokens.find((t) => t.name === n && t.pack === pk.name)));
   const roots = [[...itemsOf.values()], [...c.defs.values()]];
-  out.result = migrateRoots(roots, from, { keep: await answers(roots, from, opts) });
   const env = c.prog.typeEnv(pk.name) as never;
-  const defs = Object.fromEntries(c.defs) as never;
-  for (const [file, items] of itemsOf) out.files.set(file, writeStamp(printFile(items as never, { defs, env }), file, stampNow));
+  const print = (items: unknown[]): string => printFile(items as never, { defs: Object.fromEntries(c.defs) as never, env });
+  // each file as this release prints it before the steps run: one they leave printing the same keeps its own text
+  const asItWas = new Map<string, string>();
+  for (const [file, items] of itemsOf) {
+    try {
+      asItWas.set(file, print(items));
+    } catch {
+      // printed afresh below
+    }
+  }
+  out.result = migrateRoots(roots, from, { keep: await answers(roots, from, opts) });
+  out.restampedOnly = true;
+  for (const [file, items] of itemsOf) {
+    const t = print(items);
+    const same = asItWas.get(file) === t;
+    if (!same) out.restampedOnly = false;
+    out.files.set(file, writeStamp(same ? dec.decode(files.get(file.slice(label.length + 1))!) : t, file, stampNow));
+  }
   out.files.set(`${label}/manifest.mkp`, writeStamp(dec.decode(manifest), 'manifest.mkp', stampNow));
   // fixtures set inputs (and expect values) by name: they follow the renames
   for (const [path, bytes] of files) {

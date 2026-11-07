@@ -306,6 +306,31 @@ describe('a released .mkpack from 0.2.1', () => {
   }, 120000);
 });
 
+describe('a file the steps change nothing in', () => {
+  it('keeps its own text, with only its stamp new, and says so', async () => {
+    // DevBench's 0.2.3 pack: from 0.2.3 nothing in a source changes, so its author's form stays
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-same-'));
+    const p = join(dir, 'p');
+    mkdirSync(p);
+    const manifest = '# mkp 0.2.3 ir 1\npack p@1 "P."\n  requires core@1\n  provides w\n';
+    const w = '# mkp 0.2.3 ir 1\nw@1 "W."\n  in on bool = false\n  canvas x=0..10 y=0..10 label="c"\n    layer clip=[(0, 0), (10, 10)]\n      circle (5, 5) 3 fill=accent\n  text (if(on, "a", "b"))\n  project md = "w"\n';
+    writeFileSync(join(p, 'manifest.mkp'), manifest);
+    writeFileSync(join(p, 'w.mkp'), w);
+    writeFileSync(join(p, 'w.fixture.json'), JSON.stringify({ widget: 'w@1', cases: { one: { props: {}, summary: 'One.' } } }));
+    const note = '---\nmkp: 0.2.3\nir: 1\n---\n# A note\n\n```w\non: true\nsummary: s\n```\n\nSome *prose*,\nwrapped.\n';
+    writeFileSync(join(dir, 'note.mkp.md'), note);
+    const core = process.env.MKP_CORE_0_2_3 ? { core: process.env.MKP_CORE_0_2_3 } : {};
+    const pm = await migratePack(p, core);
+    expect(pm.errors).toEqual([]);
+    expect(pm.restampedOnly).toBe(true);
+    expect(pm.files.get(`${relative(process.cwd(), p)}/w.mkp`) ?? [...pm.files].find(([k]) => k.endsWith('/w.mkp'))![1]).toBe(w.replace('0.2.3', RELEASE));
+    const dm = await migrateDocument(relative(process.cwd(), join(dir, 'note.mkp.md')), { packs: [folder(p)], ...core });
+    expect(dm.errors).toEqual([]);
+    expect(dm.restampedOnly).toBe(true);
+    expect([...dm.files.values()][0]).toBe(note.replace('mkp: 0.2.3', `mkp: ${RELEASE}`));
+  }, 120000);
+});
+
 describe('a pack given to migrate and with --pack', () => {
   it('is compiled once by the older release’s core; a document in a run whose pack fails is left as it is', async () => {
     const { execFileSync, spawnSync } = await import('node:child_process');
