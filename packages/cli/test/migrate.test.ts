@@ -158,7 +158,6 @@ describe('a stored 0.2.1 bundle', () => {
 describe('mkp migrate, the command', () => {
   it('migrates a pack and the documents using it in one run; --check fails until it is done', async () => {
     const { execFileSync, spawnSync } = await import('node:child_process');
-    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
     const main = async (argv: string[]): Promise<number> => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env }).status ?? -1;
     const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-cli-'));
     const p = join(dir, 'looks');
@@ -240,7 +239,6 @@ describe('a pack’s move to another widget', () => {
     const doc = join(dir, 'today.mkp.md');
     writeFileSync(doc, `---\nmkp: ${RELEASE}\nir: 1\n---\n# Today\n\n\`\`\`statuslist\nitems:\n  - {name: Tea, state: done, icon: cup}\n  - {name: Post, state: late}\nsummary: s\n\`\`\`\n`);
     const { execFileSync, spawnSync } = await import('node:child_process');
-    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
     const main = (argv: string[]): number => {
       const r = spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env });
       if (r.status) console.log(r.stdout, r.stderr);
@@ -261,7 +259,6 @@ describe('a pack’s move to another widget', () => {
 
   it('says what --check would change when a pack file only lacks its stamp, and says when everything is up to date', async () => {
     const { execFileSync, spawnSync } = await import('node:child_process');
-    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
     const run = (argv: string[]) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env });
     const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-stamp-'));
     const p = join(dir, 'looks');
@@ -294,7 +291,6 @@ describe('a released .mkpack from 0.2.1', () => {
       ['badge.mkp', enc.encode('badge@1 "A word."\n  in word text\n  in theme text = "x"\n  text "\\val{word} \\val{theme}"\n  project md = word\n')],
       ['badge.fixture.json', enc.encode(JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a', theme: 'y' }, summary: 'One.' } } }))],
     ])));
-    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
     const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
     const r = spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), 'migrate', relative(root, zip), '--write', '--take', 'all', ...core], { cwd: root, encoding: 'utf8', env: process.env, timeout: 120000 });
     expect(r.status, r.stderr).toBe(0);
@@ -334,7 +330,6 @@ describe('a file the steps change nothing in', () => {
 describe('a pack given to migrate and with --pack', () => {
   it('is compiled once by the older release’s core; a document in a run whose pack fails is left as it is', async () => {
     const { execFileSync, spawnSync } = await import('node:child_process');
-    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
     const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
     const run = (argv: string[], cwd: string) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv, ...core], { cwd, encoding: 'utf8', timeout: 120000, env: process.env });
     const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-twice-'));

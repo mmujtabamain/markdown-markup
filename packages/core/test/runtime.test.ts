@@ -160,3 +160,30 @@ describe('runtime: a pixels layer without a GPU', () => {
     expect(redAt(px.fallback!, 95, 0)).toBeGreaterThan(250);
   });
 });
+
+describe('a pixels layer, drawn again only when what it reads changes', () => {
+  it('keeps the same shape (and never recomputes its image) for a var it does not read, and recomputes for one it does', async () => {
+    const { compile } = await import('../src/build');
+    const { Runtime } = await import('../src/runtime/runtime');
+    const { walk } = await import('../src/runtime/view');
+    const src = '```mkp\nheat "A heat map with a slider."\n  requires gfx@1\n  k = slider 1..4 step=1 = 1 "how many waves"\n  var on bool = false\n  column\n    canvas x=-3..3 y=-3..3 size=s label="heights"\n      layer\n        pixels (hsl(0.6 - 0.3 sin(k x), 0.7, 0.5)) res=32\n    text (if(on, "on", "off"))\n    press label="toggle" id=t\n      text "Toggle"\n      @click set on=(not on)\n  project md = "heat"\n```\n\n```heat\nsummary: s\n```\n';
+    const c = compile({ packs: [] });
+    const b = c.document(src, 'doc.mkp.md')!;
+    expect(c.diags.errors).toEqual([]);
+    // no gfx@1: the image is computed on the CPU, the costly path
+    const rt = new Runtime(b, { capabilities: ['core@1'] });
+    const pixels = () => {
+      let s: unknown;
+      walk(rt.view(), (n) => n.layers?.forEach((l) => l.shapes.forEach((x) => x.t === 'pixels' && (s = x))));
+      return s as { fallback?: string };
+    };
+    const first = pixels();
+    expect(first.fallback).toMatch(/^data:image\/png/);
+    expect(rt.press('t')).toBe(true);
+    expect(pixels()).toBe(first);
+    rt.set({ k: 3 });
+    expect(pixels()).not.toBe(first);
+    expect(pixels().fallback).not.toBe(first.fallback);
+  });
+});
+

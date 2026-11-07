@@ -142,6 +142,10 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
   const reducedMotion = props.reducedMotion ?? prefers;
   // the web provides gfx@1 (WebGL for pixels, projected polygons for mesh)
   const rt = useMemo(() => props.runtime ?? new Runtime(props.bundle, { capabilities: ['core@1', 'gfx@1'], ...props.options, maths: props.maths, reducedMotion }), [props.bundle, props.runtime]); // eslint-disable-line react-hooks/exhaustive-deps
+  // an engine that arrives later is given to the runtime as it is: the state stays, formulas fill in
+  useEffect(() => {
+    if (!props.runtime && props.maths) rt.setMaths(props.maths);
+  }, [rt, props.maths, props.runtime]);
   const tree = useSyncExternalStore(
     (f) => rt.subscribe(f),
     () => rt.view(),

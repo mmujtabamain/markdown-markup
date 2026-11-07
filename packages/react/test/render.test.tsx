@@ -4,9 +4,9 @@
 // control rows, the reader's width and the stylesheet.
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { compile, formatDiagnostic, Runtime, type IRBundle } from '@mkp/core';
+import { compile, formatDiagnostic, Runtime, walkView as walk, type IRBundle, type VNode } from '@mkp/core';
 import { memo } from 'react';
-import { BASE_CSS, hostIcon, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
+import { BASE_CSS, Canvas, hostIcon, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
 
@@ -541,6 +541,40 @@ describe('what a host styles and traces', () => {
     expect(one(container, '[data-mkp-id=d] .mkp-icon').getAttribute('data-name')).toBe('more');
     expect(one(container, '[data-mkp-id=d] .mkp-icon').textContent).toBe('∨');
     expect(one(container, '.mkp-icon[data-name=less]').textContent).toBe('∧');
+  });
+  it('draws a canvas again only when what it draws changed, not for a var its drawing does not read', () => {
+    const b = doc(['var on bool = false', 'column', '  canvas x=0..10 y=0..10 size=s label="dots"', '    layer', '      circle (5, 5) 2', '  text (if(on, "on", "off"))', '  press label="toggle" id=t', '    text "Toggle"', '    @click set on=(not on)']);
+    const rt = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const canvasOf = (): VNode => {
+      let c: VNode | undefined;
+      walk(rt.view(), (n) => void (n.t === 'canvas' && (c = n)));
+      return c!;
+    };
+    const before = canvasOf();
+    rt.press('t');
+    const after = canvasOf();
+    // a new view, an equal canvas: the renderer's comparison keeps it as it was
+    const same = (Canvas as unknown as { compare: (a: { n: VNode }, b: { n: VNode }) => boolean }).compare;
+    expect(after).not.toBe(before);
+    expect(same({ n: before }, { n: after })).toBe(true);
+    expect(same({ n: before }, { n: { ...after, layers: [] } })).toBe(false);
+  });
+  it('takes a maths engine that arrives after the document: the waiting formula fills in, and the state stays', () => {
+    const b = doc(['var n int = 2', 'column', '  text "$n = \\val{n}$"', '  text "plain"', '  press label="up" id=up', '    text "Up"', '    @click set n=(n + 1)']);
+    const fake = { render: (tex: string) => ({ svg: `<svg data-fake="${tex}"></svg>`, w: 1, h: 1, va: 0 }), speech: (tex: string) => `said ${tex}` };
+    const { container, rerender } = render(<MkpDocument bundle={b} reducedMotion />);
+    const math = () => container.querySelector<HTMLElement>('.mkp-math')!;
+    expect(math().hasAttribute('data-pending')).toBe(true);
+    expect(math().textContent).toBe('n = 2');
+    fireEvent.click(one(container, '[data-mkp-id=up]'));
+    expect(math().textContent).toBe('n = 3');
+    const plain = [...container.querySelectorAll('p, div')].find((e) => e.textContent === 'plain');
+    rerender(<MkpDocument bundle={b} reducedMotion maths={fake} />);
+    expect(math().hasAttribute('data-pending')).toBe(false);
+    expect(math().getAttribute('role')).toBe('img');
+    expect(math().querySelector('svg')!.getAttribute('data-fake')).toBe('n = 3');
+    // the rest is the same elements, not drawn again
+    expect([...container.querySelectorAll('p, div')].find((e) => e.textContent === 'plain')).toBe(plain);
   });
   it('writes only the document’s tokens with styles="external": the rest is mkpCss(), loaded once by the page', () => {
     const b = doc(['text "hi"']);

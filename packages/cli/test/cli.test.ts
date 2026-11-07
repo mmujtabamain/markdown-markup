@@ -12,10 +12,6 @@ const ex = (name: string) => join(root, 'examples', name);
 const units = ['--pack', join(ex('29-a-pack'), 'pack')];
 const run = (args: string[], cwd = root, input?: string) => spawnSync(process.execPath, [cli, ...args], { cwd, encoding: 'utf8', timeout: 120000, input });
 
-beforeAll(() => {
-  execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
-});
-
 describe('mkp CLI', () => {
   it('index prints one line per widget', () => {
     const r = run(['index', ...units]);

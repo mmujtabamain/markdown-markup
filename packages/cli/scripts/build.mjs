@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, '..');
-const dist = join(pkg, 'dist');
+// MKP_CLI_DIST: another folder for it (scripts/dist.mjs builds a release's CLI there, so the tests'
+// own build in dist/ is never rewritten while a test is running it)
+const dist = process.env.MKP_CLI_DIST ? resolve(process.env.MKP_CLI_DIST) : join(pkg, 'dist');
 mkdirSync(dist, { recursive: true });
 const t0 = Date.now();
 const page = resolve(pkg, '../page');

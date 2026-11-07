@@ -2,23 +2,27 @@
 // circle's px), labels and placed elements as HTML over the SVG, handles with arrow-key
 // alternatives (WCAG 2.5.7), and with gfx@1: pixels through WebGL and a 3D mesh with a camera.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { color, size as sizeTok } from './style';
 import { Kids, Runs, useCtx } from './nodes';
 
 const SIZES: Record<string, number> = { s: 160, m: 320, l: 480 };
 
-/** The width it has: its parent's, up to `max`. */
+/** The width it has: its parent's, up to `max`. Read before the first paint (a layout effect), so a
+ *  fill canvas is never drawn at its largest first; the observer follows later changes. */
 function useWidth(ref: { current: HTMLElement | null }, max: number): number {
   const [w, setW] = useState(max);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current?.parentElement;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
+    if (!el) return;
+    const fit = (): void => {
       const avail = el.clientWidth || max;
       setW(Math.max(80, Math.min(max, avail)));
-    });
+    };
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, [ref, max]);
@@ -28,9 +32,12 @@ function useWidth(ref: { current: HTMLElement | null }, max: number): number {
 /** A fixed height in a size token, as drawn (a provider may give the token its own value). */
 function useHeight(ref: { current: HTMLElement | null }, token: string | undefined): number | undefined {
   const [h, setH] = useState<number | undefined>(token ? SIZES[token] ?? 160 : undefined);
-  useEffect(() => {
+  // as the width: measured before the first paint, then followed
+  useLayoutEffect(() => {
     const el = ref.current;
-    if (!token || !el || typeof ResizeObserver === 'undefined') return;
+    if (!token || !el) return;
+    if (el.clientHeight) setH(el.clientHeight);
+    if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => el.clientHeight && setH(el.clientHeight));
     ro.observe(el);
     return () => ro.disconnect();
@@ -38,7 +45,22 @@ function useHeight(ref: { current: HTMLElement | null }, token: string | undefin
   return token ? h : undefined;
 }
 
-export function Canvas({ n }: { n: VNode }): ReactNode {
+/** A node as text, once per node object: what two canvases are compared by. */
+const asText = new WeakMap<VNode, string>();
+const textOf = (n: VNode): string => {
+  let t = asText.get(n);
+  if (t === undefined) asText.set(n, (t = JSON.stringify(n)));
+  return t;
+};
+
+/**
+ * A canvas drawn again only when what it draws changed: every change in a widget makes a new view,
+ * but a hover elsewhere or a var its drawing doesn't read gives an equal canvas, and its thousands of
+ * points (and a pixels layer) are left as they are.
+ */
+export const Canvas = memo(CanvasView, (a, b) => a.n === b.n || textOf(a.n) === textOf(b.n));
+
+function CanvasView({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
   // one page may draw a document twice: its layers' clip rectangles need ids of their own
   const uid = useId();
