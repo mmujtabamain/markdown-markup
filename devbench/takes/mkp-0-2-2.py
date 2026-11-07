@@ -1,4 +1,4 @@
-"""MKP 0.3: pointing inside widgets, arrows that meet what they join, and the layout fixes.
+"""MKP 0.2.2: pointing inside widgets, arrows that meet what they join, and the layout fixes.
 
 Recorded with: devbench video record mkp-0-3
 
@@ -8,7 +8,7 @@ run before each head, and a badge placed by self=start in a stack. (The playgrou
 shadcn provider, so the neutral look's new switch thumb is not in it.)
 """
 
-TITLE = "MKP 0.3: pointing inside widgets, arrows that meet what they join"
+TITLE = "MKP 0.2.2: pointing inside widgets, arrows that meet what they join"
 
 DEMO = "/examples/#e=ex:04-hello&src=nVbBbuM2EP2VgXuolHUUJ9491K0W3R72UhRYtAX2EAUILVEWI4oUSCq2N_C_95GSbDkO0HaDWKbImcfhzJtHv8z4jjWt5PZm8f664lLqm0LnSVO3SVPMVrMf6GvF3I-WFN-SUPTH719okSwzlanHx0eYZcq2XBWUzb5ooRwx_JOVIuekS3IVp1bwn6k13FrSipPTmMlrEi7JZpkijyocbyxJYV1keK5NMSC8SLbmckWO79ycnpns-IpU1xxi7_jMDBDJ75rS9e045dF5cTbttGMSb7Zrooa1UdhvTpbSj2STgBsHyFLRmpfa8KheeYQ4bDfxLIV03ESGqQ2PFnOSXPVoMV3TbTwn4TEF_UL18cUv34uHV_sAIXIB_rhJK-iG7gB054duMNzyYjOJJ2Sp9bmO4XLvg1jED_SOfHjHuJYLbP_kt49ybSO_WTSeLIZxH1Q9BEVXsL3xTniGZMVwt0J9j-PxhFU3CTvXUhsELMqopjQlxJjfzo-vGOZ3-Cx7b6W3vS3q-zEY9_tq9ZAETsxBOKVdJdQmmwWXvNKWq95roMDUs5868wYZ99wN7gY7blibSmJSbFSac4VC-xVAM_XMLLiULD4kiX-eja34xlPQ1yOn2Sz0Q4ir9yas7Eco_8dZXlHteb9IkugVg6jm-7Q-GRO1zFUjCWLKJY5ZpM4g-SCjTKM-S8hhjbMqPELeUQayzugaoXWmZOimrShcld4NgR4LGV6nGxL9Gg5Pljs02Hk0WJScPfNxsW-wyWoufXf71T7lozsI0DUq5NiOLr6vR-VAxiAeK7q6yjJw6wUUOGA8e20bQE9mfdmPlq3RTzx31BRgwhNwL_o9m13jAybb_uSxJ0MGQfM8gKYN0haqmKnguaL7UYn-RGaOSvTTYnGYH0Xqs9bFcWl5tvS3QcbkcfH2w-LwAOHsmoaZ_Yr-GhhDIBnzekl73XnWUTtoajINLaiuM5wj8E8GxLXQWehuw5H0rR9Bdvfh9HMUHexhngpMbCpHphsljvgzN3uqOCsGJZ6UaCDExojCT9v0_rY0cxofD8GoGWszOLasQB8MrJMC_WVYITqb5gySLoq0JdsylS5BD1metdikwi0zWDgV_r-CswskycvvwFlf4DSiKCT__0j5BZLxNRiBmK8dlUY3SIzTKYMIdY6nhd6qty3W_2qRTywQp1HcpF7pLnoD1KE-06TBA1DGEyqvhCwwGQhxYpwn24Svn8hPXHJyLZwNwGsGteovdjtEMfckBBkhfQMlDced7KquWc99Kne4EQs_2A9sHK73tdb-6i6ZtOEUlolivBt862p0bvguy1dSvntLy61jkKdeCkvh3igp3CBGLm2Qx2Ja0otq-l7NXWfepMYO3PCnSXe2F2okZURr8d73AMIx7gJ4CYHqb5WGwdKhgCcV555D6VrLIaD-p1UtFNjYJxjIqDOkF-kbb6Wv4vqzuFDTMEu9kvrEHk4WEyGHzEe4bPEdv8Gj31DkV3zxRJjqW38Kf1nbkTWzwz8"
 
@@ -39,7 +39,7 @@ def take(t):
     t.goto(DEMO, settle=4.0)
     t.page.wait_for_selector(".mkp-root [data-pointed]", timeout=30000)
     t.mark_ready()
-    t.say("MKP 0.3, in the playground: a document that shows what changed.", 3.2)
+    t.say("MKP 0.2.2, in the playground: a document that shows what changed.", 3.2)
 
     t.beat(".mkp-root .mkp-canvas", "Shapes inside a widget can now be pointed at: each slice has @enter, @leave and @click.", 3.6)
     hover_shape(t, 0)
