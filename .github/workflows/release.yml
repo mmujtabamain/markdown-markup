@@ -58,6 +58,22 @@ jobs:
           else
             echo "new=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: A published release says what its note says now
+        # a note corrected after its release (or a changelog link added) reaches the release page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release-body.mjs --write-dir /tmp/bodies
+          for f in /tmp/bodies/*.md; do
+            v="$(basename "$f" .md)"
+            gh release view "v$v" > /dev/null 2>&1 || continue
+            tail -n +2 "$f" > /tmp/want.md
+            gh release view "v$v" --json body -q .body > /tmp/have.md
+            if ! diff -q <(sed -e 's/[[:space:]]*$//' /tmp/want.md) <(sed -e 's/[[:space:]]*$//' /tmp/have.md) > /dev/null; then
+              gh release edit "v$v" --title "$(head -n 1 "$f")" --notes-file /tmp/want.md
+              echo "Updated the text of [v$v](${{ github.server_url }}/${{ github.repository }}/releases/tag/v$v) from its note" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - if: steps.v.outputs.new == 'true'
         run: pnpm install --frozen-lockfile
       - name: Types, tests (the release files' own tests among them), conformance, neutrality
