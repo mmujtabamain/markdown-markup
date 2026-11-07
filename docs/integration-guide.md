@@ -1378,13 +1378,16 @@ Every bundle, lock and source says which release wrote it: `"mkp": "0.2.2"` besi
 bundle and a lock, `mkp: 0.2.2` and `ir: 1` in a document's front matter, and a first line
 `# mkp 0.2.2 ir 1` in a `.mkp` file (a pack's files, its manifest, a document's own `.mkp`). The
 stamp is no comment of what follows and not part of a pack's digest, so restamping never trips the
-lock. A file without one was written for 0.2.1. `mkp fmt` writes it.
+lock. A file without one was written for 0.2.1. `mkp fmt` writes it. Every `.mkp` file of a pack
+carries its own stamp, not only `manifest.mkp`; `mkp migrate` adds a missing one, and says so
+(`mkp.migrate-stamp`), so `--check` never fails without saying why. A tree that was never stamped
+but is written for this release takes `--from <this release> --write` once.
 
 Each release ships one step that brings the previous release's IR up to date, and `mkp migrate`
 runs every step from a file's release to this one:
 
 ```sh
-mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything is written for an older release
+mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything would change, each change said; "up to date" otherwise
 mkp migrate lib/ notes/ --write                  # packs first, then the documents that use them
 mkp migrate notes/ --keep zoom-minscale --write  # keep an old look where it can be kept (--keep all)
 mkp migrate notes/ --take all --write            # take every new behaviour, without asking
@@ -1397,12 +1400,15 @@ mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's 
   (its `mkp.js`, downloaded once from the release into `~/.cache/mkp/<version>/` or `MKP_CACHE`,
   and checked against the release's `SHA256SUMS`; or given with `--core`). Then the steps run, and
   this release's printer writes it back **in canonical form** (layout normalised, comments kept)
-  with its new stamp. This release then compiles the result, and nothing is written if it doesn't
+  with its new stamp. Canonical form puts each member and expression on one line, puts a blank line
+  between members and around headings, writes YAML lists as blocks, and leaves out a record field
+  that only holds its default. This release then compiles the result, and nothing is written if it doesn't
   compile.
 - **Nothing changes silently.** Each change is a warning at its line: `mkp.migrate-renamed` (a name
   a release took for itself, renamed in what you wrote, with every use of it),
   `mkp.migrate-changed` (it draws differently now), `mkp.migrate-kept` (you kept the old look),
-  `mkp.migrate-removed`, and for packs `mkp.migrate-moved`.
+  `mkp.migrate-removed`, for packs `mkp.migrate-moved`, and `mkp.migrate-stamp` for a file whose
+  only change is its stamp.
 - **The old look, where it can be kept, is yours to choose.** On a terminal it asks, one change at
   a time; `--keep id,…`, `--keep all` and `--take all` answer for CI. A kept look is written into
   the source (`zoom minscale=0`), where it can be seen and later removed. Where it can't be kept,

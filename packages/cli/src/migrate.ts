@@ -41,6 +41,8 @@ export interface Migrated {
   result: MigrateResult | null;
   /** problems that stop it: nothing is written */
   errors: string[];
+  /** files already written for this release that only lack their stamp: the one change made to them */
+  stamped?: string[];
 }
 
 export interface SourceOptions {
@@ -68,6 +70,7 @@ function current(out: Migrated, files: [string, string][]): Migrated {
     if (readStamp(t, p)) continue;
     out.files.set(p, writeStamp(t, p, stampNow));
     out.changed.push(p);
+    (out.stamped ??= []).push(p);
   }
   return out;
 }

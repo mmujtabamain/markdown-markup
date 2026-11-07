@@ -53,6 +53,7 @@ import {
   writeZip,
   checkMoves,
   readZip,
+  RELEASE,
   type Choice,
   type Compiled,
   type IRLock,
@@ -403,7 +404,13 @@ async function migrate(a: Args): Promise<number> {
       for (const e of m.errors) d.error('mkp.migrate-failed', e);
       ok = false;
     }
-    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; rewritten in canonical form\n`);
+    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; ${a.opts.check ? 'would be rewritten' : 'rewritten'} in canonical form\n`);
+    // a file already written for this release changes only by its stamp: say so, so --check never fails in silence
+    for (const p of m.stamped ?? []) {
+      const how = p.endsWith('.mkp.md') ? `mkp: ${RELEASE} and ir: 1 in its front matter` : `# mkp ${RELEASE} ir 1 as its first line`;
+      d.warn('mkp.migrate-stamp', `${p} has no stamp of its own; the file that sets its release says ${RELEASE}, so the only change ${a.opts.check ? 'would be' : 'is'} its stamp: ${how}`, { file: p, line: 1, col: 1 });
+    }
+    if (!m.errors.length && !m.changed.length && !jsonDiagnostics) process.stderr.write(`${t}: up to date (${RELEASE})\n`);
     report(d);
     if (m.errors.length) continue;
     if (m.changed.length) pending = true;

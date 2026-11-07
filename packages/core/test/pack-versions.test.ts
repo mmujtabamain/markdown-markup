@@ -133,6 +133,24 @@ describe('migrate to another widget, into record lists, mapping values', () => {
     expect(checkMoves(c, c.moves)).toEqual([]);
   });
 
+  it('leaves a fixture case meant to fail out of the proof: it has nothing to move', () => {
+    const withBad = { widget: 'statuslist@1', cases: { ...listFixture.cases, broken: { props: { items: [{ name: 'X', state: 'broken' }] }, expect: { errors: ['mkp.enum'] } } } };
+    const p = packOf('board', 'pack board@1 "Boards."\n  requires core@1\n  provides statuslist rows\n', { 'list.mkp': LIST + '\n' + ROWS + '\n' + TO_ROWS, 'statuslist.fixture.json': withBad });
+    const c = compile({ packs: [p] });
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    expect(checkMoves(c, c.moves)).toEqual([]);
+  });
+
+  it('writes a moved use’s items as the author would: no field that only holds its default', () => {
+    const c = compile({ packs: [board()] });
+    const b = c.document(listDoc, 'today.mkp.md')!;
+    applyMove([b], c.moves[0], false, c.defs.get('board:rows@1')!);
+    const text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body);
+    // note: "" is rows@1's default, and Bins' state (todo) maps to muted, its tone's default
+    expect(text).toContain('```rows\nrows:\n  - title: Tea\n    tone: ok\n  - title: Post\n    tone: bad\n  - title: Bins\nsummary: s\n```');
+    expect(text).not.toContain('note');
+  });
+
   it('refuses a field with nowhere to go, a value with nowhere to go, and a path that isn’t there', () => {
     const msgs = (move: string) => compile({ packs: [board(move)] }).diags.errors.map((d) => d.message);
     const noIcon = msgs(TO_ROWS.replace('  drop items.icon "rows show no icon"\n', ''));

@@ -258,6 +258,28 @@ describe('a pack’s move to another widget', () => {
     expect(readFileSync(doc, 'utf8')).toContain('```rows\n');
     expect(main(['migrate', doc, '--pack', p, '--check'])).toBe(0);
   }, 120000);
+
+  it('says what --check would change when a pack file only lacks its stamp, and says when everything is up to date', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const run = (argv: string[]) => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env });
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-stamp-'));
+    const p = join(dir, 'looks');
+    mkdirSync(p);
+    writeFileSync(join(p, 'manifest.mkp'), `# mkp ${RELEASE} ir 1\npack looks@1 "Looks."\n  requires core@1\n  provides badge\n`);
+    writeFileSync(join(p, 'badge.mkp'), 'badge@1 "A word."\n  in word text\n  text word\n  project md = word\n');
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a' }, summary: 'One.' } } }));
+    const check = run(['migrate', p, '--check']);
+    expect(check.status).toBe(1);
+    expect(check.stderr).toContain(`warning mkp.migrate-stamp: ${join(relative(root, p), 'badge.mkp')} has no stamp of its own; the file that sets its release says ${RELEASE}, so the only change would be its stamp: # mkp ${RELEASE} ir 1 as its first line`);
+    const json = run(['migrate', p, '--check', '--format', 'json']);
+    expect(json.stderr.split('\n').filter(Boolean).map((l) => JSON.parse(l).code)).toEqual(['mkp.migrate-stamp']);
+    expect(run(['migrate', p, '--write']).status).toBe(0);
+    expect(readFileSync(join(p, 'badge.mkp'), 'utf8').startsWith(`# mkp ${RELEASE} ir 1\n`)).toBe(true);
+    const again = run(['migrate', p, '--check']);
+    expect(again.status).toBe(0);
+    expect(again.stderr).toContain(`up to date (${RELEASE})`);
+  }, 120000);
 });
 
 describe('a released .mkpack from 0.2.1', () => {

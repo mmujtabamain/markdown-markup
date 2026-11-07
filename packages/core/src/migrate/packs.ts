@@ -309,14 +309,15 @@ const IR_FORM: ValueForm<IRVal> = {
   },
 };
 
-/** Proves each move on the old version's fixtures: every case, moved (both ways: kept and not), must compile against the new version. */
+/** Proves each move on the old version's fixtures: every valid case, moved (both ways: kept and not), must compile against the new version. */
 export function checkMoves(c: Compiled, moves: PackMove[]): Diagnostic[] {
   const out: Diagnostic[] = [];
   const cases = fixtureCases(c, new Diagnostics());
   for (const m of moves) {
     const [, fromW] = m.from.split(':');
     const [toPack, toW] = m.to.split(':');
-    for (const fc of cases.filter((x) => x.pack === m.pack && x.widget === fromW)) {
+    // a case meant to fail (expect.errors) proves the old version refuses something: it has nothing to move
+    for (const fc of cases.filter((x) => x.pack === m.pack && x.widget === fromW && !x.expect?.errors?.length)) {
       for (const keep of m.keep.length ? [false, true] : [false]) {
         const moved = { ...fc, pack: toPack, widget: toW, props: moveProps(fc.props, m, keep, JSON_FORM) as typeof fc.props, expect: undefined };
         const d = new Diagnostics();
