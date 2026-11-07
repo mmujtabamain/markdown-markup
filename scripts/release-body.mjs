@@ -10,6 +10,10 @@ import { compareVersions, readNote } from './check-notes.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/** The first release with mkp-page.js in the web zip and the React Native renderer beside it. */
+export const PAGE_AND_NATIVE_SINCE = '0.2.4';
+const shipsPageAndNative = (version) => compareVersions(version, PAGE_AND_NATIVE_SINCE) >= 0;
+
 /** How to use each asset of `version`: one line on what it is, and a few commands. */
 export function usage(version) {
   const fence = '```';
@@ -27,10 +31,19 @@ mkdir -p vendor/mkp && unzip -j mkp-web-${version}.zip -d vendor/mkp
 ${fence}
 ${fence}ts
 import { compile, Runtime } from './vendor/mkp/mkp.js';     // typed by mkp.d.ts
-import { MkpDocument } from './vendor/mkp/mkp-react.js';   // React 19${compareVersions(version, '0.2.0') >= 0 ? "\nimport { mount } from './vendor/mkp/mkp-dom.js';           // anything else: mount(el, bundle)" : ''}
+import { MkpDocument } from './vendor/mkp/mkp-react.js';   // React 19${compareVersions(version, '0.2.0') >= 0 ? "\nimport { mount } from './vendor/mkp/mkp-dom.js';           // anything else: mount(el, bundle)" : ''}${shipsPageAndNative(version) ? "\nimport { firstPaint } from './vendor/mkp/mkp-page.js';     // a build on Node: the first paint mount() takes over" : ''}
 ${fence}
 The same files are at \`https://mmujtabamain.github.io/markdown-markup/v/${version}/\`.
-
+${
+  shipsPageAndNative(version)
+    ? `
+**\`mkp-react-native-${version}.zip\`** is the React Native renderer, as source for Metro to build with your app. It imports \`@mkp/core\`: alias that to the web zip's \`mkp-runtime.js\` (its README says how).
+${fence}bash
+mkdir -p vendor/mkp-react-native && unzip -q mkp-react-native-${version}.zip -d vendor && mv vendor/mkp-react-native-${version}/* vendor/mkp-react-native/
+${fence}
+`
+    : ''
+}
 **\`SHA256SUMS\`**: \`sha256sum -c SHA256SUMS\`
 `;
 }

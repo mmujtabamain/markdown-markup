@@ -1,7 +1,7 @@
 # Releases and the GitHub Pages site (spec note 138).
 #
 # Runs on pushes to main only. A push to main is a release: the CI gates, then scripts/dist.mjs, then a GitHub Release v<VERSION>
-# with mkp-web-<VERSION>.zip, mkp-cli.mjs and SHA256SUMS, its notes notes/<VERSION>.md followed by
+# with mkp-web-<VERSION>.zip, mkp-react-native-<VERSION>.zip, mkp-cli.mjs and SHA256SUMS, its notes notes/<VERSION>.md followed by
 # how to use each asset (scripts/release-body.mjs). If v<VERSION> already exists (a re-run, or a push
 # that didn't raise VERSION), nothing is released.
 #
@@ -96,7 +96,7 @@ jobs:
           title="$(head -n 1 /tmp/release.md)"
           tail -n +2 /tmp/release.md > /tmp/body.md
           gh release create "v$v" --target "$GITHUB_SHA" --title "$title" --notes-file /tmp/body.md \
-            "dist/mkp-web-$v.zip" dist/mkp-cli.mjs dist/SHA256SUMS
+            "dist/mkp-web-$v.zip" dist/mkp-cli.mjs dist/SHA256SUMS $(ls "dist/mkp-react-native-$v.zip" 2>/dev/null)
           echo "Released [v$v](${{ github.server_url }}/${{ github.repository }}/releases/tag/v$v)" >> "$GITHUB_STEP_SUMMARY"
 
   pages:

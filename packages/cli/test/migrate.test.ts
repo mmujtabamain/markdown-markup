@@ -306,6 +306,28 @@ describe('a released .mkpack from 0.2.1', () => {
   }, 120000);
 });
 
+describe('a document migrated after its pack', () => {
+  it('says the order is the cause when a pack is already newer than the document', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-order-'));
+    const p = join(dir, 'looks');
+    mkdirSync(p);
+    // migrated in an earlier run: stamped for this release, and using what 0.2.1 doesn't have (padx)
+    writeFileSync(join(p, 'manifest.mkp'), `# mkp ${RELEASE} ir 1\npack looks@1 "Looks."\n  requires core@1\n  provides badge\n`);
+    writeFileSync(join(p, 'badge.mkp'), `# mkp ${RELEASE} ir 1\nbadge@1 "A word."\n  in word text\n  column padx=s\n    text word\n  project md = word\n`);
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a' }, summary: 'One.' } } }));
+    const doc = join(dir, 'note.mkp.md');
+    writeFileSync(doc, '# A note\n\n```badge\nword: hi\nsummary: s\n```\n');
+    const m = await migrateDocument(relative(process.cwd(), doc), { packs: [folder(p)], core: process.env.MKP_CORE_0_2_1 });
+    expect(m.errors[0]).toContain(`is written for MKP ${OLD}, but ${relative(process.cwd(), p)} is already migrated to ${RELEASE}`);
+    expect(m.errors[0]).toContain('migrate it in the same run as its packs');
+    // the same pack as it was for 0.2.1, in one run with the document: no such line
+    writeFileSync(join(p, 'manifest.mkp'), 'pack looks@1 "Looks."\n  requires core@1\n  provides badge\n');
+    writeFileSync(join(p, 'badge.mkp'), 'badge@1 "A word."\n  in word text\n  column pad=s\n    text word\n  project md = word\n');
+    const ok = await migrateDocument(relative(process.cwd(), doc), { packs: [folder(p)], core: process.env.MKP_CORE_0_2_1 });
+    expect(ok.errors).toEqual([]);
+  }, 120000);
+});
+
 describe('the Migrations tab’s example', () => {
   it('is what mkp migrate writes and says', async () => {
     const dir = 'apps/site/migrations/0.2.2';

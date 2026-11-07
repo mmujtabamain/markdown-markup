@@ -68,3 +68,15 @@ describe('a record list written as YAML', () => {
     expect(stripPos(b2.doc.body)).toEqual(stripPos(b.doc.body));
   });
 });
+
+describe('YAML text a YAML 1.1 reader would take for a boolean', () => {
+  it('is quoted when printed, and reads back as the same text', () => {
+    const src = '```mkp\nanswers_list "Answers."\n  in replies list(text)\n  column\n    each a in replies key=a\n      text a\n  project md = join(replies, ", ")\n```\n\n```answers_list\nreplies: [Yes, no, ON, off, y, N, maybe]\nsummary: s\n```\n';
+    const c = compile({ packs: [] });
+    const b = c.document(src, 'doc.mkp.md')!;
+    expect(c.diags.errors).toEqual([]);
+    const text = new DocPrinter({ defs: b.defs, env: c.prog.typeEnv('$doc') }).doc(b.doc.front, b.doc.body, undefined, c.documentDefs(src, 'doc.mkp.md') ?? undefined);
+    expect(text).toContain('replies:\n  - "Yes"\n  - "no"\n  - "ON"\n  - "off"\n  - "y"\n  - "N"\n  - maybe\n');
+    expect(stripPos(c.document(text, 'doc.mkp.md')!.doc.body)).toEqual(stripPos(b.doc.body));
+  });
+});

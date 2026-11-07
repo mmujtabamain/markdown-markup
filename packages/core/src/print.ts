@@ -616,12 +616,20 @@ export class DocPrinter {
   }
 }
 
-/** YAML with the maths guard (5): strings holding backslashes are written in single quotes. */
+/** Words a YAML 1.1 reader takes for true or false; MKP (YAML 1.2) reads them as text either way. */
+const YAML11_BOOLS = /^(y|n|yes|no|on|off)$/i;
+
+/**
+ * YAML with the maths guard (5): strings holding backslashes are written in single quotes. Text a
+ * YAML 1.1 reader would take for a boolean (yes, no, on, off, y, n) is quoted too.
+ */
 export function yamlText(v: unknown): string {
   const doc = new YAML.Document(v);
   YAML.visit(doc, {
     Scalar(_key, node) {
-      if (typeof node.value === 'string' && (node.value.includes('\\') || node.value.includes('$'))) node.type = node.value.includes('\n') ? 'BLOCK_LITERAL' : 'QUOTE_SINGLE';
+      if (typeof node.value !== 'string') return;
+      if (node.value.includes('\\') || node.value.includes('$')) node.type = node.value.includes('\n') ? 'BLOCK_LITERAL' : 'QUOTE_SINGLE';
+      else if (YAML11_BOOLS.test(node.value)) node.type = 'QUOTE_DOUBLE';
     },
   });
   return doc.toString({ lineWidth: 0 });

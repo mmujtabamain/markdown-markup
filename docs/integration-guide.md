@@ -37,10 +37,13 @@ from them), do step 6.
 | `@mkp/cli` | `mkp`: check, build, index, show, schema, fmt, pack, cases | Node, or nothing (the single executable) |
 
 A release (step 1.0) carries `@mkp/core` as `mkp.js` + `mkp.d.ts`, `@mkp/react` as `mkp-react.js` +
-`mkp-react.d.ts`, and `@mkp/cli` as `mkp-cli.mjs`. The snippets below import `@mkp/*`, the names
-inside this repo; in your app, import the vendored files (`./vendor/mkp/mkp.js`), or alias
-`@mkp/core` and `@mkp/react` to them. `@mkp/shadcn` and `@mkp/react-native` are used from source
-(step 1.0a) until a release carries them.
+`mkp-react.d.ts`, `mount()` as `mkp-dom.js`, `firstPaint()` as `mkp-page.js` (for a build on Node),
+and `@mkp/cli` as `mkp-cli.mjs`, and from 0.2.4 `@mkp/react-native` as
+`mkp-react-native-<version>.zip`: its source, for Metro to build with your app, with `@mkp/core`
+aliased to the web zip's `mkp-runtime.js` (its README shows the alias). The snippets below import
+`@mkp/*`, the names inside this repo; in your app, import the vendored files
+(`./vendor/mkp/mkp.js`), or alias `@mkp/core` and `@mkp/react` to them. `@mkp/shadcn` is used from
+source (step 1.0a) until a release carries it.
 
 ---
 
@@ -894,8 +897,8 @@ view.unmount();
   server, then mount the same build's bundle with `hydrate: true`; `mount()` takes the HTML over
   in place, so nothing is swapped and nothing moves, and it stays as it is until the runtime is
   ready. Pass `mount()` the theme, tokens, icons and class the fragment was drawn with (the CLI draws
-  it with none; `firstPaint(bundle, { theme, tokens, icons, className })` from `@mkp/page` takes
-  them). An SVG string is in the first paint; a function's box is empty there and filled once
+  it with none; `firstPaint(bundle, { theme, tokens, icons, className })` takes them: `mkp-page.js`
+  in the web zip, for a build on Node 20+, or `@mkp/page` in this repo). An SVG string is in the first paint; a function's box is empty there and filled once
   mounted.
   A fragment that isn't this bundle's is drawn again, with a warning on the console.
 
@@ -1483,8 +1486,8 @@ migrate walk@1 -> walk@2
 
 Things you will hit, as of this commit:
 
-- **A release carries the core, the React renderer and the CLI only.** The shadcn provider and the
-  React Native renderer are used from source (step 1.0a). `mkp-react.js` needs React 19.
+- **A release doesn't carry the shadcn provider.** It is used from source (step 1.0a).
+  `mkp-react.js` needs React 19.
 - **`rt.widget('#id')` doesn't work.** The message says a block can be found by its `#anchor`, but
   only the index works (the same for `hosts` keys). Look the index up:
   `bundle.doc.body.find((n) => n.meta?.anchor === 'sensor')?.meta?.block`.
