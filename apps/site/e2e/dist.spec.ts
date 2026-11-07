@@ -59,3 +59,40 @@ test("a React app draws a document with the release's files, in MKP's default lo
   await expect(page.getByText('Warm the pot.')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+// mkp-dom.js with no build step: a page imports the release's files as modules, served as they are
+test('a page with no framework mounts a document with mkp-dom.js, hears its signals, and keeps its state', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
+  writeFileSync(join(app, 'ask.json'), JSON.stringify(readFileSync(join(ROOT, 'examples/14-check-an-answer/doc.mkp.md'), 'utf8')));
+  writeFileSync(
+    join(app, 'plain.html'),
+    `<!doctype html><meta charset="utf-8"><button id="dark">Dark</button><button id="off">Remove</button><p id="said"></p><div id="doc"></div>
+<script type="module">
+import { compile } from './vendor/mkp/mkp.js';
+import { mount } from './vendor/mkp/mkp-dom.js';
+const source = await (await fetch('./ask.json')).json();
+const bundle = compile({ packs: [] }).document(source, 'doc.mkp.md');
+const view = mount(document.getElementById('doc'), bundle, { theme: 'light', onSignal: (e) => (document.getElementById('said').textContent = e.name + ' ' + JSON.stringify(e.payload)) });
+document.getElementById('dark').onclick = () => view.update({ theme: 'dark' });
+document.getElementById('off').onclick = () => view.unmount();
+</script>`,
+  );
+  await page.route('http://mkp.test/**', (r) => r.fulfill({ path: join(app, new URL(r.request().url()).pathname) }));
+  await page.goto('http://mkp.test/plain.html');
+  await expect(page.locator('#doc .mkp-root h1')).toHaveText('Check an answer');
+  const field = page.getByLabel('your answer');
+  await field.fill('oslo');
+  await field.press('Enter');
+  await expect(page.locator('#said')).toHaveText('answered {"correct":true,"value":"oslo"}');
+  await expect(page.getByText('Right.')).toBeVisible();
+  // a new theme redraws the document; what the reader typed stays
+  await page.locator('#dark').click();
+  await expect(page.locator('#doc .mkp-root')).toHaveAttribute('data-theme', 'dark');
+  await expect(field).toHaveValue('oslo');
+  await expect(page.getByText('Right.')).toBeVisible();
+  await page.locator('#off').click();
+  await expect(page.locator('#doc')).toBeEmpty();
+  expect(errors).toEqual([]);
+});

@@ -28,6 +28,7 @@ ${fence}
 ${fence}ts
 import { compile, Runtime } from './vendor/mkp/mkp.js';     // typed by mkp.d.ts
 import { MkpDocument } from './vendor/mkp/mkp-react.js';   // React 19
+import { mount } from './vendor/mkp/mkp-dom.js';           // anything else: mount(el, bundle)
 ${fence}
 The same files are at \`https://mmujtabamain.github.io/markdown-markup/v/${version}/\`.
 

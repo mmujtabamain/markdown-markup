@@ -4,7 +4,8 @@
 //   mkp-web-<version>.zip  the web files, which import each other, in one folder mkp-web-<version>/:
 //                          mkp.js (the core, ESM), maths-engine.js (loaded by mkp.js when maths shows),
 //                          mkp.d.ts (the core's types, one self-contained header), mkp-react.js (the
-//                          React renderer, React left out), mkp-react.d.ts, README.txt
+//                          React renderer, React left out), mkp-react.d.ts, mkp-dom.js (mount() for any
+//                          framework or none, React inside), mkp-dom.d.ts, README.txt
 //   mkp-cli.mjs            the CLI in one file (core, maths engine, --target html's page script inside)
 //   SHA256SUMS             checksums of the two
 //   web/                   the web files unpacked, as GitHub Pages serves them under /v/<version>/
@@ -87,6 +88,22 @@ await build({
   legalComments: 'none',
   logLevel: 'warning',
 });
+// mkp-dom.js: the same renderer behind mount(el, bundle), with its own React inside
+await build({
+  entryPoints: [join(root, 'packages/dom/src/index.tsx')],
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  jsx: 'automatic',
+  minify: true,
+  outfile: join(web, 'mkp-dom.js'),
+  plugins: [coreBeside],
+  define,
+  banner: { js: banner },
+  legalComments: 'none',
+  logLevel: 'warning',
+});
 
 // the headers: one self-contained .d.ts for the core, and one for React that imports it. The React
 // one is generated against the core's header posing as a package, so its core types stay imports
@@ -101,8 +118,9 @@ const fake = join(tmp, 'node_modules/@mkp/core');
 mkdirSync(fake, { recursive: true });
 copyFileSync(join(web, 'mkp.d.ts'), join(fake, 'index.d.ts'));
 dts({ include: [join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')] } } }, join(root, 'packages/react/src/index.tsx'), join(web, 'mkp-react.d.ts'), ['--external-imports', '@mkp/core', 'react', 'react-dom']);
+dts({ include: [join(root, 'packages/dom/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/dom/src/index.tsx'), join(web, 'mkp-dom.d.ts'), ['--external-imports', '@mkp/core']);
 rmSync(tmp, { recursive: true, force: true });
-for (const f of ['mkp.d.ts', 'mkp-react.d.ts']) {
+for (const f of ['mkp.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts']) {
   const p = join(web, f);
   const text = readFileSync(p, 'utf8').replace(/from ["']@mkp\/core["']/g, "from './mkp.js'");
   writeFileSync(p, `${banner}\n${text}`);
@@ -116,9 +134,12 @@ writeFileSync(
   maths-engine.js loaded by mkp.js when a document shows maths
   mkp-react.js    draws documents in React 19: MKP's own look by default, or pass components=
                   for your design system. Types: mkp-react.d.ts
+  mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's
+                  own look, its own React inside. Types: mkp-dom.d.ts
 
   import { compile, Runtime } from './vendor/mkp/mkp.js';
-  import { MkpDocument } from './vendor/mkp/mkp-react.js';
+  import { MkpDocument } from './vendor/mkp/mkp-react.js';     // React
+  import { mount } from './vendor/mkp/mkp-dom.js';             // anything else
 
 Unlicensed: all rights reserved. https://github.com/mmujtabamain/markdown-markup
 `,
