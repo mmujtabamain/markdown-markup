@@ -28,3 +28,8 @@
 .site-demo-card .mkp-root {
   background: transparent;
 }
+
+/* the docs: a heading scrolled to sits below the sticky header */
+.docs-article :is(h2, h3) {
+  scroll-margin-top: 4.5rem;
+}

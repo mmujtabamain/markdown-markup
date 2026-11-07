@@ -631,7 +631,8 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      matter `version`, `date`, `summary` of at most 140 characters; then `## New`, `## Changed`,
      `## Fixed`), which `scripts/check-notes.mjs` checks in CI. Each push to `main` whose `VERSION`
      has no release yet publishes `v<version>`: `mkp-web-<version>.zip` (`mkp.js`, `mkp.d.ts`,
-     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `README.txt`, in one folder),
+     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in
+     one folder),
      `mkp-cli.mjs` and `SHA256SUMS`, built by `scripts/dist.mjs`; its notes are the note, then how to
      use each asset (`scripts/release-body.mjs`). The web files of the last 50 releases are also on
      the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version

@@ -5,8 +5,9 @@
 # how to use each asset (scripts/release-body.mjs). If v<VERSION> already exists (a re-run, or a push
 # that didn't raise VERSION), nothing is released.
 #
-# Every push to main then rebuilds the Pages site: the landing page at /, the docs at /docs/, and the web files of the last 50
-# releases unpacked at /v/<version>/, the newest also at /latest/, listed in /v/index.json.
+# Every push to main then rebuilds the Pages site: the landing page at /, the docs at /docs/, the
+# examples at /examples/, and the web files of the last 50 releases unpacked at /v/<version>/, the
+# newest also at /latest/, listed in /v/index.json.
 # Needs: Settings → Actions → General → Workflow permissions: Read and write.
 name: Release
 

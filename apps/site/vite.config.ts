@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
+import { mkpDocs } from './docs-plugin';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
@@ -9,7 +10,7 @@ const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 export default defineConfig({
   // GitHub Pages serves the build from /markdown-markup/
   base: process.env.PLAYGROUND_BASE ?? '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), mkpDocs(root)],
   resolve: {
     alias: {
       '@mkp/core': at('../../packages/core/src/index.ts'),
@@ -23,7 +24,8 @@ export default defineConfig({
   server: { fs: { allow: [root] }, port: 5181, strictPort: true },
   // the DevBench preview serves the built playground with `vite preview` behind its own host name
   preview: { port: 5182, strictPort: true, allowedHosts: ['.preview.devbench.sh'] },
-  // two pages: the landing page at /, and the docs (the playground) at docs/
-  build: { chunkSizeWarningLimit: 6000, target: 'es2022', rollupOptions: { input: { index: at('index.html'), docs: at('docs/index.html') } } },
+  // three pages: the landing page at /, the docs (docs/*.md, compiled when built) at docs/, and the
+  // examples (the playground) at examples/
+  build: { chunkSizeWarningLimit: 6000, target: 'es2022', rollupOptions: { input: { index: at('index.html'), docs: at('docs/index.html'), examples: at('examples/index.html') } } },
   optimizeDeps: { esbuildOptions: { target: 'es2022' } },
 });
