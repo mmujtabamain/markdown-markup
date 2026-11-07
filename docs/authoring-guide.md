@@ -301,25 +301,40 @@ summary: The four containers side by side.
 
 - `column` stacks, `row` wraps (or scrolls with `wrap=false scroll=x`), `grid cols=[auto, 1fr, 6ch]`
   takes tracks (or `cols=3`, or a list of track words worked out: `cols=(map(range(1, n), k => "auto"))`),
-  `stack` layers its children, last on top.
+  `stack` layers its children, last on top. In a `grid` cell or a `stack`, `self=` places a child on
+  both axes (`self=start` is its top-left corner); in a `row` or `column`, across only.
+- `pad=` all round; `padx=` (left and right) and `pady=` (top and bottom) in its place on those sides:
+  `row padx=m pady=s` for a list row.
 - On a phone: `width` is `narrow`, `medium` or `wide`; a grown child in a wrapping row needs a
   `basis` (example 09). `minwidth=` with `scroll=x` scrolls what can't shrink.
 - Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
 - The host's shell: `frame` (kind, title, `status`, `fill actions`, `fill about`, `fill details`),
   `pane` side by side, `zoom` behind its lock (example 18), as tall as its content between `minheight` (by
   default, room for its lock) and `maxheight` (by default `l`). The lock shows only when there is something
-  to zoom or pan: content shrunk to fit, clipped, or a drawing or picture. A widget's controls go in its frame's bar.
+  to zoom or pan: content shrunk to fit, clipped, or a drawing or picture. It shrinks what is wide down to
+  `minscale` (0.6 by default, 0 for no limit); past that it shows the middle, clipped, to pan once unlocked.
+  A widget's controls go in its frame's bar.
+- `slot body if=(open)` places a slot only while the condition holds.
+- **Nesting:** one definition nests at most 12 containers deep; `each`, `switch` and `case` don't count.
 
 ## Canvas and arrows
 
 A `canvas x=a..b y=c..d` draws `layer`s of `circle`, `path` (lines, polygons, curves as point lists;
-`head=arrow`), `label` (`halo`, `size`, `dx`/`dy`), `image`, `place` (elements at a point) and
+`head=arrow`), `label` (`halo`, `size`, `dx`/`dy`: a nudge in pixels, `dy` **up** as the canvas's
+y runs up, so `dy=-8` is lower), `image`, `place` (elements at a point) and
 `handle` (a `drag` state the reader moves) — example 19. `gfx@1` adds `pixels` and `mesh`, with the
-widget's Markdown shown where it is missing (example 21).
+widget's Markdown shown where it is missing (example 21). A `layer clip=[(x0, y0), (x1, y1)]` cuts its
+shapes off outside that rectangle, in data units: a plot's curves stop at its axes' margins.
+
+`theme` is `light` or `dark`, as the reader sees the page, read like `width`. Colour tokens follow
+the theme on their own; read `theme` only for what can't use them, such as a `pixels` ramp:
+`if(theme == dark, …, …)`. Markdown is drawn `light`.
 
 `arrow from=a to=b ["label"]` joins two elements by id, inside the instance or the instances
 nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`), `line=`,
-`layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20).
+`layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20), `corner=m|s|none` (how
+round its turns are: 12 px, 6 px, square). An arrow's ends touch the outlines it joins, and a routed
+line keeps a straight run before its head (the head and 6 px) and after its tail.
 
 ## Types
 

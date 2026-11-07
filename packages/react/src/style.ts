@@ -73,7 +73,9 @@ export const BASE_CSS = layer(`
 .mkp-math-notes > li { display: flex; align-items: baseline; gap: var(--mkp-space-s); }
 .mkp-math-notes > li::before { content: ''; flex: none; width: 0.7em; height: 0.7em; border-radius: 2px; background: var(--mkp-mark-tone); }
 .mkp-root [data-justify=center] { justify-content: center; justify-content: safe center; }
-.mkp-root [data-layers] > * { grid-area: 1 / 1; min-width: 0; }
+/* every layer positioned, so they paint in the order written: one with dim or blur (an opacity or a
+   filter, a stacking context) no longer paints over the plain layers after it */
+.mkp-root [data-layers] > * { grid-area: 1 / 1; min-width: 0; position: relative; }
 .mkp-root [data-flow=column] > .mkp-pane { flex: 1 1 auto; }
 .mkp-root [data-clip] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--mkp-lines, 1); line-clamp: var(--mkp-lines, 1); overflow: hidden; }
 .mkp-bar { display: flex; flex-wrap: wrap; gap: var(--mkp-space-m) var(--mkp-space-l); align-items: center; padding: var(--mkp-space-s) 0 0; margin-top: var(--mkp-space-m); border-top: 1px solid var(--mkp-color-line); }

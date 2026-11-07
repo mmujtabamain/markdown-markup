@@ -43,6 +43,8 @@ export interface RuntimeOptions {
   snapshot?: boolean;
   /** the reader's width, which every definition reads as `width` (GAPS 30); default wide */
   width?: 'narrow' | 'medium' | 'wide';
+  /** the reader's theme at the start, as `theme` reads it (light by default; Markdown is light) */
+  theme?: 'light' | 'dark';
   /** false: answers are left out (`answers` reads false), for Markdown without them (GAPS 166) */
   answers?: boolean;
 }
@@ -174,6 +176,7 @@ export class Inst {
     const c = this.cells.get(name);
     if (c) return c.get();
     if (name === '$width') return this.rt.widthCell.get();
+    if (name === '$theme') return this.rt.themeCell.get();
     if (name === '$answers') return this.rt.opts.answers !== false;
     const m = this.memos.get(name);
     if (m) return m.get();
@@ -225,6 +228,7 @@ export class Runtime {
   private nodeCount = 0;
   /** the reader's width: narrow, medium or wide, as the provider measures it */
   readonly widthCell: Cell;
+  readonly themeCell: Cell;
 
   constructor(
     readonly bundle: IRBundle,
@@ -233,6 +237,7 @@ export class Runtime {
     this.prog = new Programme(bundle.fns, bundle.consts);
     // the host's width is data, not state: a snapshot (the Markdown) draws the branch for its width, not every one
     this.widthCell = new Cell(opts.width ?? 'wide');
+    this.themeCell = new Cell(opts.theme ?? 'light');
     const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
     if (!docDef) throw new Error(`this bundle has no document definition, so there is nothing to draw; found only ${Object.keys(bundle.defs).length} pack definitions. Build the bundle from a document (mkp build doc.mkp.md --pack …), not from a pack alone`);
     this.root = new Inst(this, docDef, 'doc', null, null, null, 0, null);
@@ -254,6 +259,14 @@ export class Runtime {
    */
   setWidth(w: 'narrow' | 'medium' | 'wide'): void {
     if (this.widthCell.set(w)) this.changed();
+  }
+
+  /**
+   * The provider says which theme the reader sees: light or dark. Everything that reads `theme` is
+   * drawn again. A renderer that follows the reader's system setting says so whenever it changes.
+   */
+  setTheme(t: 'light' | 'dark'): void {
+    if (this.themeCell.set(t)) this.changed();
   }
 
   subscribe(f: () => void): () => void {
@@ -695,6 +708,11 @@ export class Runtime {
         return picked ? this.renderNodes(picked, env, inst, `${key}:${idx < 0 ? 'else' : idx}`) : [];
       }
       case 'slot': {
+        // slot body if=(…): drawn while it holds (a snapshot keeps one that depends on state)
+        if (n.meta?.if) {
+          const r = readsState(() => this.evalExpr(n.meta!.if!, env, inst));
+          if (!r.value && !(this.opts.snapshot && r.state)) return [];
+        }
         if (this.opts.snapshot) {
           // a slot chosen by state (tabs: slot pages[at].slot) shows every pane, titled
           const a = n.value!.ast;
@@ -858,7 +876,7 @@ export class Runtime {
           if (typeof x === 'number' && x < 1) a.opacity = Math.max(0, x);
         } else if (k === 'layer') {
           if (x === 'behind') a.layer = 'behind';
-        } else if (x !== 'none' || k === 'head') (a as unknown as Record<string, unknown>)[k] = String(x);
+        } else if (x !== 'none' || k === 'head' || k === 'corner') (a as unknown as Record<string, unknown>)[k] = String(x);
       }
       // an empty label draws nothing, not an empty box (GAPS 129)
       if (a.label && !a.label.some((r) => ('v' in r && String(r.v).trim()) || r.t === 'math')) delete a.label;
@@ -1129,6 +1147,12 @@ export class Runtime {
         const shapes: VShape[] = [];
         this.shapes(r.records ?? [], e, inst, lk, shapes, gfx, p);
         const layer: VLayer = { key: lk, opacity: (lp.opacity as number) ?? 1, shapes };
+        // clip=[corner, corner]: the shapes are cut off outside that rectangle (a plot inside its axes' margins)
+        const corners = ((lp.clip as number[][] | undefined) ?? []).filter((q) => Number.isFinite(q[0]) && Number.isFinite(q[1]));
+        if (corners.length >= 2) {
+          const [a, b] = corners;
+          layer.clip = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+        }
         if (typeof r.meta?.id === 'string') inst.ids.set(r.meta.id, lk);
         layers.push(layer);
       });

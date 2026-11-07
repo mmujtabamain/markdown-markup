@@ -157,7 +157,9 @@ export function layoutStyle(n: VNode): CSSProperties {
   if (l?.grow) Object.assign(s, { flex: '1 1 0', minWidth: 0 });
   if (l?.basis) s.flexBasis = size(l.basis);
   if (l?.span) s.gridColumn = `span ${l.span}`;
-  if (l?.self) s.alignSelf = SELF[l.self];
+  // self= places a child on both axes in a grid's cell or a stack (a badge in a corner); in a row or a
+  // column justify-self means nothing, so there it is the cross axis alone, as before
+  if (l?.self) Object.assign(s, { alignSelf: SELF[l.self], justifySelf: l.self });
   return s;
 }
 
@@ -194,9 +196,17 @@ export function gridTracks(cols: unknown): string {
 }
 
 /** How a container lays its children out, whatever its look. */
+/** A container's padding: pad all round, with padx at the sides and pady top and bottom in its place. */
+function pads(p: Record<string, unknown>): CSSProperties {
+  const all = space(p.pad);
+  const x = space(p.padx) ?? all;
+  const y = space(p.pady) ?? all;
+  return x === all && y === all ? { padding: all } : { paddingTop: y, paddingBottom: y, paddingLeft: x, paddingRight: x };
+}
+
 export function flowStyle(n: VNode): CSSProperties {
   const p = n.p;
-  const gaps = { padding: space(p.pad), gap: space(p.gap) };
+  const gaps = { ...pads(p), gap: space(p.gap) };
   switch (n.t) {
     case 'row':
       // centring is the stylesheet's, as safe centring: an overflowing row keeps its start (GAPS 120)
@@ -205,7 +215,7 @@ export function flowStyle(n: VNode): CSSProperties {
       return { display: 'grid', gridTemplateColumns: gridTracks(p.cols), alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)], ...gaps };
     case 'stack':
       // layers: every child in the one cell, the last on top; as big as the biggest (GAPS 79)
-      return { display: 'grid', alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)] ?? 'stretch', padding: space(p.pad) };
+      return { display: 'grid', alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)] ?? 'stretch', ...pads(p) };
     default:
       return { display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(p.align)] ?? 'stretch', justifyContent: p.justify === 'center' ? undefined : JUSTIFY[String(p.justify)], ...gaps };
   }

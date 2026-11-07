@@ -586,3 +586,35 @@ describe('the pointer on what is inside a widget', () => {
     expect(container.textContent).toContain('lit false');
   });
 });
+
+describe('the second consumer', () => {
+  it('pads a box by padx at the sides and pady top and bottom, pad elsewhere', () => {
+    const { container } = draw(doc(['column pad=l padx=m id=x', '  text "a"', 'row pady=s id=y', '  text "b"']));
+    const x = one(container, '[data-mkp-id=x]').style;
+    expect([x.paddingTop, x.paddingLeft]).toEqual(['var(--mkp-space-l)', 'var(--mkp-space-m)']);
+    const y = one(container, '[data-mkp-id=y]').style;
+    expect([y.paddingTop, y.paddingLeft]).toEqual(['var(--mkp-space-s)', '']);
+  });
+  it('places a stack or grid child on both axes with self=, and positions every layer', () => {
+    const { container } = draw(doc(['stack', '  column pad=l id=back', '    text "back"', '  column self=start id=badge', '    text "3"']));
+    const s = one(container, '[data-mkp-id=badge]').style;
+    expect([s.alignSelf, s.justifySelf]).toEqual(['flex-start', 'start']);
+    expect(BASE_CSS).toContain('.mkp-root [data-layers] > * { grid-area: 1 / 1; min-width: 0; position: relative; }');
+  });
+  it('tells the document its theme: dark when given, and redraws what reads it', () => {
+    const b = doc(['text "now \\val{theme}"']);
+    const rt = new Runtime(b, { now: () => 0 });
+    const { container, rerender } = render(<MkpDocument bundle={b} runtime={rt} theme="dark" />);
+    expect(container.textContent).toContain('now dark');
+    rerender(<MkpDocument bundle={b} runtime={rt} theme="light" />);
+    expect(container.textContent).toContain('now light');
+  });
+  it('clips a layer to its rectangle', () => {
+    const { container } = draw(doc(['canvas 0..10 0..10 label="plot"', '  layer clip=[(1, 1), (9, 9)]', '    path [(0, 0), (10, 10)]', '  layer', '    circle (5, 5) 1']));
+    const g = container.querySelectorAll('.mkp-canvas svg > g');
+    const id = g[0].getAttribute('clip-path')!;
+    expect(id).toMatch(/^url\(#mkp-clip-/);
+    expect(container.querySelector(`clipPath${id.slice(4, -1).replace(/:/g, '\\:')} rect`)).not.toBeNull();
+    expect(g[1].getAttribute('clip-path')).toBeNull();
+  });
+});

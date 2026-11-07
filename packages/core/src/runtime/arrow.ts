@@ -60,7 +60,7 @@ function lane(r: Rect, prev: Pt, next: Pt): Pt[] {
 const CORNER = 12;
 
 /** An arrow through waypoints: straight runs between them, rounded where it turns. */
-function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number): ArrowPath | null {
+function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number, corner = CORNER): ArrowPath | null {
   const mid: Pt[] = [];
   let prev = centre(a);
   via.forEach((r, i) => {
@@ -73,11 +73,11 @@ function routed(a: Rect, b: Rect, via: Rect[], gap: number, headSize: number): A
   const p1 = exit(b, last[0], last[1], gap);
   const pts: Pt[] = [];
   for (const p of [p0, ...mid, p1]) if (!pts.length || dist(pts[pts.length - 1], p) >= 0.5) pts.push(p);
-  return draw(pts, headSize);
+  return draw(pts, headSize, corner);
 }
 
-/** The shaft through these points, rounded where it turns, with the head on the last run. */
-function draw(pts: Pt[], headSize: number): ArrowPath | null {
+/** The shaft through these points, rounded where it turns (by `corner`, less on short runs), with the head on the last run. */
+function draw(pts: Pt[], headSize: number, corner = CORNER): ArrowPath | null {
   if (pts.length < 2) return null;
   const p1 = pts[pts.length - 1];
   const from = pts[pts.length - 2];
@@ -95,7 +95,7 @@ function draw(pts: Pt[], headSize: number): ArrowPath | null {
     const [pa, pb, pc] = [shaft[i - 1], shaft[i], shaft[i + 1]];
     const l1 = dist(pa, pb);
     const l2 = dist(pb, pc);
-    const r = Math.min(CORNER, l1 / 2, l2 / 2);
+    const r = Math.min(corner, l1 / 2, l2 / 2);
     const u: Pt = [pb[0] - ((pb[0] - pa[0]) / l1) * r, pb[1] - ((pb[1] - pa[1]) / l1) * r];
     const w: Pt = [pb[0] + ((pc[0] - pb[0]) / l2) * r, pb[1] + ((pc[1] - pb[1]) / l2) * r];
     d += ` L${f(u[0])},${f(u[1])} Q${f(pb[0])},${f(pb[1])} ${f(w[0])},${f(w[1])}`;
@@ -121,8 +121,8 @@ function draw(pts: Pt[], headSize: number): ArrowPath | null {
  * The path from one element's outline to another's. With `via` (the waypoints' rects, in order) it
  * runs through each of them (see `lane`) with rounded corners, and `curve` does not apply.
  */
-export function arrowPath(a: Rect, b: Rect, curve = false, gap = 3, headSize = 7, via: Rect[] = []): ArrowPath | null {
-  if (via.length) return routed(a, b, via, gap, headSize);
+export function arrowPath(a: Rect, b: Rect, curve = false, gap = 0, headSize = 7, via: Rect[] = [], corner = CORNER): ArrowPath | null {
+  if (via.length) return routed(a, b, via, gap, headSize, corner);
   const ac: [number, number] = [a.x + a.w / 2, a.y + a.h / 2];
   const bc: [number, number] = [b.x + b.w / 2, b.y + b.h / 2];
   if (Math.hypot(bc[0] - ac[0], bc[1] - ac[1]) < 1) return null;
@@ -182,7 +182,12 @@ export interface ArrowEnds {
   /** the mark at `to` (default an arrow head) and at `from` (default none) */
   head?: ArrowEnd;
   tail?: ArrowEnd;
+  /** the radius its turns are rounded to, in pixels (arrow corner=: m 12, s 6, none 0); 12 by default */
+  corner?: number;
 }
+
+/** arrow corner=: the radius of its turns. */
+export const ARROW_CORNERS: Record<string, number> = { none: 0, s: 6, m: 12 };
 
 const r1 = (n: number): string => n.toFixed(1);
 
@@ -228,13 +233,13 @@ function withEnds(p: ArrowPath, head: ArrowEnd, tail: ArrowEnd): ArrowPath {
 }
 
 /** A loop on an element's right side, or its left when the right has no room. */
-function selfLoop(r: Rect, gap: number, headSize: number, width: number): ArrowPath | null {
+function selfLoop(r: Rect, gap: number, headSize: number, width: number, corner = CORNER): ArrowPath | null {
   const right = r.x + r.w + LOOP + TRACK_GAP <= width || r.x - LOOP - TRACK_GAP < 0;
   const side = right ? 1 : -1;
   const edge = right ? r.x + r.w : r.x;
   const y = r.y + r.h / 2;
   const s = Math.min(PORT / 2, r.h / 4);
-  const p = draw([[edge + side * gap, y - s], [edge + side * LOOP, y - s], [edge + side * LOOP, y + s], [edge + side * gap, y + s]], headSize);
+  const p = draw([[edge + side * gap, y - s], [edge + side * LOOP, y - s], [edge + side * LOOP, y + s], [edge + side * gap, y + s]], headSize, corner);
   return p && { ...p, label: [edge + side * (LOOP + 4), y], align: right ? 'start' : 'end' };
 }
 
@@ -265,6 +270,8 @@ interface Hop {
   out?: string;
   in?: string;
   track?: number;
+  /** which way it runs across its gap: 1 towards hi, -1 towards lo */
+  dir?: 1 | -1;
 }
 
 interface Plan {
@@ -299,15 +306,35 @@ function aside(end: Rect, x: number): 1 | -1 | undefined {
   return x >= end.x + end.w + CLEAR ? 1 : undefined;
 }
 
+/** The least straight run before a head (the head and 6 px of line) and after a tail. */
+const RUN_IN = (headSize: number): number => headSize + 6;
+const RUN_OUT = 6;
+
 /** Which track of a gap each hop runs on. Hops that leave one port share a track, or else hops that
  *  reach one port do, so a track never joins two sources to two targets; tracks are then reused
- *  along the gap wherever their runs don't touch. */
-function layTracks(band: Hop[]): void {
-  const lo = Math.max(...band.map((h) => h.lo));
-  const hi = Math.min(...band.map((h) => h.hi));
+ *  along the gap wherever their runs don't touch. The tracks keep clear of the side the heads
+ *  arrive at by RUN_IN, so a head is never on a bend, and of the side tails leave by RUN_OUT; in a
+ *  gap too narrow for both, the heads' run comes first. */
+function layTracks(band: Hop[], headSize: number): void {
+  let lo = Math.max(...band.map((h) => h.lo));
+  let hi = Math.min(...band.map((h) => h.hi));
   if (hi - lo < 1) {
     // no height all of them cross (their ends aren't in rows): each takes the middle of its own
     for (const h of band) h.track = (h.lo + h.hi) / 2;
+    return;
+  }
+  // the room a straight run needs at each side: heads arrive at hi going down (dir 1), at lo going up
+  const need = (side: 1 | -1): number => Math.max(0, ...band.map((h) => (h.in && h.dir === side ? RUN_IN(headSize) : h.out && h.dir === -side ? RUN_OUT : 0)));
+  const atHi = need(1);
+  const atLo = need(-1);
+  if (hi - lo >= atLo + atHi) {
+    lo += atLo;
+    hi -= atHi;
+  } else {
+    // not room for both: the heads' run first, then what is left for the tails'
+    const heads = band.some((h) => h.in && h.dir === 1) ? 1 : band.some((h) => h.in && h.dir === -1) ? -1 : 0;
+    const t = heads === 1 ? Math.max(lo, hi - atHi) : heads === -1 ? Math.min(hi, lo + atLo) : (lo + hi) / 2;
+    for (const h of band) h.track = t;
     return;
   }
   const count = (k: string): number => band.filter((h) => h.out === k || h.in === k).length;
@@ -332,18 +359,18 @@ function layTracks(band: Hop[]): void {
 }
 
 /** Splits hops into the gaps they cross (hops whose heights overlap) and lays each gap's tracks. */
-function layGaps(hops: Hop[]): void {
+function layGaps(hops: Hop[], headSize: number): void {
   let band: Hop[] = [];
   let end = -Infinity;
   for (const h of hops.filter((x) => x.track === undefined).sort((p, q) => p.lo - q.lo)) {
     if (band.length && h.lo >= end) {
-      layTracks(band);
+      layTracks(band, headSize);
       band = [];
     }
     band.push(h);
     end = Math.max(end, h.hi);
   }
-  if (band.length) layTracks(band);
+  if (band.length) layTracks(band, headSize);
 }
 
 /** Drops repeated points and points along a straight run. */
@@ -380,7 +407,7 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
     const a = turned(ar.a);
     const b = turned(ar.b);
     if (!hasVia && !apart(a, b)) {
-      out[i] = arrowPath(ar.a, ar.b, false, gap, headSize);
+      out[i] = arrowPath(ar.a, ar.b, false, gap, headSize, [], ar.corner);
       continue;
     }
     const via = (ar.via ?? []).map(turned);
@@ -474,11 +501,12 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
         out: k === 0 ? p.keys[0] : undefined,
         in: k === stops.length - 2 ? p.keys[1] : undefined,
         track: level ? s.y : s.turn ? s.y : q.turn ? q.y : undefined,
+        dir: q.y > s.y ? 1 : -1,
       };
     });
     return { p, stops, hops };
   });
-  for (const across of [false, true]) layGaps(routes.filter((r) => r.p.across === across).flatMap((r) => r.hops.filter((h): h is Hop => !!h)));
+  for (const across of [false, true]) layGaps(routes.filter((r) => r.p.across === across).flatMap((r) => r.hops.filter((h): h is Hop => !!h)), headSize);
   for (const { p, stops, hops } of routes) {
     const pts: Pt[] = [];
     stops.forEach((s, k) => {
@@ -486,7 +514,7 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
       if (h) pts.push([h.from, h.track!], [h.to, h.track!]);
       pts.push([s.x, s.y]);
     });
-    out[p.i] = draw(tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q)), headSize);
+    out[p.i] = draw(tidy(pts).map((q): Pt => (p.across ? [q[1], q[0]] : q)), headSize, arrows[p.i].corner ?? CORNER);
   }
 }
 
@@ -497,13 +525,13 @@ function squarePaths(arrows: ArrowEnds[], indices: number[], out: (ArrowPath | n
  * the gaps between columns), and arrows with an end in common combine into one line. `width`, the
  * scope's own, keeps a loop inside it.
  */
-export function arrowPaths(arrows: ArrowEnds[], gap = 3, headSize = 7, width = Infinity): (ArrowPath | null)[] {
+export function arrowPaths(arrows: ArrowEnds[], gap = 0, headSize = 7, width = Infinity): (ArrowPath | null)[] {
   const out: (ArrowPath | null)[] = arrows.map(() => null);
   const square: number[] = [];
   arrows.forEach((a, i) => {
-    if (a.from === a.to) out[i] = selfLoop(a.a, gap, headSize, width);
+    if (a.from === a.to) out[i] = selfLoop(a.a, gap, headSize, width, a.corner);
     else if (a.route) square.push(i);
-    else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via);
+    else out[i] = arrowPath(a.a, a.b, a.curve, gap, headSize, a.via, a.corner);
   });
   squarePaths(arrows, square, out, gap, headSize);
   return out.map((p, i) => (p ? withEnds(p, arrows[i].head ?? 'arrow', arrows[i].tail ?? 'none') : p));

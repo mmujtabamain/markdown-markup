@@ -35,6 +35,8 @@ export interface VArrow {
   layer?: 'behind';
   /** its own opacity, quieter than muted (GAPS 122) */
   opacity?: number;
+  /** how round its turns are: m (the default, 12 px), s (6 px) or none */
+  corner?: 'none' | 's' | 'm';
   /** the keys of the elements the path runs through, in order (via=, 6.10) */
   via?: string[];
 }
@@ -63,6 +65,8 @@ export type VShape =
 export interface VLayer {
   key: string;
   opacity: number;
+  /** clip=: the rectangle its shapes are cut off outside, in data units [x0, y0, x1, y1] (low corner first) */
+  clip?: number[];
   shapes: VShape[];
 }
 

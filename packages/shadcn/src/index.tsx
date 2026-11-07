@@ -91,7 +91,8 @@ export interface Kit {
   Pane?: ComponentType<{ title?: ReactNode; aside?: ReactNode; footer?: ReactNode; style?: CSSProperties; children?: ReactNode }>;
   /** Zoom and pan behind a lock. */
   /** `fit`: at rest, shrink what is wider than the view to fit it (FitBox does it). */
-  Zoom?: ComponentType<{ max: number; fit: boolean; style?: CSSProperties; children?: ReactNode }>;
+  /** `minScale`: the least it shrinks to fit (zoom minscale=); past it, what is wider is clipped about its middle, to pan */
+  Zoom?: ComponentType<{ max: number; fit: boolean; minScale?: number; style?: CSSProperties; children?: ReactNode }>;
 }
 
 /** What a kit's own frame gets: the frame's parts, drawn. */
@@ -540,7 +541,7 @@ export function shadcnComponents(kit: Kit): MkpComponents {
     pane: (h) => pane(h, kit),
     zoom: ({ n, attrs, style }) =>
       kit.Zoom ? (
-        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} fit={fitsWidth(n)} style={{ minHeight: 'calc(var(--mkp-space-s) * 2 + 40px)', ...zoomBounds(n), ...style }}>
+        <kit.Zoom {...attrs} max={Number(n.p.max) || 4} fit={fitsWidth(n)} minScale={n.p.minscale === undefined ? 0.6 : Number(n.p.minscale)} style={{ minHeight: 'calc(var(--mkp-space-s) * 2 + 40px)', ...zoomBounds(n), ...style }}>
           <Kids nodes={n.kids} />
         </kit.Zoom>
       ) : (

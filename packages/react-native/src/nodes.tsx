@@ -20,7 +20,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { G, Path, Polygon, Svg } from 'react-native-svg';
-import { arrowPaths, type ArrowEnds, type Rect, type VArrow, type VNode, type VRun } from '@mkp/core';
+import { ARROW_CORNERS, arrowPaths, type ArrowEnds, type Rect, type VArrow, type VNode, type VRun } from '@mkp/core';
 import { FlowCtx, KeepCtx, MeasureCtx, useCtx, type Measurable, type Registry } from './context';
 import { InkCtx, InlineImage, MathView, Runs, useInk, type MathLike } from './runs';
 import { Canvas } from './canvas';
@@ -106,6 +106,9 @@ function boxStyle(p: Record<string, unknown>, theme: Theme): ViewStyle {
   const min = theme.size(p.minwidth);
   return {
     padding: theme.space(p.pad),
+    // padx and pady in pad's place on their sides
+    ...(theme.space(p.padx) !== undefined ? { paddingHorizontal: theme.space(p.padx) } : null),
+    ...(theme.space(p.pady) !== undefined ? { paddingVertical: theme.space(p.pady) } : null),
     gap: theme.space(p.gap),
     backgroundColor: p.tint && p.tint !== 'none' ? theme.mix(theme.color(p.tint), theme.color('surface'), 0.12) : theme.color(p.fill),
     ...(border as ViewStyle),
@@ -321,7 +324,7 @@ function Stack({ n }: { n: VNode }): ReactNode {
   const [heights, setHeights] = useState<Record<string, number>>({});
   const tallest = Math.max(0, ...(n.kids ?? []).map((k) => heights[k.key] ?? 0));
   const down = p.align === 'end' ? 1 : p.align === 'center' ? 0.5 : 0;
-  const pad = theme.space(p.pad) ?? 0;
+  const pad = theme.space(p.pady) ?? theme.space(p.pad) ?? 0;
   const across = ALIGN[String(p.justify)] ?? 'stretch';
   return (
     <Box n={n} flow="column" style={{ minHeight: tallest + 2 * pad }}>
@@ -950,7 +953,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const via = (a.via ?? []).filter((k) => !entries.current.get(k)?.hidden).map((k) => rects.current.get(k)).filter((r): r is Rect => !!r);
       shown.push(a);
       // the ends are drawn here (dot and ring among them), so the core draws only the shaft and head
-      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none' });
+      ends.push({ from: a.from, to: a.to, a: ra, b: rb, via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
     }
     const lines: Pt[][] = [];
     arrowPaths(ends).forEach((raw, i) => {

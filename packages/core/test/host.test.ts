@@ -70,3 +70,59 @@ describe('events on what is inside a widget', () => {
     expect(errors(widget('  var on bool = false\n  row\n    @enter set on=true\n    @leave set on=false\n    text "x"\n'))).toEqual([]);
   });
 });
+
+describe('the second consumer', () => {
+  const errors = (src: string) => {
+    const c = compile({ packs: [] });
+    c.document(src, 'x.mkp.md');
+    return c.diags.errors.map((d) => `${d.code}: ${d.message}`);
+  };
+  it('counts a text literal with a $ in it as maths that may be built as it runs', () => {
+    expect(needsMaths(bundle(widget('  in name text = "x"\n  text ("$" + name + "$")\n')))).toBe(true);
+    expect(needsMaths(bundle(widget('  in name text = "x"\n  text ("costs \\\\$5 " + name)\n')))).toBe(false);
+  });
+  it('takes arrow corner=none|s|m and refuses anything else', () => {
+    const arrow = (c: string) => widget(`  column\n    text "a" id=a\n    text "b" id=b\n    arrow from=a to=b route=down corner=${c}\n`);
+    expect(errors(arrow('none'))).toEqual([]);
+    expect(errors(arrow('s'))).toEqual([]);
+    expect(errors(arrow('l'))[0]).toMatch(/corner/);
+  });
+  it('takes if= on a slot, and draws the slot only while it holds', () => {
+    const src = '```mkp\npart box "x"\n  in open bool = false\n  in body slot\n  column\n    text "head"\n    slot body if=(open)\n\nw "w"\n  var on bool = false\n  column\n    box open=on\n      text "inside"\n  project md = "x"\n```\n\n```w\nsummary: s\n```\n';
+    expect(errors(src)).toEqual([]);
+    expect(errors(src.replace('slot body if=(open)', 'slot body hidden=(open)'))[0]).toMatch(/may take if=/);
+  });
+  it('does not count each, switch and case as levels of nesting', () => {
+    let body = '';
+    let ind = '  ';
+    for (let i = 0; i < 10; i++) {
+      body += `${ind}column\n`;
+      ind += '  ';
+    }
+    body += `${ind}each k in 0..1 key=k\n${ind}  switch on=k\n${ind}    case 0\n${ind}      text "deep"\n${ind}    else\n${ind}      text "other"\n`;
+    expect(errors(widget(body))).toEqual([]);
+  });
+});
+
+describe('theme and clip', () => {
+  it('reads theme as light by default and as the host sets it, and keeps the name for itself', async () => {
+    const { Runtime } = await import('../src/runtime/runtime');
+    const { walk } = await import('../src/runtime/view');
+    const rt = new Runtime(bundle(widget('  text "\\val{theme}"\n')), {});
+    const said = () => { let t = ''; walk(rt.view(), (n) => { if (n.t === 'text') t = JSON.stringify(n.p.runs); }); return t; };
+    expect(said()).toContain('light');
+    rt.setTheme('dark');
+    expect(said()).toContain('dark');
+    const c = compile({ packs: [] });
+    c.document(widget('  in theme text = "x"\n'), 'x.mkp.md');
+    expect(c.diags.errors[0]?.message).toMatch(/"theme" is already the reader's theme/);
+  });
+  it('gives a layer its clip rectangle, low corner first, and draws it in the Markdown picture', async () => {
+    const { Runtime } = await import('../src/runtime/runtime');
+    const { walk } = await import('../src/runtime/view');
+    const rt = new Runtime(bundle(widget('  canvas 0..10 0..10\n    layer clip=[(9, 8), (1, 2)]\n      circle (5, 5) 1\n')), {});
+    let clip: number[] | undefined;
+    walk(rt.view(), (n) => { if (n.t === 'canvas') clip = n.layers![0].clip; });
+    expect(clip).toEqual([1, 2, 9, 8]);
+  });
+});

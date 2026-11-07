@@ -81,7 +81,10 @@ export const RGB: Type = { t: 'rec', name: 'rgb', fields: [['r', T.num], ['g', T
  * (false when Markdown is built without them, GAPS 166).
  */
 export const WIDTH: Type = { t: 'choice', opts: ['narrow', 'medium', 'wide'] };
-export const GLOBALS: Record<string, Type> = { width: WIDTH, answers: T.bool };
+/** The reader's theme, as the host draws it: a drawing that can't follow the colour tokens (a pixels
+ *  ramp) picks its colours by it. */
+export const THEME: Type = { t: 'choice', opts: ['light', 'dark'] };
+export const GLOBALS: Record<string, Type> = { width: WIDTH, theme: THEME, answers: T.bool };
 
 export class ExprChecker {
   /** specialisations being checked, to catch recursion without a return type */

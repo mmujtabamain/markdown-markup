@@ -7,7 +7,7 @@ export * from './ir';
 export { Runtime, Inst, WidgetHandle, checkValue, type RuntimeOptions, type SignalEvent, type MathsRenderer } from './runtime/runtime';
 export type { VNode, VLayer, VShape, VArrow, VRun, VMaths, ShapeEvent } from './runtime/view';
 export { walk as walkView } from './runtime/view';
-export { arrowPath, arrowPaths, type ArrowEnd, type ArrowEnds, type Rect, type ArrowPath } from './runtime/arrow';
+export { arrowPath, arrowPaths, ARROW_CORNERS, type ArrowEnd, type ArrowEnds, type Rect, type ArrowPath } from './runtime/arrow';
 export { fmtNum, fromJson, toJson, rand, EvalError } from './eval';
 export { TokenTable, tokenSetIR, tokenNames } from './tokens';
 export { inlineRuns, plainText, safeHref, type Run } from './markdown';

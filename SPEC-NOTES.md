@@ -661,3 +661,20 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      web's capabilities and the build's maths engine. `mount(…, { hydrate: true })` hydrates it
      with React; a mismatch is redrawn and warned about. The runtime's width starts as it does in
      the browser, so a width-dependent branch may change once the page is measured.
+143. **Arrow ends and runs.** *Reading (6.10), changed.* An arrow's ends touch the outlines they
+     join (the core's `arrowPaths` and `arrowPath` default to a gap of 0). Routed tracks in a gap
+     keep `RUN_IN` (the head and 6 px) clear of the side heads arrive at and `RUN_OUT` (6 px) of the
+     side tails leave; a gap too narrow for both puts the track `RUN_IN` from the heads' side, or on
+     the tails' edge. `corner=m|s|none` is the turns' radius: 12, 6 or 0 px.
+144. **`theme`.** *Extension (6.3).* A value every definition reads, as `width`: `light` or
+     `dark`, set by the renderer (`Runtime.setTheme`, `RuntimeOptions.theme`); the web's `auto`
+     follows `prefers-color-scheme`, React Native's `useColorScheme`. A snapshot (Markdown) is
+     `light`. The name is reserved, like `width` (`mkp.shadow`).
+145. **Layout props.** *Extension (8).* Containers take `padx` and `pady` (each in `pad`'s place on
+     its sides); a canvas layer takes `clip`, two corners in data units; `zoom` takes `minscale`
+     (0.6; 0 for none), the least it shrinks to fit, past which the middle shows and the zoom clips.
+     In a grid or stack, `self=` sets both axes (CSS `align-self` and `justify-self`).
+146. **Checks relaxed.** *Reading (11).* `each`, `switch` and `case` are not levels of nesting;
+     `slot name if=(…)` is allowed.
+147. **A frame's stage is an arrow host.** *Reading (6.10).* Always, not only when full screen or of
+     a fixed height, so lines `layer=behind` between what it holds draw over its surface.

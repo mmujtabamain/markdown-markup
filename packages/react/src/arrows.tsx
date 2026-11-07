@@ -6,7 +6,7 @@
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { arrowPaths, type ArrowEnds, type ArrowPath, type Rect, type VArrow, type VRun } from '@mkp/core';
+import { ARROW_CORNERS, arrowPaths, type ArrowEnds, type ArrowPath, type Rect, type VArrow, type VRun } from '@mkp/core';
 import { Runs } from './nodes';
 
 type Pt = [number, number];
@@ -45,7 +45,8 @@ interface Layer {
 }
 
 const DASH: Record<string, string | undefined> = { solid: undefined, dashed: '5 4', dotted: '2 3' };
-const GAP = 3;
+/** Ends touch the outline of what they join (a gap of 0): a line that stops short reads as unjoined. */
+const GAP = 0;
 const HEAD = 7;
 /** The least a curve bends, so a link back between adjacent rows is no tight bend beside the forward one (GAPS 52). */
 export const MIN_BEND = 32;
@@ -331,7 +332,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
       const g = groups.get(host) ?? { arrows: [], ends: [] };
       g.arrows.push(a);
       // the ends are the renderer's own (dot and ring among them), so the core draws only the shaft and head
-      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none' });
+      g.ends.push({ from: a.from, to: a.to, a: rel(ea.getBoundingClientRect()), b: rel(eb.getBoundingClientRect()), via, curve: a.curve, route: a.route, head: 'arrow', tail: 'none', corner: a.corner ? ARROW_CORNERS[a.corner] : undefined });
       groups.set(host, g);
     }
     const out: Layer[] = [];
@@ -437,6 +438,13 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
   const ink = (p: Drawn): string => `var(--mkp-arrow-${p.tone ?? 'muted'}, var(--mkp-color-${p.tone ?? 'muted'}))`;
   const fade = (p: Drawn): CSSProperties | undefined => (p.dim || p.opacity !== undefined ? { opacity: (p.dim ? 0.3 : 1) * (p.opacity ?? 1) } : undefined);
   const labelled = paths.filter((p) => p.label && p.runs);
+  // lines that combine into one trunk share their tails: each mark drawn once, so a ring or a
+  // half-faded dot isn't drawn over itself
+  const seen = new Set<string>();
+  const once = (m: Mark, p: Drawn): boolean => {
+    const k = `${m.d}|${m.fill}|${m.tone ?? p.tone ?? ''}|${p.dim ? 1 : 0}|${p.opacity ?? ''}|${p.bold ? 1 : 0}`;
+    return seen.has(k) ? false : (seen.add(k), true);
+  };
   return (
     <>
       <svg className="mkp-arrows" data-layer={behind ? 'behind' : undefined} aria-hidden="true" width={layer.w} height={layer.h}>
@@ -446,7 +454,7 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
             <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} style={fade(p)}>
               <path d={p.d} fill="none" stroke={ink(p)} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
               {p.head ? <polygon points={p.head} fill={ink(p)} /> : null}
-              {p.marks.map((m, i) => (
+              {p.marks.filter((m) => once(m, p)).map((m, i) => (
                 <path key={i} d={m.d} stroke={m.tone ? `var(--mkp-color-${m.tone})` : ink(p)} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink(p) : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" strokeLinecap="round" />
               ))}
             </g>

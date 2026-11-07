@@ -58,6 +58,8 @@ const ARROW_LOOK: Record<string, Type> = {
   layer: { t: 'choice', opts: ['front', 'behind'] },
   // quieter than muted (GAPS 122)
   opacity: { t: 'num', lo: 0, hi: 1 },
+  // how round its turns are: m (12 px, the default), s (6 px) or none (square)
+  corner: { t: 'choice', opts: ['none', 's', 'm'] },
 };
 const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
 const META_FLAGS = new Set(['hidden', 'grow']);
@@ -542,8 +544,8 @@ export class DefChecker {
     if (this.prog.packs.get(this.entry.pack)?.builtin) return;
     const cap = `${name[0].toUpperCase()}${name.slice(1)}`;
     if (GLOBALS[name]) {
-      const what = name === 'width' ? "the reader's width (narrow, medium or wide)" : 'the answers switch (true when the Markdown includes the answers)';
-      this.fail(p, `"${name}" is already ${what}, which every definition can read, so it can't be declared here too. Rename it, e.g. "${name === 'width' ? 'boxWidth' : 'given'}"`, 'mkp.shadow');
+      const what = name === 'width' ? "the reader's width (narrow, medium or wide)" : name === 'theme' ? "the reader's theme (light or dark)" : 'the answers switch (true when the Markdown includes the answers)';
+      this.fail(p, `"${name}" is already ${what}, which every definition can read, so it can't be declared here too. Rename it, e.g. "${name === 'width' ? 'boxWidth' : name === 'theme' ? 'look' : 'given'}"`, 'mkp.shadow');
     }
     if (RESERVED.has(name)) this.fail(p, `"${name}" is a built-in value (as are ${[...RESERVED].filter((r) => r !== name).join(', ')}), so it can't be a name here. Rename it, e.g. "${name}Value"`, 'mkp.shadow');
     for (const kind of ['color']) {
@@ -1066,7 +1068,7 @@ export class DefChecker {
   }
 
   private node(n: NodeSyn, ctx: Ctx, scope: Scope, depth: number): IRNode | null {
-    if (depth > LIMITS.nesting) this.fail(n.p, `"${n.head}" here is nested ${depth} levels deep, past the ${LIMITS.nesting} levels one definition may nest. Use fewer containers inside containers, or move the inner part into a part of its own`, 'mkp.limit');
+    if (depth > LIMITS.nesting) this.fail(n.p, `"${n.head}" here is nested ${depth} levels deep, past the ${LIMITS.nesting} levels one definition may nest. Use fewer containers inside containers (each, switch and case are not counted), or move the inner part into a part of its own`, 'mkp.limit');
     this.path.push(n.head);
     try {
       return this.node1(n, ctx, scope, depth);
@@ -1084,14 +1086,23 @@ export class DefChecker {
         return this.switch(n, ctx, scope, depth);
       case 'slot': {
         const a = n.args[0];
-        if (!a || a.value.v !== 'expr' || n.args.length > 1) {
+        // the slot's name, then if= (and nothing else): slot body if=(open)
+        const rest = n.args.slice(1);
+        const cond = rest.length === 1 && rest[0].key === 'if' ? rest[0] : undefined;
+        if (!a || a.key || a.value.v !== 'expr' || (rest.length && !cond)) {
           const slots = this.ir.inputs.filter((i) => resolve(i.type, this.env).t === 'slot').map((i) => i.name);
-          this.fail(n.p, `slot places one slot input of ${this.label} where it stands; found ${n.args.length ? `slot ${n.args.map((x) => x.value.src).join(' ')}` : 'slot with no name'}. Write slot and the slot's name, e.g. slot ${slots[0] ?? 'body'}${slots.length ? '' : ' (declared as in body slot)'}`);
+          this.fail(n.p, `slot places one slot input of ${this.label} where it stands, and may take if=; found ${n.args.length ? `slot ${n.args.map((x) => (x.key ? `${x.key}=` : '') + x.value.src).join(' ')}` : 'slot with no name'}. Write slot and the slot's name, e.g. slot ${slots[0] ?? 'body'}${slots.length ? '' : ' (declared as in body slot)'}, or slot ${slots[0] ?? 'body'} if=(open)`);
         }
         const c = this.x.check(a.value.e, scope);
         if (resolve(c.type, this.env).t !== 'slot') this.fail(a.p, `slot places a slot input, but ${a.value.src} is ${showType(c.type)}; found slot ${a.value.src}. ${resolve(c.type, this.env).t === 'text' ? `Show text with text ${a.value.src}, or declare` : 'Declare'} ${a.value.src} as a slot (in ${a.value.src} slot) and fill it with lines indented under the widget`);
         this.elementCount++;
-        return { node: 'slot', value: this.irExpr(c, a.value.src, a.p), pos: pos(n.p) };
+        const slot: IRNode = { node: 'slot', value: this.irExpr(c, a.value.src, a.p), pos: pos(n.p) };
+        if (cond) {
+          const meta: IRMeta = {};
+          this.meta(cond, meta, scope);
+          slot.meta = meta;
+        }
+        return slot;
       }
       case 'controls': {
         const known = [...this.controlNames].filter(([, c]) => c !== 'drag').map(([k]) => k);
@@ -1516,7 +1527,8 @@ export class DefChecker {
       this.diags.warn('mkp.each-unkeyed', `each over ${src.value.src} has no key=, so it tells items apart by position and they lose their state when the list changes. Add key= with a value unique to each ${name}, e.g. each ${name} in ${src.value.src} key=${key}`, n.p, [...this.path]);
     }
     if (n.events.length) this.fail(n.events[0].p, `each can't take events; found @${n.events[0].name} under each. Move the @${n.events[0].name} line under the element inside the each that should react`);
-    const items = this.nodes(n.children, ctx, sc, depth + 1);
+    // each, switch and case are not levels: they repeat or choose, and draw nothing of their own
+    const items = this.nodes(n.children, ctx, sc, depth);
     this.placeChildren(out, items, 'each', n.p);
     return out;
   }
@@ -1554,14 +1566,14 @@ export class DefChecker {
           const r = resolve(subj.type, this.env);
           if (r.t === 'int' && r.lo !== undefined && 'lit' in v && typeof v.lit === 'number' && (v.lit < r.lo || v.lit > r.hi!)) this.diags.warn('mkp.case-unreachable', `case ${v.lit} can't happen: the switch's value ${on.value.src} is ${this.takes(subj.type)}. Change the case to a value in that range, or remove it`, c.p, [...this.path]);
           const holder: IRNode = { node: 'case' };
-          this.placeChildren(holder, this.nodes(c.children, ctx, scope, depth + 1), 'case', c.p);
+          this.placeChildren(holder, this.nodes(c.children, ctx, scope, depth), 'case', c.p);
           out.cases!.push({ value: v, children: [...(holder.children ?? []), ...(holder.records ?? [])] });
           if (holder.records) out.records = [];
         } else if (c.head === 'else') {
           if (out.else) this.fail(c.p, `switch may have one else, and this is a second (the first is on line ${elseLine}). Merge the two, or remove this one`);
           elseLine = c.p.line;
           const holder: IRNode = { node: 'else' };
-          this.placeChildren(holder, this.nodes(c.children, ctx, scope, depth + 1), 'else', c.p);
+          this.placeChildren(holder, this.nodes(c.children, ctx, scope, depth), 'else', c.p);
           out.else = [...(holder.children ?? []), ...(holder.records ?? [])];
           if (holder.records) out.records = [];
         } else this.fail(c.p, `under switch, only case and else lines may go; found "${c.head}". Put it under a case or else, or move it out from under the switch`);
@@ -1594,7 +1606,7 @@ export class DefChecker {
         const owner = word ? Object.entries(ARROW_LOOK).find(([, t]) => t.t === 'choice' && t.opts.includes(word))?.[0] : undefined;
         const near = a.key ? (['colour', 'color'].includes(a.key) ? 'tone' : closest(a.key, keys)) : undefined;
         const fix = owner ? `Write ${owner}=${word}` : near ? `Write ${near}=${a.value.src}` : 'Remove it or use one of those';
-        this.fail(a.p, `arrow has no ${a.key ? `prop "${a.key}"` : `setting "${a.value.src}"`}; found ${a.key ? `${a.key}=${a.value.src}` : a.value.src}. It takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim=, bold=, layer= and opacity=. ${fix}`, 'mkp.unknown-prop');
+        this.fail(a.p, `arrow has no ${a.key ? `prop "${a.key}"` : `setting "${a.value.src}"`}; found ${a.key ? `${a.key}=${a.value.src}` : a.value.src}. It takes from=id to=id, an optional "label", via=(ids), route=down|right, curve, tone=, line=, head=, tail=, dim=, bold=, layer=, opacity= and corner=. ${fix}`, 'mkp.unknown-prop');
       }
     }
     if (!out.from || !out.to) {

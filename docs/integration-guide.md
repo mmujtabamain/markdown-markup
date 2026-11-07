@@ -636,7 +636,8 @@ function Sections() {
 ```
 
 Your element must have the class `mkp-root` (the stylesheet is scoped to it). Set
-`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS.
+`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS, and call
+`useMkpTheme(theme)` in it (or `rt.setTheme('dark')`) so a widget that reads `theme` draws for it.
 
 ### 4.2 Your own design system
 
@@ -1195,6 +1196,7 @@ a note under **Changed** in a release:
 | an icon | `mkp-icon`, `data-name`, `data-size` | the icon's name (`help`, `info`…), so you can swap in your own symbol |
 | a canvas shape that listens | `data-pointed`, and `data-press` with `role=button` when it takes `@click` | a circle or path with `@enter`, `@leave` or `@click` |
 | the root | `mkp-root`, `data-theme` | the stylesheet's scope; `light` or `dark` when it is fixed |
+| a canvas layer with `clip=` | `clip-path` on its `<g>` | the rectangle its shapes stop at |
 
 Not promised: `data-mkp-key` (the runtime's key for a node: it changes when the document's
 structure does; use it within one drawing, never store it), `data-mkp-src` (where the node was
@@ -1367,6 +1369,7 @@ Things you will hit, as of this commit:
 - **Partial `components`**: the type asks for all 25 base widgets, and passing any drops the
   neutral stylesheet (4.2).
 - **React Native has no `components` prop**, so its look comes from tokens only.
+- **React Native's zoom doesn't shrink what it holds to fit**, so `minscale` means nothing there.
 - **React Native reports no events from canvas shapes, nor `@enter`/`@leave` on containers.** Its
   canvas is drawn with Skia, which has no hit-testing yet; on the web both work (`@mkp/react`).
 - **`mkp build --out` names outputs by file name only**, so documents with one name in different

@@ -96,7 +96,9 @@ export function Frame({ n, attrs, style, Button = PlainButton }: { n: VNode; att
           </Button>
         </span>
       </header>
-      <div className="mkp-frame-stage" data-fixed={height ? '' : undefined} data-mkp-arrow-host={height || full ? '' : undefined} style={height && !full ? { height } : undefined}>
+      {/* its stage is always a layer for the arrows between what it holds: drawn in it, those behind
+          sit over the frame's surface and under its content, rather than under the surface (GAPS 175) */}
+      <div className="mkp-frame-stage" data-fixed={height ? '' : undefined} data-mkp-arrow-host="" style={height && !full ? { height } : undefined}>
         <Kids nodes={n.kids} />
       </div>
       {has('bar') ? (
@@ -169,10 +171,12 @@ const OWN_DRAG = 'button, a, input, select, textarea, [role="slider"], .mkp-hand
  * enlarged), and as tall as it then is. A drawing wider than its frame is seen whole at rest; a zoom
  * around it lets the reader look closer.
  */
-export function FitBox({ children, on = true, gutter = 0, onWide }: { children?: ReactNode; on?: boolean; gutter?: number; onWide?: (wide: boolean) => void }): ReactNode {
+export function FitBox({ children, on = true, gutter = 0, onWide, minScale = 0 }: { children?: ReactNode; on?: boolean; gutter?: number; onWide?: (wide: boolean) => void; minScale?: number }): ReactNode {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState<{ s: number; h: number } | null>(null);
+  const [fit, setFit] = useState<{ s: number; h: number; dx: number } | null>(null);
+  // never smaller than this (a zoom's minscale): what is still wider is clipped about its middle
+  const floor = Math.min(1, Math.max(0, Number(minScale) || 0));
   useLayoutEffect(() => {
     const o = outer.current;
     const i = inner.current;
@@ -184,11 +188,14 @@ export function FitBox({ children, on = true, gutter = 0, onWide }: { children?:
       i.style.minWidth = '';
       // a gutter on the right, kept free for what sits over the view (a zoom's lock)
       const room = o.clientWidth - gutter;
-      const s = room > 0 && want > room + 0.5 ? room / want : 1;
+      const s = room > 0 && want > room + 0.5 ? Math.max(floor, room / want) : 1;
       const h = Math.round(i.offsetHeight * s * 10) / 10;
+      // at the floor and still wider than the room: its middle is what shows, and the zoom around it
+      // (overflow hidden) does the clipping, so a pan brings the sides into view
+      const dx = s * want > room + 0.5 ? Math.round(((room - s * want) / 2) * 10) / 10 : 0;
       // wider than the whole view, gutter or not: what a zoom shows its lock for
       if (o.clientWidth > 0) onWide?.(want > o.clientWidth + 0.5);
-      setFit((f) => (f && f.s === s && f.h === h ? f : { s, h }));
+      setFit((f) => (f && f.s === s && f.h === h && f.dx === dx ? f : { s, h, dx }));
     };
     go();
     if (typeof ResizeObserver === 'undefined') return;
@@ -196,12 +203,12 @@ export function FitBox({ children, on = true, gutter = 0, onWide }: { children?:
     ro.observe(o);
     ro.observe(i);
     return () => ro.disconnect();
-  }, [on, gutter, onWide]);
+  }, [on, gutter, onWide, floor]);
   if (!on) return <>{children}</>;
   const shrunk = !!fit && fit.s < 1;
   return (
-    <div ref={outer} className="mkp-fit" data-shrunk={shrunk || undefined} style={{ ...(gutter ? { paddingRight: gutter } : {}), ...(shrunk ? { height: fit.h } : {}) }}>
-      <div ref={inner} className="mkp-fit-inner" style={shrunk ? { transform: `scale(${fit.s})` } : undefined}>
+    <div ref={outer} className="mkp-fit" data-shrunk={shrunk || undefined} style={{ ...(gutter ? { paddingRight: gutter } : {}), ...(shrunk ? { height: fit.h } : {}), ...(fit?.dx ? { overflow: 'visible' } : {}) }}>
+      <div ref={inner} className="mkp-fit-inner" data-clipped={fit?.dx ? '' : undefined} style={shrunk ? { transform: `${fit.dx ? `translateX(${fit.dx}px) ` : ''}scale(${fit.s})` } : undefined}>
         {children}
       </div>
     </div>
@@ -341,7 +348,7 @@ export function Zoom({ n, attrs, style, Button = PlainButton }: { n: VNode; attr
     >
       {/* the moving layer: arrows with both ends in it are drawn in it, and follow it (GAPS 126) */}
       <div ref={content} className="mkp-zoom-content" data-mkp-arrow-host="" style={shifted ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` } : undefined}>
-        <FitBox on={fit} gutter={tools ? 44 : 0} onWide={setWide}>
+        <FitBox on={fit} gutter={tools ? 44 : 0} onWide={setWide} minScale={n.p.minscale === undefined ? 0.6 : Number(n.p.minscale)}>
           <Kids nodes={n.kids} />
         </FitBox>
       </div>
@@ -389,7 +396,8 @@ export const SHELL_CSS = layer(`
 @container (max-width: 520px) {
   [data-control=steps] { flex-wrap: wrap !important; row-gap: var(--mkp-space-xs); }
   [data-control=steps] > [role=status] { order: 10; flex: 1 0 100% !important; }
-  [data-control=steps] > [data-mkp=range] { flex: 1 1 4rem !important; width: auto !important; min-width: 3rem; }
+  /* the track gives way first: it asks only its 3rem least, so the buttons and count keep one line */
+  [data-control=steps] > [data-mkp=range] { flex: 1 1 3rem !important; width: auto !important; min-width: 3rem; }
   /* a frame's own status says all of itself on a phone; a playback's keeps to one line, so the bar
      doesn't jump while it plays */
   .mkp-frame-bar > [role=status] { white-space: normal !important; }

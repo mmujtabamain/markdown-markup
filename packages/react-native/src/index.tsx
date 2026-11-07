@@ -94,6 +94,8 @@ export function MkpDocument(props: MkpDocumentProps): ReactNode {
     () => rt.view(),
   );
 
+  // `theme` in the document reads the scheme drawn: the one given, or the system's
+  useEffect(() => rt.setTheme(mode), [rt, mode]);
   const ctx = useMemo<Ctx>(() => ({ rt, theme }), [rt, theme]);
   return (
     <RuntimeCtx.Provider value={ctx}>

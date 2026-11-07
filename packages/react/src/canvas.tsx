@@ -2,7 +2,7 @@
 // circle's px), labels and placed elements as HTML over the SVG, handles with arrow-key
 // alternatives (WCAG 2.5.7), and with gfx@1: pixels through WebGL and a 3D mesh with a camera.
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { color, size as sizeTok } from './style';
 import { Kids, Runs, useCtx } from './nodes';
@@ -40,6 +40,8 @@ function useHeight(ref: { current: HTMLElement | null }, token: string | undefin
 
 export function Canvas({ n }: { n: VNode }): ReactNode {
   const { rt } = useCtx();
+  // one page may draw a document twice: its layers' clip rectangles need ids of their own
+  const uid = useId();
   const p = n.p;
   const box = useRef<HTMLDivElement | null>(null);
   const tok = String(p.size ?? 'm');
@@ -58,8 +60,14 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const html: ReactNode[] = [];
   const labels: Label[] = [];
   const dispatch = (key: string, event: string): void => rt.dispatch(key, event);
+  const clipId = (l: { key: string }): string => `mkp-clip-${(uid + l.key).replace(/[^\w-]/g, '_')}`;
   const layers = (n.layers ?? []).map((l) => (
-    <g key={l.key} opacity={l.opacity} data-mkp-key={l.key}>
+    <g key={l.key} opacity={l.opacity} data-mkp-key={l.key} clipPath={l.clip ? `url(#${clipId(l)})` : undefined}>
+      {l.clip ? (
+        <clipPath id={clipId(l)}>
+          <rect x={X(l.clip[0])} y={Y(l.clip[3])} width={X(l.clip[2]) - X(l.clip[0])} height={Y(l.clip[1]) - Y(l.clip[3])} />
+        </clipPath>
+      ) : null}
       {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, html, labels, opacity: l.opacity, dispatch }))}
     </g>
   ));

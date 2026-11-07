@@ -187,7 +187,8 @@ function expand(tex: string, macros: Record<string, string>): string {
  */
 /**
  * Whether drawing `b` needs the maths engine: a formula or a text with maths in it that the build
- * has not already typeset (prerender), or one with live values (\val{}). A host that loads the
+ * has not already typeset (prerender), one with live values (\val{}), or a text in an expression
+ * with a $ in it, which may become maths as it runs ("$" + name + "$"). A host that loads the
  * engine only when this is true never fetches it for a document without maths. Maths that arrives
  * later from outside the bundle (a host input) shows as its TeX until the host loads the engine.
  */
@@ -207,6 +208,9 @@ export function needsMaths(b: IRBundle): boolean {
     // a math block, or a tex template (latex literal): typeset by the build unless it has live values
     if (typeof o.tex === 'string' && !('ast' in o) && (typeof o.svg !== 'string' || o.tex.includes('\\val{'))) return true;
     if (o.t === 'tmpl' && o.tex) return true;
+    // a text literal in an expression with a $ in it may be joined into maths as it runs ("$" + name
+    // + "$"), which only the engine can draw: count it, though some are only prices
+    if ((o.t === 'str' || o.t === 'tmpl') && typeof o.v === 'string' && /(^|[^\\])\$/.test(o.v)) return true;
     for (const [k, x] of Object.entries(o)) {
       if (k === 'svg' || k === 'speech' || k === 'maths' || k === 'file' || k === 'pos' || (k === 'tex' && typeof x !== 'object')) continue;
       if (k === 'text' && typeof x === 'string') {
