@@ -16,7 +16,7 @@ JavaScript, CSS or shaders in content.
 | `packages/shadcn` | A provider's definition of the whole base set, drawn with the shadcn-style components it passes in. |
 | `packages/cli` | `mkp`: build, check, index, show, schema, fmt, pack — also as one executable. |
 | `packages/page` | A document as one standalone HTML page (`mkp build --target html`: `@mkp/react`'s neutral renderer, the runtime and the maths engine inlined, with the Markdown inside for readers with scripts off), and its Markdown drawn as HTML (`--target html-md`). The playground's Markdown preview is this one too. |
-| `apps/site` | The website (https://mmujtabamain.github.io/markdown-markup/): the landing page at `/`, and the docs at `/docs/`, where every example, base widget and limit opens with its source, the drawn document, its Markdown, that Markdown drawn, its IR and its errors, at phone or desktop width. |
+| `apps/site` | The website (https://mmujtabamain.github.io/markdown-markup/): the landing page at `/`; the docs at `/docs/`, static pages written in MKP (`apps/site/docs-src`) and compiled once with `pnpm site:docs`; and the examples at `/examples/`, where every example, base widget and limit opens with its source, the drawn document, its Markdown, its IR and its errors. |
 | `examples/` | 31 documents in reading order, each one idea, and `examples/limits`: 14 that fail on purpose. Each has its Markdown committed as `doc.md`. |
 | `widgets/` | The playground's component pages: `base/`, each of the 25 base widgets on its own in its states, and `derived/`, everyday widgets (a card, tabs, an accordion, a stepper…) composed from them. |
 | `conformance/` | Golden cases any provider or port runs: a test-only pack that uses every extern and prop (`conformance/packs/base`), and every example. |
@@ -88,12 +88,12 @@ has three files, no npm and no token:
 
 | File | What it is |
 |---|---|
-| `mkp-web-<version>.zip` | The web files, which import each other: keep them in one folder. `mkp.js` (the core) with `mkp.d.ts` (its types, one self-contained header), `maths-engine.js` (loaded by `mkp.js` when maths shows), `mkp-react.js` (draws documents with your React 19: MKP's own look, or your components) with `mkp-react.d.ts`. |
+| `mkp-web-<version>.zip` | The web files, which import each other: keep them in one folder. `mkp.js` (the core) with `mkp.d.ts` (its types, one self-contained header), `maths-engine.js` (loaded by `mkp.js` when maths shows), `mkp-react.js` (draws documents with your React 19: MKP's own look, or your components) with `mkp-react.d.ts`, and `mkp-dom.js` (mounts a document in any page or framework, its own React inside) with `mkp-dom.d.ts`. |
 | `mkp-cli.mjs` | The CLI, in one file: `node mkp-cli.mjs check / build / …`. Node 20.19+. |
 | `SHA256SUMS` | Their checksums. |
 
 ```sh
-v=0.1.0; base=https://github.com/mmujtabamain/markdown-markup/releases/download/v$v
+v=0.2.0; base=https://github.com/mmujtabamain/markdown-markup/releases/download/v$v
 curl -LO $base/mkp-cli.mjs && node mkp-cli.mjs build lesson.mkp.md --target html --out out
 curl -LO $base/mkp-web-$v.zip && mkdir -p vendor/mkp && unzip -j mkp-web-$v.zip -d vendor/mkp
 ```
@@ -119,4 +119,4 @@ const view = mount(document.getElementById('doc'), bundle, { onSignal: (e) => co
 ```
 
 [`recipes/`](recipes/) has a small tested app for **Vue, Svelte, Solid, Angular, Astro and plain
-JavaScript**, each with a component to copy; [`docs/recipes.md`](docs/recipes.md) walks through them.
+JavaScript**, each with a component to copy; the site's [Recipes](https://mmujtabamain.github.io/markdown-markup/docs/recipes.html) walks through them.

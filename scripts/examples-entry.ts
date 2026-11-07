@@ -149,7 +149,7 @@ function coverage(): number {
 }
 
 /** Docs that hold copies of examples or recipe files, by marker. */
-const DOCS = ['docs/authoring-guide.md', 'docs/recipes.md', 'README.md'];
+const DOCS = ['docs/authoring-guide.md', 'apps/site/docs-src/recipes.mkp.md', 'README.md'];
 
 function sync(write: boolean): number {
   let drift = 0;

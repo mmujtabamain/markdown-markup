@@ -1,15 +1,18 @@
+---
+description: MKP in Vue, Svelte, Solid, Angular, Astro and a page with no framework - a tested component for each, to copy.
+---
 # Recipes
 
 MKP in Vue, Svelte, Solid, Angular, Astro and a page with no framework. Each recipe is a small,
-tested app in the repository's `recipes/` folder; the component below is the part to copy. React
-apps use `mkp-react.js` instead (see the integration guide).
+tested app in the repository's [`recipes/`](../../../recipes/) folder; the component below is the
+part to copy. React apps use `mkp-react.js` instead ([In your app](in-your-app.mkp.md#react)).
 
 ## What every recipe needs
 
 The release's web files, unzipped together, and `mkp-dom.js`'s `mount()`:
 
 ```sh
-mkdir -p src/vendor/mkp && unzip -j mkp-web-0.1.2.zip -d src/vendor/mkp
+mkdir -p src/vendor/mkp && unzip -j mkp-web-0.2.0.zip -d src/vendor/mkp
 ```
 
 ```ts
