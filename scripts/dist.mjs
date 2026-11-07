@@ -214,8 +214,9 @@ Unlicensed: all rights reserved. https://github.com/mmujtabamain/markdown-markup
 );
 
 // the CLI: its own build (core, maths engine and the page script inside), as ESM-run by node
-execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', env: { ...process.env, MKP_VERSION: version } });
-const cjs = readFileSync(join(root, 'packages/cli/dist/mkp.cjs'), 'utf8').replace(/^#!.*\n/, '');
+const cliDist = mkdtempSync(join(tmpdir(), 'mkp-cli-'));
+execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', env: { ...process.env, MKP_VERSION: version, MKP_CLI_DIST: cliDist } });
+const cjs = readFileSync(join(cliDist, 'mkp.cjs'), 'utf8').replace(/^#!.*\n/, '');
 // an .mjs file is a module to node: the bundle (CommonJS) runs inside a require() made for it
 const cli = `#!/usr/bin/env node\n${banner}\nimport { createRequire as __mkpRequire } from 'node:module';\nconst require = __mkpRequire(import.meta.url);\nconst module = { exports: {} };\nconst exports = module.exports;\nconst __filename = new URL(import.meta.url).pathname;\nconst __dirname = __filename.slice(0, __filename.lastIndexOf('/'));\n${cjs}`;
 writeFileSync(join(out, 'mkp-cli.mjs'), cli);

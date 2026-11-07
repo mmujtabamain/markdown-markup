@@ -16,5 +16,7 @@ export default defineConfig({
     testTimeout: 60000,
     hookTimeout: 120000,
     pool: 'threads',
+    // the CLI built once, before any test: the tests that spawn it never see it half-rewritten
+    globalSetup: ['./scripts/test-setup.mjs'],
   },
 });
