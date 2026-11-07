@@ -532,6 +532,16 @@ describe('what a host styles and traces', () => {
     expect(one(container, '.mkp-icon[data-name=info]').textContent).toBe('ⓘ');
     expect(SHELL_CSS).toMatch(/\.mkp-icon\[data-name=help\] \{[^}]*border-radius: 50%/);
   });
+  it('has a chevron for each way: more and less beside prev and next, so a disclosure can follow its state', () => {
+    const b = doc(['var open bool = false', 'press label="Details" id=d', '  icon name=(if(open, more, next))', '  @click set open=(not open)', 'icon name=less']);
+    const { container } = draw(b);
+    expect(one(container, '[data-mkp-id=d] .mkp-icon').getAttribute('data-name')).toBe('next');
+    expect(one(container, '[data-mkp-id=d] .mkp-icon').textContent).toBe('›');
+    fireEvent.click(one(container, '[data-mkp-id=d]'));
+    expect(one(container, '[data-mkp-id=d] .mkp-icon').getAttribute('data-name')).toBe('more');
+    expect(one(container, '[data-mkp-id=d] .mkp-icon').textContent).toBe('∨');
+    expect(one(container, '.mkp-icon[data-name=less]').textContent).toBe('∧');
+  });
   it('writes only the document’s tokens with styles="external": the rest is mkpCss(), loaded once by the page', () => {
     const b = doc(['text "hi"']);
     const inline = draw(b).container.querySelector('style')!.textContent!;

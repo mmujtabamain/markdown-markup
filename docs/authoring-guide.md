@@ -340,7 +340,7 @@ line keeps a straight run before its head (the head and 6 px) and after its tail
 
 Named records with defaults (`type task = {title: text, tone: color = muted}`) fill what a literal
 leaves out; a literal is typed by where it goes, so `{tone: ok}` reads `ok` as a colour; `none`
-is a value of every token kind; `iconname` is the icons' type (`none` draws nothing); types may be recursive (example 23).
+is a value of every token kind; `iconname` is the icons' type (`none` draws nothing; `prev`/`next` and `less`/`more` are the four chevrons, `left`/`right`/`up`/`down` the arrows, so a disclosure writes `icon name=(if(open, more, next))`); types may be recursive (example 23).
 A record kind of an input (`list(record mark {…})`) is a type its definition's fns can take.
 
 <!-- example 24-type-parameters -->
