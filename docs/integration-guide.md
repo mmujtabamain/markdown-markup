@@ -586,7 +586,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `components` | your own components for base widgets (4.2) |
 | `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
 | `styles` | `'inline'` (the default) or `'external'`: MKP's stylesheet left to your page (below) |
-| `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state |
+| `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state; it may arrive later (below) |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
 | `options` | `RuntimeOptions`: `onSignal`, `onWarn`, `hosts`, `budgetCap`, `capabilities`, `answers`… |
 | `runtime` | a `Runtime` you made, to drive it (step 6) |
@@ -594,6 +594,12 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 
 What to know:
 
+- **A maths engine that loads later.** Draw the document at once and pass `maths` when the engine
+  has loaded: the document keeps its state, and only the formulas without a picture change. Until
+  then such a formula is its TeX in a `.mkp-math[data-pending]`, for a loading look of your own. A
+  `Runtime` you made yourself takes it with `runtime.setMaths(engine)`.
+- **Canvases** are drawn at their final size from the first frame, and drawn again only when what
+  they draw changed; a `pixels` layer is computed again only when a value it reads changed.
 - **Your icons.** `icons` takes any React component, for every name or for some
   (`icons={{ help: HelpIcon }}`; the rest keep MKP's symbols). It is given
   `{ name, size, tone, color, label, className }`: `size` is `small`, `normal` or `large`, `tone`

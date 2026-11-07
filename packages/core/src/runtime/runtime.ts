@@ -225,6 +225,8 @@ export class Runtime {
   readonly warnings: { code: string; message: string }[] = [];
   readonly signals: SignalEvent[] = [];
   private readonly mathsCache = new Map<string, IRMaths>();
+  /** each pixels layer's last shape, by its key, with what it was drawn from */
+  private readonly pixelsLast = new Map<string, { sig: string; shape: VShape }>();
   private nodeCount = 0;
   /** the reader's width: narrow, medium or wide, as the provider measures it */
   readonly widthCell: Cell;
@@ -267,6 +269,16 @@ export class Runtime {
    */
   setTheme(t: 'light' | 'dark'): void {
     if (this.themeCell.set(t)) this.changed();
+  }
+
+  /**
+   * The maths engine arrived after the document (a host that loads it lazily): formulas drawn
+   * without a picture get one, and everything else, the state included, stays as it is.
+   */
+  setMaths(m: MathsRenderer | undefined): void {
+    if (this.opts.maths === m) return;
+    (this.opts as { maths?: MathsRenderer }).maths = m;
+    this.changed();
   }
 
   subscribe(f: () => void): () => void {
@@ -1236,8 +1248,20 @@ export class Runtime {
         case 'pixels': {
           const fexpr = r.props?.f as IRExpr;
           const compiled = compilePixels(fexpr, this.bundle, (name) => inst.get(name), env, (name) => this.lambdaInput(inst, name), inst.fns);
-          const fallback = gfx ? undefined : compiled.fallback?.((canvasProps.x as number[]) ?? [-1, 1], (canvasProps.y as number[]) ?? [-1, 1]);
-          s = { t: 'pixels', key: k, glsl: compiled.glsl, sksl: compiled.sksl, uniforms: compiled.uniforms, res: p.res as number, fallback };
+          const xr = (canvasProps.x as number[]) ?? [-1, 1];
+          const yr = (canvasProps.y as number[]) ?? [-1, 1];
+          // the same expression reading the same values over the same ranges draws the same image: the
+          // shape from last time is kept as it was (a renderer sees nothing changed), and a fallback
+          // image is never computed again (GAPS: a heat map recomputes only when what it reads moves)
+          const sig = `${compiled.glsl}|${JSON.stringify(compiled.uniforms)}|${xr}|${yr}|${p.res}|${gfx ? 1 : 0}`;
+          const last = this.pixelsLast.get(k);
+          if (last && last.sig === sig) s = last.shape;
+          else {
+            const fallback = gfx ? undefined : compiled.fallback?.(xr, yr);
+            s = { t: 'pixels', key: k, glsl: compiled.glsl, sksl: compiled.sksl, uniforms: compiled.uniforms, res: p.res as number, fallback };
+            if (this.pixelsLast.size > 200) this.pixelsLast.clear();
+            this.pixelsLast.set(k, { sig, shape: s });
+          }
           break;
         }
         case 'mesh': {

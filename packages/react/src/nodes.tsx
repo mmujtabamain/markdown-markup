@@ -92,7 +92,13 @@ function Run({ r }: { r: VRun }): ReactNode {
 
 export function MathSpan({ m, display }: { m: { tex: string; svg?: string; speech?: string }; display?: boolean }): ReactNode {
   const cls = display ? 'mkp-math mkp-math-display' : 'mkp-math';
-  if (!m.svg) return <span className={cls}><i>{m.tex}</i></span>;
+  // no picture yet: its TeX, marked waiting, so a host can show it in a loading look until an engine draws it
+  if (!m.svg)
+    return (
+      <span className={cls} data-pending="">
+        <i>{m.tex}</i>
+      </span>
+    );
   // the SVG comes from the maths engine (TeX → MathJax → SVG, links removed), not from content
   return <span className={cls} role="img" aria-label={m.speech ?? m.tex} dangerouslySetInnerHTML={{ __html: m.svg }} />;
 }
