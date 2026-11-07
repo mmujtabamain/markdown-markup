@@ -310,3 +310,73 @@ describe('arrow lanes=turn', () => {
     expect(Math.max(...ys(turn!.d))).toBeLessThan(31);
   });
 });
+
+describe('crossings: fewer, then a hop where one remains', () => {
+  const level = (d: string) => runs(d.replace(/ A[^L]*/g, ' ')).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)!.a[1];
+  const arcs = (d: string) => [...d.matchAll(/A(-?[\d.]+),(-?[\d.]+) 0 0 ([01]) (-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({ rx: Number(m[1]), ry: Number(m[2]), sweep: Number(m[3]) }));
+  const plain = (from: string, to: string, boxes: Record<string, Rect>, more: Partial<ArrowEnds> = {}): ArrowEnds => ({ from, to, a: boxes[from], b: boxes[to], ...more });
+
+  it('orders the tracks of a gap so the fewest runs cross, and keeps today’s order where nothing crosses', () => {
+    // P (a to d) above Q (b to c) crosses Q's way down and Q crosses P's: below it, neither does
+    const f = { a: box(0, 0), b: box(150, 0), d: box(300, 100), c: box(400, 100) };
+    const [p, q] = arrowPaths([link('a', 'd', f), link('b', 'c', f)]);
+    expect(level(p!.d)).toBeGreaterThan(level(q!.d));
+    expect(arcs(p!.d)).toEqual([]);
+    expect(arcs(q!.d)).toEqual([]);
+    // nothing crosses: the order is as before (the first span on the first track)
+    const g = { a: box(0, 0), c: box(70, 100), b: box(300, 0), d: box(370, 100) };
+    const [r, s] = arrowPaths([link('a', 'c', g), link('b', 'd', g)]);
+    expect(level(r!.d)).toBeCloseTo(level(s!.d));
+  });
+
+  it('puts one upward hop on the level line where two links cross at right angles; the upright stays straight', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(arcs(h!.d)).toEqual([{ rx: 5, ry: 5, sweep: 1 }]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('draws no hop where a line is hop=none: a lifeline and the messages across it', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f, { hop: 'none', head: 'none' })]);
+    expect(arcs(h!.d)).toEqual([]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('hops once over a shared trunk, not once per link in it', () => {
+    // two links from t straight down, one longer: one line where they overlap
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0), b: box(150, 230), c: box(150, 330) };
+    const [h] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f), plain('t', 'c', f)]);
+    expect(arcs(h!.d)).toHaveLength(1);
+  });
+
+  it('makes crossings closer than a hop one wider hop', () => {
+    const f = { l: box(0, 100), r: box(300, 100), t: box(150, 0, 6, 30), b: box(150, 230, 6, 30), u: box(156, 0, 6, 30), w: box(156, 230, 6, 30) };
+    const [h] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f), plain('u', 'w', f)]);
+    expect(arcs(h!.d)).toEqual([{ rx: 8, ry: 5, sweep: 1 }]);
+  });
+
+  it('draws no hop at a corner or an end: a run that ends on another is a join', () => {
+    // the upright reaches the level line's element edge right where the level run ends
+    const f = { l: box(0, 100), r: box(140, 100), t: box(165, 0, 20, 30), b: box(165, 230, 20, 30) };
+    const [h, v] = arrowPaths([plain('l', 'r', f), plain('t', 'b', f)]);
+    expect(arcs(h!.d)).toEqual([]);
+    expect(arcs(v!.d)).toEqual([]);
+  });
+
+  it('moves a turn that would hug another line, or cross it at its corner, to before the line', () => {
+    // a's line comes from the left and turns down to c 4 px beside the line from t to b (the image:
+    // its corner seems to join that line). Its run down moves 8 px clear, on the side it comes from,
+    // so its level run doesn't cross the other line at all
+    const xs = (d: string) => runs(d.replace(/ A[^L]*/g, ' ')).filter((u) => Math.abs(u.a[0] - u.b[0]) < 0.11).map((u) => u.a[0]);
+    for (const cx of [104, 96]) {
+      const f = { a: box(0, 0), c: box(cx, 100, 60, 30), t: box(100, -60, 60, 30), b: box(100, 300, 60, 30) };
+      const [p, q] = arrowPaths([link('a', 'c', f), { from: 't', to: 'b', a: f.t, b: f.b }]);
+      const line = xs(q!.d)[0];
+      const down = xs(p!.d).at(-1)!;
+      expect(line - down).toBeGreaterThanOrEqual(8 - 0.11);
+      expect(arcs(p!.d)).toEqual([]);
+      expect(arcs(q!.d)).toEqual([]);
+    }
+  });
+});

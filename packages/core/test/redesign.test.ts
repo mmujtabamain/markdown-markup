@@ -398,4 +398,14 @@ describe('arrow lanes=', () => {
     expect(arrows[0].lanes).toBe('turn');
     expect(doc(src('half')).all[0]).toMatch(/lanes/);
   });
+  it('takes hop=auto|none, and the view carries none', () => {
+    const src = (hop: string) => fence(`w "w"\n  row\n    text "a" id=a\n    text "b" id=b\n    arrow from=a to=b hop=${hop}\n  project md = "w"`) + block('w', 'summary: s');
+    const r = doc(src('none'));
+    expect(r.all).toEqual([]);
+    const arrows: { hop?: string }[] = [];
+    walk(new Runtime(r.b!).view(), (n) => void (n.arrows && arrows.push(...n.arrows)));
+    expect(arrows[0].hop).toBe('none');
+    expect(doc(src('auto')).all).toEqual([]);
+    expect(doc(src('never')).all[0]).toMatch(/hop/);
+  });
 });
