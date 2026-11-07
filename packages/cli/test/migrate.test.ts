@@ -175,3 +175,50 @@ describe('mkp migrate, the command', () => {
     expect(await main(['migrate', ...args.slice(0, 2), '--check'])).toBe(0);
   }, 120000);
 });
+
+describe('a pack’s own new version', () => {
+  it('moves a current document’s uses of walk@1 to walk@2 as the pack declares, keeping the old look when asked', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-move-'));
+    const p = join(dir, 'trips');
+    cpSync(join(root, 'examples/29-a-pack/pack'), p, { recursive: true });
+    for (const f of readdirSync(p)) rmSync(join(p, f), { recursive: true });
+    writeFileSync(join(p, 'manifest.mkp'), 'pack trips@1 "Trips."\n  requires core@1\n  provides walk\n');
+    writeFileSync(join(p, 'walk.mkp'), 'walk@1 "A walk."\n  deprecated "use walk@2"\n  in from text\n  in speed num = 1\n  text "from \\val{from}"\n  project md = from\n\nwalk@2 "A walk."\n  in start text\n  in look choice(classic|new) = new\n  text "from \\val{start} (\\val{look})"\n  project md = start\n\nmigrate walk@1 -> walk@2\n  rename from -> start\n  drop speed "walk@2 sets its own pace"\n  keep look = classic "walk@1\'s look"\n');
+    writeFileSync(join(p, 'walk.fixture.json'), JSON.stringify({ widget: 'walk@1', cases: { one: { props: { from: 'home' }, summary: 'One.' } } }));
+    const doc = join(dir, 'trip.mkp.md');
+    writeFileSync(doc, `---\nmkp: ${RELEASE}\nir: 1\n---\n# Trip\n\n\`\`\`walk@1\nfrom: home\nspeed: 3\nsummary: s\n\`\`\`\n`);
+    const m = await migrateDocument(relative(process.cwd(), doc), { keep: ['walk@2'], packs: [folder(p)] });
+    expect(m.errors).toEqual([]);
+    const text = [...m.files.values()][0];
+    expect(text).toContain('```walk@2\nstart: home\nlook: classic\nsummary: s\n```');
+    expect(m.result!.warnings.map((w) => w.code)).toEqual(['mkp.migrate-moved']);
+    expect(m.result!.warnings[0].message).toContain('from is now start; speed is gone (walk@2 sets its own pace). Kept the old look');
+    // taking the new look: no look line
+    const t = await migrateDocument(relative(process.cwd(), doc), { keep: [], packs: [folder(p)] });
+    expect([...t.files.values()][0]).toContain('```walk@2\nstart: home\nsummary: s\n```');
+  });
+});
+
+describe('a released .mkpack from 0.2.1', () => {
+  it('is migrated as the pack it holds, and written back as a .mkpack', async () => {
+    const { writeZip, readZip, Diagnostics } = await import('@mkp/core');
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-zip-'));
+    const enc = new TextEncoder();
+    const zip = join(dir, 'looks.mkpack');
+    writeFileSync(zip, writeZip(new Map([
+      ['manifest.mkp', enc.encode('pack looks@1 "Looks."\n  requires core@1\n  provides badge\n')],
+      ['badge.mkp', enc.encode('badge@1 "A word."\n  in word text\n  in theme text = "x"\n  text "\\val{word} \\val{theme}"\n  project md = word\n')],
+      ['badge.fixture.json', enc.encode(JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a', theme: 'y' }, summary: 'One.' } } }))],
+    ])));
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
+    const r = spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), 'migrate', relative(root, zip), '--write', '--take', 'all', ...core], { cwd: root, encoding: 'utf8', env: process.env, timeout: 120000 });
+    expect(r.status, r.stderr).toBe(0);
+    const files = readZip(new Uint8Array(readFileSync(zip)), 'looks.mkpack', new Diagnostics())!.files;
+    const text = (f: string) => new TextDecoder().decode(files.get(f));
+    expect(text('badge.mkp')).toMatch(/^# mkp 0\.2\.2 ir 1\n/);
+    expect(text('badge.mkp')).toContain('in look text = "x"');
+    expect(JSON.parse(text('badge.fixture.json')).cases.one.props).toEqual({ word: 'a', look: 'y' });
+  }, 120000);
+});

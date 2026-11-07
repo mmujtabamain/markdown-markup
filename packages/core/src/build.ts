@@ -9,6 +9,7 @@ import { closest, Diagnostics, MkpError, type Pos } from './diag';
 import type { A, IRBundle, IRDef, IRDoc, IRExpr, IRFn, IRLock, IRNode, IRTokenSet, IRVal } from './ir';
 import { IR_VERSION } from './ir';
 import { RELEASE } from './version';
+import { packMoves, type PackMove } from './migrate/packs';
 import { corePack, loadPack, readZip, type PackFiles } from './pack';
 import { checkRequired, tokenNames, tokenSetIR } from './tokens';
 import { checkProfile } from './profile';
@@ -61,6 +62,8 @@ export class Compiled {
   readonly sigs = new Map<string, Sig>();
   tokens: IRTokenSet[] = [];
   lock: IRLock = { packs: [], defs: {} };
+  /** the packs' migrate blocks, checked (migrate/packs.ts) */
+  moves: PackMove[] = [];
   constructor(
     readonly prog: Program,
     readonly diags: Diagnostics,
@@ -354,6 +357,8 @@ export function compile(opts: CompileOptions): Compiled {
   depthCheck(c, checkers, diags);
   markDefFallbacks(c.defs);
   for (const ir of c.defs.values()) ir.digest = digest(stripPos({ ...ir, fns: ir.fns }));
+  // a pack's migrate blocks: how uses of one version of its widget move to the next
+  c.moves = packMoves(c, diags);
   // the lock: pack digests and the version each name resolved to
   c.lock = makeLock(c, opts.lock, diags);
   return c;

@@ -42,6 +42,8 @@ export interface Sig {
   requires: string[];
   /** type parameters, bound at each use (walk of S) */
   params?: string[];
+  /** deprecated "…": what to use instead; every use is warned */
+  deprecated?: string;
 }
 
 /** An arrow's look (6.10): its colour, its line, the marks at its ends, faded back or drawn strong. */
@@ -90,7 +92,8 @@ export function signatureOf(prog: Program, d: DefEntry): Sig {
     else if (m.m === 'out') outs.set(m.name, m.payload);
     else if (m.m === 'requires') requires.push(m.cap);
   }
-  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires, ...(d.syn.params?.length ? { params: d.syn.params } : {}) };
+  const dep = d.syn.members.find((m): m is Extract<typeof m, { m: 'deprecated' }> => m.m === 'deprecated');
+  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires, ...(d.syn.params?.length ? { params: d.syn.params } : {}), ...(dep ? { deprecated: dep.text } : {}) };
 }
 
 /** A type parameter given two types that don't join. */
@@ -293,6 +296,9 @@ export class DefChecker {
               const base = m.cap.replace(/@.*$/, '').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'gfx';
               this.fail(m.p, `requires names a capability with its version, written name@N; found "${m.cap}". Write requires ${base}@1`);
             }
+            break;
+          case 'deprecated':
+            ir.deprecated = m.text;
             break;
           case 'budget':
             if (m.n > LIMITS.budgetMax) this.fail(m.p, `budget may be at most ${LIMITS.budgetMax.toLocaleString('en')} operations (the work one evaluation may do); found ${m.n.toLocaleString('en')}. Write budget ${LIMITS.budgetMax} or less, or make the widget do less work`, 'mkp.limit');
@@ -1364,6 +1370,8 @@ export class DefChecker {
       sig = signatureOf(this.prog, pick);
       this.opts.sigs.set(pick.id, sig);
     }
+    // a version on its way out: still drawn, but every use is told what to use instead
+    if (sig.deprecated !== undefined && sig.id !== this.ir.id) this.diags.warn('mkp.deprecated', `${sig.name}@${sig.version} is deprecated, and a later version of its pack may remove it: ${sig.deprecated}. Move this use as it says (mkp migrate does it when the pack declares how)`, p, [...this.path]);
     return sig;
   }
 

@@ -24,7 +24,12 @@ import {
   type IRBundle,
   type MigrateResult,
   type PackSource,
+  Diagnostics,
+  readZip,
+  writeZip,
 } from '@mkp/core';
+import * as thisCore from '@mkp/core';
+import { applyMove, usesOf, type IRDef } from '@mkp/core';
 import { documentItemsOf, releaseCore, type ReleaseCore } from './release-core';
 
 export interface Migrated {
@@ -68,14 +73,14 @@ function current(out: Migrated, files: [string, string][]): Migrated {
 }
 
 async function coreFor(version: string, opts: SourceOptions): Promise<ReleaseCore> {
-  if (version === RELEASE && opts.current) return opts.current;
+  if (version === RELEASE) return opts.current ?? (thisCore as unknown as ReleaseCore);
   return releaseCore(version, { core: opts.core });
 }
 
 /** The keep answers: given, or asked, or none (the new behaviour, with how to keep the old in the warnings). */
-async function answers(roots: unknown[], from: string, opts: SourceOptions): Promise<string[] | 'all'> {
+async function answers(roots: unknown[], from: string, opts: SourceOptions, more: Choice[] = []): Promise<string[] | 'all'> {
   if (opts.keep) return opts.keep;
-  const keepable = choicesFor(roots, from).filter((c) => c.how);
+  const keepable = [...choicesFor(roots, from), ...more].filter((c) => c.how);
   return keepable.length && opts.choose ? opts.choose(keepable) : [];
 }
 
@@ -103,7 +108,6 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const beside = besidePath !== path && existsSync(besidePath) ? { text: readFileSync(besidePath, 'utf8'), file: relative(process.cwd(), besidePath) || besidePath } : undefined;
   const from = opts.from ?? readStamp(text, file)?.mkp ?? UNSTAMPED;
   const out: Migrated = { files: new Map(), changed: [], from, result: null, errors: [] };
-  if (from === RELEASE) return current(out, [[file, text], ...(beside ? [[beside.file, beside.text] as [string, string]] : [])]);
   const core = await coreFor(from, opts);
   const c = core.compile({ packs: opts.packs ?? [] });
   const bundle = c.document(text, file, undefined, beside ? { docFile: beside } : {}) as IRBundle | null;
@@ -115,7 +119,29 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   // its own definitions as IR, so the steps reach them, printed back afterwards
   const own = documentItemsOf(core, c, text, file, beside);
   const roots = [bundle, own?.items];
-  out.result = migrateRoots(roots, from, { keep: await answers(roots, from, opts) });
+  // the pack moves that reach it (migrate walk@1 -> walk@2), as the packs it will be checked against declare them
+  const after = compile({ packs: opts.packsAfter ?? opts.packs ?? [] });
+  const moves = after.moves.filter((m) => usesOf(roots, m).length);
+  if (from === RELEASE && !moves.length) return current(out, [[file, text], ...(beside ? [[beside.file, beside.text] as [string, string]] : [])]);
+  const keep = await answers(roots, from, opts, moves.map((m) => ({ id: m.to.slice(m.pack.length + 1), what: `uses of ${m.from.slice(m.pack.length + 1)} move to ${m.to.slice(m.pack.length + 1)}`, how: m.keep.map((k) => `${k.name}=${JSON.stringify((k.value as { lit?: unknown; text?: unknown; tok?: unknown }).lit ?? (k.value as { text?: unknown }).text ?? (k.value as { tok?: unknown }).tok)}`).join(' ') || null, places: usesOf(roots, m).length, step: m.pack })));
+  out.result = migrateRoots(roots, from, { keep });
+  for (const m of moves) {
+    const toName = m.to.slice(m.pack.length + 1);
+    const kept = !!m.keep.length && (keep === 'all' || keep.includes(toName));
+    const hits = applyMove(roots, m, kept, after.defs.get(m.to) as IRDef);
+    if (own) own.defs.set(m.to, after.defs.get(m.to)!);
+    const what = [...Object.entries(m.rename).map(([a, b]) => `${a} is now ${b}`), ...m.drop.map((d) => `${d.name} is gone (${d.why})`)].join('; ');
+    const keepNote = !m.keep.length ? '' : kept ? ` Kept the old look: ${m.keep.map((k) => `${k.name} (${k.why})`).join(', ')}.` : ` To keep the old look, migrate with --keep ${toName}.`;
+    const seen = new Set<string>();
+    for (const h of hits) {
+      const pos = (h.node as { pos?: [number, number] }).pos;
+      const k = `${h.file}:${pos}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.result.warnings.push({ severity: 'warning', code: 'mkp.migrate-moved', message: `this use of ${m.from.slice(m.pack.length + 1)} moved to ${toName}${what ? `: ${what}` : ''}.${keepNote}`, pos: h.file && pos ? { file: h.file, line: pos[0], col: pos[1] } : undefined });
+    }
+    if (kept) out.result.kept.push(toName);
+  }
   // what is said about the packs it uses belongs to migrating them: here, only its own files
   const mine = new Set([file, beside?.file]);
   out.result.warnings = out.result.warnings.filter((w) => !w.pos || mine.has(w.pos.file));
@@ -135,7 +161,16 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
 
 /** A pack as it will be once `m` is written: its files with the migrated ones in their place. */
 export function packAfter(src: PackSource, m: Migrated): PackSource {
-  const files = new Map(src.files);
+  // a .mkpack is given as its zip: read its files, under the label migratePack used for them
+  const zip = (src as { zip?: Uint8Array }).zip;
+  const files = new Map(zip ? (readZip(zip, src.label, new Diagnostics())?.files ?? []) : src.files);
+  if (zip) {
+    const first = [...m.files.keys()][0] ?? '';
+    const label = first.includes('.mkpack/') ? first.slice(0, first.indexOf('.mkpack/') + 7) : src.label;
+    const enc = new TextEncoder();
+    for (const [p, t] of m.files) if (p.startsWith(label + '/')) files.set(p.slice(label.length + 1), enc.encode(t));
+    return { label: src.label, files };
+  }
   const enc = new TextEncoder();
   for (const [p, t] of m.files) if (p.startsWith(src.label + '/')) files.set(p.slice(src.label.length + 1), enc.encode(t));
   return { label: src.label, files };
@@ -145,7 +180,7 @@ export function packAfter(src: PackSource, m: Migrated): PackSource {
 export async function migratePack(folder: string, opts: SourceOptions = {}): Promise<Migrated> {
   const abs = resolve(folder);
   const label = relative(process.cwd(), abs) || '.';
-  const files = new Map<string, Uint8Array>();
+  let files = new Map<string, Uint8Array>();
   const read = (d: string): void => {
     for (const n of readdirSync(d)) {
       if (n.startsWith('.') || n === 'node_modules') continue;
@@ -154,7 +189,13 @@ export async function migratePack(folder: string, opts: SourceOptions = {}): Pro
       else files.set(relative(abs, p).split('\\').join('/'), new Uint8Array(readFileSync(p)));
     }
   };
-  read(abs);
+  // a released .mkpack (a zip) is migrated as the folder it holds
+  if (abs.endsWith('.mkpack')) {
+    const d = new Diagnostics();
+    const pf = readZip(new Uint8Array(readFileSync(abs)), label, d);
+    if (!pf) return { files: new Map(), changed: [], from: '?', result: null, errors: d.errors.map((e) => e.message) };
+    files = pf.files;
+  } else read(abs);
   const dec = new TextDecoder();
   const manifest = files.get('manifest.mkp');
   const from = opts.from ?? (manifest ? readStamp(dec.decode(manifest), 'manifest.mkp')?.mkp : undefined) ?? UNSTAMPED;
@@ -206,6 +247,15 @@ export async function migratePack(folder: string, opts: SourceOptions = {}): Pro
   out.errors.push(...recheck(out.files, opts.packs ?? [], { label, files }));
   out.changed = [...out.files].filter(([p, t]) => dec.decode(files.get(p.slice(label.length + 1)) ?? new Uint8Array()) !== t).map(([p]) => p);
   return out;
+}
+
+/** A migrated .mkpack's files zipped again, for writing it back: path → bytes, or null when it isn't one. */
+export function zipped(label: string, m: Migrated, before: Map<string, Uint8Array>): Uint8Array | null {
+  if (!label.endsWith('.mkpack')) return null;
+  const enc = new TextEncoder();
+  const files = new Map(before);
+  for (const [p, t] of m.files) if (p.startsWith(label + '/')) files.set(p.slice(label.length + 1), enc.encode(t));
+  return writeZip(files);
 }
 
 /** A stored bundle (name.ir.json), migrated. */

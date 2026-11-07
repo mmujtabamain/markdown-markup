@@ -20,3 +20,4 @@ export { canonical } from './syntax/canon';
 export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
 export { indexLine, signatureText, copySource } from './catalog';
 export { checkDocument } from './check/doc';
+export { packMoves, checkMoves, applyMove, moveProps, usesOf, type PackMove } from './migrate/packs';

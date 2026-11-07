@@ -51,6 +51,8 @@ import {
   writeMarkdown,
   writeStamp,
   writeZip,
+  checkMoves,
+  readZip,
   type Choice,
   type Compiled,
   type IRLock,
@@ -58,7 +60,7 @@ import {
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
-import { migrateBundleFile, migrateDocument, migratePack, packAfter, type Migrated } from './migrate';
+import { migrateBundleFile, migrateDocument, migratePack, packAfter, zipped, type Migrated } from './migrate';
 import { firstPaint, htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
@@ -283,6 +285,10 @@ async function check(a: Args): Promise<number> {
   const missing = missingFixtures(c);
   for (const m of missing) process.stderr.write(`${m} has no valid fixture case; a definition needs one before it can be published\n`);
   ok = ok && !missing.length;
+  // a pack's migrate blocks, proven: every case of the old version, moved, compiles against the new
+  const moved = new Diagnostics();
+  for (const d of checkMoves(c, c.moves)) moved.add(d);
+  ok = report(moved) && ok;
   process.stdout.write(`${c.defs.size} definitions, ${n} fixture cases: ${ok ? 'ok' : 'problems above'}\n`);
   return ok ? 0 : 1;
 }
@@ -375,7 +381,7 @@ async function migrate(a: Args): Promise<number> {
   for (const p of a.pos) {
     const st = statSync(p, { throwIfNoEntry: false });
     if (!st) throw new Error(`no such file or folder: ${p}`);
-    if (st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) packTargets.push(p);
+    if ((st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) || p.endsWith('.mkpack')) packTargets.push(p);
     else if (st.isDirectory()) targets.push(...docFiles([p]));
     else targets.push(p);
   }
@@ -402,7 +408,12 @@ async function migrate(a: Args): Promise<number> {
     if (m.errors.length) continue;
     if (m.changed.length) pending = true;
     if (a.opts.check) continue;
-    if (a.opts.write) for (const p of m.changed) writeFileSync(p, m.files.get(p)!);
+    if (a.opts.write && t.endsWith('.mkpack')) {
+      // a .mkpack is written back as a zip of the migrated pack
+      const label = relative(process.cwd(), resolve(t)) || t;
+      const before = readZip(new Uint8Array(readFileSync(t)), label, new Diagnostics())?.files ?? new Map<string, Uint8Array>();
+      writeFileSync(t, zipped(label, m, before)!);
+    } else if (a.opts.write) for (const p of m.changed) writeFileSync(p, m.files.get(p)!);
     else for (const text of m.files.values()) process.stdout.write(text.endsWith('\n') ? text : text + '\n');
   }
   // --check: 1 when anything would change, as a CI gate

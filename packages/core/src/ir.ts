@@ -218,6 +218,8 @@ export interface IRDef {
   implements?: string[];
   requires?: string[];
   budget?: number;
+  /** deprecated "…": what to use instead (its uses are warned) */
+  deprecated?: string;
   fields?: string[];
   inputs: IRInput[];
   outs?: { name: string; payload?: Type; about?: string; comment?: string[] }[];
