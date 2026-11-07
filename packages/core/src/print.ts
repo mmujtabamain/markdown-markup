@@ -107,6 +107,7 @@ export class MkpPrinter {
     if (d.implements?.length) out.push(`${i}implements ${d.implements.map((x) => x.slice(x.indexOf(':') + 1)).join(' ')}`);
     for (const r of d.requires ?? []) out.push(`${i}requires ${r}`);
     if (d.budget) out.push(`${i}budget ${d.budget}`);
+    if (d.deprecated !== undefined) out.push(`${i}deprecated ${encodeText(d.deprecated)}`);
     if (d.fields?.length) out.push(`${i}fields ${d.fields.join(' ')}`);
     for (const inp of d.inputs) {
       out.push(...comments(inp.comment, i));
@@ -342,6 +343,7 @@ export type FileItem =
   | { macro: string; tex: string; comment?: string[] }
   | { tokens: IRTokenSet; comment?: string[] }
   | { iface: InterfaceSyn }
+  | { migrate: { from: string; to: string; lines: ({ k: 'rename'; from: string; to: string } | { k: 'drop'; name: string; why: string } | { k: 'keep'; name: string; value: string; why: string })[] }; comment?: string[] }
   | { pack: { kind: string; name: string; version: number; about?: string; requires: string[]; depends: string[]; provides: string[]; front: { name: string; type: Type; def?: string; about?: string }[]; attrs: { name: string; type: Type; about?: string }[]; roles: string[]; rules: { rule: string; path: string; args: string[]; message?: string }[]; unpublished?: boolean }; comment?: string[] };
 
 export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string, tokenIR: (name: string) => IRTokenSet | undefined): FileItem[] {
@@ -364,6 +366,15 @@ export function fileItems(file: MkpFile, defs: Map<string, IRDef>, pack: string,
         return { tokens: tokenIR(it.name)!, ...cm(it.comments) };
       case 'interface':
         return { iface: it };
+      case 'migrate':
+        return {
+          migrate: {
+            from: it.from,
+            to: it.to,
+            lines: it.lines.map((l) => (l.k === 'rename' ? { k: l.k, from: l.from, to: l.to } : l.k === 'drop' ? { k: l.k, name: l.name, why: l.why } : { k: l.k, name: l.name, value: l.value.src, why: l.why })),
+          },
+          ...cm(it.comments),
+        };
       case 'manifest':
         return {
           pack: {
@@ -414,6 +425,10 @@ export function printFile(items: FileItem[], ctx: PrintContext): string {
     if ('type' in it) return [...c, `type ${it.type} = ${showType(it.of)}`].join('\n');
     if ('macro' in it) return [...c, `macro ${it.macro} = $${it.tex}$`].join('\n');
     if ('tokens' in it) return [...c, `tokens ${it.tokens.name}@${it.tokens.version}${it.tokens.about !== undefined ? ' ' + encodeText(it.tokens.about) : ''}`, ...tokenLines(it.tokens)].join('\n');
+    if ('migrate' in it) {
+      const m = it.migrate;
+      return [...c, `migrate ${m.from} -> ${m.to}`, ...m.lines.map((l) => (l.k === 'rename' ? `  rename ${l.from} -> ${l.to}` : l.k === 'drop' ? `  drop ${l.name} ${encodeText(l.why)}` : `  keep ${l.name} = ${l.value} ${encodeText(l.why)}`))].join('\n');
+    }
     if ('iface' in it) {
       const f = it.iface;
       const lines = [...comments(f.comments, ''), `interface ${f.name}@${f.version}${f.about !== undefined ? ' ' + encodeText(f.about) : ''}`];

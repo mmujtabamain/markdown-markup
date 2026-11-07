@@ -631,8 +631,8 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      matter `version`, `date`, `summary` of at most 140 characters; then `## New`, `## Changed`,
      `## Fixed`), which `scripts/check-notes.mjs` checks in CI. Each push to `main` whose `VERSION`
      has no release yet publishes `v<version>`: `mkp-web-<version>.zip` (`mkp.js`, `mkp.d.ts`,
-     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in
-     one folder),
+     `mkp-runtime.js`, `mkp-runtime.d.ts`, `mkp-shared.js`, `maths-engine.js`, `mkp-react.js`,
+     `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in one folder),
      `mkp-cli.mjs` and `SHA256SUMS`, built by `scripts/dist.mjs`; its notes are the note, then how to
      use each asset (`scripts/release-body.mjs`). The web files of the last 50 releases are also on
      the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version
@@ -644,3 +644,57 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      widget's inputs, so a guide can show YAML or MKP in a fence. Only a label Markdown has no
      meaning for names a widget block; the base widget `text` is therefore written as a container
      or a widget of its own. In code, `$` is not maths; an HTML comment draws nothing.
+140. **Pointing inside a widget.** *Extension (8, 6.12).* A canvas `circle` or `path` takes `@enter`,
+     `@leave` and `@click`, and the four containers take `@enter` and `@leave`; nothing else that
+     is drawn as data does. The events carry no payload (no position, no pointer buttons): the shape
+     is known by the scope its lines run in. Containers report the pointer only, since they take no
+     focus. A shape with `@click` must have a `label` (a new optional field of both records, empty
+     by default), is focusable, pressed with Enter or Space, reports focus and blur as enter and
+     leave as a press does, and makes its canvas a `group` rather than an `img`.
+141. **The runtime half on its own.** *Extension (15).* `packages/core/src/renderer.ts` is what
+     drawing a compiled bundle needs; the core's index re-exports it. The release builds the two in
+     one esbuild pass with code splitting (`mkp.js`, `mkp-runtime.js`, and `mkp-shared.js` between
+     them), and the renderers import `mkp-runtime.js`. `mkp-runtime.d.ts` re-exports `mkp.d.ts`'s
+     declarations, since a class with private fields declared twice is two types.
+142. **A first paint, taken over.** *Extension (12).* `mkp build --target fragment` writes
+     `firstPaint(bundle)` (`@mkp/page`): the neutral renderer's HTML for the bundle, drawn with the
+     web's capabilities and the build's maths engine. `mount(…, { hydrate: true })` hydrates it
+     with React; a mismatch is redrawn and warned about. The runtime's width starts as it does in
+     the browser, so a width-dependent branch may change once the page is measured.
+143. **Arrow ends and runs.** *Reading (6.10), changed.* An arrow's ends touch the outlines they
+     join (the core's `arrowPaths` and `arrowPath` default to a gap of 0). Routed tracks in a gap
+     keep `RUN_IN` (the head and 6 px) clear of the side heads arrive at and `RUN_OUT` (6 px) of the
+     side tails leave; a gap too narrow for both puts the track `RUN_IN` from the heads' side, or on
+     the tails' edge. `corner=m|s|none` is the turns' radius: 12, 6 or 0 px.
+144. **`theme`.** *Extension (6.3).* A value every definition reads, as `width`: `light` or
+     `dark`, set by the renderer (`Runtime.setTheme`, `RuntimeOptions.theme`); the web's `auto`
+     follows `prefers-color-scheme`, React Native's `useColorScheme`. A snapshot (Markdown) is
+     `light`. The name is reserved, like `width` (`mkp.shadow`).
+145. **Layout props.** *Extension (8).* Containers take `padx` and `pady` (each in `pad`'s place on
+     its sides); a canvas layer takes `clip`, two corners in data units; `zoom` takes `minscale`
+     (0.6; 0 for none), the least it shrinks to fit, past which the middle shows and the zoom clips.
+     In a grid or stack, `self=` sets both axes (CSS `align-self` and `justify-self`).
+146. **Checks relaxed.** *Reading (11).* `each`, `switch` and `case` are not levels of nesting;
+     `slot name if=(…)` is allowed.
+147. **A frame's stage is an arrow host.** *Reading (6.10).* Always, not only when full screen or of
+     a fixed height, so lines `layer=behind` between what it holds draw over its surface.
+148. **Version stamps.** *Extension (13, 15).* A bundle and a lock carry `mkp` (the release, from
+     `RELEASE` in core, held to `VERSION` by a test) beside `ir`; a document carries `mkp:` and `ir:`
+     in its front matter; a `.mkp` file carries `# mkp <release> ir <n>` as its first line. That
+     line is not a comment of what follows, and a pack's digest hashes its `.mkp` files without it.
+     Unstamped means 0.2.1. `mkp fmt` writes the stamp.
+149. **Migrations.** *Extension (15).* `packages/core/src/migrate`: one step per release
+     (`from`, `to`, `renames`, `removes`, behaviour `changes` each keepable with a pin or not, and
+     an IR function), chained by release; the last step ends at `RELEASE` (a test). `mkp migrate`
+     compiles a source with the core of its stamped release (the release's `mkp.js`: `--core`,
+     `MKP_CACHE`, or downloaded and checked against `SHA256SUMS`), runs the steps on its IR (and on
+     the printer's items for its own definitions: `documentItems()`), prints it with this
+     release's printer, stamps it, and compiles it again before writing. `migrateBundle` does the
+     IR part for stored bundles; `mount({ migrate })` uses it. Every example is migrated from
+     0.2.1 in the tests, by both routes (IR, and source then compile), which must agree.
+150. **A pack's own versions.** *Extension (5.4, 6.17).* `deprecated "…"` on a definition
+     (`mkp.deprecated` at every use, the definition's own uses aside) and a top-level
+     `migrate a@N -> a@M` block in a pack (`rename`, `drop … "why"`, `keep … = value "why"`),
+     checked against both definitions, proven on the old version's fixtures by `mkp check`, and
+     applied by `mkp migrate` to documents. A pack's migrate block is MKP, not code: no pack's
+     code ever runs.

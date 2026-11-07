@@ -2,7 +2,9 @@
 // A release's files (spec note 138), built from the TypeScript source into dist/:
 //
 //   mkp-web-<version>.zip  the web files, which import each other, in one folder mkp-web-<version>/:
-//                          mkp.js (the core, ESM), maths-engine.js (loaded by mkp.js when maths shows),
+//                          mkp.js (the core, ESM), mkp-runtime.js (its runtime half alone, for a host
+//                          that draws bundles compiled ahead of time; the two share mkp-shared.js),
+//                          maths-engine.js (loaded when maths shows),
 //                          mkp.d.ts (the core's types, one self-contained header), mkp-react.js (the
 //                          React renderer, React left out), mkp-react.d.ts, mkp-dom.js (mount() for any
 //                          framework or none, React inside), mkp-dom.d.ts, README.txt
@@ -48,29 +50,38 @@ const mathsBeside = {
     b.onResolve({ filter: /vendor\/maths-engine\.js$/ }, () => ({ path: './maths-engine.js', external: true }));
   },
 };
-// mkp-react.js imports the core from the file beside it
+// mkp-react.js and mkp-dom.js import only the core's runtime half, from the file beside them: a
+// host that draws bundles compiled ahead of time never loads the compiler, checker or Markdown writer
 const coreBeside = {
   name: 'core-beside',
   setup(b) {
-    b.onResolve({ filter: /^@mkp\/core$/ }, () => ({ path: './mkp.js', external: true }));
+    b.onResolve({ filter: /^@mkp\/core$/ }, () => ({ path: './mkp-runtime.js', external: true }));
   },
 };
 
-await build({
-  entryPoints: [join(root, 'packages/core/src/index.ts')],
+// mkp.js and mkp-runtime.js in one build, so every module the two share is in mkp-shared.js once:
+// a page that loads both (compile, then mount) loads the runtime once, and Runtime is one class
+const core = await build({
+  entryPoints: { mkp: join(root, 'packages/core/src/index.ts'), 'mkp-runtime': join(root, 'packages/core/src/renderer.ts') },
   bundle: true,
+  splitting: true,
+  chunkNames: 'mkp-shared',
   format: 'esm',
   platform: 'neutral',
   mainFields: ['module', 'main'],
   target: 'es2022',
   minify: true,
-  outfile: join(web, 'mkp.js'),
+  outdir: web,
+  metafile: true,
   plugins: [mathsBeside],
   define,
   banner: { js: banner },
   legalComments: 'none',
   logLevel: 'warning',
 });
+// two entries share at most one chunk; a second would overwrite the first, so say so rather than ship it
+const chunks = Object.keys(core.metafile.outputs).filter((f) => !/\/mkp(-runtime)?\.js$/.test(f));
+if (chunks.length !== 1 || !chunks[0].endsWith('/mkp-shared.js')) throw new Error(`the core's build should make one shared file, mkp-shared.js; it made ${chunks.join(', ') || 'none'}`);
 writeFileSync(join(web, 'maths-engine.js'), `${banner}\n${readFileSync(join(root, 'packages/core/vendor/maths-engine.js'), 'utf8')}`);
 await build({
   entryPoints: [join(root, 'packages/react/src/index.tsx')],
@@ -120,7 +131,18 @@ copyFileSync(join(web, 'mkp.d.ts'), join(fake, 'index.d.ts'));
 dts({ include: [join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')] } } }, join(root, 'packages/react/src/index.tsx'), join(web, 'mkp-react.d.ts'), ['--external-imports', '@mkp/core', 'react', 'react-dom']);
 dts({ include: [join(root, 'packages/dom/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/dom/src/index.tsx'), join(web, 'mkp-dom.d.ts'), ['--external-imports', '@mkp/core']);
 rmSync(tmp, { recursive: true, force: true });
-for (const f of ['mkp.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts']) {
+// mkp-runtime.d.ts names the runtime half's exports from mkp.d.ts, so a Runtime is one type whichever
+// file it came from (its private fields make a second declaration of the class a different type)
+{
+  const ts = createRequire(join(root, 'package.json'))('typescript');
+  const entry = join(root, 'packages/core/src/renderer.ts');
+  const program = ts.createProgram([entry], { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, noEmit: true });
+  const checker = program.getTypeChecker();
+  const names = checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(entry))).map((x) => x.name).sort();
+  if (!names.includes('Runtime')) throw new Error(`mkp-runtime.d.ts: found no Runtime among the runtime half's exports (${names.length} names)`);
+  writeFileSync(join(web, 'mkp-runtime.d.ts'), `// the runtime half of the core (mkp-runtime.js): its types are the core's, declared in mkp.d.ts\nexport {\n${names.map((n) => `  ${n},`).join('\n')}\n} from '@mkp/core';\n`);
+}
+for (const f of ['mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts']) {
   const p = join(web, f);
   const text = readFileSync(p, 'utf8').replace(/from ["']@mkp\/core["']/g, "from './mkp.js'");
   writeFileSync(p, `${banner}\n${text}`);
@@ -131,7 +153,11 @@ writeFileSync(
   `MKP ${version} (${commit}): the web files. They import each other: keep them in one folder.
 
   mkp.js          the core: compile, Runtime, writeMarkdown, the checker and printers. Types: mkp.d.ts
-  maths-engine.js loaded by mkp.js when a document shows maths
+  mkp-runtime.js  the core's runtime half alone (Runtime, needsMaths, the maths engine's loader…):
+                  enough to draw a bundle compiled ahead of time. mkp-react.js and mkp-dom.js
+                  import it, so they load no compiler. Types: mkp-runtime.d.ts
+  mkp-shared.js   the code mkp.js and mkp-runtime.js share, so a page loading both loads it once
+  maths-engine.js loaded when a document shows maths the build has not already typeset
   mkp-react.js    draws documents in React 19: MKP's own look by default, or pass components=
                   for your design system. Types: mkp-react.d.ts
   mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's

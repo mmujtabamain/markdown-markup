@@ -8,11 +8,13 @@ import { Program, type PackInfo } from './check/program';
 import { closest, Diagnostics, MkpError, type Pos } from './diag';
 import type { A, IRBundle, IRDef, IRDoc, IRExpr, IRFn, IRLock, IRNode, IRTokenSet, IRVal } from './ir';
 import { IR_VERSION } from './ir';
+import { RELEASE } from './version';
+import { packMoves, type PackMove } from './migrate/packs';
 import { corePack, loadPack, readZip, type PackFiles } from './pack';
 import { checkRequired, tokenNames, tokenSetIR } from './tokens';
 import { checkProfile } from './profile';
-import { fileItems, printFile } from './print';
-import type { Type } from './types';
+import { fileItems, printFile, type FileItem } from './print';
+import type { Type, TypeEnv } from './types';
 import { canonicalJson } from './util/jcs';
 import { sha256 } from './util/sha256';
 
@@ -60,6 +62,8 @@ export class Compiled {
   readonly sigs = new Map<string, Sig>();
   tokens: IRTokenSet[] = [];
   lock: IRLock = { packs: [], defs: {} };
+  /** the packs' migrate blocks, checked (migrate/packs.ts) */
+  moves: PackMove[] = [];
   constructor(
     readonly prog: Program,
     readonly diags: Diagnostics,
@@ -112,6 +116,20 @@ export class Compiled {
     const defs = new Map([...this.defs, ...cd.defs.map((x) => [x.id, x] as const)]);
     const ctx = { defs: Object.fromEntries(defs), env: cd.prog.typeEnv(DOC_PACK) };
     return own.files.map((f) => printFile(fileItems(f, defs, DOC_PACK, () => undefined), ctx)).join('\n');
+  }
+
+  /**
+   * A document's own definitions (in its mkp fences, or the .mkp beside it) as the printer's items,
+   * with the definitions and type environment to print them by: what a migration changes and
+   * prints back. Null when the document has none, or doesn't check.
+   */
+  documentItems(text: string, file: string, opts: { docFile?: DocFile } = {}): { items: FileItem[][]; defs: Map<string, IRDef>; env: TypeEnv } | null {
+    const d = new Diagnostics();
+    const cd = checkDocument(this.prog, text, file, d, { tokenNames: this.tokenNameFn(), sigs: this.sigs, locked: this.lockedFn(), docFile: opts.docFile });
+    const own = cd.prog.packs.get(DOC_PACK);
+    if (!d.ok || !own || own === this.prog.packs.get(DOC_PACK) || !own.files.length) return null;
+    const defs = new Map([...this.defs, ...cd.defs.map((x) => [x.id, x] as const)]);
+    return { items: own.files.map((f) => fileItems(f, defs, DOC_PACK, () => undefined)), defs, env: cd.prog.typeEnv(DOC_PACK) };
   }
 
   /** A self-contained bundle: the document, the definitions it uses, fns, tokens and the lock. */
@@ -186,6 +204,7 @@ export class Compiled {
     const packsUsed = new Set(Object.values(defs).map((d) => d.pack));
     return {
       ir: IR_VERSION,
+      mkp: RELEASE,
       level: 'bundle',
       doc,
       defs,
@@ -196,7 +215,7 @@ export class Compiled {
       macros,
       capabilities: [...caps].sort(),
       interface: iface,
-      lock: { packs: this.lock.packs.filter((p) => packsUsed.has(p.pack) || p.pack === 'core'), defs: lockDefs },
+      lock: { mkp: RELEASE, packs: this.lock.packs.filter((p) => packsUsed.has(p.pack) || p.pack === 'core'), defs: lockDefs },
       profile: this.opts.profile,
     };
   }
@@ -338,6 +357,8 @@ export function compile(opts: CompileOptions): Compiled {
   depthCheck(c, checkers, diags);
   markDefFallbacks(c.defs);
   for (const ir of c.defs.values()) ir.digest = digest(stripPos({ ...ir, fns: ir.fns }));
+  // a pack's migrate blocks: how uses of one version of its widget move to the next
+  c.moves = packMoves(c, diags);
   // the lock: pack digests and the version each name resolved to
   c.lock = makeLock(c, opts.lock, diags);
   return c;
@@ -475,7 +496,7 @@ function makeLock(c: Compiled, prev: IRLock | undefined, diags: Diagnostics): IR
       }
     }
   }
-  return { packs, defs };
+  return { mkp: RELEASE, packs, defs };
 }
 
 /** Values in a bundle that read only constants become literals (used by the expander). */

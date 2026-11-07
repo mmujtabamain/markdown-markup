@@ -154,10 +154,29 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
   );
 }
 
+/**
+ * Tells the document which theme the reader sees, so a widget that reads `theme` (a pixels ramp that
+ * can't follow the colour tokens) draws for it: `light` or `dark` as given, or the system's for `auto`.
+ */
+export function useMkpTheme(theme: 'light' | 'dark' | 'auto' | undefined): void {
+  const { rt } = useContext(RuntimeCtx) ?? {};
+  useEffect(() => {
+    if (!rt) return;
+    if (theme === 'light' || theme === 'dark') return rt.setTheme(theme);
+    if (typeof matchMedia === 'undefined') return;
+    const m = matchMedia('(prefers-color-scheme: dark)');
+    const set = (): void => rt.setTheme(m.matches ? 'dark' : 'light');
+    set();
+    m.addEventListener('change', set);
+    return () => m.removeEventListener('change', set);
+  }, [rt, theme]);
+}
+
 function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme']; className?: string }): ReactNode {
   const tree = useMkpView();
   const root = useRef<HTMLDivElement>(null);
   useMkpWidth(root);
+  useMkpTheme(theme ?? 'auto');
   return (
     <div ref={root} className={['mkp-root', className].filter(Boolean).join(' ')} data-theme={theme && theme !== 'auto' ? theme : undefined}>
       <Kids nodes={tree} />

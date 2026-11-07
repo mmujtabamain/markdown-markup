@@ -73,7 +73,9 @@ export const BASE_CSS = layer(`
 .mkp-math-notes > li { display: flex; align-items: baseline; gap: var(--mkp-space-s); }
 .mkp-math-notes > li::before { content: ''; flex: none; width: 0.7em; height: 0.7em; border-radius: 2px; background: var(--mkp-mark-tone); }
 .mkp-root [data-justify=center] { justify-content: center; justify-content: safe center; }
-.mkp-root [data-layers] > * { grid-area: 1 / 1; min-width: 0; }
+/* every layer positioned, so they paint in the order written: one with dim or blur (an opacity or a
+   filter, a stacking context) no longer paints over the plain layers after it */
+.mkp-root [data-layers] > * { grid-area: 1 / 1; min-width: 0; position: relative; }
 .mkp-root [data-flow=column] > .mkp-pane { flex: 1 1 auto; }
 .mkp-root [data-clip] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--mkp-lines, 1); line-clamp: var(--mkp-lines, 1); overflow: hidden; }
 .mkp-bar { display: flex; flex-wrap: wrap; gap: var(--mkp-space-m) var(--mkp-space-l); align-items: center; padding: var(--mkp-space-s) 0 0; margin-top: var(--mkp-space-m); border-top: 1px solid var(--mkp-color-line); }
@@ -81,6 +83,11 @@ export const BASE_CSS = layer(`
 .mkp-error small { color: var(--mkp-color-bad); display: block; margin-top: var(--mkp-space-s); }
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
 .mkp-canvas > svg { display: block !important; overflow: hidden; }
+.mkp-canvas [data-press] { cursor: pointer; }
+/* a shape is no box: an outline would be drawn round its bounding box (a rectangle over a pie's
+   slice), so it has none, focused by the pointer or not; the keyboard's focus traces its own edge */
+.mkp-canvas [data-pointed], .mkp-canvas [data-pointed]:focus, .mkp-canvas [data-pointed]:focus-visible { outline: none; }
+.mkp-canvas g[data-press]:focus-visible > path:first-child, .mkp-canvas circle[data-press]:focus-visible { stroke: var(--mkp-color-accent); stroke-width: 3px; }
 .mkp-overlay-label { position: absolute; white-space: nowrap; pointer-events: none; font-size: 0.95em; line-height: 1.3; }
 .mkp-overlay-label[data-size=small] { font-size: 0.8em; }
 .mkp-overlay-label[data-size=large] { font-size: 1.15em; }
@@ -141,8 +148,12 @@ export const NEUTRAL_CSS = layer(`
 .mkp-press[data-kind=radio][aria-checked=true], .mkp-press[data-kind=check][aria-checked=true] { color: inherit; background: color-mix(in srgb, var(--mkp-color-muted) 14%, var(--mkp-color-surface)); }
 .mkp-press[data-kind=radio][aria-checked=true]::before, .mkp-press[data-kind=check][aria-checked=true]::before { background: currentColor; box-shadow: inset 0 0 0 2px var(--mkp-color-surface); }
 .mkp-press[data-kind=switch], .mkp-press[data-kind=switch][aria-checked=true] { background: none; border: 0; padding: 0; color: inherit; }
-.mkp-press[data-kind=switch]::before { content: ''; flex: none; width: 36px; height: 20px; border-radius: 10px; background: radial-gradient(circle 7px at 10px 50%, var(--mkp-color-surface) 98%, var(--mkp-color-muted)); }
-.mkp-press[data-kind=switch][aria-checked=true]::before { background: radial-gradient(circle 7px at 26px 50%, var(--mkp-color-surface) 98%, var(--mkp-color-accent)); }
+/* a switch's track and thumb are its own elements: a host's .mkp-press style never reaches them, and
+   a host that wants the thumb to slide animates .mkp-switch-thumb itself (MKP moves nothing, SN 102) */
+.mkp-switch { flex: none; position: relative; display: inline-block; width: 36px; height: 20px; border-radius: 10px; background: var(--mkp-color-muted); }
+.mkp-switch-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--mkp-color-surface); }
+.mkp-press[aria-checked=true] > .mkp-switch { background: var(--mkp-color-accent); }
+.mkp-press[aria-checked=true] > .mkp-switch > .mkp-switch-thumb { transform: translateX(16px); }
 .mkp-overlay-anchor[data-mode=menu]::after { content: '▾'; color: var(--mkp-color-muted); }
 .mkp-meter { height: 8px; max-width: 100%; border-radius: var(--mkp-radius-pill, 999px); overflow: hidden; background: color-mix(in srgb, var(--mkp-color-muted) 25%, transparent); }
 .mkp-meter > div { height: 100%; }

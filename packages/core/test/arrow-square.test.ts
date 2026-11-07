@@ -44,7 +44,7 @@ describe('arrow route=down', () => {
 
   it('points the head along the last run, at the top edge', () => {
     const [p] = arrowPaths([link('a', 'right', b)]);
-    expect(p!.head[0][1]).toBeCloseTo(100 - 3);
+    expect(p!.head[0][1]).toBeCloseTo(100);
     expect(p!.head[1][1]).toBeCloseTo(p!.head[2][1]);
   });
 
@@ -94,8 +94,8 @@ describe('arrow route=down', () => {
     const [p] = arrowPaths([{ from: 'low', to: 'top', a: f.low, b: f.top, via: [f.lane], route: 'down' }]);
     expect(allSquare(p!.d)).toBe(true);
     const r = runs(p!.d);
-    expect(r[0].a).toEqual([97, 215]);
-    expect(p!.head[0]).toEqual([97, 15]);
+    expect(r[0].a).toEqual([100, 215]);
+    expect(p!.head[0]).toEqual([100, 15]);
   });
 
   it('joins a lane pinned level beside an end by that side of the box (a graph\'s line back)', () => {
@@ -103,8 +103,8 @@ describe('arrow route=down', () => {
     const [p] = arrowPaths([{ from: 'low', to: 'top', a: f.low, b: f.top, via: [f.pinLow, f.lane, f.pinTop], route: 'down' }]);
     expect(allSquare(p!.d)).toBe(true);
     // out of the left side of the lower box, up the lane, into the left side of the upper one
-    expect(runs(p!.d)[0].a).toEqual([97, 215]);
-    expect(p!.head[0]).toEqual([97, 15]);
+    expect(runs(p!.d)[0].a).toEqual([100, 215]);
+    expect(p!.head[0]).toEqual([100, 15]);
     // never inside either box
     for (const [x, y] of corners(p!.d)) for (const r of [f.top, f.low]) expect(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h).toBe(false);
   });
@@ -114,13 +114,13 @@ describe('arrow route=down', () => {
     const [p] = arrowPaths([{ from: 'l', to: 'r', a: f.l, b: f.r, via: [f.lane], route: 'down' }]);
     expect(allSquare(p!.d)).toBe(true);
     expect(Math.max(...corners(p!.d).map((c) => c[1]))).toBeCloseTo(60);
-    expect(p!.head[0][1]).toBeCloseTo(33);
+    expect(p!.head[0][1]).toBeCloseTo(30);
   });
 
   it('runs side to side within a row, with no waypoint to go round', () => {
     const f = { l: box(0, 0), r: box(200, 0) };
     const [p] = arrowPaths([link('l', 'r', f)]);
-    expect(p!.head[0]).toEqual([197, 15]);
+    expect(p!.head[0]).toEqual([200, 15]);
     expect(runs(p!.d)).toHaveLength(1);
   });
 
@@ -128,8 +128,8 @@ describe('arrow route=down', () => {
     const f = { a: box(0, 0), b: box(200, 100) };
     const [p] = arrowPaths([link('a', 'b', f, { route: 'right' })]);
     expect(allSquare(p!.d)).toBe(true);
-    expect(runs(p!.d)[0].a).toEqual([63, 15]);
-    expect(p!.head[0]).toEqual([197, 115]);
+    expect(runs(p!.d)[0].a).toEqual([60, 15]);
+    expect(p!.head[0]).toEqual([200, 115]);
   });
 });
 
@@ -139,7 +139,7 @@ describe('a link to itself', () => {
   it('is a square loop on the right, with its label beyond it', () => {
     const [p] = arrowPaths([{ from: 'n', to: 'n', a: r, b: r }]);
     expect(allSquare(p!.d)).toBe(true);
-    expect(p!.head[0][0]).toBeCloseTo(163);
+    expect(p!.head[0][0]).toBeCloseTo(160);
     expect(p!.align).toBe('start');
     expect(p!.label[0]).toBeGreaterThan(160 + 18);
   });
@@ -173,7 +173,7 @@ describe('the marks at an arrow end', () => {
     expect(p!.marks).toHaveLength(2);
     expect(p!.marks![0].d.match(/M/g)).toHaveLength(3);
     expect(p!.marks![0].fill).toBe('none');
-    expect(p!.d.endsWith('L30.0,97.0')).toBe(true);
+    expect(p!.d.endsWith('L30.0,100.0')).toBe(true);
   });
 
   it('draws a hollow triangle for a kind of, filled with the surface', () => {
@@ -197,6 +197,59 @@ describe('a cross at an arrow’s end', () => {
     expect(p!.marks).toEqual([expect.objectContaining({ fill: 'none', tone: 'bad' })]);
     expect(p!.marks![0].d.match(/M/g)).toHaveLength(2);
     // a head's length short of the tip, where the cross is centred
-    expect(p!.d.endsWith('L30.0,90.0')).toBe(true);
+    expect(p!.d.endsWith('L30.0,93.0')).toBe(true);
+  });
+});
+
+describe('a straight run before every head', () => {
+  /** The length of the straight run a head sits on: from the last bend's end to the tip. */
+  const runIn = (d: string, tip: number[]): number => {
+    const r = runs(d);
+    const last = r[r.length - 1];
+    return Math.hypot(tip[0] - last.a[0], tip[1] - last.a[1]);
+  };
+  const tree = (gap: number) => ({ p: box(100, 0), l: box(0, 30 + gap), r: box(200, 30 + gap) });
+
+  it('keeps the head and 6 px of line straight, in a tree whose layers are 16 px apart', () => {
+    const f = tree(16);
+    for (const p of arrowPaths([link('p', 'l', f), link('p', 'r', f)])) {
+      expect(p!.head[0][1]).toBeCloseTo(46);
+      expect(runIn(p!.d, p!.head[0])).toBeGreaterThanOrEqual(7 + 6 - 0.11);
+      expect(allSquare(p!.d)).toBe(true);
+    }
+  });
+  it('keeps the trunk in the middle when there is room for both runs, and the tail its own', () => {
+    const f = tree(60);
+    const [p] = arrowPaths([link('p', 'l', f)]);
+    const level = runs(p!.d).find((u) => Math.abs(u.a[1] - u.b[1]) < 0.11)!.a[1];
+    expect(level).toBeGreaterThanOrEqual(30 + 6);
+    expect(level).toBeLessThanOrEqual(90 - 13);
+  });
+  it('gives the head its run first in a gap too narrow for both, going up as well as down', () => {
+    const f = tree(8);
+    const [down] = arrowPaths([link('p', 'l', f)]);
+    expect(runIn(down!.d, down!.head[0])).toBeGreaterThanOrEqual(8 - 0.11);
+    const [up] = arrowPaths([link('l', 'p', f)]);
+    expect(up!.head[0][1]).toBeCloseTo(30);
+    expect(runIn(up!.d, up!.head[0])).toBeGreaterThanOrEqual(8 - 0.11);
+  });
+  it('does the same across, with route=right', () => {
+    const f = { p: box(0, 100), l: box(76, 0), r: box(76, 200) };
+    for (const p of arrowPaths([link('p', 'l', f, { route: 'right' }), link('p', 'r', f, { route: 'right' })])) {
+      expect(p!.head[0][0]).toBeCloseTo(76);
+      expect(runIn(p!.d, p!.head[0])).toBeGreaterThanOrEqual(13 - 0.11);
+    }
+  });
+});
+
+describe('arrow corner=', () => {
+  const f = { a: box(100, 0), b: box(0, 100) };
+  it('rounds turns by 12 px by default, 6 with s, and not at all with none', () => {
+    const q = (d: string) => [...d.matchAll(/ L(-?[\d.]+),(-?[\d.]+) Q(-?[\d.]+),(-?[\d.]+)/g)].map((m) => Math.hypot(Number(m[1]) - Number(m[3]), Number(m[2]) - Number(m[4])));
+    const [m, s, none] = arrowPaths([link('a', 'b', f), link('a', 'b', f, { corner: 6 }), link('a', 'b', f, { corner: 0 })]);
+    expect(Math.max(...q(m!.d))).toBeCloseTo(12, 0);
+    expect(Math.max(...q(s!.d))).toBeCloseTo(6, 0);
+    expect(Math.max(...q(none!.d))).toBeCloseTo(0, 0);
+    expect(allSquare(none!.d)).toBe(true);
   });
 });

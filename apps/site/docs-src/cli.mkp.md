@@ -37,6 +37,7 @@ mkp build lesson.mkp.md --pack lib --target html --out out
 | `md` | `name.md` | The Markdown a reader without MKP gets. |
 | `ir` | `name.ir.json` | The compiled bundle, for an app to draw. |
 | `ir-expanded` | `name.expanded.json` | The bundle with every widget expanded to the base set. |
+| `fragment` | `name.fragment.html` | The document's first paint, for the element `mount(el, bundle, { hydrate: true })` takes over. |
 
 Several targets at once, comma-separated, need `--out`. More options:
 
@@ -63,6 +64,24 @@ mkp fmt lesson.mkp.md --pack lib --write          # the canonical layout
 mkp pack packs/lib -o lib.mkpack                  # a pack folder as one file
 mkp cases --pack lib --out gallery                # every widget's valid cases, compiled
 ```
+
+## migrate
+
+```sh
+mkp migrate notes/ --pack lib --check
+mkp migrate lib/ notes/ --write
+```
+
+Brings documents, packs (folders or `.mkpack` files) and stored bundles (`name.ir.json`) written
+for an older release up to this one: each file is compiled by the release it was written for (its
+stamp says which), the steps between run, and it is written back in canonical form with a new
+stamp, after this release has checked it. Each change is a warning at its line.
+
+- `--keep id,…` or `--keep all` keeps an old look where it can be kept (written into the source);
+  `--take all` takes every new behaviour. On a terminal, it asks.
+- `--check` exits 1 while anything is written for an older release: a CI gate.
+- `--core mkp-web-0.2.1.zip` gives the older release's web files, to work offline.
+- A pack's `migrate walk@1 -> walk@2` block moves documents' uses of `walk@1` too.
 
 ## The loop
 

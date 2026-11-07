@@ -82,7 +82,7 @@ describe('@mkp/react arrows', () => {
     expect(marks.map((m) => /a(\d\.5),/.exec(m.getAttribute('d')!)?.[1])).toEqual(['3.5', '4.5']);
     expect(marks[1].getAttribute('fill')).toBe('var(--mkp-color-surface)');
     // the shaft runs on to the dot
-    expect(shafts(container)[0]).toMatch(/L20\.0,197\.0$/);
+    expect(shafts(container)[0]).toMatch(/L20\.0,200\.0$/);
     expect(container.querySelector('svg.mkp-arrows:not([data-layer])')).toBeNull();
   });
 
@@ -122,14 +122,24 @@ describe('the layer an arrow is drawn in', () => {
     expect(container.querySelector('.mkp-zoom-content > svg.mkp-arrows g[data-mkp-arrow]')).toBeTruthy();
   });
 
-  it('a frame’s stage once the frame is full screen (GAPS 92)', () => {
+  it('a frame’s stage, full screen or not, so a line behind sits over its surface (GAPS 92, 175)', () => {
     BOXES = { a: [0, 0, 40, 20], b: [0, 100, 40, 20] };
-    const { container, getByRole } = render(<MkpDocument bundle={bundle(['frame title="F"', ...box('a', 'a'), ...box('b', 'b'), 'arrow from=a to=b'])} />);
-    expect(container.querySelector('.mkp-scope > svg.mkp-arrows g[data-mkp-arrow]')).toBeTruthy();
+    const { container, getByRole } = render(<MkpDocument bundle={bundle(['frame title="F"', ...box('a', 'a'), ...box('b', 'b'), 'arrow from=a to=b layer=behind'])} />);
+    const inStage = () => container.querySelector('.mkp-frame-stage > svg.mkp-arrows[data-layer=behind] g[data-mkp-arrow]');
+    expect(inStage()).toBeTruthy();
+    expect(container.querySelector('.mkp-scope > svg.mkp-arrows')).toBeNull();
     fireEvent.click(getByRole('button', { name: 'Full screen' }));
     expect(container.querySelector('.mkp-frame[data-full] .mkp-frame-stage > svg.mkp-arrows g[data-mkp-arrow]')).toBeTruthy();
-    expect(container.querySelector('.mkp-scope > svg.mkp-arrows')).toBeNull();
     fireEvent.click(getByRole('button', { name: 'Leave full screen' }));
-    expect(container.querySelector('.mkp-scope > svg.mkp-arrows g[data-mkp-arrow]')).toBeTruthy();
+    expect(inStage()).toBeTruthy();
+  });
+});
+
+describe('tails on a combined trunk', () => {
+  it('draws a shared tail once, however many lines leave by it', () => {
+    BOXES = { p: [100, 0, 60, 30], a: [0, 100, 60, 30], b: [200, 100, 60, 30] };
+    const { container } = render(<MkpDocument bundle={bundle(['column', ...box('p', 'p'), ...box('a', 'a'), ...box('b', 'b'), 'arrow from=p to=a route=down tail=dot', 'arrow from=p to=b route=down tail=dot'])} />);
+    const dots = [...container.querySelectorAll('svg.mkp-arrows g[data-mkp-arrow] path')].filter((m) => /a3\.5,/.test(m.getAttribute('d')!));
+    expect(dots).toHaveLength(1);
   });
 });

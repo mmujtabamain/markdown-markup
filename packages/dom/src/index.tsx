@@ -1,6 +1,7 @@
 // mkp-dom: draws an MKP document into an element, from any framework or none.
 //
 //   const view = mount(el, bundle, { theme: 'auto', onSignal: (e) => … });
+//   mount(el, bundle, { hydrate: true });   // el holds the bundle's first paint (--target fragment)
 //   view.update({ theme: 'dark' });    // keeps the document's state
 //   view.unmount();
 //
@@ -8,21 +9,37 @@
 // needs no React of its own. The document's state lives in its runtime (view.runtime), which
 // update() keeps; a new bundle (setBundle) starts it again.
 
-import { createRoot, type Root } from 'react-dom/client';
-import { Diagnostics, MathsEngine, prerender, Runtime, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
-import { MkpDocument } from '@mkp/react';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
+import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
+import { MkpDocument, type TokenMap } from '@mkp/react';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
   theme?: 'light' | 'dark' | 'auto';
   /** a widget's signals to its host (an answer given, a step reached) */
   onSignal?: (e: SignalEvent) => void;
-  /** the maths engine: 'auto' (the default) loads MKP's, null draws formulas as their TeX */
+  /**
+   * the maths engine: 'auto' (the default) loads MKP's only when the document has maths the build
+   * has not already typeset (needsMaths); null draws formulas as their TeX
+   */
   maths?: MathsRenderer | 'auto' | null;
+  /** your values for token names (colours, spaces, fonts…): kind → name → { value, dark? } */
+  tokens?: TokenMap;
   /** fewer animations; the reader's system setting by default */
   reducedMotion?: boolean;
   /** a class for the document's root element */
   className?: string;
+  /**
+   * the element already holds this bundle's first paint (`mkp build --target fragment`, or
+   * firstPaint() from @mkp/page), drawn with the same theme, tokens and class: take it over in
+   * place rather than draw it again, so nothing moves. The bundle must be the one it was drawn from
+   */
+  hydrate?: boolean;
+  /**
+   * a bundle an older release built is migrated to this one as it loads: `keep` names the changes
+   * whose old look to keep (or 'all'), and `onWarn` hears what changed (the console by default)
+   */
+  migrate?: { keep?: string[] | 'all'; onWarn?: (warnings: Diagnostic[]) => void };
 }
 
 export interface MountedDocument {
@@ -30,8 +47,8 @@ export interface MountedDocument {
   readonly runtime: Runtime | null;
   /** resolves once the document is drawn (after the maths engine has loaded) */
   readonly ready: Promise<void>;
-  /** changes the theme, the signal handler, reduced motion or the class; the state is kept */
-  update(opts: Partial<Omit<MountOptions, 'maths'>>): void;
+  /** changes the theme, the signal handler, reduced motion, the tokens or the class; the state is kept */
+  update(opts: Partial<Omit<MountOptions, 'maths' | 'hydrate'>>): void;
   /** draws another document (or a recompiled one): its state starts again */
   setBundle(bundle: IRBundle): void;
   /** removes the document from the element */
@@ -42,8 +59,18 @@ let engine: Promise<MathsEngine> | null = null;
 const sharedMaths = (): Promise<MathsEngine> => (engine ??= MathsEngine.create());
 
 /** Draws `bundle` (from compile(), or a build's .ir.json) into `el`. */
+/** The bundle as this release draws it: migrated first when an older release built it. */
+function upToDate(b: IRBundle, opts: MountOptions): IRBundle {
+  if (!needsMigration(b)) return b;
+  const r = migrateBundle(b, { keep: opts.migrate?.keep });
+  if (r.warnings.length) (opts.migrate?.onWarn ?? ((w) => console.warn(`mkp-dom: migrated a ${r.from} bundle to ${r.to}`, w)))(r.warnings);
+  return r.bundle;
+}
+
 export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}): MountedDocument {
-  const root: Root = createRoot(el);
+  bundle = upToDate(bundle, opts);
+  // made at the first drawing: a first paint stays on screen, untouched, until the document can draw
+  let root: Root | null = null;
   let current = { ...opts };
   let doc = bundle;
   let maths: MathsRenderer | undefined;
@@ -51,6 +78,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   let gone = false;
 
   const start = (): void => {
+    if (gone) return;
     if (maths) prerender(doc, maths as MathsEngine, new Diagnostics());
     // the handler is read at each signal, so update({ onSignal }) takes effect without a new runtime
     runtime = new Runtime(doc, { capabilities: ['core@1', 'gfx@1'], maths, reducedMotion: current.reducedMotion, onSignal: (e) => current.onSignal?.(e) });
@@ -58,24 +86,41 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   };
   const draw = (): void => {
     if (gone || !runtime) return;
-    root.render(<MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} reducedMotion={current.reducedMotion} className={current.className} />);
+    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} reducedMotion={current.reducedMotion} className={current.className} />;
+    if (root) return root.render(view);
+    if (opts.hydrate && el.firstElementChild)
+      root = hydrateRoot(el, view, {
+        // a first paint that isn't this bundle's (another build, other options) is drawn again: say so
+        onRecoverableError: (e) => console.warn('mkp-dom: the first paint did not match the document, so it was drawn again', e),
+      });
+    else {
+      root = createRoot(el);
+      root.render(view);
+    }
   };
-
-  const ready =
-    opts.maths === null
-      ? Promise.resolve().then(start)
-      : (opts.maths && opts.maths !== 'auto' ? Promise.resolve(opts.maths) : sharedMaths()).then(
-          (m) => {
-            maths = m;
-            if (!gone) start();
-          },
-          (e: Error) => {
-            // without the engine, formulas show as TeX: the document still draws
-            console.warn('mkp-dom: the maths engine did not load', e);
-            if (!gone) start();
-          },
-        );
-
+  /** The engine this document draws with: the host's, MKP's when it has maths to typeset, or none. */
+  const engineFor = (b: IRBundle): Promise<MathsRenderer | undefined> => {
+    if (opts.maths === null) return Promise.resolve(undefined);
+    if (opts.maths && opts.maths !== 'auto') return Promise.resolve(opts.maths);
+    if (maths || !needsMaths(b)) return Promise.resolve(maths);
+    return sharedMaths().then(
+      (m) => m,
+      (e: Error) => {
+        // without the engine, formulas show as TeX: the document still draws
+        console.warn('mkp-dom: the maths engine did not load', e);
+        return undefined;
+      },
+    );
+  };
+  // the latest bundle wins: one set before an earlier one has drawn is the one drawn, and ready waits for it
+  let latest: Promise<void> = Promise.resolve();
+  const drawFrom = (b: IRBundle): Promise<void> =>
+    (latest = engineFor(b).then((m) => {
+      if (doc !== b) return latest;
+      maths = m;
+      start();
+    }));
+  const ready = drawFrom(doc);
   return {
     get runtime() {
       return runtime;
@@ -86,14 +131,17 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
       draw();
     },
     setBundle(b) {
+      b = upToDate(b, opts);
       doc = b;
-      if (runtime) start();
+      // a document with maths after one without: the engine loads first, then it draws
+      void drawFrom(b);
     },
     unmount() {
       gone = true;
-      root.unmount();
+      root?.unmount();
     },
   };
 }
 
 export type { IRBundle, SignalEvent, Runtime } from '@mkp/core';
+export type { TokenMap } from '@mkp/react';

@@ -8,3 +8,5 @@ apps/site/playwright-report/
 apps/site/.shots/
 scripts/.hermes/
 release/
+devbench/takes/out/
+__pycache__/

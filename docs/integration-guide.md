@@ -17,7 +17,7 @@ Every command and snippet below was run against this repo. Outputs are real and 
 |---|---|
 | React on the web | 1, 2, 3, 4.1, 6, 7, 8 |
 | React on the web, with your own component library | the above, plus 4.2 |
-| Vue, Svelte, Solid, Angular, Astro or no framework | 1, 2, 3, then `mkp-dom.js` from [the recipes](../recipes/README.md), 6, 8 |
+| Vue, Svelte, Solid, Angular, Astro or no framework | 1, 2, 3, then `mkp-dom.js` (4.7) from [the recipes](../recipes/README.md), 6, 8 |
 | React Native | 1 (with 1.4), 2 (build time), 3, 4.3, 6, 7, 8 |
 | A server in Python, Go, Ruby… that stores or serves documents | 1.5, 2.2, 3, then draw on a client with 4.1 or 4.3 |
 | A client MKP has no renderer for (Swift, Kotlin, Flutter, a game engine…) | 1.5, 2.2, 3, 4.4, 8 |
@@ -61,8 +61,11 @@ curl -LO $base/mkp-cli.mjs    # node mkp-cli.mjs check …, build …, --target 
 | File | Use it for |
 |---|---|
 | `mkp.js` + `mkp.d.ts` | compile and run documents, write their Markdown; `mkp.d.ts` is the whole API's types in one file, which TypeScript reads beside `mkp.js` |
-| `maths-engine.js` | nothing directly: `mkp.js` loads it when a document shows maths |
+| `mkp-runtime.js` + `mkp-runtime.d.ts` | the core's runtime half alone (`Runtime`, `needsMaths`, `MathsEngine`, the view types): enough to draw a bundle compiled ahead of time. The renderers import it rather than `mkp.js`, so a page that draws prebuilt bundles never loads the compiler (about 550 KB with `mkp-dom.js`, against 1 MB) |
+| `mkp-shared.js` | nothing directly: the code `mkp.js` and `mkp-runtime.js` share, so a page that loads both loads it once, and `Runtime` is one class |
+| `maths-engine.js` | nothing directly: loaded when a document shows maths its build has not already typeset |
 | `mkp-react.js` + `mkp-react.d.ts` | drawing in React 19 (any React framework, Next.js included): `<MkpDocument>` with MKP's own look, or `components=` for your design system (4.1, 4.2). It imports React from your app |
+| `mkp-dom.js` + `mkp-dom.d.ts` | drawing in any other page or framework: `mount(el, bundle)` (4.7), with its own React inside |
 
 ```tsx
 import { compile, Runtime } from './vendor/mkp/mkp.js';
@@ -591,9 +594,16 @@ What to know:
   import. Any unlayered rule of yours beats it; if you use cascade layers, place it in your order
   (`@layer base, mkp, components, utilities`). A few display rules are `!important` so a CSS reset
   (Tailwind's preflight) can't break the layout.
+- **The trap in that: `.mkp-press` is every press.** Switches, checks, radios, options, tabs and
+  `plain` cards are presses too, and MKP's own rule that takes a switch's button box away is in the
+  layer, so an unlayered `.mkp-press { background: …; padding: … }` of yours draws every switch
+  inside a button. Style one kind with its own class: `.mkp-press-button`, `.mkp-press-toggle`,
+  `.mkp-press-switch`, `.mkp-press-check`, `.mkp-press-radio`, `.mkp-press-option`,
+  `.mkp-press-tab`, `.mkp-press-plain` (6.6).
 - **Maths.** Static maths is typeset at build (`mkp build`, or `prerender`). Maths with a live
   value in it (`$x^{\val{k}}$`) is typeset in the browser, and only if you pass `maths`. Load it
-  only when the document needs it: `MathsEngine.create({ speech: true })` from `@mkp/core`.
+  only when the document needs it: `needsMaths(bundle)` from `@mkp/core` says so exactly (maths
+  the build has not typeset, or with a live value), then `MathsEngine.create({ speech: true })`.
 - **Width.** Widgets read the reader's width (`narrow` under 600 px, `medium` under 1000, `wide`)
   from the root element.
 - **Your own runtime.** If you pass `runtime`, the `maths`, `reducedMotion` and `options` props are
@@ -626,7 +636,8 @@ function Sections() {
 ```
 
 Your element must have the class `mkp-root` (the stylesheet is scoped to it). Set
-`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS.
+`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS, and call
+`useMkpTheme(theme)` in it (or `rt.setTheme('dark')`) so a widget that reads `theme` draws for it.
 
 ### 4.2 Your own design system
 
@@ -825,6 +836,53 @@ $ mkp build lesson.mkp.md --pack lib --target html,html-md --out site
 The page is MKP's own neutral look. To draw documents in your design system, use 4.1–4.2 instead.
 
 ---
+
+### 4.7 Any page or framework: `mount()`
+
+`mkp-dom.js` draws a document into an element in MKP's own look, with its own React inside, so the
+page needs none ([the recipes](../recipes/README.md) wrap it for Vue, Svelte, Solid, Angular, Astro
+and plain JS):
+
+```ts
+import { mount } from './vendor/mkp/mkp-dom.js';
+
+const view = mount(el, bundle, {
+  theme: 'auto',                              // or 'light' / 'dark'
+  tokens: { space: { m: { value: 12 } } },    // your values for token names (7.2)
+  onSignal: (e) => console.log(e.name, e.payload),
+  maths: 'auto',                              // the default; null draws formulas as their TeX
+  className: 'lesson',
+});
+await view.ready;                             // drawn
+view.update({ theme: 'dark' });               // the reader's state is kept
+view.setBundle(next);                         // another document: its state starts again
+view.unmount();
+```
+
+- **The maths engine (2.7 MB) loads only when it is needed.** With `maths: 'auto'`, `mount()`
+  asks `needsMaths(bundle)`: a document with no maths, or whose maths the build has already typeset
+  (`mkp build` does), draws at once and never fetches `maths-engine.js`. A later `setBundle()` with
+  maths loads it then. Maths that arrives through a host input shows as its TeX.
+- **No compiler.** `mkp-dom.js` imports `mkp-runtime.js`, not `mkp.js`. Compile at build time
+  (`mkp build --target ir`) and the page loads `mkp-dom.js`, `mkp-runtime.js` and `mkp-shared.js`
+  only. A page that also compiles in the browser imports `mkp.js` as well, and loads the shared
+  part once.
+- **Text and widgets at first paint.** `mkp build --target ir,fragment` also writes
+  `name.fragment.html`: the document as `mount()` first draws it. Put it in the element on the
+  server, then mount the same build's bundle with `hydrate: true`; `mount()` takes the HTML over
+  in place, so nothing is swapped and nothing moves, and it stays as it is until the runtime is
+  ready. Pass `mount()` the theme, tokens and class the fragment was drawn with (the CLI draws it
+  with none; `firstPaint(bundle, { theme, tokens, className })` from `@mkp/page` takes them).
+  A fragment that isn't this bundle's is drawn again, with a warning on the console.
+
+```html
+<div id="doc"><!-- name.fragment.html, inserted by your server --></div>
+<script type="module">
+  import { mount } from './vendor/mkp/mkp-dom.js';
+  const bundle = await (await fetch('/notes/name.ir.json')).json();
+  mount(document.getElementById('doc'), bundle, { hydrate: true });
+</script>
+```
 
 ## Step 5. Your own widgets: a pack
 
@@ -1121,6 +1179,29 @@ fixture's play step rather than a promised API. Treat this as a workaround that 
 
 ---
 
+### 6.6 What the page's elements promise
+
+Tests, a host's stylesheet and tools that trace a widget against your own components can rely on
+these, in `@mkp/react`'s renderer (and so `mkp-dom.js` and `--target html`). They change only with
+a note under **Changed** in a release:
+
+| On | Attribute or class | What it holds |
+|---|---|---|
+| every node's outer element | `data-mkp` | the base widget it is: `press`, `row`, `canvas`… |
+| an element written with `id=` | `data-mkp-id` | that id, as written (or as `id=(expr)` worked it out) |
+| a widget's own element | `data-mkp-def` | its definition, `pack:name@N`, such as `units:distance@1`: scope a stylesheet to one widget with `[data-mkp-def="units:distance@1"]` |
+| a press | `mkp-press`, `mkp-press-<kind>`, `data-kind` | every press; one kind (`button`, `toggle`, `switch`, `check`, `radio`, `option`, `tab`, `plain`); the kind again |
+| a press | `aria-pressed`, `aria-checked`, `aria-selected`, `disabled` | its state, by kind |
+| a switch | `.mkp-switch > .mkp-switch-thumb` | its track and thumb, the press's first child; the thumb moves 16 px when it is on. MKP animates nothing (SPEC-NOTES 102): give the thumb a `transition` of your own to make it slide |
+| an icon | `mkp-icon`, `data-name`, `data-size` | the icon's name (`help`, `info`…), so you can swap in your own symbol |
+| a canvas shape that listens | `data-pointed`, and `data-press` with `role=button` when it takes `@click` | a circle or path with `@enter`, `@leave` or `@click` |
+| the root | `mkp-root`, `data-theme` | the stylesheet's scope; `light` or `dark` when it is fixed |
+| a canvas layer with `clip=` | `clip-path` on its `<g>` | the rectangle its shapes stop at |
+
+Not promised: `data-mkp-key` (the runtime's key for a node: it changes when the document's
+structure does; use it within one drawing, never store it), `data-mkp-src` (where the node was
+written), and any class or attribute not listed here.
+
 ## Step 7. Theming
 
 This step makes documents match your app's colours, type and spacing, in light and dark.
@@ -1261,10 +1342,91 @@ A port of the runtime (4.4) runs every `conformance/cases/*.json` in its own lan
    `--no-lock` so `mkp.lock` records the new core digests, and commit it.
 4. If you have your own components, check the new commit's `BASE_WIDGETS` and props against them:
    the conformance render test catches a base widget you don't draw.
-5. Rebuild stored bundles: an old bundle may not match the new runtime.
+5. Migrate what was written for the older release (8.3): your documents, your packs and the
+   bundles you store.
 
 To work on MKP and your app together, replace `mkp/` with a symlink to an MKP checkout; the
 script leaves a symlink alone.
+
+### 8.3 Migrating to a new release
+
+Every bundle, lock and source says which release wrote it: `"mkp": "0.2.2"` beside `"ir": 1` in a
+bundle and a lock, `mkp: 0.2.2` and `ir: 1` in a document's front matter, and a first line
+`# mkp 0.2.2 ir 1` in a `.mkp` file (a pack's files, its manifest, a document's own `.mkp`). The
+stamp is no comment of what follows and not part of a pack's digest, so restamping never trips the
+lock. A file without one was written for 0.2.1. `mkp fmt` writes it.
+
+Each release ships one step that brings the previous release's IR up to date, and `mkp migrate`
+runs every step from a file's release to this one:
+
+```sh
+mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything is written for an older release
+mkp migrate lib/ notes/ --write                  # packs first, then the documents that use them
+mkp migrate notes/ --keep zoom-minscale --write  # keep an old look where it can be kept (--keep all)
+mkp migrate notes/ --take all --write            # take every new behaviour, without asking
+mkp migrate saved.ir.json --write                # a bundle an older release built
+mkp migrate old.mkpack --write                   # a released pack: written back as a .mkpack
+mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's web files
+```
+
+- **A source goes through the IR.** It is compiled by the core of the release it was written for
+  (its `mkp.js`, downloaded once from the release into `~/.cache/mkp/<version>/` or `MKP_CACHE`,
+  and checked against the release's `SHA256SUMS`; or given with `--core`). Then the steps run, and
+  this release's printer writes it back **in canonical form** (layout normalised, comments kept)
+  with its new stamp. This release then compiles the result, and nothing is written if it doesn't
+  compile.
+- **Nothing changes silently.** Each change is a warning at its line: `mkp.migrate-renamed` (a name
+  a release took for itself, renamed in what you wrote, with every use of it),
+  `mkp.migrate-changed` (it draws differently now), `mkp.migrate-kept` (you kept the old look),
+  `mkp.migrate-removed`, and for packs `mkp.migrate-moved`.
+- **The old look, where it can be kept, is yours to choose.** On a terminal it asks, one change at
+  a time; `--keep id,…`, `--keep all` and `--take all` answer for CI. A kept look is written into
+  the source (`zoom minscale=0`), where it can be seen and later removed. Where it can't be kept,
+  the warning says why.
+- **Renames reach only what MKP can see.** Your app's own code that names an input, a signal or
+  a command is out of reach; a rename of one of those says so.
+- **Documents that use a pack** are compiled against the pack as it was and checked against it
+  migrated, so migrate them in the same run as the pack.
+- **Stored bundles in a page:** `mount(el, bundle, { migrate: { keep, onWarn } })` upgrades a bundle
+  an older release built as it loads; `migrateBundle(bundle, { keep })` (in `mkp-runtime.js`) does
+  it anywhere and returns the warnings.
+
+The website's Migrations tab lists, per release, what migrates by itself, what to check by hand, and
+a before and after.
+
+### 8.4 A pack's own versions
+
+A published version keeps its behaviour (2.3). A breaking change is a new version beside the old
+one, and the old one says what to use instead:
+
+```txt
+walk@1 "A walk."
+  deprecated "use walk@2: from is now start"
+  in from text
+  in speed num = 1
+  …
+
+walk@2 "A walk."
+  in start text
+  in look choice(classic|new) = new
+  …
+
+migrate walk@1 -> walk@2
+  rename from -> start
+  drop speed "walk@2 sets its own pace"
+  keep look = classic "walk@1's look"
+```
+
+- **Every use of a deprecated version** is warned (`mkp.deprecated`) with its text.
+- **The `migrate` block says how a use moves**, in MKP (no code from a pack runs): an input
+  renamed, dropped with why, or set to keep the old look. The compiler checks it against both
+  versions: every input of the old version goes somewhere, and every input the new one needs is given.
+- **`mkp check --pack` proves it:** every fixture case of the old version, moved (with and without
+  the kept look), must compile against the new one (`mkp.migrate-pack-case`).
+- **`mkp migrate doc.mkp.md --pack lib`** moves the uses, current release or not, asking whether
+  to keep the old look (`--keep walk@2`).
+- A copy made with `mkp show --source --as` is your own source: it migrates with releases like any
+  file, and is never moved to the pack's new version.
 
 ---
 
@@ -1288,6 +1450,9 @@ Things you will hit, as of this commit:
 - **Partial `components`**: the type asks for all 25 base widgets, and passing any drops the
   neutral stylesheet (4.2).
 - **React Native has no `components` prop**, so its look comes from tokens only.
+- **React Native's zoom doesn't shrink what it holds to fit**, so `minscale` means nothing there.
+- **React Native reports no events from canvas shapes, nor `@enter`/`@leave` on containers.** Its
+  canvas is drawn with Skia, which has no hit-testing yet; on the web both work (`@mkp/react`).
 - **`mkp build --out` names outputs by file name only**, so documents with one name in different
   folders overwrite each other.
 - **`--md images` writes its SVG files only with `--out`.**

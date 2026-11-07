@@ -591,9 +591,9 @@ redesigned language.
      layer's fallback image sampled -1..1 whatever the canvas's ranges (*fixed*, 10a2da7); a lane
      pinned level beside a box was joined through the box's top (*fixed*, 25af2dd: by its side); a
      high-emphasis press's label took `tone=ink` once base defaults were filled (*fixed*, 897a83d:
-     text's tone defaults to none). *Open:* arrows `layer=behind` sit under their scope's own
-     content, so a widget whose frame is inside the arrows' scope covers them with its surface (graph's
-     sequence lifelines don't show).
+     text's tone defaults to none). Arrows `layer=behind` sat under their scope's own content, so a
+     widget whose frame is inside the arrows' scope covered them with its surface (graph's sequence
+     lifelines didn't show). *Fixed* (gap 203): a frame's stage is always a layer for its arrows.
 176. **Still open from the library** (each with a minimal example in the agents' reports):
      a `ref` input can't be optional, so a widget can't share a point with another by data alone;
      `mkp check --pack` doesn't type-check a pack function nothing calls; a path point that isn't
@@ -610,3 +610,84 @@ redesigned language.
      neutral renderer (and so every standalone page) showed an empty black square. *Fixed:* the
      glyphs take tone `none`, the press's own colour (runtime test; the pages e2e checks every
      button label's contrast in light and dark).
+
+### A host's components as widgets (replicas)
+
+A host drew its release notes with MKP, building a widget for each of its own components and
+checking each against the real one. What it turned up (one claim did not hold):
+
+178. **The maths engine loaded for every document.** `mount()` under `maths: 'auto'` fetched the
+     2.7 MB engine whatever the document held, holding widgets back by seconds on a slow line.
+     *Fixed:* `needsMaths(bundle)` in the core says exactly whether drawing needs it (maths the
+     build has not typeset, or with a live value); `mount()` and the standalone page load it only
+     then (core and mount tests).
+179. **Drawing a prebuilt bundle loaded the compiler.** `mkp-dom.js` imported all of `mkp.js`:
+     compiler, checker and Markdown writer with the runtime. *Fixed:* the release has
+     `mkp-runtime.js`, the runtime half alone, which the renderers import; it and `mkp.js` share
+     `mkp-shared.js`, so a page with both loads each module once (release tests).
+180. **No first paint to take over.** A host drew a document's text with its own Markdown and
+     swapped each widget in when MKP was ready. *Fixed:* `mkp build --target fragment` (or
+     `firstPaint()`) writes the document as `mount()` first draws it, and `mount(el, bundle,
+     { hydrate: true })` takes that HTML over in place (mount tests: the same elements, still live).
+181. **A host's `.mkp-press` style drew switches as buttons.** MKP's kind-specific rules are in
+     `@layer mkp` (gap 5, on purpose), so an unlayered rule for every press wins over the switch's
+     reset. *Fixed:* every press also has `mkp-press-<kind>`, so a host can style buttons alone;
+     the trap is in the integration guide (4.1, 6.6).
+182. **Gaps were said to be inline pixels a host can't retune.** *Did not hold:* gaps are
+     `var(--mkp-space-*)`, which a host retunes with the `tokens` prop or an unlayered
+     `--mkp-space-m`, no `!important`. What was missing was `tokens` on `mount()`: *fixed*. A
+     12 px step is a host's own: a pack's token set may add a space name.
+183. **A switch's thumb was a background gradient,** so nothing could trace or animate it.
+     *Fixed:* the track and thumb are elements (`.mkp-switch > .mkp-switch-thumb`). MKP still
+     animates nothing (SN 102); a host gives the thumb its own transition.
+184. **The help icon wasn't circled like info.** *Fixed in the neutral look:* `help` is drawn in a
+     ring, and every icon carries `data-name` so a host can swap in its own symbol. No new icon
+     name: a name is a meaning, and a provider draws it in its own style.
+185. **What runs first on one event line was a guess.** In `@click set on=(not on) send changed
+     checked=on`, `send` sees the new value. *Fixed in the guide:* actions, the names in one `set`,
+     and an event's lines run left to right, each seeing the one before.
+186. **`data-mkp-id` and `data-mkp-def` weren't promised.** A host found parts by the one and
+     scoped its CSS by the other. *Fixed:* the integration guide (6.6) lists what the elements
+     promise, and what they don't (`data-mkp-key`).
+187. **A text field per step.** A field's `value` must be a `var`, and the error says so; the guide
+     now shows the pattern (one `draft`, saved into a list when the step changes).
+188. **Nothing inside a widget but a press could be pointed at.** A chart's slices couldn't light
+     up or be pressed. *Fixed:* `@enter`, `@leave` and `@click` on a canvas `circle` or `path`
+     (with no payload, and a `label=` for one that is pressed, which makes it a focusable control),
+     and `@enter`/`@leave` on containers (pointer only). *Open:* the React Native renderer reports
+     neither yet. *Not taken:* splitting a document into prose and widget blocks in the core; with
+     a first paint, a host no longer needs to compile block by block.
+
+### A second host's library (a study app's plots, graphs and walks)
+
+189. **Arrows stopped 3 px short of what they join.** *Fixed:* the ends touch the outlines (gap 0),
+     marks included, so a bar mark meets its line (arrow tests; Chromium).
+190. **A head could sit on a bend.** Where a trunk split between close rows the head was drawn on
+     the turn. *Fixed:* routed tracks keep the head and 6 px straight before every head and 6 px
+     after every tail; in a gap too narrow for both, the head's run comes first (16 px and 8 px
+     cases in the arrow tests). `arrow corner=m|s|none` sets how round the turns are.
+191. **A joined `"$" + name + "$"` showed as TeX.** *Partly the host's:* it loaded the engine only on
+     `\val{`, and the guide says to build maths with holes. *Fixed:* `needsMaths` counts a text
+     literal with a `$` in it, so a host that asks it loads the engine.
+192. **A pack couldn't know the theme.** *Fixed:* `theme` (`light` or `dark`) is read like `width`;
+     the renderers set it (`auto` follows the system). Colour arithmetic (`mix()`) is not taken:
+     tokens already follow the theme, and `theme` covers what can't use them.
+193. **A wide drawing in a zoom shrank to nothing on a phone.** *Fixed:* `zoom minscale=` (0.6 by
+     default): past it the middle shows, clipped, and the lock shows to pan (Chromium at 390 px).
+     *Open:* React Native's zoom doesn't shrink to fit at all.
+194. **The steps bar put start over on a line of its own at 420 px.** *Did not reproduce* in MKP's
+     own look at 320–420 px, with play and the track; likely the host's wider buttons. The track now
+     asks only its 3rem least before anything wraps.
+195. **A canvas label's `dy` runs up.** *As designed:* the canvas's y runs up and the nudge follows
+     it. Said in the guide; not flipped, which would break every document.
+196. **A canvas had no clip.** *Fixed:* `layer clip=[(x0, y0), (x1, y1)]` cuts a layer's shapes off
+     outside that rectangle, in data units (web, React Native, the Markdown picture).
+197. **Shared tails were drawn once per line.** *Fixed:* identical marks are drawn once per layer.
+198. **A dimmed or blurred stack layer painted over the layers after it,** hiding a press.
+     *Fixed:* every layer is positioned, so they paint in the order written (Chromium).
+199. **`self=` placed a child on one axis only in a grid or a stack;** the base set's own badge
+     stretched across its picture. *Fixed:* there `self=` sets both axes.
+200. **One padding for both axes.** *Fixed:* `padx=` and `pady=` on the four containers.
+201. **Nesting counted `each`, `switch` and `case`.** *Fixed:* only containers count toward 12.
+202. **`slot x if=(…)` was refused.** *Fixed:* a slot takes `if=`.
+203. **Arrows behind under a frame's surface** (175). *Fixed:* the stage hosts them.

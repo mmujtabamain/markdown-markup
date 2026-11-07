@@ -2,11 +2,13 @@
 // so hosts in any language call it at write time, in an editor or in CI.
 //
 //   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-//             [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+//             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
 //             [--lock mkp.lock] [--diagnostics json]
 //             html: a standalone page that draws the document (name.html: one file, offline, the
 //             renderer inlined, the Markdown inside it for readers with scripts off); html-md: the
-//             document's Markdown drawn as HTML, with no script (name.md.html)
+//             document's Markdown drawn as HTML, with no script (name.md.html); fragment: the
+//             document's first paint (name.fragment.html), for the element that mount(el, bundle,
+//             { hydrate: true }) takes over in place, with the bundle from the same build's ir
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
@@ -23,6 +25,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import {
   canonicalJson,
   caseDocument,
@@ -46,14 +49,19 @@ import {
   stripPos,
   VERSION,
   writeMarkdown,
+  writeStamp,
   writeZip,
+  checkMoves,
+  readZip,
+  type Choice,
   type Compiled,
   type IRLock,
   type IRBundle,
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
-import { htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
+import { migrateBundleFile, migrateDocument, migratePack, packAfter, zipped, type Migrated } from './migrate';
+import { firstPaint, htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
 
@@ -75,7 +83,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -189,7 +197,7 @@ async function build(a: Args): Promise<number> {
   const toggles = (typeof a.opts.md === 'string' ? a.opts.md.split(',').filter(Boolean) : []) as MdToggle[];
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
   if (targets.length > 1 && !outDir) throw new Error('several targets need --out');
-  const known = ['ir', 'ir-expanded', 'md', 'html', 'html-md'];
+  const known = ['ir', 'ir-expanded', 'md', 'html', 'html-md', 'fragment'];
   for (const t of targets) if (!known.includes(t)) throw new Error(`--target takes ${known.join(', ')}; found ${t}`);
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
   // a document from stdin (-), named by --name
@@ -230,6 +238,11 @@ async function build(a: Args): Promise<number> {
           text = markdownPage({ title, html: drawn });
           ext = '.md.html';
         }
+      } else if (target === 'fragment') {
+        // the document's first paint, for the element mount(el, bundle, { hydrate: true }) takes over;
+        // the bundle to mount is this build's (--target ir,fragment)
+        text = firstPaint(bundle, { maths: maths ?? undefined });
+        ext = '.fragment.html';
       } else {
         text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
         ext = target === 'ir-expanded' ? '.expanded.json' : '.ir.json';
@@ -272,6 +285,10 @@ async function check(a: Args): Promise<number> {
   const missing = missingFixtures(c);
   for (const m of missing) process.stderr.write(`${m} has no valid fixture case; a definition needs one before it can be published\n`);
   ok = ok && !missing.length;
+  // a pack's migrate blocks, proven: every case of the old version, moved, compiles against the new
+  const moved = new Diagnostics();
+  for (const d of checkMoves(c, c.moves)) moved.add(d);
+  ok = report(moved) && ok;
   process.stdout.write(`${c.defs.size} definitions, ${n} fixture cases: ${ok ? 'ok' : 'problems above'}\n`);
   return ok ? 0 : 1;
 }
@@ -334,6 +351,75 @@ function schema(a: Args): number {
   return 0;
 }
 
+/** Asks, one change at a time, whether to keep its old look: on a terminal, when --keep and --take aren't given. */
+async function ask(choices: Choice[]): Promise<string[]> {
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  const keep: string[] = [];
+  try {
+    for (const c of choices) {
+      const said = await rl.question(`\n${c.step}: ${c.what} (${c.places} place${c.places === 1 ? '' : 's'}).\n  Keep the old look (${c.how})? [y/N] `);
+      if (/^y(es)?$/i.test(said.trim())) keep.push(c.id);
+    }
+  } finally {
+    rl.close();
+  }
+  return keep;
+}
+
+async function migrate(a: Args): Promise<number> {
+  if (!a.pos.length) throw new Error('migrate takes the documents, pack folders or bundles (name.ir.json) to migrate');
+  const keep = a.opts.take === 'all' || a.opts.take === true ? [] : typeof a.opts.keep === 'string' ? (a.opts.keep === 'all' ? ('all' as const) : a.opts.keep.split(',').filter(Boolean)) : undefined;
+  const opts = {
+    keep,
+    choose: keep === undefined && process.stdin.isTTY && !jsonDiagnostics ? ask : undefined,
+    core: typeof a.opts.core === 'string' ? a.opts.core : undefined,
+    from: typeof a.opts.from === 'string' ? a.opts.from : undefined,
+    packs: a.packs.map(packSource),
+  };
+  const targets: string[] = [];
+  const packTargets: string[] = [];
+  for (const p of a.pos) {
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (!st) throw new Error(`no such file or folder: ${p}`);
+    if ((st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) || p.endsWith('.mkpack')) packTargets.push(p);
+    else if (st.isDirectory()) targets.push(...docFiles([p]));
+    else targets.push(p);
+  }
+  // packs first: the documents that use them compile against them as they were, and are checked
+  // against them as they will be
+  const migratedPacks = new Map<string, Migrated>();
+  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, opts));
+  const sources = [...packTargets.map(packSource), ...opts.packs.filter((x) => !packTargets.some((p) => resolve(p) === resolve(x.label)))];
+  Object.assign(opts, { packs: sources, packsAfter: sources.map((s) => (migratedPacks.has(resolve(s.label)) ? packAfter(s, migratedPacks.get(resolve(s.label))!) : s)) });
+  targets.unshift(...packTargets);
+  if (targets.length > 1 && !a.opts.write && !a.opts.check) throw new Error('several files need --write (or --check)');
+  let ok = true;
+  let pending = false;
+  for (const t of targets) {
+    const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : migratedPacks.get(resolve(t)) ?? (await migrateDocument(t, opts));
+    const d = new Diagnostics();
+    for (const w of m.result?.warnings ?? []) d.add(w);
+    if (m.errors.length) {
+      for (const e of m.errors) d.error('mkp.migrate-failed', e);
+      ok = false;
+    }
+    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; rewritten in canonical form\n`);
+    report(d);
+    if (m.errors.length) continue;
+    if (m.changed.length) pending = true;
+    if (a.opts.check) continue;
+    if (a.opts.write && t.endsWith('.mkpack')) {
+      // a .mkpack is written back as a zip of the migrated pack
+      const label = relative(process.cwd(), resolve(t)) || t;
+      const before = readZip(new Uint8Array(readFileSync(t)), label, new Diagnostics())?.files ?? new Map<string, Uint8Array>();
+      writeFileSync(t, zipped(label, m, before)!);
+    } else if (a.opts.write) for (const p of m.changed) writeFileSync(p, m.files.get(p)!);
+    else for (const text of m.files.values()) process.stdout.write(text.endsWith('\n') ? text : text + '\n');
+  }
+  // --check: 1 when anything would change, as a CI gate
+  return !ok ? 1 : a.opts.check && pending ? 1 : 0;
+}
+
 function fmt(a: Args): number {
   const c = compiled(a);
   let ok = true;
@@ -370,6 +456,8 @@ function fmt(a: Args): number {
       }
       text = found;
     }
+    // fmt writes the release it formats for at the file's head (stamp.ts)
+    text = writeStamp(text, file);
     if (a.opts.write) writeFileSync(abs, text);
     else process.stdout.write(text);
   }
@@ -428,7 +516,7 @@ function pack(a: Args): number {
 const HELP = `mkp ${VERSION}: Markdown Markup
 
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-            [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+            [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
             [--lock mkp.lock] [--diagnostics json]
   mkp check [docs…] --pack … [--format json]
   mkp index --pack …
@@ -437,6 +525,8 @@ const HELP = `mkp ${VERSION}: Markdown Markup
   mkp fmt <files…> --pack … [--write]
   mkp pack <folder> [-o name.mkpack]
   mkp cases --pack … --out dir [--only pack]
+  mkp migrate <docs|pack folders|bundle.ir.json…> [--pack …] [--keep id,…|all | --take all] [--write | --check]
+            [--from 0.2.1] [--core mkp-web-0.2.1.zip] [--format json]
 `;
 
 export async function main(argv: string[]): Promise<number> {
@@ -460,6 +550,8 @@ export async function main(argv: string[]): Promise<number> {
         return pack(a);
       case 'cases':
         return await cases(a);
+      case 'migrate':
+        return await migrate(a);
       case 'version':
       case '--version':
         process.stdout.write(VERSION + '\n');

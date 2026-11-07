@@ -34,7 +34,7 @@ export function useTheme(): [Theme, () => void] {
 }
 
 /** The site's sections. `up` is the way from this page to the site's root ('' or '../'). */
-export type Section = 'home' | 'docs' | 'examples';
+export type Section = 'home' | 'docs' | 'examples' | 'whats-new' | 'migrations';
 
 export function Logo({ up = '' }: { up?: string }): ReactNode {
   return (
@@ -42,20 +42,26 @@ export function Logo({ up = '' }: { up?: string }): ReactNode {
       <span className="grid size-7 place-items-center rounded-md bg-brand font-mono text-[11px] font-bold text-primary-foreground shadow-sm" aria-hidden>
         M↓
       </span>
-      <span className="tracking-tight">MKP</span>
+      {/* the name gives way to the sections on the narrowest phones; the mark stays */}
+      <span className="hidden tracking-tight min-[360px]:inline">MKP</span>
       <span className="hidden text-sm font-normal text-muted-foreground sm:inline">Markdown Markup</span>
     </a>
   );
 }
 
-/** Docs and Examples: the site's two sections, the current one marked. */
+const SECTION_LABEL = { docs: 'Docs', examples: 'Examples', 'whats-new': "What's new", migrations: 'Migrations' } as const;
+/** On a phone the four sections share one row: shorter names */
+const SHORT_LABEL = { docs: 'Docs', examples: 'Examples', 'whats-new': 'New', migrations: 'Migrate' } as const;
+
+/** Docs, Examples and What's new: the site's sections, the current one marked. */
 export function SectionLinks({ at, up = '' }: { at: Section; up?: string }): ReactNode {
   return (
     <>
-      {(['docs', 'examples'] as const).map((s) => (
-        <Button key={s} variant="ghost" size="sm" asChild className={cn(at === s && 'bg-accent text-accent-foreground')}>
-          <a href={`${up}${s}/`} aria-current={at === s ? 'page' : undefined} data-site-section={s}>
-            {s === 'docs' ? 'Docs' : 'Examples'}
+      {(['docs', 'examples', 'whats-new', 'migrations'] as const).map((s) => (
+        <Button key={s} variant="ghost" size="sm" asChild className={cn('px-1.5 sm:px-3', at === s && 'bg-accent text-accent-foreground')}>
+          <a href={`${up}${s}/`} className="whitespace-nowrap" aria-current={at === s ? 'page' : undefined} data-site-section={s}>
+            <span className="hidden sm:inline">{SECTION_LABEL[s]}</span>
+            <span className="sm:hidden">{SHORT_LABEL[s]}</span>
           </a>
         </Button>
       ))}
@@ -66,15 +72,16 @@ export function SectionLinks({ at, up = '' }: { at: Section; up?: string }): Rea
 export function SiteHeader({ theme, toggle, at, up = '', wide, before }: { theme: Theme; toggle: () => void; at: Section; up?: string; wide?: boolean; before?: ReactNode }): ReactNode {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-      <div className={cn('mx-auto flex h-14 items-center gap-2 px-4', wide ? 'max-w-none' : 'max-w-6xl')}>
+      <div className={cn('mx-auto flex h-14 items-center gap-2 px-3 sm:px-4', wide ? 'max-w-none' : 'max-w-6xl')}>
         {before}
         <Logo up={up} />
-        <nav className="ml-auto flex items-center gap-1 text-sm" aria-label="Site">
+        <nav className="ml-auto flex items-center gap-0.5 text-sm sm:gap-1" aria-label="Site">
           <SectionLinks at={at} up={up} />
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
             <a href={`${REPO}/releases`}>Releases</a>
           </Button>
-          <Button variant="ghost" size="icon-sm" asChild>
+          {/* on a phone the three sections and the theme take the row; GitHub is in the footer and the docs */}
+          <Button variant="ghost" size="icon-sm" asChild className="hidden sm:inline-flex">
             <a href={REPO} aria-label="MKP on GitHub">
               <Github />
             </a>

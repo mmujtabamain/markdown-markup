@@ -37,7 +37,7 @@ describe('arrowPath through waypoints', () => {
 
   it('is unchanged without waypoints', () => {
     const p = arrowPath(top, bottom)!;
-    expect(arrowPath(top, bottom, false, 3, 7, [])).toEqual(p);
+    expect(arrowPath(top, bottom, false, 0, 7, [])).toEqual(p);
     expect(p.d).toMatch(/^M[\d.,-]+ L[\d.,-]+$/);
   });
 

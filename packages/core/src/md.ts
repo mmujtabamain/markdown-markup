@@ -346,8 +346,13 @@ export function canvasSvg(n: VNode, tokens: TokenTable, W = 320): string {
         break;
     }
   };
+  let clips = 0;
   for (const l of n.layers ?? []) {
-    parts.push(`<g opacity="${l.opacity}">`);
+    if (l.clip) {
+      const id = `c${clips++}`;
+      parts.push(`<clipPath id="${id}"><rect x="${f(X(l.clip[0]))}" y="${f(Y(l.clip[3]))}" width="${f(X(l.clip[2]) - X(l.clip[0]))}" height="${f(Y(l.clip[1]) - Y(l.clip[3]))}"/></clipPath>`);
+      parts.push(`<g opacity="${l.opacity}" clip-path="url(#${id})">`);
+    } else parts.push(`<g opacity="${l.opacity}">`);
     l.shapes.forEach(shape);
     parts.push('</g>');
   }

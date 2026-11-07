@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Image, PanResponder, Text, View, type AccessibilityActionEvent } from 'react-native';
-import { Circle, G, Image as SvgImage, Path, Polygon, Svg } from 'react-native-svg';
+import { Circle, ClipPath, Defs, G, Image as SvgImage, Path, Polygon, Rect, Svg } from 'react-native-svg';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { useCtx } from './context';
 import { Kids } from './nodes';
@@ -66,8 +66,15 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const under: ReactNode[] = [];
   const labels: { s: LabelShape; opacity: number }[] = [];
   const geo = (opacity: number): Geo => ({ X, Y, unit, W, H, x, y, theme, over, under, opacity, labels });
-  const layers = (n.layers ?? []).map((l) => (
-    <G key={l.key} opacity={l.opacity}>
+  const layers = (n.layers ?? []).map((l, i) => (
+    <G key={l.key} opacity={l.opacity} clipPath={l.clip ? `url(#mkp-clip-${i})` : undefined}>
+      {l.clip ? (
+        <Defs>
+          <ClipPath id={`mkp-clip-${i}`}>
+            <Rect x={X(l.clip[0])} y={Y(l.clip[3])} width={X(l.clip[2]) - X(l.clip[0])} height={Y(l.clip[1]) - Y(l.clip[3])} />
+          </ClipPath>
+        </Defs>
+      ) : null}
       {l.shapes.map((s) => shape(s, geo(l.opacity)))}
     </G>
   ));

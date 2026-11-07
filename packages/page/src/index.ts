@@ -4,3 +4,4 @@
 export { markdownToHtml, type PreviewOptions } from './markdown';
 export { htmlPage, markdownPage, pageTitle, PAGE_CSS, type HtmlPageOptions, type MarkdownPageOptions } from './html';
 export { assetUrl, pictureNames, withAssets } from './assets';
+export { firstPaint, type FirstPaintOptions } from './first-paint';

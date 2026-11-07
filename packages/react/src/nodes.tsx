@@ -157,7 +157,9 @@ export function layoutStyle(n: VNode): CSSProperties {
   if (l?.grow) Object.assign(s, { flex: '1 1 0', minWidth: 0 });
   if (l?.basis) s.flexBasis = size(l.basis);
   if (l?.span) s.gridColumn = `span ${l.span}`;
-  if (l?.self) s.alignSelf = SELF[l.self];
+  // self= places a child on both axes in a grid's cell or a stack (a badge in a corner); in a row or a
+  // column justify-self means nothing, so there it is the cross axis alone, as before
+  if (l?.self) Object.assign(s, { alignSelf: SELF[l.self], justifySelf: l.self });
   return s;
 }
 
@@ -194,9 +196,17 @@ export function gridTracks(cols: unknown): string {
 }
 
 /** How a container lays its children out, whatever its look. */
+/** A container's padding: pad all round, with padx at the sides and pady top and bottom in its place. */
+function pads(p: Record<string, unknown>): CSSProperties {
+  const all = space(p.pad);
+  const x = space(p.padx) ?? all;
+  const y = space(p.pady) ?? all;
+  return x === all && y === all ? { padding: all } : { paddingTop: y, paddingBottom: y, paddingLeft: x, paddingRight: x };
+}
+
 export function flowStyle(n: VNode): CSSProperties {
   const p = n.p;
-  const gaps = { padding: space(p.pad), gap: space(p.gap) };
+  const gaps = { ...pads(p), gap: space(p.gap) };
   switch (n.t) {
     case 'row':
       // centring is the stylesheet's, as safe centring: an overflowing row keeps its start (GAPS 120)
@@ -205,7 +215,7 @@ export function flowStyle(n: VNode): CSSProperties {
       return { display: 'grid', gridTemplateColumns: gridTracks(p.cols), alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)], ...gaps };
     case 'stack':
       // layers: every child in the one cell, the last on top; as big as the biggest (GAPS 79)
-      return { display: 'grid', alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)] ?? 'stretch', padding: space(p.pad) };
+      return { display: 'grid', alignItems: ITEMS[String(p.align)] ?? 'stretch', justifyItems: ITEMS[String(p.justify)] ?? 'stretch', ...pads(p) };
     default:
       return { display: 'flex', flexDirection: 'column', alignItems: ALIGN[String(p.align)] ?? 'stretch', justifyContent: p.justify === 'center' ? undefined : JUSTIFY[String(p.justify)], ...gaps };
   }
@@ -227,7 +237,8 @@ export const rowRole = (n: VNode): string | undefined =>
 /**
  * One container, laid out and drawn: column, row, grid or stack. `width` and `minwidth` size it
  * (GAPS 19, 142); with `scroll=x` its content scrolls sideways inside its outline (GAPS 149); a
- * press on its own background, not on a child, raises click (pointer only, GAPS 125).
+ * press on its own background, not on a child, raises click (pointer only, GAPS 125); the pointer
+ * moving onto it or off it raises enter and leave (pointer only).
  */
 export function Box({ n, attrs, style, role, label, children }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; role?: string; label?: string; children?: ReactNode }): ReactNode {
   const { rt } = useCtx();
@@ -240,7 +251,10 @@ export function Box({ n, attrs, style, role, label, children }: { n: VNode; attr
         if (t === e.currentTarget || (t.parentElement === e.currentTarget && t.hasAttribute('data-mkp-inner'))) rt.dispatch(n.key, 'click');
       }
     : undefined;
-  const outer = { ...(attrs ?? nodeAttrs(n)), role: role ?? (p.role as string | undefined), 'aria-label': label ?? (p.label ? String(p.label) : undefined), onClick };
+  // the pointer onto it and off it, for a container that listens: pointer only, as it takes no focus
+  const onPointerEnter = n.ev?.includes('enter') ? () => rt.dispatch(n.key, 'enter') : undefined;
+  const onPointerLeave = n.ev?.includes('leave') ? () => rt.dispatch(n.key, 'leave') : undefined;
+  const outer = { ...(attrs ?? nodeAttrs(n)), role: role ?? (p.role as string | undefined), 'aria-label': label ?? (p.label ? String(p.label) : undefined), onClick, onPointerEnter, onPointerLeave };
   if (p.scroll === 'x') {
     // the outline stays put and the content scrolls inside it, never narrower than minwidth
     const inner: CSSProperties = n.t === 'row' && p.wrap === false ? { width: 'max-content', minWidth: min ?? '100%' } : { minWidth: min ?? 'min-content' };
@@ -406,10 +420,17 @@ export function Node({ n }: { n: VNode }): ReactNode {
           data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined}
           type="button"
           disabled={!!p.disabled}
-          className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'}
+          // mkp-press is every kind; mkp-press-<kind> is one, so a host can style buttons without catching switches
+          className={`mkp-press mkp-press-${kind}${kind === 'tab' ? ' mkp-tab' : ''}`}
           style={{ color: color(p.tone), ...lay }}
           onClick={() => rt.dispatch(n.key, 'click')}
         >
+          {kind === 'switch' ? (
+            // the track and its thumb are elements, so the thumb's move can be styled, traced and animated
+            <span className="mkp-switch" aria-hidden="true">
+              <span className="mkp-switch-thumb" />
+            </span>
+          ) : null}
           <Kids nodes={n.kids} />
         </button>
       );

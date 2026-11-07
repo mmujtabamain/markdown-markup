@@ -61,6 +61,8 @@ export interface FnSyn {
 export type Member =
   | { m: 'requires'; cap: string; p: Pos; comments: string[] }
   | { m: 'budget'; n: number; p: Pos; comments: string[] }
+  /** deprecated "use walk@2: …": every use is warned, with this text */
+  | { m: 'deprecated'; text: string; p: Pos; comments: string[] }
   | { m: 'fields'; names: string[]; p: Pos; comments: string[] }
   | { m: 'in'; name: string; type: Type; def?: Val; about?: string; answer?: boolean; p: Pos; comments: string[] }
   | { m: 'implements'; names: string[]; p: Pos; comments: string[] }
@@ -143,7 +145,23 @@ export interface InterfaceSyn {
   comments: string[];
 }
 
+/** How a use of one version of a pack's widget moves to another (migrate walk@1 -> walk@2). */
+export type MoveLine =
+  | { k: 'rename'; from: string; to: string; p: Pos }
+  | { k: 'drop'; name: string; why: string; p: Pos }
+  | { k: 'keep'; name: string; value: Val; why: string; p: Pos };
+
+export interface MigrateSyn {
+  item: 'migrate';
+  from: string;
+  to: string;
+  lines: MoveLine[];
+  p: Pos;
+  comments: string[];
+}
+
 export type TopSyn =
+  | MigrateSyn
   | DefSyn
   | InterfaceSyn
   | TokensSyn
@@ -159,7 +177,7 @@ export interface MkpFile {
   items: TopSyn[];
 }
 
-const MEMBER_WORDS = new Set(['requires', 'budget', 'fields', 'in', 'out', 'signal', 'host', 'command', 'var', 'fn', 'project', 'implements']);
+const MEMBER_WORDS = new Set(['requires', 'budget', 'deprecated', 'fields', 'in', 'out', 'signal', 'host', 'command', 'var', 'fn', 'project', 'implements']);
 export const CONTROL_WORDS = new Set(['slider', 'choice', 'toggle', 'steps', 'drag', 'clock']);
 export const ACTION_NAMES = new Set(['set', 'play', 'pause', 'reset', 'reveal', 'hide', 'open', 'close', 'emit', 'send']);
 const OP_SYMBOLS = new Set(['+', '-', '*', '/', '^', '==', '<', 'from', 'point']);
@@ -447,6 +465,9 @@ function topLevel(ctx: LineCtx, diags: Diagnostics, opts: ParseOptions = {}): To
       const h = defHead(ctx, cs, 1, inline);
       return { item: 'def', kind: head === 'extern' ? 'extern' : 'part', ...h, members: members(ctx, diags), p, comments };
     }
+    case 'migrate':
+      if (inline) ctx.fail('a document can\'t declare `migrate`: it says how uses of one version of a pack\'s widget move to another, so only the pack declares it; found `migrate` here. Move it into a .mkp file of the pack', 0, 'mkp.syntax');
+      return migrateItem(ctx, diags, comments);
     case 'interface':
       if (inline)
         ctx.fail(
@@ -542,6 +563,34 @@ function macroTrouble(text: string): string {
 }
 
 /** The message for a top-level line that starts nothing MKP knows. */
+/** migrate walk@1 -> walk@2, then its lines: rename a -> b, drop a "why", keep a = value "why". */
+function migrateItem(ctx: LineCtx, diags: Diagnostics, comments: string[]): MigrateSyn {
+  const m = /^migrate\s+(\S+@\d+)\s*->\s*(\S+@\d+)\s*$/.exec(ctx.text);
+  if (!m) ctx.fail(`\`migrate\` names two versions of a widget: the one uses move from, then -> and the one they move to; found ${q(ctx.text, 40)}. Write e.g. \`migrate walk@1 -> walk@2\``, 7);
+  const out: MigrateSyn = { item: 'migrate', from: m![1], to: m![2], lines: [], p: ctx.pos(0), comments };
+  for (const c of ctx.line.children) {
+    const lc = new LineCtx(c, ctx.map.file);
+    try {
+      const t = lc.text;
+      const p = lc.pos(0);
+      let r: RegExpExecArray | null;
+      if ((r = /^rename\s+([A-Za-z_]\w*)\s*->\s*([A-Za-z_]\w*)\s*$/.exec(t))) out.lines.push({ k: 'rename', from: r[1], to: r[2], p });
+      else if ((r = /^drop\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*")\s*$/.exec(t))) out.lines.push({ k: 'drop', name: r[1], why: decodeText(r[2]), p });
+      else if ((r = /^keep\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s+("(?:[^"\\]|\\.)*")\s*$/.exec(t))) {
+        const at = t.indexOf(r[2], t.indexOf('=') + 1);
+        out.lines.push({ k: 'keep', name: r[1], value: parseValueString(r[2], ctx.map.file, p.line, p.col + at), why: decodeText(r[3]), p });
+      } else
+        lc.fail(
+          `under \`migrate\`, a line renames an input, drops one, or keeps the old look by setting one; found ${q(t, 40)}. Write \`rename from -> start\`, \`drop speed "why it went"\` or \`keep look = "classic" "what it keeps"\``,
+          0,
+        );
+    } catch (e) {
+      report(e, diags);
+    }
+  }
+  return out;
+}
+
 function unknownTop(head: string, cs: Chunk[], inline: boolean): string {
   const found = `found ${q(head)}`;
   if (MANIFEST_WORDS.includes(head) && head !== 'requires')
@@ -920,6 +969,12 @@ function member(ctx: LineCtx, diags: Diagnostics): Member {
           if (!/^[A-Za-z_][A-Za-z0-9_.:-]*@\d+$/.test(c.text))
             ctx.fail(`\`implements\` names each interface with its version, as name@N; found ${q(c.text)}. Write \`implements ${c.text.includes('@') ? c.text.split('@')[0] : c.text}@1\``, c.at);
         return { m: 'implements', names, p, comments };
+      }
+      case 'deprecated': {
+        const t = optText(ctx, cs[1]);
+        if (t === undefined || !t.trim()) ctx.fail('`deprecated` needs quoted text saying what to use instead; found nothing after it. Write e.g. `deprecated "use walk@2, which takes start= instead of from="`', text.length);
+        if (cs.length > 2) ctx.fail(`\`deprecated\` takes one quoted text; found ${q(cs[2].text)} after it. Put it all in the one text`, cs[2].at);
+        return { m: 'deprecated', text: t!, p, comments };
       }
       case 'fields': {
         const names = cs.slice(1).map((c) => c.text);

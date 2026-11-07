@@ -190,9 +190,68 @@ press
 
 Actions: `set a=expr`, `play x`, `pause x`, `reset x…`, `reveal id`, `hide id`, `open id`,
 `close id`, `emit name f=expr`, `send name f=expr`. `if=(…)` on an event line runs that line only
-while it holds; several lines for one event run in order. Events: `@click` (on a press, or on a
-container's background), `@enter`/`@leave` (pointer or focus), `@change` and `@submit` on fields,
-`@pick` on a pressable `code`, and a part's own `out` events.
+while it holds; several lines for one event run in order.
+
+**Everything runs left to right, and each step sees the one before it.** The actions on a line, the
+names in one `set`, and the lines for one event all run in the order written, each seeing the
+values the earlier ones changed. So `@click set on=(not on) send changed checked=on` sends the
+**new** value, and `set a=(a + 1) b=(a)` leaves `b` equal to the new `a`. To send the old value,
+send it first: `@click send changed was=on set on=(not on)`.
+
+Events:
+
+- `@click` on a press, on a container's background (pointer only), and on a canvas `circle` or
+  `path`.
+- `@enter`/`@leave` on a press (the pointer, or focus), on a container (the pointer only: a
+  container takes no focus), and on a canvas `circle` or `path` (the pointer; also focus for one
+  that takes `@click`).
+- `@change` and `@submit` on fields, `@pick` on a pressable `code`, and a part's own `out` events.
+
+A shape's events carry nothing: no position, no button. Which shape it was is the scope its lines
+run in, so `each` gives each its own. A shape that takes `@click` is a control, so it needs a
+`label=` to be named by (`mkp.missing-input`); the canvas is then a group of controls, not an
+image. Pointing at a slice of a chart:
+
+```txt
+var on int = -1
+canvas -1..1 -1..1 size=s label="spending"
+  layer
+    each k in 0..(len(items) - 1) key=k
+      path wedge(k) closed=true fill=(if(on == k, accent, hue(k))) label=items[k].label
+        @enter set on=k
+        @leave set on=-1
+        @click send picked index=k
+text "\val{items[on].label}: \val{format(items[on].value, 0)}" if=(on >= 0)
+```
+
+Hover is for the pointer only: say on the page what hovering shows (a legend, a total) for readers
+on a phone or a keyboard.
+
+**A field's `value` is a `var`** (or a control) of the widget that has the field: the field changes
+it as the reader types (`mkp.check` otherwise). For a text answer per step, keep one `draft` for the
+step on screen and a list for all of them, and move between them when the step changes:
+
+```txt
+in questions list(text)
+var at int = 0
+var draft text = ""
+var saved list(text) = map(questions, q => "")
+column gap=m
+  field value=draft label=(questions[at])
+  row gap=s
+    press label="back" disabled=(at == 0)
+      text "Back"
+      @click set saved=(map(range(0, len(saved) - 1), i => if(i == at, draft, saved[i])))
+      @click set at=(at - 1)
+      @click set draft=(saved[at])
+    press label="next" disabled=(at == len(questions) - 1)
+      text "Next"
+      @click set saved=(map(range(0, len(saved) - 1), i => if(i == at, draft, saved[i])))
+      @click set at=(at + 1)
+      @click set draft=(saved[at])
+```
+
+The three lines run in order (above), so `draft` is read from the step just reached.
 
 ## Layout
 
@@ -242,25 +301,40 @@ summary: The four containers side by side.
 
 - `column` stacks, `row` wraps (or scrolls with `wrap=false scroll=x`), `grid cols=[auto, 1fr, 6ch]`
   takes tracks (or `cols=3`, or a list of track words worked out: `cols=(map(range(1, n), k => "auto"))`),
-  `stack` layers its children, last on top.
+  `stack` layers its children, last on top. In a `grid` cell or a `stack`, `self=` places a child on
+  both axes (`self=start` is its top-left corner); in a `row` or `column`, across only.
+- `pad=` all round; `padx=` (left and right) and `pady=` (top and bottom) in its place on those sides:
+  `row padx=m pady=s` for a list row.
 - On a phone: `width` is `narrow`, `medium` or `wide`; a grown child in a wrapping row needs a
   `basis` (example 09). `minwidth=` with `scroll=x` scrolls what can't shrink.
 - Borders: `stroke=`, `line=dashed`, `edge=top|bottom|left|right|x|y`, `weight=thin|normal|thick`.
 - The host's shell: `frame` (kind, title, `status`, `fill actions`, `fill about`, `fill details`),
   `pane` side by side, `zoom` behind its lock (example 18), as tall as its content between `minheight` (by
   default, room for its lock) and `maxheight` (by default `l`). The lock shows only when there is something
-  to zoom or pan: content shrunk to fit, clipped, or a drawing or picture. A widget's controls go in its frame's bar.
+  to zoom or pan: content shrunk to fit, clipped, or a drawing or picture. It shrinks what is wide down to
+  `minscale` (0.6 by default, 0 for no limit); past that it shows the middle, clipped, to pan once unlocked.
+  A widget's controls go in its frame's bar.
+- `slot body if=(open)` places a slot only while the condition holds.
+- **Nesting:** one definition nests at most 12 containers deep; `each`, `switch` and `case` don't count.
 
 ## Canvas and arrows
 
 A `canvas x=a..b y=c..d` draws `layer`s of `circle`, `path` (lines, polygons, curves as point lists;
-`head=arrow`), `label` (`halo`, `size`, `dx`/`dy`), `image`, `place` (elements at a point) and
+`head=arrow`), `label` (`halo`, `size`, `dx`/`dy`: a nudge in pixels, `dy` **up** as the canvas's
+y runs up, so `dy=-8` is lower), `image`, `place` (elements at a point) and
 `handle` (a `drag` state the reader moves) — example 19. `gfx@1` adds `pixels` and `mesh`, with the
-widget's Markdown shown where it is missing (example 21).
+widget's Markdown shown where it is missing (example 21). A `layer clip=[(x0, y0), (x1, y1)]` cuts its
+shapes off outside that rectangle, in data units: a plot's curves stop at its axes' margins.
+
+`theme` is `light` or `dark`, as the reader sees the page, read like `width`. Colour tokens follow
+the theme on their own; read `theme` only for what can't use them, such as a `pixels` ramp:
+`if(theme == dark, …, …)`. Markdown is drawn `light`.
 
 `arrow from=a to=b ["label"]` joins two elements by id, inside the instance or the instances
 nested in it; ends `head=`/`tail=` (`arrow hollow one many dot ring cross none`), `line=`,
-`layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20).
+`layer=behind`, `opacity=`, `via=(ids)`, `route=down|right` (example 20), `corner=m|s|none` (how
+round its turns are: 12 px, 6 px, square). An arrow's ends touch the outlines it joins, and a routed
+line keeps a straight run before its head (the head and 6 px) and after its tail.
 
 ## Types
 
@@ -331,6 +405,15 @@ A pack is a folder: `manifest.mkp` (`pack name@N`, `requires core@1`, `depends o
 `name.fixture.json` with valid cases for every definition (example 29). A pack sees another's names
 only through `depends`. To change a pack's widget, copy it (example 28): nothing links the copy to
 it, and the `# from …` line is only for review.
+
+A published version keeps its behaviour. A breaking change is a new version beside the old one:
+mark the old one `deprecated "use walk@2: …"` (its uses are warned), and say how a use moves with
+a top-level `migrate walk@1 -> walk@2` block (`rename a -> b`, `drop a "why"`, `keep a = value
+"why"`), which `mkp check` proves on the old version's fixtures and `mkp migrate` applies.
+
+A file's first line `# mkp 0.2.2 ir 1` (or `mkp:` and `ir:` in a document's front matter) says
+which release it was written for; `mkp migrate` brings it up to this one (the integration guide,
+8.3).
 
 ## What the compiler refuses, on purpose
 
