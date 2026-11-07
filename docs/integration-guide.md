@@ -655,7 +655,7 @@ break.
 `Kit` of shadcn's components (`Button`, `Slider`, `Tabs`, `Select`, `Dialog`, `Table`…) plus a few
 in shadcn's style (`OptionRow`, `Callout`, `CodeBlock`, typography). `shadcnTokens` maps MKP's
 colour tokens to shadcn's CSS variables. The playground is a full example; from
-`apps/playground/src/kit.ts` and its preview pane (trimmed):
+`apps/site/src/kit.ts` and its preview pane (trimmed):
 
 ```tsx
 import { shadcnComponents, shadcnTokens, type Kit } from '@mkp/shadcn';

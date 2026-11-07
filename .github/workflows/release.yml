@@ -1,17 +1,18 @@
 # Releases and the GitHub Pages site (spec note 138).
 #
-# A push to main is a release: the CI gates, then scripts/dist.mjs, then a GitHub Release v<VERSION>
+# Runs on pushes to main only. A push to main is a release: the CI gates, then scripts/dist.mjs, then a GitHub Release v<VERSION>
 # with mkp-web-<VERSION>.zip, mkp-cli.mjs and SHA256SUMS, its notes notes/<VERSION>.md followed by
 # how to use each asset (scripts/release-body.mjs). If v<VERSION> already exists (a re-run, or a push
 # that didn't raise VERSION), nothing is released.
 #
-# Every push to main then rebuilds the Pages site: the playground at /, and the web files of the last 50
+# Every push to main then rebuilds the Pages site: the landing page at /, the docs at /docs/, and the web files of the last 50
 # releases unpacked at /v/<version>/, the newest also at /latest/, listed in /v/index.json.
 # Needs: Settings → Actions → General → Workflow permissions: Read and write.
 name: Release
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,7 +23,6 @@ permissions:
 jobs:
   release:
     name: Release
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
@@ -85,9 +85,7 @@ jobs:
   pages:
     name: Pages
     needs: release
-    # from main only (the github-pages environment allows main): after its release, or after a push
-    # to main that released nothing
-    if: always() && github.ref == 'refs/heads/main' && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    # after the release job (which releases nothing when VERSION already has a release)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
@@ -107,14 +105,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @mkp/playground build
+      - run: pnpm --filter @mkp/site build
         env:
           PLAYGROUND_BASE: /markdown-markup/
       - name: The last 50 releases' web files, at /v/<version>/ and /latest/
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          site=apps/playground/dist
+          site=apps/site/dist
           mkdir -p "$site/v" /tmp/rel
           versions=()
           for tag in $(gh release list --limit 50 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); do
@@ -130,6 +128,6 @@ jobs:
           cat "$site/v/index.json"
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/playground/dist
+          path: apps/site/dist
       - id: deploy
         uses: actions/deploy-pages@v4

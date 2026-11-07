@@ -1,10 +1,10 @@
-// pnpm check:neutral — MKP is host-neutral (doc #1129 §7): no Study Pad name, path, token or
-// interface outside the history kept in GAPS.md and SPEC-NOTES.md.
+// pnpm check:neutral: MKP is its own project and names no host that uses it, anywhere in the
+// repository (this file names the one it looks for).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const root = process.cwd();
-const skip = new Set(['node_modules', 'dist', '.git', 'GAPS.md', 'SPEC-NOTES.md', 'neutral.mjs', '.shots', 'test-results', 'playwright-report']);
+const skip = new Set(['node_modules', 'dist', '.git', 'neutral.mjs', '.shots', 'test-results', 'playwright-report']);
 const hits = [];
 const walk = (d) => {
   for (const n of readdirSync(d)) {
@@ -24,4 +24,4 @@ if (hits.length) {
   console.error(`MKP is host-neutral, but these name Study Pad:\n${hits.join('\n')}`);
   process.exit(1);
 }
-console.log('check:neutral: no host names outside GAPS.md and SPEC-NOTES.md');
+console.log('check:neutral: no host names anywhere');

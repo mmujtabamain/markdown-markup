@@ -1,9 +1,13 @@
 # Markdown Markup (MKP): types, tests, conformance (Node and Hermes), the React Native renderer's
-# tests, the web playground end to end, and the single-executable CLI.
+# tests, and the release CLI on every example. The website end to end is site.yml; the release-notes
+# check is notes.yml.
 name: MKP
 
 on:
+  # once per change: on merge requests, and on main after a merge (a branch push with an open merge
+  # request would otherwise run everything twice)
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -15,28 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  notes:
-    # only for main: a merge request into main must raise VERSION and add its note; make this check
-    # required on main's branch protection so it holds
-    name: Release notes
-    if: github.base_ref == 'main' || github.ref_name == 'main'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: VERSION is raised past main's, and every note is well formed
-        run: |
-          if [ -n "${{ github.base_ref }}" ] && git show "origin/${{ github.base_ref }}:VERSION" > /tmp/base-version 2>/dev/null; then
-            node scripts/check-notes.mjs --base-version "$(tr -d '[:space:]' < /tmp/base-version)"
-          else
-            node scripts/check-notes.mjs
-          fi
-
   core:
     name: Types, tests and conformance
     runs-on: ubuntu-24.04
@@ -112,29 +94,8 @@ jobs:
       - name: Every fixture case and the section-18 document render in the RN renderer
         run: pnpm test:rn
 
-  web:
-    name: Web playground end to end
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - name: Chromium
-        working-directory: apps/playground
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Every fixture case and document renders in the playground
-        run: pnpm e2e
-
   cli:
-    name: Single-executable CLI
+    name: The release CLI on every example
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -148,15 +109,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - name: Build the executable
-        run: pnpm --filter @mkp/cli sea
-      - name: Check a pack and build documents with it
+      - name: Build the release files
+        run: node scripts/dist.mjs --out "$RUNNER_TEMP/dist"
+      - name: Check a pack, and check and build every example with mkp-cli.mjs
         run: |
-          ./packages/cli/dist/mkp check --pack examples/29-a-pack/pack
+          mkp() { node "$RUNNER_TEMP/dist/mkp-cli.mjs" "$@"; }
+          mkp check --pack examples/29-a-pack/pack
           # every example with the packs beside it (pack, host), as the examples test loads them
           for d in examples/[0-9]*/; do
             P=""; for k in pack host; do [ -d "$d$k" ] && P="$P --pack $d$k"; done
-            ./packages/cli/dist/mkp check "${d}doc.mkp.md" $P
+            mkp check "${d}doc.mkp.md" $P
+            mkp build "${d}doc.mkp.md" $P --target md,html --md gfm,math --out "$RUNNER_TEMP/out/$(basename "$d")" --no-speech --no-lock
           done
-          ./packages/cli/dist/mkp build examples/25-roots-of-unity/doc.mkp.md --target md --md gfm,math,mermaid,html --out "$RUNNER_TEMP/md"
-          ./packages/cli/dist/mkp build examples/29-a-pack/doc.mkp.md --pack examples/29-a-pack/pack --target md --out "$RUNNER_TEMP/md"

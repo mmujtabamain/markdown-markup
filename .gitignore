@@ -1,10 +1,10 @@
 node_modules/
 dist/
 packages/core/vendor/
-apps/playground/test-results/
-apps/playground/playwright-report/
+apps/site/test-results/
+apps/site/playwright-report/
 *.tsbuildinfo
 .mkp-out/
-apps/playground/.shots/
+apps/site/.shots/
 scripts/.hermes/
 release/

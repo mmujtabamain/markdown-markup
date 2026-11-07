@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { compile, CORE_MKP, formatDiagnostic, Runtime, type IRBundle } from '@mkp/core';
 import { BASE_WIDGETS, MkpDocument } from '@mkp/react';
 import { shadcnTokens } from '@mkp/shadcn';
-import { components } from '../../../apps/playground/src/kit';
+import { components } from '../../../apps/site/src/kit';
 
 afterEach(cleanup);
 
