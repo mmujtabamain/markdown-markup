@@ -84,7 +84,10 @@ export const BASE_CSS = layer(`
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
 .mkp-canvas > svg { display: block !important; overflow: hidden; }
 .mkp-canvas [data-press] { cursor: pointer; }
-.mkp-canvas [data-press]:focus-visible { outline: 2px solid var(--mkp-color-accent); outline-offset: 1px; }
+/* a shape is no box: an outline would be drawn round its bounding box (a rectangle over a pie's
+   slice), so it has none, focused by the pointer or not; the keyboard's focus traces its own edge */
+.mkp-canvas [data-pointed], .mkp-canvas [data-pointed]:focus, .mkp-canvas [data-pointed]:focus-visible { outline: none; }
+.mkp-canvas g[data-press]:focus-visible > path:first-child, .mkp-canvas circle[data-press]:focus-visible { stroke: var(--mkp-color-accent); stroke-width: 3px; }
 .mkp-overlay-label { position: absolute; white-space: nowrap; pointer-events: none; font-size: 0.95em; line-height: 1.3; }
 .mkp-overlay-label[data-size=small] { font-size: 0.8em; }
 .mkp-overlay-label[data-size=large] { font-size: 1.15em; }

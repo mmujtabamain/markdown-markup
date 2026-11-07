@@ -19,3 +19,7 @@ summary: One sentence on the biggest change, at most 140 characters.
 - Sections in that order, each optional. Write for MKP's users, not about internals: what they can
   now do, what changed (a breaking change first, with what to do instead), what no longer goes wrong.
 - A maintenance release (a build or dependency fix) still gets a note, its summary saying so.
+- A release with changes a reader can see also gets a page on the website's What's new tab:
+  `apps/site/whats-new/<version>.mkp.md`, each change a `###` line with a live widget (or, for a
+  change only a host sees, its code) under it. `apps/site/test/whats-new.test.tsx` checks that every
+  page compiles and that every line has its demonstration.

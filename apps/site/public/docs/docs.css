@@ -102,8 +102,15 @@ main { flex: 1; min-width: 0; padding: 2rem 0 4rem; }
   .pages-menu { display: block; border: 1px solid var(--line); border-radius: 0.5rem; }
   .pages-menu summary { padding: 0.5rem 0.75rem; cursor: pointer; font-weight: 500; }
   .pages-menu nav { padding: 0 0.25rem 0.5rem; }
-  .logo-sub, .sections .wide { display: none; }
+  .logo-sub, .sections .wide, .sections a.icon { display: none; }
+  .sections { gap: 0.125rem; }
+  .sections a, .sections button { padding: 0 0.5rem; white-space: nowrap; }
   main { padding-top: 1rem; }
   .doc h1 { font-size: 1.85rem; }
+}
+/* the narrowest phones: the name gives way to the sections; the mark stays */
+@media (max-width: 359px) {
+  .logo-name { display: none; }
+  .top { padding: 0 0.5rem; }
 }
 .doc td:first-child code { white-space: nowrap; }

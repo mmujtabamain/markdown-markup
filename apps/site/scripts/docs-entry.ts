@@ -100,6 +100,7 @@ function page(i: number, body: string, outline: { depth: number; id: string; tex
     <nav class="sections" aria-label="Site">
       <a href="./" aria-current="page">Docs</a>
       <a href="../examples/">Examples</a>
+      <a href="../whats-new/">What's new</a>
       <a class="wide" href="${REPO}/releases">Releases</a>
       <a class="icon" href="${REPO}" aria-label="MKP on GitHub">${GITHUB}</a>
       <button class="icon" type="button" data-theme-toggle aria-label="Light or dark">${MOON}${SUN}</button>

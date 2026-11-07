@@ -573,6 +573,10 @@ describe('the pointer on what is inside a widget', () => {
     fireEvent.focus(part);
     expect(container.textContent).toContain('on 1');
   });
+  it('draws no box round a focused shape: its focus traces its own edge, for the keyboard only', () => {
+    expect(BASE_CSS).toContain('.mkp-canvas [data-pointed], .mkp-canvas [data-pointed]:focus, .mkp-canvas [data-pointed]:focus-visible { outline: none; }');
+    expect(BASE_CSS).toMatch(/g\[data-press\]:focus-visible > path:first-child, \.mkp-canvas circle\[data-press\]:focus-visible \{ stroke: var\(--mkp-color-accent\)/);
+  });
   it('keeps a figure with nothing to press an image', () => {
     const { container } = draw(doc(['canvas -1..1 -1..1 label="a dot"', '  layer', '    circle (0, 0) 0.5 fill=accent']));
     expect(one(container, '.mkp-canvas').getAttribute('role')).toBe('img');
