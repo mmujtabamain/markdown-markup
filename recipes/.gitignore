@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.astro/
+*/src/vendor/
+*/src/lesson.mkp.md
+plain/vendor/
+plain/lesson.mkp.md
+test-results/
+playwright-report/

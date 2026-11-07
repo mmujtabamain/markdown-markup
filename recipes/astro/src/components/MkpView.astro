@@ -1,0 +1,46 @@
+---
+// MkpView: an MKP document on an Astro page. Copy this file; it needs the release's web files in
+// src/vendor/mkp. The document is compiled when the site is built, so the page ships its bundle and
+// no compiler; the browser only draws it. Listen for its signals with `mkp-signal` events.
+import { compile } from '../vendor/mkp/mkp.js';
+
+interface Props {
+  source: string;
+  file?: string;
+  theme?: 'light' | 'dark' | 'auto';
+}
+const { source, file = 'doc.mkp.md', theme = 'auto' } = Astro.props;
+const c = compile({ packs: [] });
+const bundle = c.document(source, file);
+if (!bundle) throw new Error(`${file} has errors:\n${c.diags.errors.map((d) => d.message).join('\n')}`);
+---
+
+<mkp-view data-bundle={JSON.stringify(bundle)} data-theme={theme}></mkp-view>
+
+<script>
+  import { mount, type MountedDocument } from '../vendor/mkp/mkp-dom.js';
+
+  // <mkp-view>: draws its bundle; set its data-theme to change the theme (the reader's place stays);
+  // each signal is a bubbling `mkp-signal` event whose detail is the signal
+  class MkpView extends HTMLElement {
+    static observedAttributes = ['data-theme'];
+    view: MountedDocument | null = null;
+    connectedCallback() {
+      this.view = mount(this, JSON.parse(this.dataset.bundle!), {
+        theme: this.theme,
+        onSignal: (e) => this.dispatchEvent(new CustomEvent('mkp-signal', { detail: e, bubbles: true })),
+      });
+    }
+    attributeChangedCallback() {
+      this.view?.update({ theme: this.theme });
+    }
+    disconnectedCallback() {
+      this.view?.unmount();
+      this.view = null;
+    }
+    get theme() {
+      return (this.dataset.theme ?? 'auto') as 'light' | 'dark' | 'auto';
+    }
+  }
+  customElements.define('mkp-view', MkpView);
+</script>

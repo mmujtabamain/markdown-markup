@@ -17,6 +17,7 @@ Every command and snippet below was run against this repo. Outputs are real and 
 |---|---|
 | React on the web | 1, 2, 3, 4.1, 6, 7, 8 |
 | React on the web, with your own component library | the above, plus 4.2 |
+| Vue, Svelte, Solid, Angular, Astro or no framework | 1, 2, 3, then `mkp-dom.js` from the recipes guide, 6, 8 |
 | React Native | 1 (with 1.4), 2 (build time), 3, 4.3, 6, 7, 8 |
 | A server in Python, Go, Ruby… that stores or serves documents | 1.5, 2.2, 3, then draw on a client with 4.1 or 4.3 |
 | A client MKP has no renderer for (Swift, Kotlin, Flutter, a game engine…) | 1.5, 2.2, 3, 4.4, 8 |

@@ -1,0 +1,41 @@
+---
+import MkpView from '../components/MkpView.astro';
+import source from '../lesson.mkp.md?raw';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MKP in Astro</title>
+  </head>
+  <body>
+    <header>
+      <h2>MKP in Astro</h2>
+      <button id="theme">Dark</button>
+      <button id="shown">Hide</button>
+      <output data-said></output>
+    </header>
+    <div id="doc"><MkpView source={source} file="lesson.mkp.md" theme="light" /></div>
+    <script>
+      const doc = document.getElementById('doc')!;
+      const view = doc.querySelector('mkp-view')!;
+      const said = document.querySelector('[data-said]')!;
+      doc.addEventListener('mkp-signal', (e) => {
+        const s = (e as CustomEvent).detail;
+        said.textContent = `${s.name}: ${s.payload.value} (${s.payload.correct ? 'right' : 'wrong'})`;
+      });
+      document.getElementById('theme')!.onclick = (e) => {
+        const dark = view.dataset.theme !== 'dark';
+        view.dataset.theme = dark ? 'dark' : 'light';
+        (e.target as HTMLElement).textContent = dark ? 'Light' : 'Dark';
+      };
+      // removing the element unmounts the document; putting it back starts it afresh
+      document.getElementById('shown')!.onclick = (e) => {
+        if (view.isConnected) view.remove();
+        else doc.append(view);
+        (e.target as HTMLElement).textContent = view.isConnected ? 'Hide' : 'Show';
+      };
+    </script>
+  </body>
+</html>
