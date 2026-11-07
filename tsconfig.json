@@ -30,6 +30,9 @@
       ],
       "@mkp/page": [
         "packages/page/src/index.ts"
+      ],
+      "@mkp/dom": [
+        "packages/dom/src/index.tsx"
       ]
     }
   },
@@ -39,6 +42,7 @@
     "packages/react/src",
     "packages/shadcn/src",
     "packages/page/src",
+    "packages/dom/src",
     "packages/cli/src",
     "apps/site/src"
   ]

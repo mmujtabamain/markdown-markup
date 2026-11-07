@@ -92,6 +92,8 @@ export function markdownToNodes(src: string, line0 = 1, warnings: MdWarning[] = 
       case 'footnoteDefinition':
         return [{ node: 'footnote', def: 'core:footnote@1', props: { label: { text: String(n.label ?? n.identifier ?? '') } }, children: (n.children ?? []).flatMap(conv), pos: p }];
       case 'html':
+        // a comment is for whoever edits the file, as in any Markdown: it draws nothing (SN 139)
+        if (/^\s*<!--[\s\S]*-->\s*$/.test(slice(n))) return [];
         {
           const h = slice(n).trim().split('\n')[0];
           warnings.push({ line: p[0], message: `raw HTML is shown as plain text, since MKP content has no HTML; found ${h.length > 60 ? h.slice(0, 57) + '…' : h}. Write it as Markdown (**bold**, *italic*, [text](url)), or use a widget for anything more` });

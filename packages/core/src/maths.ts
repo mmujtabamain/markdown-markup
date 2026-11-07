@@ -207,6 +207,11 @@ export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): voi
     const here = (Array.isArray(o.pos) ? (o.pos as [number, number]) : pos) ?? pos;
     // a Markdown paragraph's text is its source; a node of another kind holds text from elsewhere
     const para = typeof o.node === 'string' ? o.node === 'paragraph' : inPara;
+    // a code block's source is code: a $ in it is a shell variable, not maths (SN 139)
+    if (o.node === 'code' && o.props && typeof o.props === 'object') {
+      const { src: _src, ...rest } = o.props as Record<string, unknown>;
+      return visit(rest, here, file, para);
+    }
     if (typeof o.tex === 'string' && !('ast' in o)) {
       const tex = expand(o.tex, macros);
       const err = m.check(tex, !!o.display);

@@ -637,3 +637,9 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version
      (a `/*! mkp <version> <commit> */` banner, `VERSION` from `mkp.js`, `mkp --version`). The npm
      packages are gone; the workspace packages stay private.
+139. **Fences: Markdown first.** *Departure (5).* A fence whose label's first word means something
+     to Markdown is Markdown's: a code language (`yaml`, `sh`, `ts`, `markdown`…, any case), plain
+     text (`text`, `txt`, `plaintext`) or display maths (`math`, `latex`). Its body is code, never a
+     widget's inputs, so a guide can show YAML or MKP in a fence. Only a label Markdown has no
+     meaning for names a widget block; the base widget `text` is therefore written as a container
+     or a widget of its own. In code, `$` is not maths; an HTML comment draws nothing.
