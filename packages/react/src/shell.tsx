@@ -33,6 +33,8 @@ export function Icon({ n, attrs, style }: { n: VNode; attrs?: Record<string, unk
     <span
       {...attrs}
       className="mkp-icon"
+      // the icon's name, so a host's stylesheet can swap in its own symbol or adjust one
+      data-name={String(n.p.name)}
       data-size={String(n.p.size ?? 'normal')}
       role={label ? 'img' : undefined}
       aria-label={label}
@@ -424,6 +426,9 @@ export const SHELL_CSS = layer(`
 .mkp-zoom[data-nudged] .mkp-zoom-tools { border-color: var(--mkp-color-accent); }
 .mkp-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; width: 1.1em; height: 1.1em; flex: none; }
 .mkp-icon[data-size=small] { font-size: 0.8em; } .mkp-icon[data-size=large] { font-size: 1.4em; }
+/* help is a question in a circle, as info is an i in one; the ring is drawn, since text has no circled ? */
+.mkp-icon[data-name=help] { font-size: 0.78em; width: 1.4em; height: 1.4em; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; font-weight: 700; }
+.mkp-icon[data-name=help][data-size=small] { font-size: 0.62em; } .mkp-icon[data-name=help][data-size=large] { font-size: 1.1em; }
 .mkp-shell-button { padding: 2px 6px; min-width: 26px; min-height: 26px; justify-content: center; }
 .mkp-root [data-dim] { opacity: .4; }
 .mkp-root [data-blur] { filter: blur(6px); pointer-events: none; user-select: none; }

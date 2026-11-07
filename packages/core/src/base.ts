@@ -31,6 +31,8 @@ extern column@1 "Children one below another."
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
   out click "a press on its background, not on a child (pointer only)"
+  out enter "the pointer moved onto it (pointer only: a container takes no focus)"
+  out leave "the pointer left it (pointer only)"
 
 extern row@1 "Children side by side, wrapping onto more lines (or scrolling) when they don't fit."
   in align choice(start|center|end|stretch|baseline) = start "how children sit across it; a child's self= overrides"
@@ -53,6 +55,8 @@ extern row@1 "Children side by side, wrapping onto more lines (or scrolling) whe
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
   out click "a press on its background, not on a child (pointer only)"
+  out enter "the pointer moved onto it (pointer only: a container takes no focus)"
+  out leave "the pointer left it (pointer only)"
 
 extern grid@1 "Children in columns: a number of equal columns, or tracks such as [auto, 1fr, 6ch]."
   in cols list(track) = ["1fr", "1fr"] "the column tracks: auto (its content), Nfr (a share), Nch (characters), or a size token; a number n is n equal shares"
@@ -75,6 +79,8 @@ extern grid@1 "Children in columns: a number of equal columns, or tracks such as
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
   out click "a press on its background, not on a child (pointer only)"
+  out enter "the pointer moved onto it (pointer only: a container takes no focus)"
+  out leave "the pointer left it (pointer only)"
 
 extern stack@1 "Children drawn one over another, in the order written: the last is on top. As big as its biggest child."
   in align choice(start|center|end|stretch) = stretch "where children sit down it; a child's self= overrides"
@@ -96,6 +102,8 @@ extern stack@1 "Children drawn one over another, in the order written: the last 
   in blur bool = false "blurred past reading, until it is revealed"
   in body slot
   out click "a press on its background, not on a child (pointer only)"
+  out enter "the pointer moved onto it (pointer only: a container takes no focus)"
+  out leave "the pointer left it (pointer only)"
 
 extern text@1 "A styled run of inline Markdown with inline maths."
   fields value
@@ -180,8 +188,8 @@ extern canvas@1 "A 2D coordinate space with layers drawn in the order written. L
   in view point = (35, 25) "3D camera: azimuth and elevation in degrees"
   in label text = ""
   in layers list(record layer {opacity: num = 1,
-      circles: list(record circle {c: point, r: num, px: int = 0, fill: color = none, stroke: color = none, width: num = 1, opacity: num = 1}),
-      paths: list(record path {pts: list(point), closed: bool = false, fill: color = none, stroke: color = ink, width: num = 1, dash: bool = false, head: choice(none|arrow|dot) = none, opacity: num = 1}),
+      circles: list(record circle {c: point, r: num, px: int = 0, fill: color = none, stroke: color = none, width: num = 1, opacity: num = 1, label: text = ""}),
+      paths: list(record path {pts: list(point), closed: bool = false, fill: color = none, stroke: color = ink, width: num = 1, dash: bool = false, head: choice(none|arrow|dot) = none, opacity: num = 1, label: text = ""}),
       labels: list(record label {at: point, text: text, tone: color = ink, anchor: choice(center|n|s|e|w|ne|nw|se|sw) = center, chip: bool = false, size: choice(small|normal|large) = normal, halo: bool = false, dx: int = 0, dy: int = 0, opacity: num = 1}),
       images: list(record image {src: text, at: point, w: num, h: num = 0, alt: text = ""}),
       places: list(record place {at: point} slot),

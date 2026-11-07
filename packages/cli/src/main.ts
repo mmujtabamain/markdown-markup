@@ -2,11 +2,13 @@
 // so hosts in any language call it at write time, in an editor or in CI.
 //
 //   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-//             [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+//             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
 //             [--lock mkp.lock] [--diagnostics json]
 //             html: a standalone page that draws the document (name.html: one file, offline, the
 //             renderer inlined, the Markdown inside it for readers with scripts off); html-md: the
-//             document's Markdown drawn as HTML, with no script (name.md.html)
+//             document's Markdown drawn as HTML, with no script (name.md.html); fragment: the
+//             document's first paint (name.fragment.html), for the element that mount(el, bundle,
+//             { hydrate: true }) takes over in place, with the bundle from the same build's ir
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
@@ -53,7 +55,7 @@ import {
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
-import { htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
+import { firstPaint, htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
 
@@ -189,7 +191,7 @@ async function build(a: Args): Promise<number> {
   const toggles = (typeof a.opts.md === 'string' ? a.opts.md.split(',').filter(Boolean) : []) as MdToggle[];
   const outDir = typeof a.opts.out === 'string' ? a.opts.out : null;
   if (targets.length > 1 && !outDir) throw new Error('several targets need --out');
-  const known = ['ir', 'ir-expanded', 'md', 'html', 'html-md'];
+  const known = ['ir', 'ir-expanded', 'md', 'html', 'html-md', 'fragment'];
   for (const t of targets) if (!known.includes(t)) throw new Error(`--target takes ${known.join(', ')}; found ${t}`);
   const maths = a.opts['no-maths'] ? null : await MathsEngine.create({ speech: !a.opts['no-speech'] });
   // a document from stdin (-), named by --name
@@ -230,6 +232,11 @@ async function build(a: Args): Promise<number> {
           text = markdownPage({ title, html: drawn });
           ext = '.md.html';
         }
+      } else if (target === 'fragment') {
+        // the document's first paint, for the element mount(el, bundle, { hydrate: true }) takes over;
+        // the bundle to mount is this build's (--target ir,fragment)
+        text = firstPaint(bundle, { maths: maths ?? undefined });
+        ext = '.fragment.html';
       } else {
         text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
         ext = target === 'ir-expanded' ? '.expanded.json' : '.ir.json';
@@ -428,7 +435,7 @@ function pack(a: Args): number {
 const HELP = `mkp ${VERSION}: Markdown Markup
 
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
-            [--target ir|ir-expanded|md|html|html-md[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
+            [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
             [--lock mkp.lock] [--diagnostics json]
   mkp check [docs…] --pack … [--format json]
   mkp index --pack …

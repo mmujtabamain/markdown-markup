@@ -6,7 +6,7 @@
 
 import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Diagnostics, MathsEngine, prerender, Runtime, type IRBundle } from '@mkp/core';
+import { Diagnostics, MathsEngine, needsMaths, prerender, Runtime, type IRBundle } from '@mkp/core';
 import { MkpDocument } from '@mkp/react';
 
 type Theme = 'light' | 'dark' | 'auto';
@@ -63,19 +63,21 @@ class Boundary extends Component<{ children: ReactNode }, { error: Error | null 
 }
 
 function Page({ bundle }: { bundle: IRBundle }): ReactNode {
-  const [maths, setMaths] = useState<MathsEngine | null>(null);
+  // { m: undefined } is a document with nothing to typeset: it draws without starting the engine
+  const [maths, setMaths] = useState<{ m?: MathsEngine } | null>(null);
   const theme = useTheme();
   useEffect(() => {
+    if (!needsMaths(bundle)) return setMaths({});
     MathsEngine.create().then(
       (m) => {
         // formulas with no live values are typeset once, before the first drawing
         prerender(bundle, m, new Diagnostics());
-        setMaths(m);
+        setMaths({ m });
       },
       (e: Error) => failed(`the maths engine didn't load: ${e.message}`),
     );
   }, [bundle]);
-  const runtime = useMemo(() => (maths ? new Runtime(bundle, { capabilities: ['core@1', 'gfx@1'], maths }) : null), [bundle, maths]);
+  const runtime = useMemo(() => (maths ? new Runtime(bundle, { capabilities: ['core@1', 'gfx@1'], maths: maths.m }) : null), [bundle, maths]);
   // the page around the document takes the document's own surface and ink (its tokens may set them)
   useEffect(() => {
     if (!runtime) return;

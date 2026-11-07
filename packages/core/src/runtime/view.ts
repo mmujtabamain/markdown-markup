@@ -40,13 +40,19 @@ export interface VArrow {
 }
 
 /**
+ * What a circle or a path can report, when it is written with those lines: the pointer moving onto
+ * it or off it, and a press on it. A renderer dispatches them by the shape's key, with no payload.
+ */
+export type ShapeEvent = 'enter' | 'leave' | 'click';
+
+/**
  * Canvas shapes. Lines, rectangles and curves are paths (the base set draws only these); a
  * circle's px is a radius in pixels, whatever the zoom; opacity is the shape's own (GAPS 106–109,
  * 113). Labels are kept inside the canvas and clear of each other by the renderer.
  */
 export type VShape =
-  | { t: 'circle'; key: string; c: number[]; r: number; px?: number; fill: string; stroke: string; width: number; opacity?: number }
-  | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean; head?: 'arrow' | 'dot'; opacity?: number }
+  | { t: 'circle'; key: string; c: number[]; r: number; px?: number; fill: string; stroke: string; width: number; opacity?: number; label?: string; ev?: ShapeEvent[] }
+  | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean; head?: 'arrow' | 'dot'; opacity?: number; label?: string; ev?: ShapeEvent[] }
   | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string; chip?: boolean; size?: 'small' | 'large'; halo?: boolean; dx?: number; dy?: number; opacity?: number }
   | { t: 'image'; key: string; src: string; at: number[]; w: number; h: number; alt: string }
   | { t: 'place'; key: string; at: number[]; kids: VNode[] }
@@ -74,7 +80,7 @@ export interface VNode {
   slots?: Record<string, VNode[]>;
   hidden?: boolean;
   layout?: { grow?: boolean; basis?: string; span?: number; self?: 'start' | 'center' | 'end' | 'stretch'; keep?: boolean };
-  /** events the renderer should report: click, change, submit, open, close, drag */
+  /** events the renderer should report: click, enter, leave, change, submit, open, close, drag */
   ev?: string[];
   arrows?: VArrow[];
   layers?: VLayer[];

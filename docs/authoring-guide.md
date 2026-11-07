@@ -190,9 +190,68 @@ press
 
 Actions: `set a=expr`, `play x`, `pause x`, `reset x…`, `reveal id`, `hide id`, `open id`,
 `close id`, `emit name f=expr`, `send name f=expr`. `if=(…)` on an event line runs that line only
-while it holds; several lines for one event run in order. Events: `@click` (on a press, or on a
-container's background), `@enter`/`@leave` (pointer or focus), `@change` and `@submit` on fields,
-`@pick` on a pressable `code`, and a part's own `out` events.
+while it holds; several lines for one event run in order.
+
+**Everything runs left to right, and each step sees the one before it.** The actions on a line, the
+names in one `set`, and the lines for one event all run in the order written, each seeing the
+values the earlier ones changed. So `@click set on=(not on) send changed checked=on` sends the
+**new** value, and `set a=(a + 1) b=(a)` leaves `b` equal to the new `a`. To send the old value,
+send it first: `@click send changed was=on set on=(not on)`.
+
+Events:
+
+- `@click` on a press, on a container's background (pointer only), and on a canvas `circle` or
+  `path`.
+- `@enter`/`@leave` on a press (the pointer, or focus), on a container (the pointer only: a
+  container takes no focus), and on a canvas `circle` or `path` (the pointer; also focus for one
+  that takes `@click`).
+- `@change` and `@submit` on fields, `@pick` on a pressable `code`, and a part's own `out` events.
+
+A shape's events carry nothing: no position, no button. Which shape it was is the scope its lines
+run in, so `each` gives each its own. A shape that takes `@click` is a control, so it needs a
+`label=` to be named by (`mkp.missing-input`); the canvas is then a group of controls, not an
+image. Pointing at a slice of a chart:
+
+```txt
+var on int = -1
+canvas -1..1 -1..1 size=s label="spending"
+  layer
+    each k in 0..(len(items) - 1) key=k
+      path wedge(k) closed=true fill=(if(on == k, accent, hue(k))) label=items[k].label
+        @enter set on=k
+        @leave set on=-1
+        @click send picked index=k
+text "\val{items[on].label}: \val{format(items[on].value, 0)}" if=(on >= 0)
+```
+
+Hover is for the pointer only: say on the page what hovering shows (a legend, a total) for readers
+on a phone or a keyboard.
+
+**A field's `value` is a `var`** (or a control) of the widget that has the field: the field changes
+it as the reader types (`mkp.check` otherwise). For a text answer per step, keep one `draft` for the
+step on screen and a list for all of them, and move between them when the step changes:
+
+```txt
+in questions list(text)
+var at int = 0
+var draft text = ""
+var saved list(text) = map(questions, q => "")
+column gap=m
+  field value=draft label=(questions[at])
+  row gap=s
+    press label="back" disabled=(at == 0)
+      text "Back"
+      @click set saved=(map(range(0, len(saved) - 1), i => if(i == at, draft, saved[i])))
+      @click set at=(at - 1)
+      @click set draft=(saved[at])
+    press label="next" disabled=(at == len(questions) - 1)
+      text "Next"
+      @click set saved=(map(range(0, len(saved) - 1), i => if(i == at, draft, saved[i])))
+      @click set at=(at + 1)
+      @click set draft=(saved[at])
+```
+
+The three lines run in order (above), so `draft` is read from the step just reached.
 
 ## Layout
 

@@ -2,7 +2,7 @@
 // circle's px), labels and placed elements as HTML over the SVG, handles with arrow-key
 // alternatives (WCAG 2.5.7), and with gfx@1: pixels through WebGL and a 3D mesh with a camera.
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { color, size as sizeTok } from './style';
 import { Kids, Runs, useCtx } from './nodes';
@@ -39,6 +39,7 @@ function useHeight(ref: { current: HTMLElement | null }, token: string | undefin
 }
 
 export function Canvas({ n }: { n: VNode }): ReactNode {
+  const { rt } = useCtx();
   const p = n.p;
   const box = useRef<HTMLDivElement | null>(null);
   const tok = String(p.size ?? 'm');
@@ -56,11 +57,14 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
   const unit = W / (x[1] - x[0]);
   const html: ReactNode[] = [];
   const labels: Label[] = [];
+  const dispatch = (key: string, event: string): void => rt.dispatch(key, event);
   const layers = (n.layers ?? []).map((l) => (
     <g key={l.key} opacity={l.opacity} data-mkp-key={l.key}>
-      {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, html, labels, opacity: l.opacity }))}
+      {l.shapes.map((s) => shape(s, { X, Y, unit, W, H, x, y, html, labels, opacity: l.opacity, dispatch }))}
     </g>
   ));
+  // a figure is an image, unless a shape in it can be pressed: then it is a group of controls
+  const pressable = (n.layers ?? []).some((l) => l.shapes.some((s) => (s.t === 'circle' || s.t === 'path') && s.ev?.includes('click')));
   return (
     <div
       ref={(el) => {
@@ -72,7 +76,7 @@ export function Canvas({ n }: { n: VNode }): ReactNode {
       hidden={n.hidden || undefined}
       className="mkp-canvas"
       style={{ width: W, height: fixed ? sizeTok(fixed) : H }}
-      role="img"
+      role={pressable ? 'group' : 'img'}
       aria-label={String(p.label || 'figure')}
     >
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
@@ -95,6 +99,33 @@ interface Geo {
   html: ReactNode[];
   labels: Label[];
   opacity: number;
+  dispatch: (key: string, event: string) => void;
+}
+
+/**
+ * A circle's or path's own events, for the ones it was written with: the pointer onto it and off it,
+ * and a press. One that takes a press is a control: focusable, named by its label, pressed with Enter
+ * or Space, and it reports focus as enter and blur as leave, as a press does. Nothing else of the
+ * pointer (no position, no buttons) reaches the document.
+ */
+function pointing(s: Extract<VShape, { t: 'circle' | 'path' }>, g: Geo): Record<string, unknown> {
+  const ev = s.ev ?? [];
+  if (!ev.length) return {};
+  const on: Record<string, unknown> = { 'data-mkp-key': s.key, 'data-pointed': '' };
+  const send = (e: string) => () => g.dispatch(s.key, e);
+  if (ev.includes('enter')) on.onPointerEnter = send('enter');
+  if (ev.includes('leave')) on.onPointerLeave = send('leave');
+  if (ev.includes('click')) {
+    Object.assign(on, { 'data-press': '', role: 'button', tabIndex: 0, 'aria-label': s.label || undefined, onClick: send('click') });
+    on.onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      g.dispatch(s.key, 'click');
+    };
+    if (ev.includes('enter')) on.onFocus = send('enter');
+    if (ev.includes('leave')) on.onBlur = send('leave');
+  }
+  return on;
 }
 
 const paint = (c: string): string => (c && c !== 'none' ? color(c)! : 'none');
@@ -131,7 +162,7 @@ function shape(s: VShape, g: Geo): ReactNode {
   switch (s.t) {
     case 'circle':
       // px: a radius on the screen, whatever the ranges (GAPS 109)
-      return <circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={s.px ? s.px : Math.max(0.5, s.r * unit)} fill={paint(s.fill)} stroke={paint(s.stroke)} strokeWidth={s.width} opacity={own(s.opacity)} />;
+      return <circle key={s.key} cx={X(s.c[0])} cy={Y(s.c[1])} r={s.px ? s.px : Math.max(0.5, s.r * unit)} fill={paint(s.fill)} stroke={paint(s.stroke)} strokeWidth={s.width} opacity={own(s.opacity)} {...pointing(s, g)} />;
     case 'path': {
       const pts = s.pts.map((q) => [X(q[0]), Y(q[1])]);
       if (!pts.length) return null;
@@ -140,7 +171,7 @@ function shape(s: VShape, g: Geo): ReactNode {
       const d = line.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(2)},${q[1].toFixed(2)}`).join(' ') + (s.closed ? ' Z' : '');
       const ink = paint(s.stroke);
       return (
-        <g key={s.key} opacity={own(s.opacity)} data-head={s.head}>
+        <g key={s.key} opacity={own(s.opacity)} data-head={s.head} {...pointing(s, g)}>
           <path d={d} fill={paint(s.fill)} stroke={ink} strokeWidth={s.width} strokeDasharray={s.dash ? dash(s.width || 1) : undefined} strokeLinejoin="round" />
           {head?.tri ? <polygon points={head.tri} fill={ink} /> : null}
           {head && !head.tri ? <circle cx={head.at[0]} cy={head.at[1]} r={head.size} fill={ink} /> : null}

@@ -1,31 +1,22 @@
 // @mkp/core: the DOM-free compiler, evaluator, maths engine, Markdown writer and runtime.
-export * from './diag';
+// The runtime half (what drawing a compiled bundle needs) is ./renderer, built on its own as mkp-runtime.js.
+export * from './renderer';
 export * from './types';
-export * from './ir';
 export { CORE_MKP, REQUIRED_TOKENS } from './base';
 export { parseMkp, parseExprString, parseValueString } from './syntax/mkp';
 export { parseDoc } from './syntax/doc';
 export { compile, Compiled, digest, stripPos, omitPos, type CompileOptions, type PackSource } from './build';
 export { readZip, writeZip, loadPack, sanitizeSvg, safePath } from './pack';
-export { TokenTable, tokenSetIR, tokenNames } from './tokens';
-export { inlineRuns, plainText, markdownToNodes, safeHref, type Run } from './markdown';
+export { markdownToNodes } from './markdown';
 export { canonicalJson } from './util/jcs';
 export { sha256 } from './util/sha256';
 export { toBase64, fromBase64 } from './util/base64';
-export { Runtime, Inst, WidgetHandle, checkValue, type RuntimeOptions, type SignalEvent, type MathsRenderer } from './runtime/runtime';
-export type { VNode, VLayer, VShape, VArrow, VRun, VMaths } from './runtime/view';
-export { walk as walkView } from './runtime/view';
-export { arrowPath, arrowPaths, type ArrowEnd, type ArrowEnds, type Rect, type ArrowPath } from './runtime/arrow';
-export { fmtNum, fromJson, toJson, rand, EvalError } from './eval';
 export { compilePixels, renderPixelsCpu, encodePng, pngDataUri, sampleMesh } from './gfx/compile';
 export { writeMarkdown, canvasSvg, type MdToggle, type MdOptions, type MdResult } from './md';
 export { expand } from './expand';
 export { fixtureCases, caseDocument, compileCase, missingFixtures, fixtureShape, type FixtureCase, type FixtureFile, type PlayStep } from './fixtures';
-export { MathsEngine, prerender } from './maths';
 export { MkpPrinter, DocPrinter, printFile, fileItems, valSrc, yamlText, type FileItem, type PrintContext } from './print';
 export { canonical } from './syntax/canon';
 export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
 export { indexLine, signatureText, copySource } from './catalog';
 export { checkDocument } from './check/doc';
-export { ICON_GLYPHS, ICON_NAMES } from './icons';
-export { VERSION } from './version';

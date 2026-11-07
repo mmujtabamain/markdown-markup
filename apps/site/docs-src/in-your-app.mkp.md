@@ -53,6 +53,7 @@ import { mount } from './vendor/mkp/mkp-dom.js';
 
 const view = mount(document.getElementById('lesson'), bundle, {
   theme: 'auto',
+  tokens: { space: { m: { value: 12 } } },
   onSignal: (e) => console.log(e.name, e.payload),
 });
 view.update({ theme: 'dark' });   // the reader's place stays
@@ -60,8 +61,14 @@ view.setBundle(next);             // another document starts afresh
 view.unmount();
 ```
 
-`view.ready` resolves once the document is drawn, after the maths engine has loaded. The
+`view.ready` resolves once the document is drawn. The maths engine loads first only when the
+document has maths its build has not already typeset. The
 [recipes](recipes.mkp.md) wrap this in a component for Vue, Svelte, Solid, Angular and Astro.
+
+To show the text and widgets before any script runs, build the document's first paint too
+(`mkp build lesson.mkp.md --target ir,fragment --out out`), put `lesson.fragment.html` in the
+element on the server, and mount the same build's bundle with `hydrate: true`. `mount()` takes the
+HTML over in place: nothing is swapped and nothing moves.
 
 ## Signals: the document talks to the app
 

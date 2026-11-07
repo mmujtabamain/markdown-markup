@@ -88,7 +88,7 @@ has three files, no npm and no token:
 
 | File | What it is |
 |---|---|
-| `mkp-web-<version>.zip` | The web files, which import each other: keep them in one folder. `mkp.js` (the core) with `mkp.d.ts` (its types, one self-contained header), `maths-engine.js` (loaded by `mkp.js` when maths shows), `mkp-react.js` (draws documents with your React 19: MKP's own look, or your components) with `mkp-react.d.ts`, and `mkp-dom.js` (mounts a document in any page or framework, its own React inside) with `mkp-dom.d.ts`. |
+| `mkp-web-<version>.zip` | The web files, which import each other: keep them in one folder. `mkp.js` (the core) with `mkp.d.ts` (its types, one self-contained header), `mkp-runtime.js` (the runtime half alone, for drawing prebuilt bundles; the renderers import it) with `mkp-runtime.d.ts`, `mkp-shared.js` (what those two share), `maths-engine.js` (loaded when maths the build hasn't typeset shows), `mkp-react.js` (draws documents with your React 19: MKP's own look, or your components) with `mkp-react.d.ts`, and `mkp-dom.js` (mounts a document in any page or framework, its own React inside) with `mkp-dom.d.ts`. |
 | `mkp-cli.mjs` | The CLI, in one file: `node mkp-cli.mjs check / build / …`. Node 20.19+. |
 | `SHA256SUMS` | Their checksums. |
 
@@ -110,8 +110,10 @@ The web files are also served, unpacked, at `https://mmujtabamain.github.io/mark
 ## Any framework
 
 React apps draw documents with `mkp-react.js` (Next.js and every other React framework included).
-Everything else uses `mkp-dom.js`: `mount(el, bundle, { theme, onSignal })` draws a document into an
-element in MKP's own look, with no React in the page.
+Everything else uses `mkp-dom.js`: `mount(el, bundle, { theme, tokens, onSignal })` draws a document
+into an element in MKP's own look, with no React in the page, no compiler, and the maths engine only
+when the document needs it. With `mkp build --target ir,fragment`, `mount(el, bundle, { hydrate: true })`
+takes over a first paint put in the page on the server.
 
 ```ts
 import { mount } from './vendor/mkp/mkp-dom.js';

@@ -61,6 +61,9 @@ const ARROW_LOOK: Record<string, Type> = {
 };
 const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
 const META_FLAGS = new Set(['hidden', 'grow']);
+/** Canvas shapes the pointer can point at, and the only events they raise (no payload). */
+const POINTED_SHAPES = new Set(['circle', 'path']);
+const SHAPE_EVENTS = ['enter', 'leave', 'click'];
 const SELF: Type = { t: 'choice', opts: ['start', 'center', 'end', 'stretch'] };
 const TRACK_RE = /^(auto|fit|\d+(\.\d+)?(fr|ch)|xs|s|m|l|xl)$/;
 const EVENT_ONLY_STATE = new Set(['change', 'end']);
@@ -1168,7 +1171,10 @@ export class DefChecker {
     const out: IRNode = { node: '$record', record: t.kind, input: rec.input, props, pos: pos(n.p) };
     if (Object.keys(meta).length) out.meta = meta;
     if (n.comments.length) (out.meta ??= {}).comment = n.comments;
-    if (n.events.length) this.fail(n.events[0].p, `a ${t.kind} record is data for ${sig.name}, so it can't take events; found @${n.events[0].name}. Remove the @${n.events[0].name} line`);
+    if (n.events.length) {
+      if (sig.name === 'canvas' && sig.pack === 'core' && POINTED_SHAPES.has(t.kind)) this.shapeEvents(n, t.kind, out, scope);
+      else this.fail(n.events[0].p, `a ${t.kind} record is data for ${sig.name}, so it can't take events; found @${n.events[0].name}. Remove the @${n.events[0].name} line${sig.name === 'canvas' && sig.pack === 'core' ? ', or point at a circle or a path instead' : ''}`);
+    }
     if (n.children.length) {
       if (t.slot) {
         // the record's slot: elements, plus prop lines and nested records of the record itself
@@ -1184,6 +1190,32 @@ export class DefChecker {
       }
     }
     return out;
+  }
+
+  /**
+   * A canvas circle's or path's own events: the pointer moving onto it or off it, and a press on it.
+   * They carry nothing (no position, no pointer), so a shape tells its widget only which it is, by
+   * the scope its lines run in. One that takes a press is a control: it needs a label to be named by.
+   */
+  private shapeEvents(n: NodeSyn, kind: string, out: IRNode, scope: Scope): void {
+    out.on = {};
+    const target = out.on;
+    for (const ev of n.events) {
+      try {
+        if (!SHAPE_EVENTS.includes(ev.name))
+          this.fail(ev.p, `a ${kind} raises no "${ev.name}" event${didYouMean(ev.name, SHAPE_EVENTS)}; it raises ${SHAPE_EVENTS.join(', ')}. Write @${closest(ev.name, SHAPE_EVENTS) ?? 'click'} …, or remove the @${ev.name} line`, 'mkp.unknown-event');
+        const label = out.props?.label as { lit?: unknown; text?: unknown } | undefined;
+        if (ev.name === 'click' && (!label || label.lit === '' || label.text === ''))
+          this.fail(ev.p, `a ${kind} that takes @click is a control, so a screen reader needs its name; found no label=. Add one, e.g. ${kind} … label="Rent"`, 'mkp.missing-input');
+        const sc = scope.child();
+        this.deferred.push(() => {
+          // several lines for one event run in order
+          target[ev.name] = [...(target[ev.name] ?? []), ...this.actions(ev, sc)];
+        });
+      } catch (e) {
+        this.err(e);
+      }
+    }
   }
 
   /** Folds prop lines into props and keeps records (and built-ins among records) in order. */

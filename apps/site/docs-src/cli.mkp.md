@@ -37,6 +37,7 @@ mkp build lesson.mkp.md --pack lib --target html --out out
 | `md` | `name.md` | The Markdown a reader without MKP gets. |
 | `ir` | `name.ir.json` | The compiled bundle, for an app to draw. |
 | `ir-expanded` | `name.expanded.json` | The bundle with every widget expanded to the base set. |
+| `fragment` | `name.fragment.html` | The document's first paint, for the element `mount(el, bundle, { hydrate: true })` takes over. |
 
 Several targets at once, comma-separated, need `--out`. More options:
 

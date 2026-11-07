@@ -77,10 +77,22 @@ describe('mkp CLI', () => {
     expect(md).not.toContain('mkp-bundle');
     expect(md.length).toBeLessThan(page.length / 50);
   });
+  it('build --target fragment writes the first paint that mount(…, { hydrate: true }) takes over', () => {
+    const out = mkdtempSync(join(tmpdir(), 'mkp-'));
+    const r = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'ir,fragment', '--out', out, '--no-speech']);
+    expect(r.status, r.stderr).toBe(0);
+    const html = readFileSync(join(out, 'doc.fragment.html'), 'utf8');
+    // the drawn document, not a page: its root, its style, its widgets, no script
+    expect(html).toMatch(/^<style>[\s\S]*<\/style><div class="mkp-root"/);
+    expect(html).toContain('A counter');
+    expect(html).toContain('data-mkp="press"');
+    expect(html).not.toContain('<script');
+    expect(JSON.parse(readFileSync(join(out, 'doc.ir.json'), 'utf8')).level).toBe('bundle');
+  });
   it('build refuses a target it does not know, naming the ones it does', () => {
     const r = run(['build', join(ex('05-counter'), 'doc.mkp.md'), '--target', 'pdf', '--no-maths']);
     expect(r.status).not.toBe(0);
-    expect(r.stderr).toContain('--target takes ir, ir-expanded, md, html, html-md; found pdf');
+    expect(r.stderr).toContain('--target takes ir, ir-expanded, md, html, html-md, fragment; found pdf');
   });
   it('build reads the document file beside a document', () => {
     const r = run(['build', join(ex('27-document-file'), 'doc.mkp.md'), '--target', 'md', '--no-maths']);

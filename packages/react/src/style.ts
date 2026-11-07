@@ -81,6 +81,8 @@ export const BASE_CSS = layer(`
 .mkp-error small { color: var(--mkp-color-bad); display: block; margin-top: var(--mkp-space-s); }
 .mkp-canvas { position: relative; max-width: 100%; touch-action: none; isolation: isolate; }
 .mkp-canvas > svg { display: block !important; overflow: hidden; }
+.mkp-canvas [data-press] { cursor: pointer; }
+.mkp-canvas [data-press]:focus-visible { outline: 2px solid var(--mkp-color-accent); outline-offset: 1px; }
 .mkp-overlay-label { position: absolute; white-space: nowrap; pointer-events: none; font-size: 0.95em; line-height: 1.3; }
 .mkp-overlay-label[data-size=small] { font-size: 0.8em; }
 .mkp-overlay-label[data-size=large] { font-size: 1.15em; }
@@ -141,8 +143,12 @@ export const NEUTRAL_CSS = layer(`
 .mkp-press[data-kind=radio][aria-checked=true], .mkp-press[data-kind=check][aria-checked=true] { color: inherit; background: color-mix(in srgb, var(--mkp-color-muted) 14%, var(--mkp-color-surface)); }
 .mkp-press[data-kind=radio][aria-checked=true]::before, .mkp-press[data-kind=check][aria-checked=true]::before { background: currentColor; box-shadow: inset 0 0 0 2px var(--mkp-color-surface); }
 .mkp-press[data-kind=switch], .mkp-press[data-kind=switch][aria-checked=true] { background: none; border: 0; padding: 0; color: inherit; }
-.mkp-press[data-kind=switch]::before { content: ''; flex: none; width: 36px; height: 20px; border-radius: 10px; background: radial-gradient(circle 7px at 10px 50%, var(--mkp-color-surface) 98%, var(--mkp-color-muted)); }
-.mkp-press[data-kind=switch][aria-checked=true]::before { background: radial-gradient(circle 7px at 26px 50%, var(--mkp-color-surface) 98%, var(--mkp-color-accent)); }
+/* a switch's track and thumb are its own elements: a host's .mkp-press style never reaches them, and
+   a host that wants the thumb to slide animates .mkp-switch-thumb itself (MKP moves nothing, SN 102) */
+.mkp-switch { flex: none; position: relative; display: inline-block; width: 36px; height: 20px; border-radius: 10px; background: var(--mkp-color-muted); }
+.mkp-switch-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--mkp-color-surface); }
+.mkp-press[aria-checked=true] > .mkp-switch { background: var(--mkp-color-accent); }
+.mkp-press[aria-checked=true] > .mkp-switch > .mkp-switch-thumb { transform: translateX(16px); }
 .mkp-overlay-anchor[data-mode=menu]::after { content: '▾'; color: var(--mkp-color-muted); }
 .mkp-meter { height: 8px; max-width: 100%; border-radius: var(--mkp-radius-pill, 999px); overflow: hidden; background: color-mix(in srgb, var(--mkp-color-muted) 25%, transparent); }
 .mkp-meter > div { height: 100%; }

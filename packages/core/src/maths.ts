@@ -185,6 +185,41 @@ function expand(tex: string, macros: Record<string, string>): string {
  * Pre-renders a bundle's static maths (6.15) in place and checks every formula, live ones
  * included, reporting errors at the node that holds them.
  */
+/**
+ * Whether drawing `b` needs the maths engine: a formula or a text with maths in it that the build
+ * has not already typeset (prerender), or one with live values (\val{}). A host that loads the
+ * engine only when this is true never fetches it for a document without maths. Maths that arrives
+ * later from outside the bundle (a host input) shows as its TeX until the host loads the engine.
+ */
+export function needsMaths(b: IRBundle): boolean {
+  const typeset = (o: Record<string, unknown>, tex: string): boolean =>
+    !tex.includes('\\val{') && Array.isArray(o.maths) && (o.maths as IRMaths[]).some((m) => m.tex === tex && typeof m.svg === 'string');
+  const visit = (v: unknown): boolean => {
+    if (typeof v === 'string') return v.includes('$') && inlineMaths(v).length > 0;
+    if (!v || typeof v !== 'object') return false;
+    if (Array.isArray(v)) return v.some(visit);
+    const o = v as Record<string, unknown>;
+    // a code block's source is code: a $ in it is a shell variable, not maths (SN 139)
+    if (o.node === 'code' && o.props && typeof o.props === 'object') {
+      const { src: _src, ...rest } = o.props as Record<string, unknown>;
+      return visit(rest) || Object.entries(o).some(([k, x]) => k !== 'props' && visit(x));
+    }
+    // a math block, or a tex template (latex literal): typeset by the build unless it has live values
+    if (typeof o.tex === 'string' && !('ast' in o) && (typeof o.svg !== 'string' || o.tex.includes('\\val{'))) return true;
+    if (o.t === 'tmpl' && o.tex) return true;
+    for (const [k, x] of Object.entries(o)) {
+      if (k === 'svg' || k === 'speech' || k === 'maths' || k === 'file' || k === 'pos' || (k === 'tex' && typeof x !== 'object')) continue;
+      if (k === 'text' && typeof x === 'string') {
+        if (inlineMaths(x).some((t) => !typeset(o, t))) return true;
+        continue;
+      }
+      if (visit(x)) return true;
+    }
+    return false;
+  };
+  return visit(b.doc.body) || Object.values(b.defs).some(visit) || Object.values(b.fns).some((f) => visit(f.body));
+}
+
 export function prerender(b: IRBundle, m: MathsEngine, diags?: Diagnostics): void {
   const macros = b.macros;
   const report = (tex: string, err: string, pos: [number, number] | undefined, file: string, para?: string): void => {

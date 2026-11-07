@@ -227,7 +227,8 @@ export const rowRole = (n: VNode): string | undefined =>
 /**
  * One container, laid out and drawn: column, row, grid or stack. `width` and `minwidth` size it
  * (GAPS 19, 142); with `scroll=x` its content scrolls sideways inside its outline (GAPS 149); a
- * press on its own background, not on a child, raises click (pointer only, GAPS 125).
+ * press on its own background, not on a child, raises click (pointer only, GAPS 125); the pointer
+ * moving onto it or off it raises enter and leave (pointer only).
  */
 export function Box({ n, attrs, style, role, label, children }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; role?: string; label?: string; children?: ReactNode }): ReactNode {
   const { rt } = useCtx();
@@ -240,7 +241,10 @@ export function Box({ n, attrs, style, role, label, children }: { n: VNode; attr
         if (t === e.currentTarget || (t.parentElement === e.currentTarget && t.hasAttribute('data-mkp-inner'))) rt.dispatch(n.key, 'click');
       }
     : undefined;
-  const outer = { ...(attrs ?? nodeAttrs(n)), role: role ?? (p.role as string | undefined), 'aria-label': label ?? (p.label ? String(p.label) : undefined), onClick };
+  // the pointer onto it and off it, for a container that listens: pointer only, as it takes no focus
+  const onPointerEnter = n.ev?.includes('enter') ? () => rt.dispatch(n.key, 'enter') : undefined;
+  const onPointerLeave = n.ev?.includes('leave') ? () => rt.dispatch(n.key, 'leave') : undefined;
+  const outer = { ...(attrs ?? nodeAttrs(n)), role: role ?? (p.role as string | undefined), 'aria-label': label ?? (p.label ? String(p.label) : undefined), onClick, onPointerEnter, onPointerLeave };
   if (p.scroll === 'x') {
     // the outline stays put and the content scrolls inside it, never narrower than minwidth
     const inner: CSSProperties = n.t === 'row' && p.wrap === false ? { width: 'max-content', minWidth: min ?? '100%' } : { minWidth: min ?? 'min-content' };
@@ -406,10 +410,17 @@ export function Node({ n }: { n: VNode }): ReactNode {
           data-emphasis={p.emphasis && p.emphasis !== 'normal' ? String(p.emphasis) : undefined}
           type="button"
           disabled={!!p.disabled}
-          className={kind === 'tab' ? 'mkp-press mkp-tab' : 'mkp-press'}
+          // mkp-press is every kind; mkp-press-<kind> is one, so a host can style buttons without catching switches
+          className={`mkp-press mkp-press-${kind}${kind === 'tab' ? ' mkp-tab' : ''}`}
           style={{ color: color(p.tone), ...lay }}
           onClick={() => rt.dispatch(n.key, 'click')}
         >
+          {kind === 'switch' ? (
+            // the track and its thumb are elements, so the thumb's move can be styled, traced and animated
+            <span className="mkp-switch" aria-hidden="true">
+              <span className="mkp-switch-thumb" />
+            </span>
+          ) : null}
           <Kids nodes={n.kids} />
         </button>
       );

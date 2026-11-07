@@ -35,7 +35,8 @@ curl -LO $base/mkp-web-$v.zip && mkdir -p vendor/mkp && unzip -j mkp-web-$v.zip 
 The web zip holds:
 
 - `mkp.js`, the core: it compiles, checks and runs documents and writes their Markdown. Its types are `mkp.d.ts`.
-- `maths-engine.js`, which `mkp.js` loads the first time a document shows maths.
+- `mkp-runtime.js`, the core's runtime alone, enough to draw a document compiled ahead of time. The renderers load it, never the compiler. `mkp-shared.js` is what the two share.
+- `maths-engine.js`, loaded the first time a document shows maths its build has not already typeset.
 - `mkp-react.js`, which draws documents in a React app.
 - `mkp-dom.js`, which draws documents in any other page or framework.
 

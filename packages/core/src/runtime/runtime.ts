@@ -938,7 +938,7 @@ export class Runtime {
   }
 
   /** Wires a node's own handlers (written on it in .mkp) to run in its writer's scope. */
-  private wire(n: IRNode, v: VNode, env: Env, inst: Inst): void {
+  private wire(n: IRNode, v: { key: string; ev?: string[] }, env: Env, inst: Inst): void {
     for (const [ev, actions] of Object.entries(n.on ?? {})) {
       this.on(v.key, ev, (payload) => this.runActions(actions, payload === undefined ? env : env.child({ [ev]: payload }), inst));
       (v.ev ??= []).includes(ev) || v.ev.push(ev);
@@ -1158,12 +1158,12 @@ export class Runtime {
       const opacity = typeof p.opacity === 'number' && p.opacity < 1 ? { opacity: Math.max(0, p.opacity) } : {};
       switch (r.record) {
         case 'circle':
-          s = { t: 'circle', key: k, c: pt(p.c), r: p.r as number, ...(p.px ? { px: p.px as number } : {}), fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, ...opacity };
+          s = { t: 'circle', key: k, c: pt(p.c), r: p.r as number, ...(p.px ? { px: p.px as number } : {}), fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, ...opacity, ...(p.label ? { label: String(p.label) } : {}) };
           break;
         case 'path': {
           // points that aren't finite (a function's pole) break the path rather than draw to infinity
           const pts = (p.pts as number[][]).filter((q) => Number.isFinite(q[0]) && Number.isFinite(q[1]));
-          s = { t: 'path', key: k, pts, closed: !!p.closed, fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, dash: !!p.dash, ...(p.head && p.head !== 'none' ? { head: p.head as 'arrow' | 'dot' } : {}), ...opacity };
+          s = { t: 'path', key: k, pts, closed: !!p.closed, fill: String(p.fill), stroke: String(p.stroke), width: p.width as number, dash: !!p.dash, ...(p.head && p.head !== 'none' ? { head: p.head as 'arrow' | 'dot' } : {}), ...opacity, ...(p.label ? { label: String(p.label) } : {}) };
           break;
         }
         case 'label':
@@ -1222,7 +1222,11 @@ export class Runtime {
           break;
         }
       }
-      if (s) out.push(s);
+      if (s) {
+        // a circle's or path's own @enter, @leave and @click, run in the scope it was written in
+        if (r.on && (s.t === 'circle' || s.t === 'path')) this.wire(r, s, env, inst);
+        out.push(s);
+      }
     });
   }
 

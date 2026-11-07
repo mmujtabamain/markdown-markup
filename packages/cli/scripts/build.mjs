@@ -28,10 +28,12 @@ await build({
   format: 'cjs',
   target: 'node20',
   outfile: join(dist, 'mkp.cjs'),
-  alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts'), '@mkp/page': resolve(page, 'src/index.ts') },
+  alias: { '@mkp/core': resolve(pkg, '../core/src/index.ts'), '@mkp/page': resolve(page, 'src/index.ts'), '@mkp/react': resolve(pkg, '../react/src/index.tsx') },
   plugins: [pageScript],
+  // --target fragment draws the document with @mkp/react on the server: React's production build
+  jsx: 'automatic',
   // the version: MKP_VERSION when scripts/dist.mjs builds a release, else the repository's VERSION
-  define: { __MKP_VERSION__: JSON.stringify(process.env.MKP_VERSION ?? readFileSync(resolve(pkg, '../../VERSION'), 'utf8').trim()) },
+  define: { __MKP_VERSION__: JSON.stringify(process.env.MKP_VERSION ?? readFileSync(resolve(pkg, '../../VERSION'), 'utf8').trim()), 'process.env.NODE_ENV': '"production"' },
   banner: { js: '#!/usr/bin/env node' },
   legalComments: 'none',
   logLevel: 'warning',

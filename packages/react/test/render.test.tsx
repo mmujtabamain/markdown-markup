@@ -498,3 +498,91 @@ describe('the stylesheet', () => {
     for (const n of ['line', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6']) expect(css).toContain(`--mkp-color-${n}:`);
   });
 });
+
+describe('what a host styles and traces', () => {
+  const kinds = ['button', 'toggle', 'switch', 'check', 'radio', 'option', 'plain', 'tab'];
+  it('gives every press mkp-press and a class for its own kind, so a host can style buttons alone', () => {
+    const { container } = draw(doc(kinds.map((k) => `press kind=${k} label="${k}"\n    text "${k}"`)));
+    for (const k of kinds) {
+      const el = one(container, `.mkp-press-${k}`);
+      expect(el.classList.contains('mkp-press')).toBe(true);
+      expect(el.getAttribute('data-kind')).toBe(k);
+    }
+    expect(container.querySelectorAll('.mkp-press-button').length).toBe(1);
+  });
+  it("draws a switch's thumb as an element that moves when it is on, with no transition of MKP's own", () => {
+    const { container } = draw(doc(['var on bool = false', 'press kind=switch selected=on label="on" id=sw', '  text "Wi-Fi"', '  @click set on=(not on)']));
+    const sw = one(container, '[data-mkp-id=sw]');
+    const thumb = sw.querySelector('.mkp-switch > .mkp-switch-thumb');
+    expect(thumb).not.toBeNull();
+    expect(sw.querySelector('.mkp-switch')?.getAttribute('aria-hidden')).toBe('true');
+    expect(sw.textContent).toBe('Wi-Fi');
+    fireEvent.click(sw);
+    expect(one(container, '[data-mkp-id=sw]').getAttribute('aria-checked')).toBe('true');
+    expect(NEUTRAL_CSS).toContain('.mkp-press[aria-checked=true] > .mkp-switch > .mkp-switch-thumb { transform: translateX(16px); }');
+    expect(NEUTRAL_CSS).not.toMatch(/::before[^}]*switch|switch[^}]*::before/);
+    // other kinds draw no thumb
+    const other = draw(doc(['press kind=check label="c"', '  text "c"']));
+    expect(other.container.querySelector('.mkp-switch')).toBeNull();
+  });
+  it('names each icon, and rings help as info is ringed', () => {
+    const { container } = draw(doc(['row', '  icon name=help', '  icon name=info']));
+    expect(one(container, '.mkp-icon[data-name=help]').textContent).toBe('?');
+    expect(one(container, '.mkp-icon[data-name=info]').textContent).toBe('ⓘ');
+    expect(SHELL_CSS).toMatch(/\.mkp-icon\[data-name=help\] \{[^}]*border-radius: 50%/);
+  });
+});
+
+describe('the pointer on what is inside a widget', () => {
+  const pie = [
+    'var hover int = -1',
+    'var chosen int = -1',
+    'column',
+    '  canvas -1..1 -1..1 size=s label="shares"',
+    '    layer',
+    '      each k in 0..1 key=k',
+    '        path [(0, 0), (1, k), (k, 1)] closed=true fill=(if(hover == k, accent, muted)) label=("part " + format(k + 1, 0))',
+    '          @enter set hover=k',
+    '          @leave set hover=-1',
+    '          @click set chosen=k',
+    '      circle (0, 0) 0.1 fill=ink',
+    '  text "on \\val{hover} chose \\val{chosen}"',
+  ];
+  it('reports enter, leave and click on a canvas shape, and nothing on one that does not listen', () => {
+    const { container } = draw(doc(pie));
+    const parts = [...container.querySelectorAll<SVGElement>('[data-pointed]')];
+    expect(parts.length).toBe(2);
+    expect(container.querySelectorAll('circle[data-pointed]').length).toBe(0);
+    fireEvent.pointerEnter(parts[1]);
+    expect(container.textContent).toContain('on 1 chose -1');
+    fireEvent.pointerLeave(parts[1]);
+    expect(container.textContent).toContain('on -1 chose -1');
+    fireEvent.click(parts[0]);
+    expect(container.textContent).toContain('chose 0');
+  });
+  it('makes a shape that takes a press a named control, pressed from the keyboard too', () => {
+    const { container } = draw(doc(pie));
+    const canvas = one(container, '.mkp-canvas');
+    expect(canvas.getAttribute('role')).toBe('group');
+    const part = container.querySelectorAll<SVGElement>('[data-press]')[1];
+    expect(part.getAttribute('role')).toBe('button');
+    expect(part.getAttribute('tabindex')).toBe('0');
+    expect(part.getAttribute('aria-label')).toBe('part 2');
+    fireEvent.keyDown(part, { key: 'Enter' });
+    expect(container.textContent).toContain('chose 1');
+    fireEvent.focus(part);
+    expect(container.textContent).toContain('on 1');
+  });
+  it('keeps a figure with nothing to press an image', () => {
+    const { container } = draw(doc(['canvas -1..1 -1..1 label="a dot"', '  layer', '    circle (0, 0) 0.5 fill=accent']));
+    expect(one(container, '.mkp-canvas').getAttribute('role')).toBe('img');
+    expect(container.querySelector('[data-pointed]')).toBeNull();
+  });
+  it('reports the pointer onto and off a container', () => {
+    const { container } = draw(doc(['var on bool = false', 'column pad=m id=card', '  @enter set on=true', '  @leave set on=false', '  text "lit \\val{on}"']));
+    fireEvent.pointerEnter(one(container, '[data-mkp-id=card]'));
+    expect(container.textContent).toContain('lit true');
+    fireEvent.pointerLeave(one(container, '[data-mkp-id=card]'));
+    expect(container.textContent).toContain('lit false');
+  });
+});

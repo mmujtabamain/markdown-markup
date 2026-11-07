@@ -33,12 +33,12 @@ describe('the release files', () => {
   it('are the web archive, the CLI and the checksums; the archive holds the web files in one folder', () => {
     expect(readdirSync(out).sort()).toEqual(['SHA256SUMS', 'mkp-cli.mjs', zip, 'web']);
     const list = execFileSync('unzip', ['-Z1', join(out, zip)], { encoding: 'utf8' }).trim().split('\n').sort();
-    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
+    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp-runtime.d.ts', 'mkp-runtime.js', 'mkp-shared.js', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
     const sums = readFileSync(join(out, 'SHA256SUMS'), 'utf8');
     for (const f of [zip, 'mkp-cli.mjs']) expect(sums).toContain(`${createHash('sha256').update(readFileSync(join(out, f))).digest('hex')}  ${f}`);
   });
   it('say which version they are', () => {
-    for (const f of ['mkp.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
+    for (const f of ['mkp.js', 'mkp-runtime.js', 'mkp-shared.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
     expect(node([join(out, 'mkp-cli.mjs'), '--version'], out).stdout.trim()).toBe(version);
   });
 });
@@ -72,6 +72,32 @@ console.log(JSON.stringify({ VERSION, md: writeMarkdown(b, { toggles: ['gfm', 'm
   });
 });
 
+describe('mkp-runtime.js, vendored', () => {
+  it('draws a bundle compiled ahead of time with no mkp.js beside it', () => {
+    const dir = vendored();
+    writeFileSync(join(dir, 'build.mjs'), `import { compile } from './vendor/mkp/mkp.js';\nimport { readFileSync, writeFileSync } from 'node:fs';\nconst c = compile({ packs: [] });\nwriteFileSync('doc.ir.json', JSON.stringify(c.document(readFileSync(process.argv[2], 'utf8'), 'doc.mkp.md')));`);
+    expect(node(['build.mjs', ex('05-counter')], dir).status).toBe(0);
+    rmSync(join(dir, 'vendor/mkp/mkp.js'));
+    writeFileSync(
+      join(dir, 'run.mjs'),
+      `import { Runtime, needsMaths, walkView, VERSION } from './vendor/mkp/mkp-runtime.js';\nimport { readFileSync } from 'node:fs';\nconst b = JSON.parse(readFileSync('doc.ir.json', 'utf8'));\nconst rt = new Runtime(b, { capabilities: ['core@1'] });\nconst kinds = new Set();\nwalkView(rt.view(), (n) => kinds.add(n.t));\nconsole.log(JSON.stringify({ VERSION, maths: needsMaths(b), press: kinds.has('press') }));`,
+    );
+    const r = node(['run.mjs'], dir);
+    expect(r.status, r.stderr).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({ VERSION: version, maths: false, press: true });
+  });
+  it('is what the renderers import: neither mkp-react.js nor mkp-dom.js loads the compiler', () => {
+    for (const f of ['mkp-react.js', 'mkp-dom.js']) {
+      const js = readFileSync(join(out, 'web', f), 'utf8');
+      expect(js).toContain('"./mkp-runtime.js"');
+      expect(js).not.toContain('"./mkp.js"');
+    }
+    // and the part both entries share is smaller than the whole core by the compiler's weight
+    const size = (f: string) => readFileSync(join(out, 'web', f)).length;
+    expect(size('mkp-runtime.js') + size('mkp-shared.js')).toBeLessThan(0.6 * (size('mkp.js') + size('mkp-shared.js')));
+  });
+});
+
 describe('the headers', () => {
   const tsc = join(root, 'node_modules/.bin/tsc');
   /** Type-checks `files` in an app beside the vendored web files; React's types come from this repo. */
@@ -95,8 +121,12 @@ describe('the headers', () => {
     const app = "import { compile, Runtime } from './vendor/mkp/mkp.js';\nimport { MkpDocument } from './vendor/mkp/mkp-react.js';\nconst c = compile({ packs: [] });\nconst bundle = c.document('# Hi', 'a.mkp.md')!;\nconst runtime = new Runtime(bundle, {});\nexport const view = <MkpDocument bundle={bundle} runtime={runtime} theme=\"auto\" />;\n";
     expect(typecheck({ 'app.tsx': app })).toEqual({ status: 0, out: '' });
   });
+  it('type-check a runtime from mkp-runtime.js handed to the React renderer: one Runtime type', () => {
+    const app = "import { compile } from './vendor/mkp/mkp.js';\nimport { Runtime, type IRBundle } from './vendor/mkp/mkp-runtime.js';\nimport { MkpDocument } from './vendor/mkp/mkp-react.js';\nconst bundle: IRBundle = compile({ packs: [] }).document('# Hi', 'a.mkp.md')!;\nconst runtime = new Runtime(bundle, {});\nexport const view = <MkpDocument bundle={bundle} runtime={runtime} theme=\"auto\" />;\n";
+    expect(typecheck({ 'app.tsx': app })).toEqual({ status: 0, out: '' });
+  });
   it('type-check a page that mounts a document, and catch a wrong theme', () => {
-    const good = "import { compile } from './vendor/mkp/mkp.js';\nimport { mount, type MountedDocument } from './vendor/mkp/mkp-dom.js';\nconst b = compile({ packs: [] }).document('# Hi', 'a.mkp.md')!;\nconst v: MountedDocument = mount(document.body, b, { theme: 'dark', onSignal: (e) => console.log(e.name) });\nv.update({ theme: 'auto' });\nv.ready.then(() => v.runtime?.view());\n";
+    const good = "import { compile } from './vendor/mkp/mkp.js';\nimport { mount, type MountedDocument } from './vendor/mkp/mkp-dom.js';\nconst b = compile({ packs: [] }).document('# Hi', 'a.mkp.md')!;\nconst v: MountedDocument = mount(document.body, b, { theme: 'dark', tokens: { space: { m: { value: 12 } } }, onSignal: (e) => console.log(e.name) });\nv.update({ theme: 'auto' });\nv.ready.then(() => v.runtime?.view());\n";
     expect(typecheck({ 'app.ts': good })).toEqual({ status: 0, out: '' });
     const bad = typecheck({ 'app.ts': "import { mount } from './vendor/mkp/mkp-dom.js';\ndeclare const b: Parameters<typeof mount>[1];\nmount(document.body, b, { theme: 'blue' });\n" });
     expect(bad.status).not.toBe(0);

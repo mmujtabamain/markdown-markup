@@ -631,8 +631,8 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      matter `version`, `date`, `summary` of at most 140 characters; then `## New`, `## Changed`,
      `## Fixed`), which `scripts/check-notes.mjs` checks in CI. Each push to `main` whose `VERSION`
      has no release yet publishes `v<version>`: `mkp-web-<version>.zip` (`mkp.js`, `mkp.d.ts`,
-     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in
-     one folder),
+     `mkp-runtime.js`, `mkp-runtime.d.ts`, `mkp-shared.js`, `maths-engine.js`, `mkp-react.js`,
+     `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in one folder),
      `mkp-cli.mjs` and `SHA256SUMS`, built by `scripts/dist.mjs`; its notes are the note, then how to
      use each asset (`scripts/release-body.mjs`). The web files of the last 50 releases are also on
      the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version
@@ -644,3 +644,20 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      widget's inputs, so a guide can show YAML or MKP in a fence. Only a label Markdown has no
      meaning for names a widget block; the base widget `text` is therefore written as a container
      or a widget of its own. In code, `$` is not maths; an HTML comment draws nothing.
+140. **Pointing inside a widget.** *Extension (8, 6.12).* A canvas `circle` or `path` takes `@enter`,
+     `@leave` and `@click`, and the four containers take `@enter` and `@leave`; nothing else that
+     is drawn as data does. The events carry no payload (no position, no pointer buttons): the shape
+     is known by the scope its lines run in. Containers report the pointer only, since they take no
+     focus. A shape with `@click` must have a `label` (a new optional field of both records, empty
+     by default), is focusable, pressed with Enter or Space, reports focus and blur as enter and
+     leave as a press does, and makes its canvas a `group` rather than an `img`.
+141. **The runtime half on its own.** *Extension (15).* `packages/core/src/renderer.ts` is what
+     drawing a compiled bundle needs; the core's index re-exports it. The release builds the two in
+     one esbuild pass with code splitting (`mkp.js`, `mkp-runtime.js`, and `mkp-shared.js` between
+     them), and the renderers import `mkp-runtime.js`. `mkp-runtime.d.ts` re-exports `mkp.d.ts`'s
+     declarations, since a class with private fields declared twice is two types.
+142. **A first paint, taken over.** *Extension (12).* `mkp build --target fragment` writes
+     `firstPaint(bundle)` (`@mkp/page`): the neutral renderer's HTML for the bundle, drawn with the
+     web's capabilities and the build's maths engine. `mount(…, { hydrate: true })` hydrates it
+     with React; a mismatch is redrawn and warned about. The runtime's width starts as it does in
+     the browser, so a width-dependent branch may change once the page is measured.
