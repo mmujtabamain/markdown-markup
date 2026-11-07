@@ -965,7 +965,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       const pth = e.curve && !e.via?.length && !e.route && e.from !== e.to ? curve(e.a, e.b) : raw;
       if (!pth) return;
       const end = withEnds(pth, a.head ?? 'arrow', a.tail ?? 'none');
-      out.push({ key: a.key, d: end.d, head: end.head.map((q) => q.join(',')).join(' '), marks: end.marks, label: a.label ? pth.label : undefined, align: pth.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold, opacity: a.opacity, behind: a.layer === 'behind', ...(pth.hops && a.line && a.line !== 'solid' ? { hops: pth.hops } : {}) });
+      out.push({ key: a.key, d: end.d, head: end.head.map((q) => q.join(',')).join(' '), marks: end.marks, label: a.label ? pth.label : undefined, align: pth.align, runs: a.label, tone: a.tone, line: a.line, dim: a.dim, bold: a.bold, opacity: a.opacity, behind: a.layer === 'behind', ...(pth.hops ? { hops: pth.hops } : {}) });
       lines.push(polyline(end.d));
     });
     // labels are chips, moved along their line clear of the others (GAPS 141)
@@ -1082,7 +1082,6 @@ function Arrows({ paths, sized, testID }: { paths: Drawn[]; sized: (key: string,
           return (
             <G key={p.key} opacity={(p.dim ? 0.3 : 1) * (p.opacity ?? 1)}>
               <Path d={p.d} fill="none" stroke={ink} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
-              {p.hops?.map((h, i) => <Path key={`hop${i}`} d={h} fill="none" stroke={ink} strokeWidth={width} />)}
               {p.head ? <Polygon points={p.head} fill={ink} /> : null}
               {p.marks.map((m, i) => (
                 <Path key={i} d={m.d} stroke={(m.tone ? theme.color(m.tone) : undefined) ?? ink} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink : m.fill === 'hollow' ? surface : 'none'} strokeLinecap="round" />
@@ -1090,6 +1089,23 @@ function Arrows({ paths, sized, testID }: { paths: Drawn[]; sized: (key: string,
             </G>
           );
         })}
+        {/* the hops last, over every line, each on a thin edge of the surface */}
+        {paths
+          .filter((p) => p.hops?.length)
+          .map((p) => {
+            const ink = (p.tone ? theme.color(p.tone) : undefined) ?? muted;
+            const width = p.bold ? 2 : 1.5;
+            return (
+              <G key={`hops-${p.key}`} opacity={(p.dim ? 0.3 : 1) * (p.opacity ?? 1)}>
+                {p.hops!.map((h, i) => (
+                  <G key={i}>
+                    <Path d={h} fill="none" stroke={surface} strokeWidth={width + 3} />
+                    <Path d={h} fill="none" stroke={ink} strokeWidth={width} />
+                  </G>
+                ))}
+              </G>
+            );
+          })}
       </Svg>
       {paths.map((p) => {
         if (!p.label || !p.runs) return null;

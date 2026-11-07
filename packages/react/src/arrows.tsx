@@ -36,7 +36,8 @@ export interface Drawn {
   behind?: boolean;
   /** it turns in a gap too narrow to keep its turn apart from the others' (data-crowded) */
   crowded?: boolean;
-  /** its hops' arcs: a dashed or dotted line draws each unbroken, so the hop always shows */
+  /** its hops' arcs, drawn again over every line of the layer (a line drawn later can't cover one),
+   *  unbroken on a dashed or dotted line, so the hop always shows on top */
   hops?: string[];
 }
 
@@ -379,7 +380,7 @@ export function Arrows({ arrows, box, measure }: { arrows: VArrow[]; box: { curr
           opacity: a.opacity,
           behind: a.layer === 'behind',
           ...(p.crowded ? { crowded: true } : {}),
-          ...(p.hops && a.line && a.line !== 'solid' ? { hops: p.hops } : {}),
+          ...(p.hops ? { hops: p.hops } : {}),
         });
         lines.push(polyline(end.d));
       });
@@ -472,7 +473,6 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
           return (
             <g key={p.key} data-mkp-arrow={p.key} data-dim={p.dim ? '' : undefined} data-bold={p.bold ? '' : undefined} data-crowded={p.crowded ? '' : undefined} style={fade(p)}>
               <path d={p.d} fill="none" stroke={ink(p)} strokeWidth={width} strokeDasharray={DASH[p.line ?? 'solid']} />
-              {p.hops?.map((h, i) => <path key={`hop${i}`} d={h} fill="none" stroke={ink(p)} strokeWidth={width} data-hop="" />)}
               {p.head ? <polygon points={p.head} fill={ink(p)} /> : null}
               {p.marks.filter((m) => once(m, p)).map((m, i) => (
                 <path key={i} d={m.d} stroke={m.tone ? `var(--mkp-color-${m.tone})` : ink(p)} strokeWidth={m.tone ? 2 : width} fill={m.fill === 'solid' ? ink(p) : m.fill === 'hollow' ? 'var(--mkp-color-surface)' : 'none'} strokeLinejoin="round" strokeLinecap="round" />
@@ -480,6 +480,23 @@ function LayerView({ layer, behind, register }: { layer: Layer; behind: boolean;
             </g>
           );
         })}
+        {/* the hops last, over every line: a thin edge of the surface first, so the line passing
+            under an arc is seen to go under it */}
+        {paths
+          .filter((p) => p.hops?.length)
+          .map((p) => {
+            const width = p.bold ? 2 : 1.5;
+            return (
+              <g key={`hops-${p.key}`} data-mkp-hops={p.key} style={fade(p)}>
+                {p.hops!.map((h, i) => (
+                  <Fragment key={i}>
+                    <path d={h} fill="none" stroke="var(--mkp-color-surface)" strokeWidth={width + 3} />
+                    <path d={h} fill="none" stroke={ink(p)} strokeWidth={width} data-hop="" />
+                  </Fragment>
+                ))}
+              </g>
+            );
+          })}
       </svg>
       {labelled.length ? (
         <div className="mkp-arrow-labels" data-layer={behind ? 'behind' : undefined} aria-hidden="true">
