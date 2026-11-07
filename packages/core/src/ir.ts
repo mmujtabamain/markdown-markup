@@ -248,6 +248,8 @@ export interface IRLockEntry {
 }
 
 export interface IRLock {
+  /** the MKP release that wrote it */
+  mkp?: string;
   packs: IRLockEntry[];
   defs: Record<string, string>;
 }
@@ -283,6 +285,8 @@ export interface IRDoc {
 
 export interface IRBundle {
   ir: number;
+  /** the MKP release that made it (its stamp); a bundle without one was made by 0.2.1 */
+  mkp?: string;
   level: 'bundle' | 'expanded';
   doc: IRDoc;
   defs: Record<string, IRDef>;

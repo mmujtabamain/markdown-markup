@@ -7,6 +7,7 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import { Diagnostics } from './diag';
 import type { PackInfo } from './check/program';
 import { parseMkp, type ManifestSyn } from './syntax/mkp';
+import { STAMP_LINE } from './syntax/lexer';
 import { canonicalJson } from './util/jcs';
 import { sha256, utf8 } from './util/sha256';
 
@@ -283,7 +284,9 @@ export function loadPack(pf: PackFiles, diags: Diagnostics): PackInfo | null {
     }
     total += bytes.length;
     sizes.push([path, bytes.length]);
-    listing[path] = sha256(bytes);
+    // a .mkp file's stamp says which release last wrote it, not what it holds: restamping by a
+    // migration or a newer fmt leaves the pack's digest, and so its lock, as it was
+    listing[path] = sha256(path.endsWith('.mkp') ? unstamped(bytes) : bytes);
     if (path === 'manifest.mkp') continue;
     const e = ext(path);
     if (path.endsWith('.fixture.json')) {
@@ -326,4 +329,14 @@ export function corePack(src: string, diags: Diagnostics): PackInfo {
   const p = loadPack({ label: 'core', origin: 'folder', files }, diags)!;
   p.builtin = true;
   return p;
+}
+
+/** A .mkp file's bytes without its version stamp line, for its digest. */
+function unstamped(bytes: Uint8Array): Uint8Array {
+  const text = decoder.decode(bytes);
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => l.trim() !== '');
+  if (at < 0 || !STAMP_LINE.test(lines[at].replace(/\r$/, ''))) return bytes;
+  lines.splice(at, 1);
+  return new TextEncoder().encode(lines.join('\n'));
 }

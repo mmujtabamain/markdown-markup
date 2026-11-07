@@ -13,4 +13,6 @@ export { TokenTable, tokenSetIR, tokenNames } from './tokens';
 export { inlineRuns, plainText, safeHref, type Run } from './markdown';
 export { MathsEngine, prerender, needsMaths } from './maths';
 export { ICON_GLYPHS, ICON_NAMES } from './icons';
-export { VERSION } from './version';
+export { VERSION, RELEASE } from './version';
+export { bundleStamp, readStamp, writeStamp, compareReleases, CURRENT, UNSTAMPED, type Stamp } from './stamp';
+export { migrateBundle, migrateRoots, choicesFor, stepsBetween, needsMigration, STEPS, type Step, type Change, type Choice, type MigrateOptions, type MigrateResult, type Renamed } from './migrate/index';

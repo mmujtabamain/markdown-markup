@@ -32,6 +32,9 @@ export class PosMap {
   }
 }
 
+/** A .mkp file's version stamp: its first line, `# mkp <release> ir <n>` (stamp.ts). */
+export const STAMP_LINE = /^# mkp \d+(?:\.\d+)* ir \d+[ \t]*$/;
+
 /** Splits source into logical lines and builds the indentation tree. */
 export function readLines(src: string, file: string, diags: Diagnostics): LLine[] {
   const phys = src.replace(/\r\n?/g, '\n').split('\n');
@@ -52,6 +55,8 @@ export function readLines(src: string, file: string, diags: Diagnostics): LLine[
     const indent = raw.length - raw.trimStart().length;
     const body = raw.slice(indent);
     if (body.startsWith('#')) {
+      // the file's version stamp (# mkp 0.2.2 ir 1, its first line) is not a comment of what follows
+      if (!out.length && !pending.length && indent === 0 && STAMP_LINE.test(body)) continue;
       pending.push(body.slice(1).trim());
       continue;
     }

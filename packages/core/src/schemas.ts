@@ -153,6 +153,7 @@ export const bundleSchema = {
   required: ['ir', 'level', 'doc', 'defs', 'fns', 'consts', 'types', 'tokens', 'capabilities', 'interface', 'lock'],
   properties: {
     ir: { const: 1 },
+    mkp: { type: 'string', pattern: '^\\d+(\\.\\d+)*$', description: 'the MKP release that made it; none means 0.2.1' },
     level: { enum: ['bundle', 'expanded'] },
     doc: { type: 'object', required: ['file', 'front', 'body'], properties: { body: { type: 'array', items: { $ref: `${BASE}/ir/node` } }, digest: { type: 'string' } } },
     defs: { type: 'object', additionalProperties: { $ref: `${BASE}/ir/definition` } },

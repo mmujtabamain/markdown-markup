@@ -25,6 +25,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import {
   canonicalJson,
   caseDocument,
@@ -48,13 +49,16 @@ import {
   stripPos,
   VERSION,
   writeMarkdown,
+  writeStamp,
   writeZip,
+  type Choice,
   type Compiled,
   type IRLock,
   type IRBundle,
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
+import { migrateBundleFile, migrateDocument, migratePack } from './migrate';
 import { firstPaint, htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
@@ -77,7 +81,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -341,6 +345,62 @@ function schema(a: Args): number {
   return 0;
 }
 
+/** Asks, one change at a time, whether to keep its old look: on a terminal, when --keep and --take aren't given. */
+async function ask(choices: Choice[]): Promise<string[]> {
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  const keep: string[] = [];
+  try {
+    for (const c of choices) {
+      const said = await rl.question(`\n${c.step}: ${c.what} (${c.places} place${c.places === 1 ? '' : 's'}).\n  Keep the old look (${c.how})? [y/N] `);
+      if (/^y(es)?$/i.test(said.trim())) keep.push(c.id);
+    }
+  } finally {
+    rl.close();
+  }
+  return keep;
+}
+
+async function migrate(a: Args): Promise<number> {
+  if (!a.pos.length) throw new Error('migrate takes the documents, pack folders or bundles (name.ir.json) to migrate');
+  const keep = a.opts.take === 'all' || a.opts.take === true ? [] : typeof a.opts.keep === 'string' ? (a.opts.keep === 'all' ? ('all' as const) : a.opts.keep.split(',').filter(Boolean)) : undefined;
+  const opts = {
+    keep,
+    choose: keep === undefined && process.stdin.isTTY && !jsonDiagnostics ? ask : undefined,
+    core: typeof a.opts.core === 'string' ? a.opts.core : undefined,
+    from: typeof a.opts.from === 'string' ? a.opts.from : undefined,
+    packs: a.packs.map(packSource),
+  };
+  const targets: string[] = [];
+  for (const p of a.pos) {
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (!st) throw new Error(`no such file or folder: ${p}`);
+    if (st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) targets.push(p);
+    else if (st.isDirectory()) targets.push(...docFiles([p]));
+    else targets.push(p);
+  }
+  if (targets.length > 1 && !a.opts.write && !a.opts.check) throw new Error('several files need --write (or --check)');
+  let ok = true;
+  let pending = false;
+  for (const t of targets) {
+    const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : statSync(t).isDirectory() ? await migratePack(t, opts) : await migrateDocument(t, opts);
+    const d = new Diagnostics();
+    for (const w of m.result?.warnings ?? []) d.add(w);
+    if (m.errors.length) {
+      for (const e of m.errors) d.error('mkp.migrate-failed', e);
+      ok = false;
+    }
+    if (!m.errors.length && m.result && m.result.steps.length && !jsonDiagnostics) process.stderr.write(`${t}: ${m.result.steps.join(', ')}${m.result.kept.length ? ` (kept: ${m.result.kept.join(', ')})` : ''}; rewritten in canonical form\n`);
+    report(d);
+    if (m.errors.length) continue;
+    if (m.changed.length) pending = true;
+    if (a.opts.check) continue;
+    if (a.opts.write) for (const p of m.changed) writeFileSync(p, m.files.get(p)!);
+    else for (const text of m.files.values()) process.stdout.write(text.endsWith('\n') ? text : text + '\n');
+  }
+  // --check: 1 when anything would change, as a CI gate
+  return !ok ? 1 : a.opts.check && pending ? 1 : 0;
+}
+
 function fmt(a: Args): number {
   const c = compiled(a);
   let ok = true;
@@ -377,6 +437,8 @@ function fmt(a: Args): number {
       }
       text = found;
     }
+    // fmt writes the release it formats for at the file's head (stamp.ts)
+    text = writeStamp(text, file);
     if (a.opts.write) writeFileSync(abs, text);
     else process.stdout.write(text);
   }
@@ -444,6 +506,8 @@ const HELP = `mkp ${VERSION}: Markdown Markup
   mkp fmt <files…> --pack … [--write]
   mkp pack <folder> [-o name.mkpack]
   mkp cases --pack … --out dir [--only pack]
+  mkp migrate <docs|pack folders|bundle.ir.json…> [--pack …] [--keep id,…|all | --take all] [--write | --check]
+            [--from 0.2.1] [--core mkp-web-0.2.1.zip] [--format json]
 `;
 
 export async function main(argv: string[]): Promise<number> {
@@ -467,6 +531,8 @@ export async function main(argv: string[]): Promise<number> {
         return pack(a);
       case 'cases':
         return await cases(a);
+      case 'migrate':
+        return await migrate(a);
       case 'version':
       case '--version':
         process.stdout.write(VERSION + '\n');
