@@ -39,6 +39,12 @@ export interface MountOptions {
    */
   icons?: DomIcons;
   /**
+   * 'external': the page loads mkp.css (from the web zip) once, and each document writes only its
+   * own tokens; 'inline' (the default) writes the whole stylesheet with each document. A first paint
+   * taken over with hydrate must have been drawn the same way
+   */
+  styles?: 'inline' | 'external';
+  /**
    * the element already holds this bundle's first paint (`mkp build --target fragment`, or
    * firstPaint() from @mkp/page), drawn with the same theme, tokens and class: take it over in
    * place rather than draw it again, so nothing moves. The bundle must be the one it was drawn from
@@ -56,7 +62,7 @@ export interface MountedDocument {
   readonly runtime: Runtime | null;
   /** resolves once the document is drawn (after the maths engine has loaded) */
   readonly ready: Promise<void>;
-  /** changes the theme, the signal handler, reduced motion, the tokens, the icons or the class; the state is kept */
+  /** changes the theme, the signal handler, reduced motion, the tokens, the icons, the styles or the class; the state is kept */
   update(opts: Partial<Omit<MountOptions, 'maths' | 'hydrate'>>): void;
   /** draws another document (or a recompiled one): its state starts again */
   setBundle(bundle: IRBundle): void;
@@ -98,7 +104,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   };
   const draw = (): void => {
     if (gone || !runtime) return;
-    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} reducedMotion={current.reducedMotion} className={current.className} />;
+    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} styles={current.styles} reducedMotion={current.reducedMotion} className={current.className} />;
     if (root) return root.render(view);
     if (opts.hydrate && el.firstElementChild)
       root = hydrateRoot(el, view, {

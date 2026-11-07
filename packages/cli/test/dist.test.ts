@@ -34,12 +34,12 @@ describe('the release files', () => {
   it('are the web archive, the React Native renderer, the CLI and the checksums; the archive holds the web files in one folder', () => {
     expect(readdirSync(out).sort()).toEqual(['SHA256SUMS', 'mkp-cli.mjs', rnZip, zip, 'web']);
     const list = execFileSync('unzip', ['-Z1', join(out, zip)], { encoding: 'utf8' }).trim().split('\n').sort();
-    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-page.d.ts', 'mkp-page.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp-runtime.d.ts', 'mkp-runtime.js', 'mkp-shared.js', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
+    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-page.d.ts', 'mkp-page.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp-runtime.d.ts', 'mkp-runtime.js', 'mkp-shared.js', 'mkp.css', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
     const sums = readFileSync(join(out, 'SHA256SUMS'), 'utf8');
     for (const f of [zip, rnZip, 'mkp-cli.mjs']) expect(sums).toContain(`${createHash('sha256').update(readFileSync(join(out, f))).digest('hex')}  ${f}`);
   });
   it('say which version they are', () => {
-    for (const f of ['mkp.js', 'mkp-runtime.js', 'mkp-shared.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts', 'mkp-page.js', 'mkp-page.d.ts']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
+    for (const f of ['mkp.js', 'mkp-runtime.js', 'mkp-shared.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts', 'mkp-page.js', 'mkp-page.d.ts', 'mkp.css']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
     expect(node([join(out, 'mkp-cli.mjs'), '--version'], out).stdout.trim()).toBe(version);
   });
 });
@@ -179,11 +179,16 @@ describe('mkp-page.js, vendored', () => {
     const dir = vendored();
     writeFileSync(
       join(dir, 'paint.mjs'),
-      `import { compile } from './vendor/mkp/mkp.js';\nimport { firstPaint } from './vendor/mkp/mkp-page.js';\nimport { readFileSync } from 'node:fs';\nconst c = compile({ packs: [] });\nconst b = c.document(readFileSync(process.argv[2], 'utf8'), 'doc.mkp.md');\nconst html = firstPaint(b, { theme: 'light', icons: { help: '<svg data-host-help=""></svg>' } });\nconsole.log(JSON.stringify({ root: html.includes('class="mkp-root"'), press: html.includes('data-mkp="press"'), style: html.includes('@layer mkp') }));`,
+      `import { compile } from './vendor/mkp/mkp.js';\nimport { firstPaint } from './vendor/mkp/mkp-page.js';\nimport { readFileSync } from 'node:fs';\nconst c = compile({ packs: [] });\nconst b = c.document(readFileSync(process.argv[2], 'utf8'), 'doc.mkp.md');\nconst html = firstPaint(b, { theme: 'light', icons: { help: '<svg data-host-help=""></svg>' } });\nconsole.log(JSON.stringify({ root: html.includes('class="mkp-root"'), press: html.includes('data-mkp="press"'), style: html.includes('.mkp-frame') }));`,
     );
     const r = node(['paint.mjs', ex('05-counter')], dir);
     expect(r.status, r.stderr).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ root: true, press: true, style: true });
+    // with styles: 'external', MKP's stylesheet is left for mkp.css, and only the document's tokens stay
+    writeFileSync(join(dir, 'ext.mjs'), readFileSync(join(dir, 'paint.mjs'), 'utf8').replace("theme: 'light',", "theme: 'light', styles: 'external',"));
+    const ext = node(['ext.mjs', ex('05-counter')], dir);
+    expect(JSON.parse(ext.stdout)).toEqual({ root: true, press: true, style: false });
+    expect(readFileSync(join(dir, 'vendor/mkp/mkp.css'), 'utf8')).toContain('@layer mkp');
     const js = readFileSync(join(out, 'web', 'mkp-page.js'), 'utf8');
     expect(js).toContain('"./mkp-runtime.js"');
     expect(js).not.toContain('"./mkp.js"');

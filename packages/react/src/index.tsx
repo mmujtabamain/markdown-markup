@@ -28,6 +28,12 @@ export interface MkpProviderProps {
    * size, colour and label, and MKP's text symbol is left out
    */
   icons?: MkpIcons;
+  /**
+   * 'inline' (the default) writes MKP's stylesheet in a <style> of its own; 'external' writes only
+   * this document's tokens there, and the page loads the rest once: mkp.css from the web zip, or
+   * mkpCss() in your own stylesheet. A first paint and mount() must agree on it
+   */
+  styles?: 'inline' | 'external';
   reducedMotion?: boolean;
   options?: RuntimeOptions;
   children?: ReactNode;
@@ -36,6 +42,15 @@ export interface MkpProviderProps {
 export interface MkpDocumentProps extends Omit<MkpProviderProps, 'children'> {
   theme?: 'light' | 'dark' | 'auto';
   className?: string;
+}
+
+/**
+ * MKP's stylesheet without any document's tokens: the layout, the shell and (unless your own
+ * components draw the base set) the neutral look, in @layer mkp. What <MkpDocument styles="external">
+ * leaves for the page to load once; the web zip's mkp.css is mkpCss().
+ */
+export function mkpCss(opts: { neutral?: boolean } = {}): string {
+  return BASE_CSS + SHELL_CSS + (opts.neutral === false ? '' : NEUTRAL_CSS);
 }
 
 function usePrefersReducedMotion(): boolean {
@@ -146,7 +161,7 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [rt]);
-  const css = useMemo(() => BASE_CSS + SHELL_CSS + (props.components ? '' : NEUTRAL_CSS) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components]);
+  const css = useMemo(() => (props.styles === 'external' ? '' : mkpCss({ neutral: !props.components })) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components, props.styles]);
   const ctx = useMemo(() => ({ rt, components: props.components, icons: props.icons }), [rt, props.components, props.icons]);
   const measure = useWidthReport(rt);
   return (

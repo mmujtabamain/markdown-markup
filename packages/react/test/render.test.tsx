@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { compile, formatDiagnostic, Runtime, type IRBundle } from '@mkp/core';
 import { memo } from 'react';
-import { BASE_CSS, hostIcon, keepInView, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
+import { BASE_CSS, hostIcon, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
 
@@ -531,6 +531,17 @@ describe('what a host styles and traces', () => {
     expect(one(container, '.mkp-icon[data-name=help]').textContent).toBe('?');
     expect(one(container, '.mkp-icon[data-name=info]').textContent).toBe('ⓘ');
     expect(SHELL_CSS).toMatch(/\.mkp-icon\[data-name=help\] \{[^}]*border-radius: 50%/);
+  });
+  it('writes only the document’s tokens with styles="external": the rest is mkpCss(), loaded once by the page', () => {
+    const b = doc(['text "hi"']);
+    const inline = draw(b).container.querySelector('style')!.textContent!;
+    cleanup();
+    const rt = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const ext = render(<MkpDocument bundle={b} runtime={rt} reducedMotion styles="external" />).container.querySelector('style')!.textContent!;
+    expect(ext).toContain('--mkp-color-ink');
+    expect(ext).not.toContain('.mkp-frame');
+    expect(mkpCss() + ext).toBe(inline);
+    expect(mkpCss({ neutral: false })).not.toContain(NEUTRAL_CSS);
   });
   it('draws a host’s icons in the box: any component, for one name or all, and no MKP symbol beside it', () => {
     const b = doc(['row', '  icon name=help tone=accent label="Help"', '  icon name=info size=large']);

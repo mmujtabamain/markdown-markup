@@ -9,7 +9,8 @@
 //                          React renderer, React left out), mkp-react.d.ts, mkp-dom.js (mount() for any
 //                          framework or none, React inside), mkp-dom.d.ts, mkp-page.js (firstPaint()
 //                          for a Node build: a document's first paint, React's server renderer
-//                          inside), mkp-page.d.ts, README.txt
+//                          inside), mkp-page.d.ts, mkp.css (MKP's stylesheet, for documents drawn
+//                          with styles: 'external'), README.txt
 //   mkp-react-native-<version>.zip  the React Native renderer as source, for Metro to build with
 //                          the app (it imports @mkp/core: alias it to the web zip's mkp-runtime.js)
 //   mkp-cli.mjs            the CLI in one file (core, maths engine, --target html's page script inside)
@@ -140,6 +141,16 @@ await build({
   logLevel: 'warning',
 });
 
+// mkp.css: MKP's stylesheet in MKP's own look, with no document's tokens, for a page that draws
+// many fragments or documents with styles: 'external' to load once. Taken from the renderer itself
+// (mkpCss()), so it is the stylesheet each document would otherwise write
+{
+  const cssOut = join(mkdtempSync(join(tmpdir(), 'mkp-css-')), 'css.mjs');
+  await build({ stdin: { contents: "export { mkpCss } from './packages/react/src/index.tsx';", resolveDir: root, loader: 'ts' }, bundle: true, format: 'esm', platform: 'node', jsx: 'automatic', outfile: cssOut, define, logLevel: 'warning', banner: { js: "import { createRequire as __r } from 'node:module'; const require = __r(import.meta.url);" } });
+  const { mkpCss } = await import(cssOut);
+  writeFileSync(join(web, 'mkp.css'), `${banner}\n${mkpCss()}\n`);
+}
+
 // the headers: one self-contained .d.ts for the core, and one for React that imports it. The React
 // one is generated against the core's header posing as a package, so its core types stay imports
 const tmp = mkdtempSync(join(tmpdir(), 'mkp-dts-'));
@@ -187,6 +198,8 @@ writeFileSync(
                   for your design system. Types: mkp-react.d.ts
   mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's
                   own look, its own React inside. Types: mkp-dom.d.ts
+  mkp.css         MKP's stylesheet in its own look, for a page whose documents or first paints are
+                  drawn with styles: 'external' (each then writes only its own tokens): load it once
   mkp-page.js     firstPaint(bundle, options): a document's first paint as HTML, for a build on
                   Node 20+ to put in the page; mount(el, bundle, { hydrate: true }) takes it over.
                   React's server renderer inside. Types: mkp-page.d.ts

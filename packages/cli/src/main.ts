@@ -3,12 +3,13 @@
 //
 //   mkp build <docs or folders… | -> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
 //             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
-//             [--lock mkp.lock] [--diagnostics json]
+//             [--lock mkp.lock] [--diagnostics json] [--styles inline|external]
 //             html: a standalone page that draws the document (name.html: one file, offline, the
 //             renderer inlined, the Markdown inside it for readers with scripts off); html-md: the
 //             document's Markdown drawn as HTML, with no script (name.md.html); fragment: the
 //             document's first paint (name.fragment.html), for the element that mount(el, bundle,
-//             { hydrate: true }) takes over in place, with the bundle from the same build's ir
+//             { hydrate: true }) takes over in place, with the bundle from the same build's ir;
+//             --styles external leaves MKP's stylesheet out of it (the page loads mkp.css once)
 //             `-` reads one document from stdin (named by --name); several targets need --out;
 //             --diagnostics json writes each diagnostic to stderr as a line of JSON, for a host to read
 //   mkp check [docs…] --pack … [--format json]   packs and their fixtures (every definition has a
@@ -84,7 +85,7 @@ function parseArgs(argv: string[]): Args {
     else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=', 2);
       if (v !== undefined) out.opts[k] = v;
-      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
+      else if (['target', 'md', 'out', 'lock', 'profile', 'o', 'name', 'diagnostics', 'format', 'as', 'only', 'keep', 'take', 'from', 'core', 'styles'].includes(k) && i + 1 < argv.length && !argv[i + 1].startsWith('-')) out.opts[k] = argv[++i];
       else out.opts[k] = true;
     } else if (a === '-o') out.opts.o = argv[++i];
     else out.pos.push(a);
@@ -242,7 +243,9 @@ async function build(a: Args): Promise<number> {
       } else if (target === 'fragment') {
         // the document's first paint, for the element mount(el, bundle, { hydrate: true }) takes over;
         // the bundle to mount is this build's (--target ir,fragment)
-        text = firstPaint(bundle, { maths: maths ?? undefined });
+        // --styles external: MKP's stylesheet left out (the page loads mkp.css once), the document's tokens kept
+        if (a.opts.styles !== undefined && a.opts.styles !== 'inline' && a.opts.styles !== 'external') throw new Error(`--styles takes inline or external; found ${a.opts.styles}`);
+        text = firstPaint(bundle, { maths: maths ?? undefined, styles: a.opts.styles === 'external' ? 'external' : 'inline' });
         ext = '.fragment.html';
       } else {
         text = JSON.stringify(target === 'ir-expanded' ? expand(bundle) : bundle, null, a.opts.compact ? undefined : 1);
@@ -524,7 +527,7 @@ const HELP = `mkp ${VERSION}: Markdown Markup
 
   mkp build <docs|folders…|-> --pack <folder|file.mkpack> … [--profile name] [--name file.mkp.md]
             [--target ir|ir-expanded|md|html|html-md|fragment[,…]] [--md gfm,math,mermaid,html,images] [--out dir]
-            [--lock mkp.lock] [--diagnostics json]
+            [--lock mkp.lock] [--diagnostics json] [--styles inline|external]
   mkp check [docs…] --pack … [--format json]
   mkp index --pack …
   mkp show <name> --pack … [--source [--as new-name]]

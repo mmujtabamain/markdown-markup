@@ -585,6 +585,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `tokens` | your values for token names (step 7) |
 | `components` | your own components for base widgets (4.2) |
 | `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
+| `styles` | `'inline'` (the default) or `'external'`: MKP's stylesheet left to your page (below) |
 | `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
 | `options` | `RuntimeOptions`: `onSignal`, `onWarn`, `hosts`, `budgetCap`, `capabilities`, `answers`… |
@@ -601,6 +602,10 @@ What to know:
   colour. The box stays MKP's (`.mkp-icon`, `data-name`, `data-size`, `data-tone`, the label as
   `role=img`), so your icon needs no label of its own, and MKP's text symbol is left out.
   Documents still only name icons from the fixed set; what draws them is yours.
+- **Many documents on a page?** Each writes MKP's stylesheet (about 19 KB) and its tokens (about
+  2 KB). With `styles="external"` it writes only its tokens: load MKP's stylesheet once yourself,
+  as `mkp.css` from the web zip, or `mkpCss()` (`mkpCss({ neutral: false })` with your own
+  `components`) in your own stylesheet.
 - **CSS.** `MkpDocument` writes its own `<style>`: the layout rules, the shell, the neutral look and
   your tokens as `--mkp-*` custom properties, all in `@layer mkp`. There is no stylesheet to
   import. Any unlayered rule of yours beats it; if you use cascade layers, place it in your order
@@ -892,6 +897,11 @@ view.unmount();
   so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
+- **Many documents or first paints on one page.** Each writes MKP's stylesheet (about 19 KB) with
+  its own tokens (about 2 KB). Pass `styles: 'external'` to `mount()`, `firstPaint()` or
+  `mkp build --target fragment --styles external`, and load the web zip's `mkp.css` once in the
+  page: each then writes only its tokens. A first paint and the `mount()` that takes it over must be
+  told the same, or it is drawn again.
 - **Text and widgets at first paint.** `mkp build --target ir,fragment` also writes
   `name.fragment.html`: the document as `mount()` first draws it. Put it in the element on the
   server, then mount the same build's bundle with `hydrate: true`; `mount()` takes the HTML over
