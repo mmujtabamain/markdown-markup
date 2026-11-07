@@ -137,6 +137,19 @@ function renameTheme(roots: unknown[], ctx: StepContext): void {
   }
 }
 
+/** The fields 0.2.2's canvas records gained, with the defaults its compiler writes: a layer's clip, a circle's and a path's label. */
+function canvasDefaults(roots: unknown[]): void {
+  const fill = (o: Obj): void => {
+    if (o.node !== '$record') return;
+    const p = ((o.props as Obj | undefined) ?? (o.props = {})) as Obj;
+    if (o.record === 'layer' && !('clip' in p)) p.clip = { lit: [] };
+    if ((o.record === 'circle' || o.record === 'path') && !('label' in p)) p.label = { text: '' };
+  };
+  walk(roots, (o) => {
+    if (o.def === 'core:canvas@1') walk(o.records, fill);
+  });
+}
+
 export const step_0_2_2: Step = {
   from: '0.2.1',
   to: '0.2.2',
@@ -144,5 +157,8 @@ export const step_0_2_2: Step = {
   renames: [{ name: 'theme', why: 'the reader’s theme, which every definition reads, as width' }],
   removes: [],
   changes: [zoomMinscale, arrowEnds, selfBoth, stackOrder],
-  ir: renameTheme,
+  ir(roots, ctx) {
+    canvasDefaults(roots);
+    renameTheme(roots, ctx);
+  },
 };

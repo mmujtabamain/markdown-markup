@@ -10,7 +10,7 @@
 // update() keeps; a new bundle (setBundle) starts it again.
 
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
-import { Diagnostics, MathsEngine, needsMaths, prerender, Runtime, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
+import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
 import { MkpDocument, type TokenMap } from '@mkp/react';
 
 export interface MountOptions {
@@ -35,6 +35,11 @@ export interface MountOptions {
    * place rather than draw it again, so nothing moves. The bundle must be the one it was drawn from
    */
   hydrate?: boolean;
+  /**
+   * a bundle an older release built is migrated to this one as it loads: `keep` names the changes
+   * whose old look to keep (or 'all'), and `onWarn` hears what changed (the console by default)
+   */
+  migrate?: { keep?: string[] | 'all'; onWarn?: (warnings: Diagnostic[]) => void };
 }
 
 export interface MountedDocument {
@@ -54,7 +59,16 @@ let engine: Promise<MathsEngine> | null = null;
 const sharedMaths = (): Promise<MathsEngine> => (engine ??= MathsEngine.create());
 
 /** Draws `bundle` (from compile(), or a build's .ir.json) into `el`. */
+/** The bundle as this release draws it: migrated first when an older release built it. */
+function upToDate(b: IRBundle, opts: MountOptions): IRBundle {
+  if (!needsMigration(b)) return b;
+  const r = migrateBundle(b, { keep: opts.migrate?.keep });
+  if (r.warnings.length) (opts.migrate?.onWarn ?? ((w) => console.warn(`mkp-dom: migrated a ${r.from} bundle to ${r.to}`, w)))(r.warnings);
+  return r.bundle;
+}
+
 export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}): MountedDocument {
+  bundle = upToDate(bundle, opts);
   // made at the first drawing: a first paint stays on screen, untouched, until the document can draw
   let root: Root | null = null;
   let current = { ...opts };
@@ -117,6 +131,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
       draw();
     },
     setBundle(b) {
+      b = upToDate(b, opts);
       doc = b;
       // a document with maths after one without: the engine loads first, then it draws
       void drawFrom(b);

@@ -1,0 +1,177 @@
+// Migrations, proven on every example: (a) the core of the release it was written for compiles it and
+// the steps run on that IR; (b) the source is migrated (old core, steps, printed back, stamped) and
+// this release compiles it. (a) and (b) must be the same IR. The old core is the release's own
+// mkp.js, downloaded once into MKP_CACHE (or given with MKP_CORE_0_2_1, for working offline).
+import { beforeAll, describe, expect, it } from 'vitest';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { compile, formatDiagnostic, migrateBundle, readStamp, RELEASE, stepsBetween, stripPos, type IRBundle, type PackSource } from '@mkp/core';
+import { migrateDocument, migratePack, packAfter } from '../src/migrate';
+import { releaseCore, type ReleaseCore } from '../src/release-core';
+
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+const OLD = '0.2.1';
+let old: ReleaseCore;
+
+function folder(dir: string): PackSource {
+  const files = new Map<string, Uint8Array>();
+  const walk = (d: string): void => {
+    for (const n of readdirSync(d)) {
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) walk(p);
+      else files.set(relative(dir, p).split('\\').join('/'), new Uint8Array(readFileSync(p)));
+    }
+  };
+  walk(dir);
+  return { label: relative(process.cwd(), dir) || '.', files };
+}
+
+const examples = readdirSync(join(root, 'examples'))
+  .filter((n) => /^\d\d-/.test(n))
+  .map((n) => {
+    const dir = join(root, 'examples', n);
+    return { name: n, dir, packs: ['pack', 'host'].filter((p) => existsSync(join(dir, p))).map((p) => folder(join(dir, p))) };
+  });
+
+/** What must agree: the document's body and its own definitions, without positions and digests. */
+const shape = (b: IRBundle) => ({
+  front: Object.fromEntries(Object.entries(b.doc.front).filter(([k]) => k !== 'mkp' && k !== 'ir')),
+  body: stripPos(b.doc.body),
+  own: Object.values(b.defs)
+    .filter((d) => d.pack === '$doc' || !d.id.startsWith('core:'))
+    .map((d) => stripPos({ ...d, digest: undefined, file: undefined, ir: undefined }))
+    .sort((x, y) => (x.id < y.id ? -1 : 1)),
+});
+
+beforeAll(async () => {
+  expect(process.cwd() + "/").toBe(root);
+  old = await releaseCore(OLD, { core: process.env.MKP_CORE_0_2_1 });
+}, 120000);
+
+describe('the steps', () => {
+  it('run from 0.2.1 to this release, with no hole in the chain', () => {
+    expect(stepsBetween(OLD).map((s) => `${s.from} -> ${s.to}`)).toEqual(['0.2.1 -> 0.2.2']);
+    expect(stepsBetween(RELEASE)).toEqual([]);
+    expect(() => stepsBetween('0.2.2', '0.2.1')).toThrow(/can't migrate back/);
+  });
+});
+
+describe('every example migrated from 0.2.1: the IR route and the source route agree', () => {
+  it.each(examples.map((e) => [e.name, e] as const))('%s', async (_n, ex) => {
+    const path = join('examples', ex.name, 'doc.mkp.md');
+    const text = readFileSync(path, 'utf8');
+    const beside = existsSync(path.replace(/\.mkp\.md$/, '.mkp')) ? { text: readFileSync(path.replace(/\.mkp\.md$/, '.mkp'), 'utf8'), file: path.replace(/\.mkp\.md$/, '.mkp') } : undefined;
+    // (a) the old compiler, then the IR steps
+    const c = old.compile({ packs: ex.packs });
+    const b0 = c.document(text, path, undefined, beside ? { docFile: beside } : {}) as IRBundle | null;
+    expect(c.diags.errors.map((d) => d.message)).toEqual([]);
+    const a = migrateBundle(b0!, { keep: [] });
+    expect(a.bundle.mkp).toBe(RELEASE);
+    // (b) the source migrated, then this release's compiler
+    const m = await migrateDocument(path, { from: OLD, packs: ex.packs, keep: [], current: undefined, core: process.env.MKP_CORE_0_2_1 });
+    expect(m.errors).toEqual([]);
+    const docText = m.files.get(path)!;
+    expect(readStamp(docText, path)).toEqual({ mkp: RELEASE, ir: 1 });
+    const besideNew = beside ? { text: m.files.get(beside.file)!, file: beside.file } : undefined;
+    const c2 = compile({ packs: ex.packs });
+    const b2 = c2.document(docText, path, undefined, besideNew ? { docFile: besideNew } : {});
+    expect(c2.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const [x, y] = [shape(b2!), shape(a.bundle)];
+    if (JSON.stringify(x) !== JSON.stringify(y) && process.env.MKP_DIFF) {
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(`${process.env.MKP_DIFF}/${ex.name}.b.json`, JSON.stringify(x, null, 1));
+      writeFileSync(`${process.env.MKP_DIFF}/${ex.name}.a.json`, JSON.stringify(y, null, 1));
+    }
+    expect(x).toEqual(y);
+  }, 60000);
+});
+
+describe('a 0.2.1 pack with a widget whose input is called theme', () => {
+  const pack = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-'));
+    const p = join(dir, 'looks');
+    cpSync(join(root, 'examples/29-a-pack/pack'), p, { recursive: true });
+    writeFileSync(join(p, 'manifest.mkp'), 'pack looks@1 "Looks."\n  requires core@1\n  provides badge\n');
+    for (const f of readdirSync(p)) if (f !== 'manifest.mkp') rmSync(join(p, f), { recursive: true });
+    writeFileSync(join(p, 'badge.mkp'), '# a badge\nbadge@1 "A word on a coloured ground."\n  in word text\n  in theme choice(calm|loud) = calm "how it stands out"\n  row pad=s fill=(if(theme == loud, bad, muted)) radius=pill\n    text "\\val{word}"\n  project md = word\n');
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { loud: { props: { word: 'new', theme: 'loud' }, summary: 'A loud badge.' } } }, null, 2));
+    writeFileSync(join(dir, 'note.mkp.md'), '# A note\n\n```badge\nword: hi\ntheme: loud\nsummary: s\n```\n');
+    return dir;
+  };
+
+  it('migrates the pack: the input renamed in the widget and its fixture, stamped, and it checks', async () => {
+    const dir = pack();
+    const m = await migratePack(relative(process.cwd(), join(dir, 'looks')), { keep: [], core: process.env.MKP_CORE_0_2_1 });
+    expect(m.errors).toEqual([]);
+    const at = (f: string) => [...m.files].find(([p]) => p.endsWith(f))![1];
+    expect(at('badge.mkp').split('\n')[0]).toBe(`# mkp ${RELEASE} ir 1`);
+    expect(at('badge.mkp')).toContain('in look choice(calm|loud) = calm');
+    expect(at('badge.mkp')).toContain('if(look == loud, bad, muted)');
+    expect(at('badge.mkp')).toContain('# a badge');
+    expect(JSON.parse(at('badge.fixture.json')).cases.loud.props).toEqual({ word: 'new', look: 'loud' });
+    expect(at('manifest.mkp').split('\n')[0]).toBe(`# mkp ${RELEASE} ir 1`);
+    expect(m.result!.warnings.map((w) => w.code)).toEqual(['mkp.migrate-renamed']);
+    expect(m.result!.warnings[0].message).toContain('Documents elsewhere that set theme: on badge must be migrated too');
+  }, 60000);
+
+  it('migrates a document that uses it, compiled against the pack as it was and checked against it migrated', async () => {
+    const dir = pack();
+    const before = folder(join(dir, 'looks'));
+    const p = await migratePack(relative(process.cwd(), join(dir, 'looks')), { keep: [], core: process.env.MKP_CORE_0_2_1 });
+    // checked against the pack as it was, the result can't compile: say so, write nothing
+    const alone = await migrateDocument(relative(process.cwd(), join(dir, 'note.mkp.md')), { keep: [], core: process.env.MKP_CORE_0_2_1, packs: [before] });
+    expect(alone.errors.join('\n')).toMatch(/has no input "look"/);
+    const m = await migrateDocument(relative(process.cwd(), join(dir, 'note.mkp.md')), { keep: [], core: process.env.MKP_CORE_0_2_1, packs: [before], packsAfter: [packAfter(before, p)] });
+    expect(m.errors).toEqual([]);
+    const text = [...m.files.values()][0];
+    expect(text).toContain('look: loud');
+    expect(text).not.toMatch(/^theme:/m);
+  }, 60000);
+});
+
+describe('a stored 0.2.1 bundle', () => {
+  it('is migrated by its stamp, renamed, stamped and drawn by this runtime; kept looks are pinned', async () => {
+    const src = '```mkp\nq "A widget."\n  in theme text = "x"\n  zoom\n    text (theme)\n  project md = theme\n```\n\n```q\ntheme: dark\nsummary: s\n```\n';
+    const c = old.compile({ packs: [] });
+    const b = c.document(src, 'q.mkp.md') as IRBundle;
+    expect(b.mkp).toBeUndefined();
+    const plain = migrateBundle(b);
+    expect(plain.from).toBe(OLD);
+    expect(plain.bundle.mkp).toBe(RELEASE);
+    const q = Object.values(plain.bundle.defs).find((d) => d.name === 'q')!;
+    expect(q.inputs.map((i) => i.name)).toEqual(['look']);
+    expect(Object.keys(plain.bundle.doc.body[0].props!)).toContain('look');
+    expect(JSON.stringify(q.view)).not.toMatch(/minscale/);
+    const kept = migrateBundle(b, { keep: ['zoom-minscale'] });
+    expect(JSON.stringify(Object.values(kept.bundle.defs).find((d) => d.name === 'q')!.view)).toContain('"minscale":{"lit":0}');
+    expect(kept.kept).toEqual(['zoom-minscale']);
+    // the original is untouched
+    expect(Object.values(b.defs).find((d) => d.name === 'q')!.inputs[0].name).toBe('theme');
+  });
+});
+
+describe('mkp migrate, the command', () => {
+  it('migrates a pack and the documents using it in one run; --check fails until it is done', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    execFileSync(process.execPath, [join(root, 'packages/cli/scripts/build.mjs')], { stdio: 'ignore', timeout: 120000 });
+    const main = async (argv: string[]): Promise<number> => spawnSync(process.execPath, [join(root, 'packages/cli/dist/mkp.cjs'), ...argv], { cwd: root, encoding: 'utf8', timeout: 120000, env: process.env }).status ?? -1;
+    const dir = mkdtempSync(join(tmpdir(), 'mkp-mig-cli-'));
+    const p = join(dir, 'looks');
+    cpSync(join(root, 'examples/29-a-pack/pack'), p, { recursive: true });
+    for (const f of readdirSync(p)) rmSync(join(p, f), { recursive: true });
+    writeFileSync(join(p, 'manifest.mkp'), 'pack looks@1 "Looks."\n  requires core@1\n  provides badge\n');
+    writeFileSync(join(p, 'badge.mkp'), 'badge@1 "A word."\n  in word text\n  in theme choice(calm|loud) = calm\n  zoom\n    text "\\val{word}"\n  project md = word\n');
+    writeFileSync(join(p, 'badge.fixture.json'), JSON.stringify({ widget: 'badge@1', cases: { one: { props: { word: 'a', theme: 'loud' }, summary: 'One.' } } }));
+    writeFileSync(join(dir, 'note.mkp.md'), '# A note\n\n```badge\nword: hi\ntheme: loud\nsummary: s\n```\n');
+    const core = process.env.MKP_CORE_0_2_1 ? ['--core', process.env.MKP_CORE_0_2_1] : [];
+    const args = [relative(process.cwd(), p), relative(process.cwd(), join(dir, 'note.mkp.md')), '--keep', 'zoom-minscale', ...core];
+    expect(await main(['migrate', ...args, '--check'])).toBe(1);
+    expect(await main(['migrate', ...args, '--write'])).toBe(0);
+    expect(readFileSync(join(p, 'badge.mkp'), 'utf8')).toContain('zoom minscale=0');
+    expect(readFileSync(join(dir, 'note.mkp.md'), 'utf8')).toMatch(/^---\nmkp: 0\.2\.2\nir: 1\n---\n[\s\S]*look: loud/);
+    // now written for this release: nothing to do
+    expect(await main(['migrate', ...args.slice(0, 2), '--check'])).toBe(0);
+  }, 120000);
+});

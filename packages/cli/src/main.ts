@@ -58,7 +58,7 @@ import {
   type MdToggle,
   type PackSource,
 } from '@mkp/core';
-import { migrateBundleFile, migrateDocument, migratePack } from './migrate';
+import { migrateBundleFile, migrateDocument, migratePack, packAfter, type Migrated } from './migrate';
 import { firstPaint, htmlPage, markdownPage, markdownToHtml, pageTitle, pictureNames, withAssets } from '@mkp/page';
 // the page script of --target html (packages/page/dist/page.js), built in by scripts/build.mjs
 import PAGE_SCRIPT from 'mkp:page-script';
@@ -371,18 +371,26 @@ async function migrate(a: Args): Promise<number> {
     packs: a.packs.map(packSource),
   };
   const targets: string[] = [];
+  const packTargets: string[] = [];
   for (const p of a.pos) {
     const st = statSync(p, { throwIfNoEntry: false });
     if (!st) throw new Error(`no such file or folder: ${p}`);
-    if (st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) targets.push(p);
+    if (st.isDirectory() && existsSync(join(p, 'manifest.mkp'))) packTargets.push(p);
     else if (st.isDirectory()) targets.push(...docFiles([p]));
     else targets.push(p);
   }
+  // packs first: the documents that use them compile against them as they were, and are checked
+  // against them as they will be
+  const migratedPacks = new Map<string, Migrated>();
+  for (const p of packTargets) migratedPacks.set(resolve(p), await migratePack(p, opts));
+  const sources = [...packTargets.map(packSource), ...opts.packs.filter((x) => !packTargets.some((p) => resolve(p) === resolve(x.label)))];
+  Object.assign(opts, { packs: sources, packsAfter: sources.map((s) => (migratedPacks.has(resolve(s.label)) ? packAfter(s, migratedPacks.get(resolve(s.label))!) : s)) });
+  targets.unshift(...packTargets);
   if (targets.length > 1 && !a.opts.write && !a.opts.check) throw new Error('several files need --write (or --check)');
   let ok = true;
   let pending = false;
   for (const t of targets) {
-    const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : statSync(t).isDirectory() ? await migratePack(t, opts) : await migrateDocument(t, opts);
+    const m = t.endsWith('.json') ? migrateBundleFile(t, { keep: keep ?? [] }) : migratedPacks.get(resolve(t)) ?? (await migrateDocument(t, opts));
     const d = new Diagnostics();
     for (const w of m.result?.warnings ?? []) d.add(w);
     if (m.errors.length) {

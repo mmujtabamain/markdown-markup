@@ -89,3 +89,16 @@ describe('mount', () => {
     expect(warn.mock.calls.some((c) => String(c[0]).includes('the first paint did not match'))).toBe(true);
   });
 });
+
+describe('mount, an older bundle', () => {
+  it('migrates a bundle with no stamp (0.2.1) as it loads, and says what changed', async () => {
+    const b = bundle('```mkp\nq "A widget."\n  zoom\n    text "wide"\n  project md = "q"\n```\n\n```q\nsummary: s\n```\n');
+    delete (b as { mkp?: string }).mkp;
+    const heard: string[] = [];
+    const el = document.body.appendChild(document.createElement('div'));
+    const v = await mounted(el, b, { migrate: { keep: ['zoom-minscale'], onWarn: (w) => heard.push(...w.map((x) => x.code)) } });
+    expect(heard).toEqual(['mkp.migrate-kept']);
+    expect(el.textContent).toContain('wide');
+    expect(v.runtime).not.toBeNull();
+  });
+});

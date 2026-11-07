@@ -47,13 +47,25 @@ export interface SourceOptions {
   core?: string;
   /** --from: the release the files were written for, when they carry no stamp */
   from?: string;
-  /** the packs the documents use (their folders, as the build takes them) */
+  /** the packs the documents use, as they were (what the older core compiles them with) */
   packs?: PackSource[];
+  /** the same packs migrated, when they are migrated in the same run: what the result is checked against */
+  packsAfter?: PackSource[];
   /** this release's core, for files already written for it */
   current?: ReleaseCore;
 }
 
 const stampNow = { mkp: RELEASE, ir: IR_VERSION };
+
+/** Files already written for this release: left as they are, but for a stamp they lack. */
+function current(out: Migrated, files: [string, string][]): Migrated {
+  for (const [p, t] of files) {
+    if (readStamp(t, p)) continue;
+    out.files.set(p, writeStamp(t, p, stampNow));
+    out.changed.push(p);
+  }
+  return out;
+}
 
 async function coreFor(version: string, opts: SourceOptions): Promise<ReleaseCore> {
   if (version === RELEASE && opts.current) return opts.current;
@@ -91,6 +103,7 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const beside = besidePath !== path && existsSync(besidePath) ? { text: readFileSync(besidePath, 'utf8'), file: relative(process.cwd(), besidePath) || besidePath } : undefined;
   const from = opts.from ?? readStamp(text, file)?.mkp ?? UNSTAMPED;
   const out: Migrated = { files: new Map(), changed: [], from, result: null, errors: [] };
+  if (from === RELEASE) return current(out, [[file, text], ...(beside ? [[beside.file, beside.text] as [string, string]] : [])]);
   const core = await coreFor(from, opts);
   const c = core.compile({ packs: opts.packs ?? [] });
   const bundle = c.document(text, file, undefined, beside ? { docFile: beside } : {}) as IRBundle | null;
@@ -103,6 +116,9 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
   const own = documentItemsOf(core, c, text, file, beside);
   const roots = [bundle, own?.items];
   out.result = migrateRoots(roots, from, { keep: await answers(roots, from, opts) });
+  // what is said about the packs it uses belongs to migrating them: here, only its own files
+  const mine = new Set([file, beside?.file]);
+  out.result.warnings = out.result.warnings.filter((w) => !w.pos || mine.has(w.pos.file));
   const env = (own?.env ?? c.prog.typeEnv('$doc')) as never;
   const defs = (own ? Object.fromEntries(own.defs) : bundle.defs) as never;
   const docDef = Object.values(bundle.defs).find((d) => d.pack === '$doc' && d.name === 'document');
@@ -111,10 +127,18 @@ export async function migrateDocument(path: string, opts: SourceOptions = {}): P
     out.files.set(file, writeStamp(new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef), file, stampNow));
     if (ownText !== undefined) out.files.set(beside.file, writeStamp(ownText, beside.file, stampNow));
   } else out.files.set(file, writeStamp(new DocPrinter({ defs: bundle.defs, env }).doc(bundle.doc.front, bundle.doc.body, docDef, ownText), file, stampNow));
-  out.errors.push(...recheck(out.files, opts.packs ?? []));
+  out.errors.push(...recheck(out.files, opts.packsAfter ?? opts.packs ?? []));
   const before = new Map([[file, text], ...(beside ? [[beside.file, beside.text] as const] : [])]);
   out.changed = [...out.files].filter(([p, t]) => before.get(p) !== t).map(([p]) => p);
   return out;
+}
+
+/** A pack as it will be once `m` is written: its files with the migrated ones in their place. */
+export function packAfter(src: PackSource, m: Migrated): PackSource {
+  const files = new Map(src.files);
+  const enc = new TextEncoder();
+  for (const [p, t] of m.files) if (p.startsWith(src.label + '/')) files.set(p.slice(src.label.length + 1), enc.encode(t));
+  return { label: src.label, files };
 }
 
 /** A pack folder, every file of it, migrated; its fixtures follow the inputs renamed. */
@@ -135,6 +159,11 @@ export async function migratePack(folder: string, opts: SourceOptions = {}): Pro
   const manifest = files.get('manifest.mkp');
   const from = opts.from ?? (manifest ? readStamp(dec.decode(manifest), 'manifest.mkp')?.mkp : undefined) ?? UNSTAMPED;
   const out: Migrated = { files: new Map(), changed: [], from, result: null, errors: [] };
+  if (from === RELEASE)
+    return current(
+      out,
+      [...files].filter(([p]) => p.endsWith('.mkp')).map(([p, b]) => [`${label}/${p}`, dec.decode(b)] as [string, string]),
+    );
   if (!manifest) {
     out.errors.push(`${label} has no manifest.mkp, so it isn't a pack folder`);
     return out;

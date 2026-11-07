@@ -53,3 +53,11 @@ describe('stamps', () => {
     expect(compareReleases('0.2', '0.2.1')).toBe(-1);
   });
 });
+
+describe('the migration steps', () => {
+  it('end at this release: a release ships its step (an empty one is fine)', async () => {
+    const { STEPS, stepsBetween } = await import('../src/migrate/index');
+    expect(STEPS[STEPS.length - 1].to).toBe(RELEASE);
+    expect(() => stepsBetween(UNSTAMPED)).not.toThrow();
+  });
+});
