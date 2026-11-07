@@ -406,6 +406,15 @@ A pack is a folder: `manifest.mkp` (`pack name@N`, `requires core@1`, `depends o
 only through `depends`. To change a pack's widget, copy it (example 28): nothing links the copy to
 it, and the `# from …` line is only for review.
 
+A published version keeps its behaviour. A breaking change is a new version beside the old one:
+mark the old one `deprecated "use walk@2: …"` (its uses are warned), and say how a use moves with
+a top-level `migrate walk@1 -> walk@2` block (`rename a -> b`, `drop a "why"`, `keep a = value
+"why"`), which `mkp check` proves on the old version's fixtures and `mkp migrate` applies.
+
+A file's first line `# mkp 0.2.2 ir 1` (or `mkp:` and `ir:` in a document's front matter) says
+which release it was written for; `mkp migrate` brings it up to this one (the integration guide,
+8.3).
+
 ## What the compiler refuses, on purpose
 
 The examples in `examples/limits` each fail, with these codes:

@@ -1342,10 +1342,91 @@ A port of the runtime (4.4) runs every `conformance/cases/*.json` in its own lan
    `--no-lock` so `mkp.lock` records the new core digests, and commit it.
 4. If you have your own components, check the new commit's `BASE_WIDGETS` and props against them:
    the conformance render test catches a base widget you don't draw.
-5. Rebuild stored bundles: an old bundle may not match the new runtime.
+5. Migrate what was written for the older release (8.3): your documents, your packs and the
+   bundles you store.
 
 To work on MKP and your app together, replace `mkp/` with a symlink to an MKP checkout; the
 script leaves a symlink alone.
+
+### 8.3 Migrating to a new release
+
+Every bundle, lock and source says which release wrote it: `"mkp": "0.2.2"` beside `"ir": 1` in a
+bundle and a lock, `mkp: 0.2.2` and `ir: 1` in a document's front matter, and a first line
+`# mkp 0.2.2 ir 1` in a `.mkp` file (a pack's files, its manifest, a document's own `.mkp`). The
+stamp is no comment of what follows and not part of a pack's digest, so restamping never trips the
+lock. A file without one was written for 0.2.1. `mkp fmt` writes it.
+
+Each release ships one step that brings the previous release's IR up to date, and `mkp migrate`
+runs every step from a file's release to this one:
+
+```sh
+mkp migrate notes/ --pack lib --check            # CI: exit 1 while anything is written for an older release
+mkp migrate lib/ notes/ --write                  # packs first, then the documents that use them
+mkp migrate notes/ --keep zoom-minscale --write  # keep an old look where it can be kept (--keep all)
+mkp migrate notes/ --take all --write            # take every new behaviour, without asking
+mkp migrate saved.ir.json --write                # a bundle an older release built
+mkp migrate old.mkpack --write                   # a released pack: written back as a .mkpack
+mkp migrate notes/ --core mkp-web-0.2.1.zip      # offline: the older release's web files
+```
+
+- **A source goes through the IR.** It is compiled by the core of the release it was written for
+  (its `mkp.js`, downloaded once from the release into `~/.cache/mkp/<version>/` or `MKP_CACHE`,
+  and checked against the release's `SHA256SUMS`; or given with `--core`). Then the steps run, and
+  this release's printer writes it back **in canonical form** (layout normalised, comments kept)
+  with its new stamp. This release then compiles the result, and nothing is written if it doesn't
+  compile.
+- **Nothing changes silently.** Each change is a warning at its line: `mkp.migrate-renamed` (a name
+  a release took for itself, renamed in what you wrote, with every use of it),
+  `mkp.migrate-changed` (it draws differently now), `mkp.migrate-kept` (you kept the old look),
+  `mkp.migrate-removed`, and for packs `mkp.migrate-moved`.
+- **The old look, where it can be kept, is yours to choose.** On a terminal it asks, one change at
+  a time; `--keep id,…`, `--keep all` and `--take all` answer for CI. A kept look is written into
+  the source (`zoom minscale=0`), where it can be seen and later removed. Where it can't be kept,
+  the warning says why.
+- **Renames reach only what MKP can see.** Your app's own code that names an input, a signal or
+  a command is out of reach; a rename of one of those says so.
+- **Documents that use a pack** are compiled against the pack as it was and checked against it
+  migrated, so migrate them in the same run as the pack.
+- **Stored bundles in a page:** `mount(el, bundle, { migrate: { keep, onWarn } })` upgrades a bundle
+  an older release built as it loads; `migrateBundle(bundle, { keep })` (in `mkp-runtime.js`) does
+  it anywhere and returns the warnings.
+
+The website's Migrations tab lists, per release, what migrates by itself, what to check by hand, and
+a before and after.
+
+### 8.4 A pack's own versions
+
+A published version keeps its behaviour (2.3). A breaking change is a new version beside the old
+one, and the old one says what to use instead:
+
+```txt
+walk@1 "A walk."
+  deprecated "use walk@2: from is now start"
+  in from text
+  in speed num = 1
+  …
+
+walk@2 "A walk."
+  in start text
+  in look choice(classic|new) = new
+  …
+
+migrate walk@1 -> walk@2
+  rename from -> start
+  drop speed "walk@2 sets its own pace"
+  keep look = classic "walk@1's look"
+```
+
+- **Every use of a deprecated version** is warned (`mkp.deprecated`) with its text.
+- **The `migrate` block says how a use moves**, in MKP (no code from a pack runs): an input
+  renamed, dropped with why, or set to keep the old look. The compiler checks it against both
+  versions: every input of the old version goes somewhere, and every input the new one needs is given.
+- **`mkp check --pack` proves it:** every fixture case of the old version, moved (with and without
+  the kept look), must compile against the new one (`mkp.migrate-pack-case`).
+- **`mkp migrate doc.mkp.md --pack lib`** moves the uses, current release or not, asking whether
+  to keep the old look (`--keep walk@2`).
+- A copy made with `mkp show --source --as` is your own source: it migrates with releases like any
+  file, and is never moved to the pack's new version.
 
 ---
 

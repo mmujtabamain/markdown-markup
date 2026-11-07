@@ -222,3 +222,14 @@ describe('a released .mkpack from 0.2.1', () => {
     expect(JSON.parse(text('badge.fixture.json')).cases.one.props).toEqual({ word: 'a', look: 'y' });
   }, 120000);
 });
+
+describe('the Migrations tab’s example', () => {
+  it('is what mkp migrate writes and says', async () => {
+    const dir = 'apps/site/migrations/0.2.2';
+    const m = await migrateDocument(join(dir, 'before.mkp.md'), { keep: [], core: process.env.MKP_CORE_0_2_1 });
+    expect(m.errors).toEqual([]);
+    expect([...m.files.values()][0]).toBe(readFileSync(join(dir, 'after.mkp.md'), 'utf8'));
+    const said = readFileSync(join(dir, 'said.txt'), 'utf8');
+    for (const w of m.result!.warnings) expect(said).toContain(`before.mkp.md:${w.pos!.line}:${w.pos!.col} warning ${w.code}: ${w.message}`);
+  });
+});

@@ -23,3 +23,9 @@ summary: One sentence on the biggest change, at most 140 characters.
   `apps/site/whats-new/<version>.mkp.md`, each change a `###` line with a live widget (or, for a
   change only a host sees, its code) under it. `apps/site/test/whats-new.test.tsx` checks that every
   page compiles and that every line has its demonstration.
+- **Every release ships a migration step**, `packages/core/src/migrate/steps/<version>.ts`, listed
+  in `steps/index.ts`, even when it changes nothing (`ir() {}` with no changes): a test fails while
+  the last step doesn't end at `VERSION`. A step says what it renamed, removed and now draws
+  differently, and whether the old look can be kept. When it changes something a reader sees, add
+  `apps/site/migrations/<version>/before.mkp.md`, and the `after.mkp.md` and `said.txt` that
+  `mkp migrate before.mkp.md --take all` writes and says (a test holds them to it).

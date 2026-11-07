@@ -71,6 +71,11 @@ pnpm --filter @mkp/cli sea       # packages/cli/dist/mkp, a single executable
 ```
 
 ```sh
+mkp migrate lib/ notes/ --write                    # packs and documents written for an older release, brought up to this one
+mkp migrate notes/ --pack lib --check              # CI: fails while anything is written for an older release
+```
+
+```sh
 mkp check lesson.mkp.md --pack lib --format json   # errors, one a line, at the exact line and column
 mkp build lesson.mkp.md --pack lib --target md --md gfm,math [--no-answers]
 mkp build lesson.mkp.md --pack lib --target html,html-md --out site   # site/lesson.html: one offline page; lesson.md.html: its Markdown

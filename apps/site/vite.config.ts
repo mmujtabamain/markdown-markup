@@ -23,9 +23,9 @@ export default defineConfig({
   server: { fs: { allow: [root] }, port: 5181, strictPort: true },
   // the DevBench preview serves the built playground with `vite preview` behind its own host name
   preview: { port: 5182, strictPort: true, allowedHosts: ['.preview.devbench.sh'] },
-  // three app pages: the landing page at /, the examples (the playground) at examples/, and what's
-  // new at whats-new/ (each release drawn live). The docs are static pages in public/docs/, written
+  // four app pages: the landing page at /, the examples (the playground) at examples/, what's new
+  // at whats-new/ (each release drawn live), and migrations/ (moving from one release to the next). The docs are static pages in public/docs/, written
   // in MKP and compiled once (pnpm site:docs)
-  build: { chunkSizeWarningLimit: 6000, target: 'es2022', rollupOptions: { input: { index: at('index.html'), examples: at('examples/index.html'), 'whats-new': at('whats-new/index.html') } } },
+  build: { chunkSizeWarningLimit: 6000, target: 'es2022', rollupOptions: { input: { index: at('index.html'), examples: at('examples/index.html'), 'whats-new': at('whats-new/index.html'), migrations: at('migrations/index.html') } } },
   optimizeDeps: { esbuildOptions: { target: 'es2022' } },
 });

@@ -678,3 +678,23 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      `slot name if=(…)` is allowed.
 147. **A frame's stage is an arrow host.** *Reading (6.10).* Always, not only when full screen or of
      a fixed height, so lines `layer=behind` between what it holds draw over its surface.
+148. **Version stamps.** *Extension (13, 15).* A bundle and a lock carry `mkp` (the release, from
+     `RELEASE` in core, held to `VERSION` by a test) beside `ir`; a document carries `mkp:` and `ir:`
+     in its front matter; a `.mkp` file carries `# mkp <release> ir <n>` as its first line. That
+     line is not a comment of what follows, and a pack's digest hashes its `.mkp` files without it.
+     Unstamped means 0.2.1. `mkp fmt` writes the stamp.
+149. **Migrations.** *Extension (15).* `packages/core/src/migrate`: one step per release
+     (`from`, `to`, `renames`, `removes`, behaviour `changes` each keepable with a pin or not, and
+     an IR function), chained by release; the last step ends at `RELEASE` (a test). `mkp migrate`
+     compiles a source with the core of its stamped release (the release's `mkp.js`: `--core`,
+     `MKP_CACHE`, or downloaded and checked against `SHA256SUMS`), runs the steps on its IR (and on
+     the printer's items for its own definitions: `documentItems()`), prints it with this
+     release's printer, stamps it, and compiles it again before writing. `migrateBundle` does the
+     IR part for stored bundles; `mount({ migrate })` uses it. Every example is migrated from
+     0.2.1 in the tests, by both routes (IR, and source then compile), which must agree.
+150. **A pack's own versions.** *Extension (5.4, 6.17).* `deprecated "…"` on a definition
+     (`mkp.deprecated` at every use, the definition's own uses aside) and a top-level
+     `migrate a@N -> a@M` block in a pack (`rename`, `drop … "why"`, `keep … = value "why"`),
+     checked against both definitions, proven on the old version's fixtures by `mkp check`, and
+     applied by `mkp migrate` to documents. A pack's migrate block is MKP, not code: no pack's
+     code ever runs.

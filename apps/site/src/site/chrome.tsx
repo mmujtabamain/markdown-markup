@@ -34,7 +34,7 @@ export function useTheme(): [Theme, () => void] {
 }
 
 /** The site's sections. `up` is the way from this page to the site's root ('' or '../'). */
-export type Section = 'home' | 'docs' | 'examples' | 'whats-new';
+export type Section = 'home' | 'docs' | 'examples' | 'whats-new' | 'migrations';
 
 export function Logo({ up = '' }: { up?: string }): ReactNode {
   return (
@@ -49,16 +49,19 @@ export function Logo({ up = '' }: { up?: string }): ReactNode {
   );
 }
 
-const SECTION_LABEL = { docs: 'Docs', examples: 'Examples', 'whats-new': "What's new" } as const;
+const SECTION_LABEL = { docs: 'Docs', examples: 'Examples', 'whats-new': "What's new", migrations: 'Migrations' } as const;
+/** On a phone the four sections share one row: shorter names */
+const SHORT_LABEL = { docs: 'Docs', examples: 'Examples', 'whats-new': 'New', migrations: 'Migrate' } as const;
 
 /** Docs, Examples and What's new: the site's sections, the current one marked. */
 export function SectionLinks({ at, up = '' }: { at: Section; up?: string }): ReactNode {
   return (
     <>
-      {(['docs', 'examples', 'whats-new'] as const).map((s) => (
-        <Button key={s} variant="ghost" size="sm" asChild className={cn('px-2 sm:px-3', at === s && 'bg-accent text-accent-foreground')}>
+      {(['docs', 'examples', 'whats-new', 'migrations'] as const).map((s) => (
+        <Button key={s} variant="ghost" size="sm" asChild className={cn('px-1.5 sm:px-3', at === s && 'bg-accent text-accent-foreground')}>
           <a href={`${up}${s}/`} className="whitespace-nowrap" aria-current={at === s ? 'page' : undefined} data-site-section={s}>
-            {SECTION_LABEL[s]}
+            <span className="hidden sm:inline">{SECTION_LABEL[s]}</span>
+            <span className="sm:hidden">{SHORT_LABEL[s]}</span>
           </a>
         </Button>
       ))}
@@ -69,7 +72,7 @@ export function SectionLinks({ at, up = '' }: { at: Section; up?: string }): Rea
 export function SiteHeader({ theme, toggle, at, up = '', wide, before }: { theme: Theme; toggle: () => void; at: Section; up?: string; wide?: boolean; before?: ReactNode }): ReactNode {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-      <div className={cn('mx-auto flex h-14 items-center gap-2 px-4', wide ? 'max-w-none' : 'max-w-6xl')}>
+      <div className={cn('mx-auto flex h-14 items-center gap-2 px-3 sm:px-4', wide ? 'max-w-none' : 'max-w-6xl')}>
         {before}
         <Logo up={up} />
         <nav className="ml-auto flex items-center gap-0.5 text-sm sm:gap-1" aria-label="Site">
