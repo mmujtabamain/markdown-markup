@@ -26,22 +26,88 @@ const PlainButton: ShellButton = ({ label, onClick, pressed, children }) => (
   </button>
 );
 
-/** A symbol: the provider's, or a text one. */
-export function Icon({ n, attrs, style }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties }): ReactNode {
+/** What a host's icon is given: the name a document chose (one of the fixed set), and how to draw it. */
+export interface HostIconProps {
+  name: string;
+  size: 'small' | 'normal' | 'large';
+  /** the tone the document asked for (a colour token's name: accent, ok…), or none for the text's own colour */
+  tone: string;
+  /** that tone as a CSS colour (a var() of the token), which the box's own color already is */
+  color: string;
+  /** what it says to a screen reader; the box carries it, so the icon itself needs no label */
+  label?: string;
+  /** a class for the icon's own element: it fills its box (1em, the box's colour) */
+  className: string;
+}
+export type IconComponent = ComponentType<HostIconProps>;
+/** A host's icons: one component for every name, or one per name (the rest stay MKP's). */
+export type MkpIcons = IconComponent | Partial<Record<string, IconComponent>>;
+
+/** The host's icon for `name`, if it has one. */
+export function hostIcon(icons: MkpIcons | undefined, name: string): IconComponent | undefined {
+  if (!icons) return undefined;
+  // a function component, or memo()/forwardRef() (objects React knows by their $$typeof)
+  if (typeof icons === 'function' || '$$typeof' in icons) return icons as IconComponent;
+  return (icons as Partial<Record<string, IconComponent>>)[name];
+}
+
+/**
+ * A host's icons as mount() and firstPaint() take them, with no React of their own: an SVG string
+ * (the same markup in the first paint and once mounted), or a function that draws into the box once
+ * it is in the page and returns how to clean up. One for every name, or one per name.
+ */
+export type DomIcon = string | ((box: HTMLElement, props: Omit<HostIconProps, 'className'>) => void | (() => void));
+export type DomIcons = DomIcon | Partial<Record<string, DomIcon>>;
+
+function DomIconBox({ draw, ...props }: HostIconProps & { draw: DomIcon }): ReactNode {
+  const box = useRef<HTMLSpanElement>(null);
+  const { className, name, size: sz, tone, color: c, label } = props;
+  useLayoutEffect(() => {
+    if (typeof draw !== 'function' || !box.current) return;
+    const el = box.current;
+    const done = draw(el, { name, size: sz, tone, color: c, label });
+    return () => {
+      if (typeof done === 'function') done();
+      el.replaceChildren();
+    };
+  }, [draw, name, sz, tone, c, label]);
+  // the host's markup is its own: MKP puts it in the box as given
+  return typeof draw === 'string' ? <span ref={box} className={className} dangerouslySetInnerHTML={{ __html: draw }} /> : <span ref={box} className={className} />;
+}
+
+/** mount()'s and firstPaint()'s icons as the components <MkpDocument icons> takes. */
+export function domIcons(icons: DomIcons | undefined): MkpIcons | undefined {
+  if (icons === undefined) return undefined;
+  const one = (draw: DomIcon): IconComponent => {
+    const C = (p: HostIconProps): ReactNode => <DomIconBox {...p} draw={draw} />;
+    return C;
+  };
+  if (typeof icons === 'string' || typeof icons === 'function') return one(icons);
+  return Object.fromEntries(Object.entries(icons).flatMap(([k, v]) => (v === undefined ? [] : [[k, one(v)]])));
+}
+
+/** A symbol: the host's (icons), or a text one. */
+export function Icon({ n, attrs, style, icons }: { n: VNode; attrs?: Record<string, unknown>; style?: CSSProperties; icons?: MkpIcons }): ReactNode {
   const label = n.p.label ? String(n.p.label) : undefined;
+  const name = String(n.p.name);
+  const sz = (n.p.size ?? 'normal') as HostIconProps['size'];
+  const tone = n.p.tone ? String(n.p.tone) : 'none';
+  const Host = hostIcon(icons, name);
   return (
     <span
       {...attrs}
       className="mkp-icon"
       // the icon's name, so a host's stylesheet can swap in its own symbol or adjust one
-      data-name={String(n.p.name)}
-      data-size={String(n.p.size ?? 'normal')}
+      data-name={name}
+      data-size={sz}
+      data-tone={Host ? tone : undefined}
+      data-host={Host ? '' : undefined}
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
       style={{ color: color(n.p.tone), ...style }}
     >
-      {ICON_GLYPHS[String(n.p.name)] ?? '•'}
+      {Host ? <Host name={name} size={sz} tone={tone} color={color(n.p.tone) ?? 'currentColor'} label={label} className="mkp-icon-host" /> : (ICON_GLYPHS[name] ?? '•')}
     </span>
   );
 }
@@ -435,6 +501,10 @@ export const SHELL_CSS = layer(`
 .mkp-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; width: 1.1em; height: 1.1em; flex: none; }
 .mkp-icon[data-size=small] { font-size: 0.8em; } .mkp-icon[data-size=large] { font-size: 1.4em; }
 /* help is a question in a circle, as info is an i in one; the ring is drawn, since text has no circled ? */
+/* a host's icon fills the box; the circled help is MKP's own drawing, not the host's */
+.mkp-icon-host { display: inline-flex; width: 1em; height: 1em; }
+.mkp-icon-host > svg { width: 100%; height: 100%; }
+.mkp-icon[data-host][data-name=help] { width: 1.1em; height: 1.1em; border-radius: 0; box-shadow: none; font-size: inherit; }
 .mkp-icon[data-name=help] { font-size: 0.78em; width: 1.4em; height: 1.4em; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; font-weight: 700; }
 .mkp-icon[data-name=help][data-size=small] { font-size: 0.62em; } .mkp-icon[data-name=help][data-size=large] { font-size: 1.1em; }
 .mkp-shell-button { padding: 2px 6px; min-width: 26px; min-height: 26px; justify-content: center; }

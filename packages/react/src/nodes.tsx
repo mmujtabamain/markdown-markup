@@ -6,7 +6,7 @@ import type { Runtime, VNode, VRun } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
 import { Arrows } from './arrows';
-import { Frame, Icon, Pane, Zoom } from './shell';
+import { Frame, Icon, Pane, Zoom, type MkpIcons } from './shell';
 
 /** What a host's route gets: the node, what goes on its outer element, and how to report events. */
 export interface HostProps {
@@ -35,6 +35,8 @@ export type MkpComponents = Record<BaseWidget, HostRoute>;
 export interface Ctx {
   rt: Runtime;
   components?: MkpComponents;
+  /** a host's icons, drawn in place of MKP's text symbols */
+  icons?: MkpIcons;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);
@@ -361,7 +363,7 @@ function useKeep(n: VNode): void {
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
 
 export function Node({ n }: { n: VNode }): ReactNode {
-  const { rt, components } = useCtx();
+  const { rt, components, icons } = useCtx();
   useKeep(n);
   const p = n.p;
   // data-mkp names the base widget, so a provider's stylesheet can say what it styles
@@ -558,7 +560,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'zoom':
       return <Zoom n={n} attrs={common} style={lay} />;
     case 'icon':
-      return <Icon n={n} attrs={common} style={lay} />;
+      return <Icon n={n} attrs={common} style={lay} icons={icons} />;
     default:
       // a transitional extern this renderer does not implement: say so, accessibly
       return (

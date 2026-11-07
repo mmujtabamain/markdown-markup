@@ -706,3 +706,11 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      values. Checked like inputs: every old field goes somewhere, every field the new record needs is
      given or defaulted (filled in stored bundles), and every value of an old choice lands in the
      new one. A breaking change to a pack's widget is a new version with a migrate block.
+
+152. **A host's icons.** *Renderer (8, 6.6).* Each renderer takes the host's icons, for one name or
+     all: `@mkp/react` and `@mkp/react-native` any component (given name, size, tone, colour and
+     label; `className` on the web, `px` on React Native), `mount()` and `firstPaint()` an SVG
+     string or a function that draws into the box. The core stays target-neutral, and documents
+     still name icons only from the fixed set. The box keeps `data-name`, `data-size`, its colour
+     and its label (now with `data-tone` and `data-host`); MKP's text symbol is left out. The
+     host's markup is its own and goes in as given.

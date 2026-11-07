@@ -90,6 +90,57 @@ describe('mount', () => {
   });
 });
 
+describe('mount, a host’s icons', () => {
+  const icons = bundle('```mkp\nicons "Two icons."\n  row\n    icon name=help label="Help"\n    icon name=info tone=accent\n  project md = "i"\n```\n\n```icons\nsummary: s\n```\n');
+  const HELP = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>';
+
+  it('puts an SVG string in the box, for one name; the others keep MKP’s symbol', async () => {
+    const el = document.body.appendChild(document.createElement('div'));
+    await mounted(el, icons, { icons: { help: HELP } });
+    const help = el.querySelector<HTMLElement>('.mkp-icon[data-name=help]')!;
+    expect(help.querySelector('.mkp-icon-host')!.innerHTML).toBe(HELP);
+    expect(help.textContent).toBe('');
+    expect(help.getAttribute('aria-label')).toBe('Help');
+    expect(el.querySelector('.mkp-icon[data-name=info]')!.textContent).toBe('ⓘ');
+  });
+
+  it('calls a render function with the box and the icon’s props, and its cleanup on unmount', async () => {
+    const seen: string[] = [];
+    const cleaned: string[] = [];
+    const draw = (box: HTMLElement, p: { name: string; size: string; tone: string; color: string; label?: string }) => {
+      seen.push(`${p.name} ${p.size} ${p.tone} ${p.color} ${p.label ?? '-'}`);
+      box.textContent = `[${p.name}]`;
+      return () => cleaned.push(p.name);
+    };
+    const el = document.body.appendChild(document.createElement('div'));
+    const v = await mounted(el, icons, { icons: draw });
+    expect(seen.sort()).toEqual(['help normal none currentColor Help', 'info normal accent var(--mkp-color-accent) -']);
+    expect(el.querySelector('.mkp-icon[data-name=info]')!.textContent).toBe('[info]');
+    // other options: the same icons are not drawn again
+    act(() => v.update({ theme: 'dark' }));
+    expect(seen).toHaveLength(2);
+    act(() => v.unmount());
+    views = [];
+    expect(cleaned.sort()).toEqual(['help', 'info']);
+  });
+
+  it('takes over a first paint drawn with the same icons, in place, and fills a render function’s box then', async () => {
+    const opts = { icons: { help: HELP, info: (box: HTMLElement) => void (box.textContent = 'i') } };
+    const el = document.body.appendChild(document.createElement('div'));
+    el.innerHTML = firstPaint(icons, opts);
+    expect(el.querySelector('.mkp-icon[data-name=help] .mkp-icon-host')!.innerHTML).toBe(HELP);
+    expect(el.querySelector('.mkp-icon[data-name=info] .mkp-icon-host')!.textContent).toBe('');
+    const root = el.querySelector('.mkp-root');
+    const warn = vi.spyOn(console, 'warn');
+    const error = vi.spyOn(console, 'error');
+    await mounted(el, icons, { ...opts, hydrate: true });
+    expect(el.querySelector('.mkp-root')).toBe(root);
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(el.querySelector('.mkp-icon[data-name=info] .mkp-icon-host')!.textContent).toBe('i');
+  });
+});
+
 describe('mount, an older bundle', () => {
   it('migrates a bundle with no stamp (0.2.1) as it loads, and says what changed', async () => {
     const b = bundle('```mkp\nq "A widget."\n  zoom\n    text "wide"\n  project md = "q"\n```\n\n```q\nsummary: s\n```\n');

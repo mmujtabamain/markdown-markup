@@ -581,6 +581,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `theme` | `'light'`, `'dark'` or `'auto'` (the default: follows `prefers-color-scheme`) |
 | `tokens` | your values for token names (step 7) |
 | `components` | your own components for base widgets (4.2) |
+| `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
 | `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
 | `options` | `RuntimeOptions`: `onSignal`, `onWarn`, `hosts`, `budgetCap`, `capabilities`, `answers`… |
@@ -589,6 +590,14 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 
 What to know:
 
+- **Your icons.** `icons` takes any React component, for every name or for some
+  (`icons={{ help: HelpIcon }}`; the rest keep MKP's symbols). It is given
+  `{ name, size, tone, color, label, className }`: `size` is `small`, `normal` or `large`, `tone`
+  the token the document asked for (`none` for the text's colour) and `color` that tone as a CSS
+  colour. Put `className` on your root element and it fills the box, 1em square, in the box's
+  colour. The box stays MKP's (`.mkp-icon`, `data-name`, `data-size`, `data-tone`, the label as
+  `role=img`), so your icon needs no label of its own, and MKP's text symbol is left out.
+  Documents still only name icons from the fixed set; what draws them is yours.
 - **CSS.** `MkpDocument` writes its own `<style>`: the layout rules, the shell, the neutral look and
   your tokens as `--mkp-*` custom properties, all in `@layer mkp`. There is no stylesheet to
   import. Any unlayered rule of yours beats it; if you use cascade layers, place it in your order
@@ -738,7 +747,12 @@ function Lesson({ bundle }: { bundle: IRBundle }) {
 ```
 
 Props: `bundle`, `runtime`, `maths`, `theme` (`'auto'` follows `useColorScheme()`), `tokens`,
-`reducedMotion` (default: the system's setting), `options`, `style`.
+`icons`, `reducedMotion` (default: the system's setting), `options`, `style`.
+
+- `icons` takes any React Native component, for every name or for some (`{ help: HelpIcon }`),
+  given `{ name, size, tone, color, px, label }`: `px` is its size in points (the body text's,
+  scaled for `small` and `large`) and `color` its tone resolved. The box carries the label, and
+  MKP's text symbol is left out.
 
 - Compile at build time and ship the IR: maths then arrives typeset. `MathsEngine` does run on
   Hermes, but typesetting there is slow (spoken maths takes about 134 ms a formula).
@@ -851,6 +865,7 @@ const view = mount(el, bundle, {
   tokens: { space: { m: { value: 12 } } },    // your values for token names (7.2)
   onSignal: (e) => console.log(e.name, e.payload),
   maths: 'auto',                              // the default; null draws formulas as their TeX
+  icons: { help: helpSvg },                   // your icons (below)
   className: 'lesson',
 });
 await view.ready;                             // drawn
@@ -867,12 +882,21 @@ view.unmount();
   (`mkp build --target ir`) and the page loads `mkp-dom.js`, `mkp-runtime.js` and `mkp-shared.js`
   only. A page that also compiles in the browser imports `mkp.js` as well, and loads the shared
   part once.
+- **Your icons.** `icons` is an SVG string, which `mount()` puts in the icon's box as given, or a
+  function that draws into the box, `(box, { name, size, tone, color, label }) => cleanup`, for
+  icons from your own framework (a Vue or Svelte component mounted into `box`, say). One for every
+  name, or `{ help: svg, info: draw }` for some: the rest keep MKP's symbols. The markup is yours,
+  so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
+  label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
+  `icons` to `update()` (a new object draws them again).
 - **Text and widgets at first paint.** `mkp build --target ir,fragment` also writes
   `name.fragment.html`: the document as `mount()` first draws it. Put it in the element on the
   server, then mount the same build's bundle with `hydrate: true`; `mount()` takes the HTML over
   in place, so nothing is swapped and nothing moves, and it stays as it is until the runtime is
-  ready. Pass `mount()` the theme, tokens and class the fragment was drawn with (the CLI draws it
-  with none; `firstPaint(bundle, { theme, tokens, className })` from `@mkp/page` takes them).
+  ready. Pass `mount()` the theme, tokens, icons and class the fragment was drawn with (the CLI draws
+  it with none; `firstPaint(bundle, { theme, tokens, icons, className })` from `@mkp/page` takes
+  them). An SVG string is in the first paint; a function's box is empty there and filled once
+  mounted.
   A fragment that isn't this bundle's is drawn again, with a warning on the console.
 
 ```html
@@ -1193,7 +1217,7 @@ a note under **Changed** in a release:
 | a press | `mkp-press`, `mkp-press-<kind>`, `data-kind` | every press; one kind (`button`, `toggle`, `switch`, `check`, `radio`, `option`, `tab`, `plain`); the kind again |
 | a press | `aria-pressed`, `aria-checked`, `aria-selected`, `disabled` | its state, by kind |
 | a switch | `.mkp-switch > .mkp-switch-thumb` | its track and thumb, the press's first child; the thumb moves 16 px when it is on. MKP animates nothing (SPEC-NOTES 102): give the thumb a `transition` of your own to make it slide |
-| an icon | `mkp-icon`, `data-name`, `data-size` | the icon's name (`help`, `info`…), so you can swap in your own symbol |
+| an icon | `mkp-icon`, `data-name`, `data-size` (and, drawn by your `icons`, `data-tone`, `data-host`) | the icon's name (`help`, `info`…); to draw your own, pass `icons` (4.1, 4.3, 4.7) |
 | a canvas shape that listens | `data-pointed`, and `data-press` with `role=button` when it takes `@click` | a circle or path with `@enter`, `@leave` or `@click` |
 | the root | `mkp-root`, `data-theme` | the stylesheet's scope; `light` or `dark` when it is fixed |
 | a canvas layer with `clip=` | `clip-path` on its `<g>` | the rectangle its shapes stop at |
