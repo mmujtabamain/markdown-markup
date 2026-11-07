@@ -17,6 +17,7 @@ Every command and snippet below was run against this repo. Outputs are real and 
 |---|---|
 | React on the web | 1, 2, 3, 4.1, 6, 7, 8 |
 | React on the web, with your own component library | the above, plus 4.2 |
+| Vue, Svelte, Solid, Angular, Astro or no framework | 1, 2, 3, then `mkp-dom.js` from [the recipes](recipes.md), 6, 8 |
 | React Native | 1 (with 1.4), 2 (build time), 3, 4.3, 6, 7, 8 |
 | A server in Python, Go, Ruby… that stores or serves documents | 1.5, 2.2, 3, then draw on a client with 4.1 or 4.3 |
 | A client MKP has no renderer for (Swift, Kotlin, Flutter, a game engine…) | 1.5, 2.2, 3, 4.4, 8 |
@@ -90,7 +91,7 @@ Keep the commit in a file, fetch that commit's tarball into a git-ignored folder
 workspace there, and build the CLI. Commit two files to your repo: `mkp.commit` (one line, the
 full hash) and the script.
 
-```text
+```txt
 your-app/
   mkp.commit              # d2b9ee129b85407acdd67963fed478edba8ff882
   scripts/ensure-mkp.mjs
@@ -149,7 +150,7 @@ if (!existsSync(cli)) execFileSync(process.execPath, [join(mkp, 'packages/cli/sc
 
 Run it once, then on every install (a `postinstall` script) and in CI before anything reads MKP:
 
-```text
+```txt
 $ node scripts/ensure-mkp.mjs
 Fetching MKP d2b9ee1…
 …
@@ -281,7 +282,7 @@ to resolve `@babel/runtime/helpers/interopRequireDefault` from MKP's files. Not 
 A release's `mkp-cli.mjs` is the whole CLI in one file (the core, the maths engine and
 `--target html`'s page script inside), run with Node 20.19+ from anywhere:
 
-```text
+```txt
 $ node mkp-cli.mjs --version
 0.1.0
 $ node mkp-cli.mjs check lesson.mkp.md --pack lib --format json
@@ -299,7 +300,7 @@ This step decides where content lives and turns each document into a bundle your
 
 MKP doesn't impose a layout. One that works:
 
-```text
+```txt
 your-app/
   content/                 # documents
     lab.mkp.md
@@ -320,7 +321,7 @@ base set, its own definitions, and the packs you pass with `--pack`.
 
 `mkp check` is the author's loop; `mkp build` writes what you ship.
 
-```text
+```txt
 $ mkp check content/lab.mkp.md --pack packs/myapp
 ok
 $ mkp build content --pack packs/myapp --target ir --out src/generated --lock mkp.lock
@@ -388,7 +389,7 @@ documents, pass a folder and `--out` in one call.
 A build that uses packs writes a lock: each pack's version and digest, and each definition's
 digest. The next build refuses a definition that changed under the same version:
 
-```text
+```txt
 examples/29-a-pack/pack/distance.mkp:1:1 error mkp.version-changed: units:distance@1 has changed since mkp.lock
 recorded it; found a definition that differs from the locked one, and a locked version must keep its
 behaviour. Undo the change, or give it a new version (distance@2); while the pack is unpublished,
@@ -508,7 +509,7 @@ review screen.
 With `mkp check --format json` or `mkp build --diagnostics json`, each diagnostic is one line of
 JSON on stderr:
 
-```text
+```txt
 $ mkp check examples/limits/02-misspelt-prop.mkp.md --format json
 {"severity":"error","code":"mkp.unknown-prop","message":"text has no prop \"wieght\" (did you mean \"weight\"?); found wieght=bold. Its props are value, font, tone, weight, size, align, wrap, lines, clip, literal, caps; remove wieght=… or use one of those","file":"examples/limits/02-misspelt-prop.mkp.md","line":9,"col":40,"path":["note@1","text"]}
 $ mkp check examples/limits/01-yaml-item-type.mkp.md --format json
@@ -777,7 +778,7 @@ A port passes when, for every case listed in `conformance/index.json`, values ag
 relative 1e-9 (absolute 1e-12 near zero), the visible nodes are the same in order, and the
 Markdown agrees. The reference implementation runs it with:
 
-```text
+```txt
 $ pnpm conformance
 conformance (node v24.22.2): 47/47 cases agree, compiled from source and replayed
 ```
@@ -789,7 +790,7 @@ and `pnpm hermes` runs the same cases under the Hermes CLI.
 Every document builds to Markdown a reader without MKP can read: each widget writes its
 `project md`, with its `summary` above it in italics.
 
-```text
+```txt
 $ mkp build examples/31-markdown-output/doc.mkp.md --target md --md gfm,math
 $ mkp build examples/31-markdown-output/doc.mkp.md --target md --md gfm,math --no-answers
 ```
@@ -814,7 +815,7 @@ At run time: `writeMarkdown(bundle, { toggles: ['gfm', 'math'], answers: false, 
 
 To share a document with someone who has no app — a link, an attachment, a static site, a demo — build it as a page:
 
-```text
+```txt
 $ mkp build lesson.mkp.md --pack lib --target html,html-md --out site
 ```
 
@@ -832,7 +833,7 @@ widgets beyond the base set; everything your app adds goes in a pack.
 
 ### 5.1 The manifest
 
-```text
+```txt
 # packs/myapp/manifest.mkp
 pack myapp@1 "The widgets and interfaces this app gives its documents."
   requires core@1
@@ -853,7 +854,7 @@ pack myapp@1 "The widgets and interfaces this app gives its documents."
 Widgets go in `.mkp` files, one or more per file, with a version on each name. This one has the
 host members of step 6:
 
-```text
+```txt
 # packs/myapp/readings.mkp
 readings@1 "Readings the app streams in, newest last, with a button to mark one."
   in title text = "Readings" "what is measured"
@@ -910,7 +911,7 @@ compare `expect.values`, `expect.md` or `expect.visible`; step 8 shows a test th
 
 ### 5.4 Tokens and interfaces in a pack
 
-```text
+```txt
 # packs/myapp/brand.mkp
 tokens brand@1 "The app's own colours."
   color brand "#7c3aed" dark="#c4b5fd"
@@ -919,7 +920,7 @@ tokens brand@1 "The app's own colours."
 A token set adds names authors can use in style props (`stroke=brand`, `tint=brand`); colours are
 hex, with an optional `dark=`. Step 7 covers overriding core's.
 
-```text
+```txt
 # packs/myapp/scored.mkp
 interface scored@1 "A widget whose score the app adds up."
   in of int
@@ -935,7 +936,7 @@ an interface (`host/`) and a document with two widgets that implement it.
 
 ### 5.5 The commands
 
-````text
+````txt
 $ mkp check --pack packs/myapp
 26 definitions, 3 fixture cases: ok
 $ mkp index --pack packs/myapp
@@ -981,7 +982,7 @@ $ mkp cases --pack packs/myapp --out gallery
 A profile is a pack whose manifest says `profile name@N`. It types the front matter and adds
 rules on sections, for an app whose documents all follow one shape:
 
-```text
+```txt
 # packs/article-profile/manifest.mkp
 profile article@1 "What every article in this app must have."
   requires core@1
@@ -993,7 +994,7 @@ profile article@1 "What every article in this app must have."
   rule count roles.example 1..3 "one to three worked examples"
 ```
 
-```text
+```txt
 $ mkp check content/article.mkp.md --pack packs/article-profile --profile article
 content/article.mkp.md:1:1 error mkp.rule.count: one to three worked examples (profile rule: count roles.example 1..3); found 0. Add 1 more section with {role=example}: a heading, then {role=example} on the line under it
 ```

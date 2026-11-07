@@ -25,7 +25,7 @@ mkp show walk --pack … --source --as my-walk     # its source, renamed, to cop
 
 Repeat `mkp check` until it is clean. Errors name their rule and say how to fix it:
 
-```text
+```txt
 lesson.mkp.md:17:5 error mkp.input-type: xs[1] is a number; found "four"
 ```
 
@@ -181,7 +181,7 @@ startswith endswith number format join`, and `slice`/`indexof`/`len` on text); `
 
 ### Events and actions
 
-```text
+```txt
 press
   text "Check"
   @click set tries=(tries + 1) send answered correct=right

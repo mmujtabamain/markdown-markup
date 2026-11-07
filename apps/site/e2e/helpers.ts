@@ -57,7 +57,7 @@ export function hashOf(state: Record<string, string | undefined>): string {
 
 /** Opens the playground at a state (first visit), and waits for the entry to be built. */
 export async function open(page: Page, state: Record<string, string | undefined>): Promise<void> {
-  await page.goto(`/docs/#${hashOf(state)}`);
+  await page.goto(`/examples/#${hashOf(state)}`);
   await built(page, state.e!);
 }
 

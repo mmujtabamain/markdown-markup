@@ -148,8 +148,8 @@ function coverage(): number {
   return gaps ? 1 : 0;
 }
 
-/** Docs that hold copies of examples, by marker. */
-const DOCS = ['docs/authoring-guide.md', 'README.md'];
+/** Docs that hold copies of examples or recipe files, by marker. */
+const DOCS = ['docs/authoring-guide.md', 'docs/recipes.md', 'README.md'];
 
 function sync(write: boolean): number {
   let drift = 0;
@@ -173,9 +173,24 @@ function sync(write: boolean): number {
       }
       return now;
     });
-    if (write && out !== text) writeFileSync(p, out);
+    // <!-- recipe vue/src/MkpView.vue --> then a fence: the recipe's file as it is
+    const out2 = out.replace(/<!-- recipe ([\w./-]+) -->\n(`{3,})(\w*)\n([\s\S]*?)\n\2/g, (m, file: string, fence: string, lang: string) => {
+      const f = join(root, 'recipes', file);
+      if (!existsSync(f)) {
+        console.error(`${rel}: no recipe file ${file}`);
+        drift++;
+        return m;
+      }
+      const now = `<!-- recipe ${file} -->\n${fence}${lang}\n${readFileSync(f, 'utf8').trimEnd()}\n${fence}`;
+      if (now !== m) {
+        drift++;
+        console.error(`${rel}: the copy of ${file} differs from recipes/${file}${write ? ' (rewritten)' : ''}`);
+      }
+      return now;
+    });
+    if (write && out2 !== text) writeFileSync(p, out2);
   }
-  if (!drift) console.log('examples: every copy in the docs matches');
+  if (!drift) console.log('examples: every copy in the docs matches its example or recipe');
   return drift && !write ? 1 : 0;
 }
 

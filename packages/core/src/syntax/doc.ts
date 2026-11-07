@@ -2,6 +2,19 @@
 
 import { Diagnostics } from '../diag';
 
+/** Fence labels Markdown itself gives a meaning: code languages, plain text and maths. A fence with
+ *  one of these is a code block (or display maths), never a widget block (SN 139). */
+const MARKDOWN_FENCES = new Set([
+  'text', 'txt', 'plaintext', 'plain', 'math', 'latex', 'tex', 'markdown', 'md', 'mdx',
+  'sh', 'bash', 'shell', 'console', 'zsh', 'fish', 'powershell', 'ps1', 'bat', 'cmd',
+  'js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx', 'json', 'jsonc', 'json5', 'yaml', 'yml', 'toml', 'ini', 'env', 'csv', 'tsv',
+  'html', 'xml', 'svg', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'astro',
+  'python', 'py', 'ruby', 'rb', 'php', 'perl', 'lua', 'r', 'julia', 'go', 'rust', 'rs', 'java', 'kotlin', 'kt', 'scala', 'swift',
+  'c', 'h', 'cpp', 'cc', 'hpp', 'csharp', 'cs', 'fsharp', 'dart', 'elixir', 'erlang', 'haskell', 'hs', 'ocaml', 'clojure', 'lisp', 'scheme', 'zig', 'nim',
+  'sql', 'graphql', 'gql', 'proto', 'protobuf', 'dockerfile', 'docker', 'makefile', 'make', 'cmake', 'nginx', 'diff', 'patch', 'git', 'http', 'regex',
+  'mermaid', 'dot', 'graphviz', 'plantuml', 'asciidoc', 'rst', 'nix', 'terraform', 'hcl', 'solidity', 'wasm', 'asm', 'nasm',
+]);
+
 export type DocItem =
   | { k: 'md'; text: string; line: number; attrs?: DocAttrs }
   | { k: 'block'; name: string; id?: string; yaml: string; line: number; attrs?: DocAttrs; info: string; fence: string }
@@ -73,7 +86,9 @@ function parseItems(lines: string[], from: number, to: number, colons: number, f
       let j = i + 1;
       while (j < to && !(lines[j].trim().startsWith(fence[0].repeat(fence.length)) && lines[j].trim().replace(new RegExp(`^${fence[0] === '`' ? '`' : '~'}+`), '').trim() === '')) j++;
       const body = lines.slice(i + 1, j).join('\n');
-      const wm = WIDGET_INFO_RE.exec(info);
+      // Markdown first (SN 139): a fence labelled with a code language, or math, is Markdown's own
+      // code or maths; only a label Markdown has no meaning for can name a widget
+      const wm = MARKDOWN_FENCES.has(info.split(/\s+/)[0].toLowerCase()) ? null : WIDGET_INFO_RE.exec(info);
       if (info === 'state' || (info === 'mkp' && !f[1])) {
         flush();
         items.push({ k: info === 'mkp' ? 'defs' : 'state', body, line: i + 1 });

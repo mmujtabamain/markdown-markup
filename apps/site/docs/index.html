@@ -3,11 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="The MKP docs: every example, base widget and limit, with its source, the drawn document, its Markdown, IR and errors." />
+    <meta name="description" content="The MKP docs: adding MKP to a project, recipes for each framework, writing MKP, and the runtime spec." />
     <title>MKP docs</title>
+    <script>
+      // the examples were here until they moved to examples/: their links (#e=…, #src=…) open there
+      if (/(^#|&)(e|src|out|pane)=/.test(location.hash)) location.replace('../examples/' + location.hash);
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/docs/main.tsx"></script>
   </body>
 </html>

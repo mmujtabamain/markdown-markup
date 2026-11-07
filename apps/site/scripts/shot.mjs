@@ -70,7 +70,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     const hash = new URLSearchParams({ e: id, theme: flag('--dark') ? 'dark' : 'light', pane: 'preview' });
-    await page.goto(`http://localhost:${PORT}/docs/#${hash}`);
+    await page.goto(`http://localhost:${PORT}/examples/#${hash}`);
     await page.waitForSelector(`[data-pg-preview][data-pg-entry="${id}"]:is([data-pg-status=drawn], [data-pg-status=failed])`, { state: 'attached', timeout: 60000 });
     if (flag('--play')) {
       const play = page.getByRole('button', { name: /Play the case/ });

@@ -1,7 +1,8 @@
 # The website end to end (apps/site, Playwright in Chromium): every example and widget page drawn in
-# the docs, the landing page, each example as a --target html page, and a React app built from the
-# release files. It is the only check that the renderer really draws in a browser, so it runs when
-# something it draws from changes, and is skipped for notes, docs and workflow-only changes.
+# the examples, the docs (docs/*.md, compiled as MKP), the landing page, each example as a
+# --target html page, and apps built from the release files. It is the only check that the renderer
+# really draws in a browser, so it runs when something it draws from changes, and is skipped for
+# notes and workflow-only changes.
 name: Website
 
 on:
@@ -9,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'apps/site/**'
+      - 'docs/**'
       - 'packages/**'
       - 'examples/**'
       - 'widgets/**'
@@ -19,6 +21,7 @@ on:
   pull_request:
     paths:
       - 'apps/site/**'
+      - 'docs/**'
       - 'packages/**'
       - 'examples/**'
       - 'widgets/**'

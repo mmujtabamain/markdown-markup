@@ -631,9 +631,16 @@ are the language changes that came with it. GAPS numbers are in `GAPS.md`.
      matter `version`, `date`, `summary` of at most 140 characters; then `## New`, `## Changed`,
      `## Fixed`), which `scripts/check-notes.mjs` checks in CI. Each push to `main` whose `VERSION`
      has no release yet publishes `v<version>`: `mkp-web-<version>.zip` (`mkp.js`, `mkp.d.ts`,
-     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `README.txt`, in one folder),
+     `maths-engine.js`, `mkp-react.js`, `mkp-react.d.ts`, `mkp-dom.js`, `mkp-dom.d.ts`, `README.txt`, in
+     one folder),
      `mkp-cli.mjs` and `SHA256SUMS`, built by `scripts/dist.mjs`; its notes are the note, then how to
      use each asset (`scripts/release-body.mjs`). The web files of the last 50 releases are also on
      the Pages site at `/v/<version>/`, the newest at `/latest/`. Every file says its version
      (a `/*! mkp <version> <commit> */` banner, `VERSION` from `mkp.js`, `mkp --version`). The npm
      packages are gone; the workspace packages stay private.
+139. **Fences: Markdown first.** *Departure (5).* A fence whose label's first word means something
+     to Markdown is Markdown's: a code language (`yaml`, `sh`, `ts`, `markdown`…, any case), plain
+     text (`text`, `txt`, `plaintext`) or display maths (`math`, `latex`). Its body is code, never a
+     widget's inputs, so a guide can show YAML or MKP in a fence. Only a label Markdown has no
+     meaning for names a widget block; the base widget `text` is therefore written as a container
+     or a widget of its own. In code, `$` is not maths; an HTML comment draws nothing.

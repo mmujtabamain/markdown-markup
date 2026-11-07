@@ -1,7 +1,8 @@
 // The site's landing page (/): what MKP is, one document drawn live beside its source and its
-// Markdown, how it works, and how to get it. The playground is the docs, at docs/.
+// Markdown, how it works, and how to get it. The docs are at docs/, the examples (the playground) at
+// examples/.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowRight, Blocks, BookOpen, Check, Copy, Download, FileText, Github, Moon, ScanSearch, Sparkles, Sun, Terminal, Bot, Layers } from 'lucide-react';
+import { ArrowRight, Blocks, BookOpen, Check, Copy, Download, FileText, ScanSearch, Sparkles, Terminal, Bot, Layers } from 'lucide-react';
 import { compile, MathsEngine, prerender, Runtime, writeMarkdown, Diagnostics, type IRBundle } from '@mkp/core';
 import { MkpDocument } from '@mkp/react';
 import { shadcnTokens } from '@mkp/shadcn';
@@ -12,39 +13,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { components } from '../kit';
+import { Logo, REPO, SiteHeader, useTheme, type Theme } from './chrome';
 
 // the demo is example 25, as it is on disk
 const demoSource = Object.values(import.meta.glob('../../../../examples/25-roots-of-unity/doc.mkp.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0];
 
-const REPO = 'https://github.com/mmujtabamain/markdown-markup';
 /** The release named on the page until /v/index.json says which is the newest. */
 const FALLBACK_VERSION = '0.1.0';
-
-type Theme = 'light' | 'dark';
-const initialTheme = (): Theme => {
-  try {
-    const t = localStorage.getItem('site/theme');
-    if (t === 'light' || t === 'dark') return t;
-  } catch {
-    // storage may be off
-  }
-  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
-function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(initialTheme);
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.style.colorScheme = theme;
-    try {
-      localStorage.setItem('site/theme', theme);
-      localStorage.setItem('pg/theme', theme);
-    } catch {
-      // storage may be off
-    }
-  }, [theme]);
-  return [theme, () => setTheme(theme === 'dark' ? 'light' : 'dark')];
-}
 
 /** The newest release, from the site's own /v/index.json. */
 function useLatest(): string {
@@ -94,44 +69,6 @@ function Copyable({ text, className }: { text: string; className?: string }): Re
         {done ? <Check /> : <Copy />}
       </Button>
     </div>
-  );
-}
-
-function Logo(): ReactNode {
-  return (
-    <a href="./" className="flex items-center gap-2 font-semibold" aria-label="MKP home">
-      <span className="grid size-7 place-items-center rounded-md bg-brand font-mono text-[11px] font-bold text-primary-foreground shadow-sm" aria-hidden>
-        M↓
-      </span>
-      <span className="tracking-tight">MKP</span>
-      <span className="hidden text-sm font-normal text-muted-foreground sm:inline">Markdown Markup</span>
-    </a>
-  );
-}
-
-function Header({ theme, toggle }: { theme: Theme; toggle: () => void }): ReactNode {
-  return (
-    <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
-        <Logo />
-        <nav className="ml-auto flex items-center gap-1 text-sm" aria-label="Site">
-          <Button variant="ghost" size="sm" asChild>
-            <a href="docs/">Docs</a>
-          </Button>
-          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <a href={`${REPO}/releases`}>Releases</a>
-          </Button>
-          <Button variant="ghost" size="icon-sm" asChild>
-            <a href={REPO} aria-label="MKP on GitHub">
-              <Github />
-            </a>
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={toggle} aria-label={theme === 'dark' ? 'Light theme' : 'Dark theme'}>
-            {theme === 'dark' ? <Sun /> : <Moon />}
-          </Button>
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -189,7 +126,7 @@ export function Landing(): ReactNode {
   const base = `${REPO}/releases/download/v${v}`;
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <Header theme={theme} toggle={toggle} />
+      <SiteHeader theme={theme} toggle={toggle} at="home" />
       <main>
         <section className="site-hero relative overflow-hidden border-b">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
@@ -208,8 +145,11 @@ export function Landing(): ReactNode {
               <div className="flex flex-wrap gap-3">
                 <Button size="lg" asChild>
                   <a href="docs/">
-                    Open the docs <ArrowRight />
+                    Read the docs <ArrowRight />
                   </a>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <a href="examples/">Try the examples</a>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
                   <a href="#get">
@@ -275,7 +215,7 @@ export function Landing(): ReactNode {
                   <Blocks className="size-4 text-brand" /> For a web app
                 </CardTitle>
                 <CardDescription>
-                  <code className="font-mono">mkp-web-{v}.zip</code>: the core with its types header, the maths engine and the React renderer. They import each other: keep them in one folder.
+                  <code className="font-mono">mkp-web-{v}.zip</code>: the core with its types header, the maths engine, the React renderer, and <code className="font-mono">mkp-dom.js</code> for any other framework. They import each other: keep them in one folder.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
@@ -312,6 +252,9 @@ export function Landing(): ReactNode {
           <div className="flex flex-wrap gap-4">
             <a href="docs/" className="hover:text-foreground">
               Docs
+            </a>
+            <a href="examples/" className="hover:text-foreground">
+              Examples
             </a>
             <a href={`${REPO}/releases`} className="hover:text-foreground">
               Releases

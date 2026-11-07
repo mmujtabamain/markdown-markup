@@ -15,6 +15,7 @@ import { build, jsonLine, type DrawnError } from './build';
 import { catalog, type ConfCase, type Entry, type SourceFile } from './catalog';
 import { openedDoc, openFiles, type Opened } from './opened';
 import type { DiagItem } from './panes/DiagList';
+import { SectionLinks } from './site/chrome';
 import { groupOf, OutputPane, type MdSettings, type OutputGroup } from './panes/OutputPane';
 import { PreviewPane, type PreviewSettings, type WidthPreset } from './panes/PreviewPane';
 import { Sidebar } from './panes/Sidebar';
@@ -272,9 +273,12 @@ export function App(): ReactNode {
               </span>
               MKP
             </a>
-            <span className="font-normal text-muted-foreground">docs</span>
-            {__PG_COMMIT__ ? <span className="font-mono text-xs font-normal text-muted-foreground">{__PG_COMMIT__}</span> : null}
+            <span className="font-normal text-muted-foreground">examples</span>
+            {__PG_COMMIT__ ? <span className="hidden font-mono text-xs font-normal text-muted-foreground sm:inline">{__PG_COMMIT__}</span> : null}
           </h1>
+          <nav className="ml-2 hidden items-center gap-1 text-sm md:flex" aria-label="Site">
+            <SectionLinks at="examples" up="../" />
+          </nav>
           <span className="flex-1" />
           <Button variant="outline" size="sm" asChild>
             <label className="cursor-pointer has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50" title="Open a .mkp.md (with its .mkp) or a .mkpack">

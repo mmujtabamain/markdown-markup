@@ -107,16 +107,16 @@ The web files are also served, unpacked, at `https://mmujtabamain.github.io/mark
 (and `/latest/`). `pnpm dist` builds the same files into `dist/`. To release: raise `VERSION` and add
 `notes/<version>.md` in the merge request (`pnpm check:notes` checks both); the merge publishes it.
 
-## Coming soon
+## Any framework
 
-MKP's core (`mkp.js`) needs no framework: it compiles a document, runs it and hands back a view tree
-of plain data. Today the ready-made way to draw that tree on the web is React (`mkp-react.js`), which
-already covers **Next.js** and every other React framework. Next:
+React apps draw documents with `mkp-react.js` (Next.js and every other React framework included).
+Everything else uses `mkp-dom.js`: `mount(el, bundle, { theme, onSignal })` draws a document into an
+element in MKP's own look, with no React in the page.
 
-- **`mkp-dom.js`, a framework-free renderer.** `render(el, runtime)` with plain DOM, in MKP's own look,
-  so **Vue, Svelte, Solid, Angular, Astro or plain JavaScript** draw documents with no React in the
-  page. Any framework mounts it in a component.
-- **Recipes for those stacks** in the docs: a component that mounts a document, keeps its state across
-  renders and passes signals back to the app, for each of them, tested like the React one.
-- **The React Native renderer and the shadcn provider in a release**, beside the web files (today
-  they're used from source).
+```ts
+import { mount } from './vendor/mkp/mkp-dom.js';
+const view = mount(document.getElementById('doc'), bundle, { onSignal: (e) => console.log(e.name) });
+```
+
+[`recipes/`](recipes/) has a small tested app for **Vue, Svelte, Solid, Angular, Astro and plain
+JavaScript**, each with a component to copy; [`docs/recipes.md`](docs/recipes.md) walks through them.
