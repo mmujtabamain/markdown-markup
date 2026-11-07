@@ -9,7 +9,7 @@
 //   node scripts/api-diff.mjs [--from 0.2.2] [--to current|0.2.3]          the ## API section
 //   node scripts/api-diff.mjs --check changelog/0.2.3.mkp.md [--from …]     what that section misses
 //   node scripts/api-diff.mjs --first 0.1.0                                 what a first release provides
-//   node scripts/api-diff.mjs --check-current                               pnpm check:api: VERSION's changelog
+//   node scripts/api-diff.mjs --check-current [--built dist]                pnpm check:api: VERSION's changelog
 //
 // A release's files are downloaded once from its GitHub release, checked against its SHA256SUMS, into
 // MKP_CACHE (else ~/.cache/mkp/api/<version>/). `--to current` builds this checkout (scripts/dist.mjs).
@@ -440,7 +440,9 @@ async function main(args) {
     args = [...args.filter((a) => a !== '--check-current'), '--check', file];
   }
   const toArg = opt(args, '--to') ?? 'current';
-  const to = toArg === 'current' ? currentFiles() : await releaseFiles(toArg);
+  // --built <dir>: release files scripts/dist.mjs already made for this checkout (CI builds them once)
+  const built = opt(args, '--built');
+  const to = built ? { web: join(built, 'web'), cli: join(built, 'mkp-cli.mjs'), version: readFileSync(join(root, 'VERSION'), 'utf8').trim() } : toArg === 'current' ? currentFiles() : await releaseFiles(toArg);
   const fromV = opt(args, '--from') ?? previous(to.version) ?? to.version;
   if (fromV === to.version) throw new Error(`--from is ${fromV}, the same release as --to: give an earlier one`);
   const from = await releaseFiles(fromV);
@@ -450,7 +452,9 @@ async function main(args) {
   // the release before this one is this one's own version when VERSION wasn't raised: nothing to say
   if (check) {
     const w = missing(readFileSync(check, 'utf8'), items);
-    for (const x of w) console.log(`warning ${check}  ${x}`);
+    const rel = check.startsWith(root) ? check.slice(root.length + 1) : check;
+    // in GitHub Actions, each is an annotation on the changelog: a warning, never a failure
+    for (const x of w) console.log(process.env.GITHUB_ACTIONS ? `::warning file=${rel}::${x.replace(/\n/g, ' ')}` : `warning ${rel}  ${x}`);
     console.log(`api: ${items.length} change${items.length === 1 ? '' : 's'} from ${fromV} to ${to.version}${w.length ? `, ${w.length} not in ${check} (warnings only)` : `, all in ${check}`}`);
     return 0;
   }

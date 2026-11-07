@@ -111,6 +111,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build the release files
         run: node scripts/dist.mjs --out "$RUNNER_TEMP/dist"
+      - name: The changelog names every API change since the last release (warnings only)
+        run: node scripts/api-diff.mjs --check-current --built "$RUNNER_TEMP/dist"
       - name: Check a pack, and check and build every example with mkp-cli.mjs
         run: |
           mkp() { node "$RUNNER_TEMP/dist/mkp-cli.mjs" "$@"; }
