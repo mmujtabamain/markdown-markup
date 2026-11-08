@@ -916,6 +916,27 @@ view.unmount();
   so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
+- **Nothing moves on a first visit, with no server.** Until `mkp-dom.js` has loaded, a page can show
+  the document with each widget's box already the height it will have. Keep each widget's measured
+  height with the document: `mount(el, bundle, { onSizes })` reports `[{ place, name, at: [[width,
+  height]] }]` once drawn and when they change, and `mergeSizes(kept, fresh)` keeps the four latest
+  widths. Next time, before anything else loads, `mkp-outline.js` (about 3 KB gzipped, no compiler,
+  no React) draws the first paint from the source alone:
+
+  ```js
+  import { outline } from './vendor/mkp/mkp-outline.js';
+  el.innerHTML = outline(source, sizes, { width: el.clientWidth, prose: (md) => myMarkdown(md) });
+  const { mount, mergeSizes } = await import('./vendor/mkp/mkp-dom.js');
+  mount(el, bundle, { places: true, onSizes: (s) => save(mergeSizes(sizes, s)) });
+  ```
+
+  `outline()` puts your prose (drawn by your renderer; left out without `prose`) and a quiet
+  placeholder for each top-level widget (`aria-hidden`, no text, `class="mkp-outline-place"` plus
+  your `className`, in a container marked `aria-busy`) at the height measured at that width, or
+  between widths along a line. With `places: true`, `mount()` draws each widget into its
+  placeholder from one runtime, and touches nothing else in the element; each box then takes its
+  widget's own height in the same frame. A widget never measured gets a 160 px box and may move
+  once. Places count every top-level widget, fenced or `:::`, in source order (`meta.place`).
 - **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
   dispatch })` draws into `box` once and puts `slot` (what the document put inside the extern, drawn
   by MKP) where it goes. It may return `{ update(props), destroy() }`: new inputs then arrive through

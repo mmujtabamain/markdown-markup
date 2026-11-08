@@ -141,6 +141,23 @@ await build({
   logLevel: 'warning',
 });
 
+// mkp-outline.js: a document's first paint from its source alone, before the rest of MKP loads:
+// the widgets' boxes at their measured heights (outline(), places(), mergeSizes()). Tiny: the
+// compiler's document splitter only, no compiler, no React
+await build({
+  entryPoints: [join(root, 'packages/dom/src/outline.ts')],
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  minify: true,
+  outfile: join(web, 'mkp-outline.js'),
+  define,
+  banner: { js: banner },
+  legalComments: 'none',
+  logLevel: 'warning',
+});
+
 // mkp.css: MKP's stylesheet in MKP's own look, with no document's tokens, for a page that draws
 // many fragments or documents with styles: 'external' to load once. Taken from the renderer itself
 // (mkpCss()), so it is the stylesheet each document would otherwise write
@@ -165,6 +182,7 @@ mkdirSync(fake, { recursive: true });
 copyFileSync(join(web, 'mkp.d.ts'), join(fake, 'index.d.ts'));
 dts({ include: [join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')] } } }, join(root, 'packages/react/src/index.tsx'), join(web, 'mkp-react.d.ts'), ['--external-imports', '@mkp/core', 'react', 'react-dom']);
 dts({ include: [join(root, 'packages/dom/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/dom/src/index.tsx'), join(web, 'mkp-dom.d.ts'), ['--external-imports', '@mkp/core']);
+dts({ include: [join(root, 'packages/dom/src')], compilerOptions: { baseUrl: root } }, join(root, 'packages/dom/src/outline.ts'), join(web, 'mkp-outline.d.ts'), []);
 dts({ include: [join(root, 'packages/page/src'), join(root, 'packages/react/src')], compilerOptions: { baseUrl: root, paths: { '@mkp/core': [join(fake, 'index.d.ts')], '@mkp/react': [join(root, 'packages/react/src/index.tsx')] } } }, join(root, 'packages/page/src/first-paint.tsx'), join(web, 'mkp-page.d.ts'), ['--external-imports', '@mkp/core']);
 rmSync(tmp, { recursive: true, force: true });
 // mkp-runtime.d.ts names the runtime half's exports from mkp.d.ts, so a Runtime is one type whichever
@@ -178,7 +196,7 @@ rmSync(tmp, { recursive: true, force: true });
   if (!names.includes('Runtime')) throw new Error(`mkp-runtime.d.ts: found no Runtime among the runtime half's exports (${names.length} names)`);
   writeFileSync(join(web, 'mkp-runtime.d.ts'), `// the runtime half of the core (mkp-runtime.js): its types are the core's, declared in mkp.d.ts\nexport {\n${names.map((n) => `  ${n},`).join('\n')}\n} from '@mkp/core';\n`);
 }
-for (const f of ['mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts', 'mkp-page.d.ts']) {
+for (const f of ['mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.d.ts', 'mkp-dom.d.ts', 'mkp-page.d.ts', 'mkp-outline.d.ts']) {
   const p = join(web, f);
   const text = readFileSync(p, 'utf8').replace(/from ["']@mkp\/core["']/g, "from './mkp.js'");
   writeFileSync(p, `${banner}\n${text}`);
@@ -198,6 +216,10 @@ writeFileSync(
                   for your design system. Types: mkp-react.d.ts
   mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's
                   own look, its own React inside. Types: mkp-dom.d.ts
+  mkp-outline.js  outline(source, sizes, { width, prose }): a document's first paint before the
+                  rest of MKP loads, each widget's box at the height mount()'s onSizes measured;
+                  mount(el, bundle, { places: true }) then draws the widgets into those boxes.
+                  Tiny: no compiler, no React. Types: mkp-outline.d.ts
   mkp.css         MKP's stylesheet in its own look, for a page whose documents or first paints are
                   drawn with styles: 'external' (each then writes only its own tokens): load it once
   mkp-page.js     firstPaint(bundle, options): a document's first paint as HTML, for a build on

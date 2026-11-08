@@ -34,12 +34,12 @@ describe('the release files', () => {
   it('are the web archive, the React Native renderer, the CLI and the checksums; the archive holds the web files in one folder', () => {
     expect(readdirSync(out).sort()).toEqual(['SHA256SUMS', 'mkp-cli.mjs', rnZip, zip, 'web']);
     const list = execFileSync('unzip', ['-Z1', join(out, zip)], { encoding: 'utf8' }).trim().split('\n').sort();
-    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-page.d.ts', 'mkp-page.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp-runtime.d.ts', 'mkp-runtime.js', 'mkp-shared.js', 'mkp.css', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
+    expect(list).toEqual(['README.txt', 'maths-engine.js', 'mkp-dom.d.ts', 'mkp-dom.js', 'mkp-outline.d.ts', 'mkp-outline.js', 'mkp-page.d.ts', 'mkp-page.js', 'mkp-react.d.ts', 'mkp-react.js', 'mkp-runtime.d.ts', 'mkp-runtime.js', 'mkp-shared.js', 'mkp.css', 'mkp.d.ts', 'mkp.js'].map((f) => `mkp-web-${version}/${f}`));
     const sums = readFileSync(join(out, 'SHA256SUMS'), 'utf8');
     for (const f of [zip, rnZip, 'mkp-cli.mjs']) expect(sums).toContain(`${createHash('sha256').update(readFileSync(join(out, f))).digest('hex')}  ${f}`);
   });
   it('say which version they are', () => {
-    for (const f of ['mkp.js', 'mkp-runtime.js', 'mkp-shared.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts', 'mkp-page.js', 'mkp-page.d.ts', 'mkp.css']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
+    for (const f of ['mkp.js', 'mkp-runtime.js', 'mkp-shared.js', 'maths-engine.js', 'mkp.d.ts', 'mkp-runtime.d.ts', 'mkp-react.js', 'mkp-react.d.ts', 'mkp-dom.js', 'mkp-dom.d.ts', 'mkp-page.js', 'mkp-page.d.ts', 'mkp-outline.js', 'mkp-outline.d.ts', 'mkp.css']) expect(readFileSync(join(out, 'web', f), 'utf8')).toMatch(new RegExp(`^/\\*! mkp ${version.replace(/\./g, '\\.')} \\w+ \\*/`));
     expect(node([join(out, 'mkp-cli.mjs'), '--version'], out).stdout.trim()).toBe(version);
   });
 });

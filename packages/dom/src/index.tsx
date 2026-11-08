@@ -11,9 +11,11 @@
 
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
-import { domExterns, domIcons, MkpDocument, type DomExterns, type DomIcons, type MkpExterns, type MkpIcons, type TokenMap } from '@mkp/react';
+import type { PlaceSize } from './outline';
+import { domExterns, domIcons, MkpDocument, MkpPlaces, type DomExterns, type DomIcons, type MkpExterns, type MkpIcons, type TokenMap } from '@mkp/react';
 
 export type { DomIcon, DomIcons, DomExtern, DomExterns, DomExternProps } from '@mkp/react';
+export { outline, places, placeholder, heightAt, mergeSizes, DEFAULT_HEIGHT, type PlaceSize, type Place, type OutlineOptions } from './outline';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
@@ -45,6 +47,18 @@ export interface MountOptions {
    * extern with none here shows a placeholder with its summary
    */
   externs?: DomExterns;
+  /**
+   * the element holds the page's own first paint: the prose, drawn by the page, and a placeholder
+   * for each top-level widget (mkp-outline's outline() or placeholder()). Each widget is drawn into
+   * its placeholder, and nothing else in the element is touched
+   */
+  places?: boolean;
+  /**
+   * hears each top-level widget's height at the element's width, once drawn and whenever it
+   * changes: keep them with the document (mergeSizes) and give them to outline() next time, so a
+   * first paint reserves each widget's box at its real height
+   */
+  onSizes?: (sizes: PlaceSize[]) => void;
   /**
    * 'external': the page loads mkp.css (from the web zip) once, and each document writes only its
    * own tokens; 'inline' (the default) writes the whole stylesheet with each document. A first paint
@@ -111,10 +125,39 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
     runtime = new Runtime(doc, { capabilities: ['core@1', 'gfx@1'], maths, reducedMotion: current.reducedMotion, onSignal: (e) => current.onSignal?.(e) });
     draw();
   };
+  // places: the page's placeholders, and an element of MKP's own (hidden) for its stylesheet and root
+  let targets: Map<number, HTMLElement> | null = null;
+  let host: HTMLElement | null = null;
+  if (opts.places) {
+    targets = new Map([...el.querySelectorAll<HTMLElement>('[data-mkp-place]')].map((p) => [Number(p.getAttribute('data-mkp-place')), p]));
+    host = document.createElement('div');
+    host.hidden = true;
+    host.setAttribute('data-mkp-places', '');
+    el.appendChild(host);
+  }
   const draw = (): void => {
     if (gone || !runtime) return;
-    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} externs={externsNow()} styles={current.styles} reducedMotion={current.reducedMotion} className={current.className} />;
-    if (root) return root.render(view);
+    const props = { bundle: doc, runtime, theme: current.theme ?? 'auto', tokens: current.tokens, icons: iconsNow(), externs: externsNow(), styles: current.styles, reducedMotion: current.reducedMotion, className: current.className } as const;
+    // drawn into the boxes: each takes its widget's own height in the same frame (unchanged, when the
+    // size kept was right), and the outline is no longer busy
+    const drawn = (): void => {
+      for (const t of targets!.values()) {
+        t.style.height = '';
+        t.removeAttribute('aria-hidden');
+      }
+      el.querySelector('.mkp-outline[aria-busy]')?.removeAttribute('aria-busy');
+      requestAnimationFrame(watchSizes);
+    };
+    const view = targets ? <MkpPlaces {...props} targets={targets} onDrawn={drawn} /> : <MkpDocument {...props} />;
+    if (targets && host) {
+      if (!root) root = createRoot(host);
+      root.render(view);
+      return;
+    }
+    if (root) {
+      root.render(view);
+      return;
+    }
     if (opts.hydrate && el.firstElementChild)
       root = hydrateRoot(el, view, {
         // a first paint that isn't this bundle's (another build, other options) is drawn again: say so
@@ -124,6 +167,35 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
       root = createRoot(el);
       root.render(view);
     }
+    requestAnimationFrame(watchSizes);
+  };
+  // the widgets' heights, for the page to keep (onSizes): reported once drawn and when they change
+  let sizer: ResizeObserver | null = null;
+  let pending = 0;
+  const report = (): void => {
+    pending = 0;
+    if (gone || !runtime || !current.onSizes) return;
+    const width = Math.round(el.clientWidth);
+    if (!width) return;
+    const names = new Map<number, string>();
+    for (const n of runtime.view()) if (typeof n.p.place === 'number') names.set(n.p.place, n.t === 'scope' ? String(n.p.name) : n.t);
+    const sizes: PlaceSize[] = [];
+    for (const box of placesIn()) {
+      const place = Number(box.getAttribute('data-mkp-place'));
+      const name = names.get(place);
+      if (name !== undefined) sizes.push({ place, name, at: [[width, Math.round(box.getBoundingClientRect().height)]] });
+    }
+    current.onSizes(sizes);
+  };
+  const placesIn = (): HTMLElement[] => (targets ? [...targets.values()] : [...el.querySelectorAll<HTMLElement>('.mkp-root > [data-mkp-place]')]);
+  const watchSizes = (): void => {
+    if (gone || !current.onSizes || typeof ResizeObserver === 'undefined') return;
+    sizer?.disconnect();
+    sizer = new ResizeObserver(() => {
+      if (!pending) pending = requestAnimationFrame(report);
+    });
+    sizer.observe(el);
+    for (const b of placesIn()) sizer.observe(b);
   };
   /** The engine this document draws with: the host's, MKP's when it has maths to typeset, or none. */
   const engineFor = (b: IRBundle): Promise<MathsRenderer | undefined> => {
@@ -165,7 +237,9 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
     },
     unmount() {
       gone = true;
+      sizer?.disconnect();
       root?.unmount();
+      host?.remove();
     },
   };
 }

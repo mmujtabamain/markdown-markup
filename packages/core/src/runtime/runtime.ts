@@ -771,6 +771,8 @@ export class Runtime {
     else v = this.renderBase(n, env, inst, key);
     if (!v) return null;
     if (n.pos) v.src = [inst.def.file ?? inst.def.id, n.pos[0], n.pos[1]];
+    // a top-level widget's place in the document: a host sizes and places it by this
+    if (typeof n.meta?.place === 'number') v.p = { ...v.p, place: n.meta.place };
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
       // a snapshot draws every branch whose condition reads state, so exclusive branches may share an id

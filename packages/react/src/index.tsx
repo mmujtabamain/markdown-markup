@@ -1,9 +1,10 @@
 // @mkp/react: render an MKP bundle on the web with the core runtime.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Fragment, useLayoutEffect, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions, type VNode } from '@mkp/core';
 import { BASE_CSS, NEUTRAL_CSS, tokenCss, type TokenMap } from './style';
-import { Kids, RuntimeCtx, type MkpComponents, type MkpExterns } from './nodes';
+import { Kids, Node, RuntimeCtx, type MkpComponents, type MkpExterns } from './nodes';
 import type { MkpIcons } from './shell';
 import { SHELL_CSS } from './shell';
 
@@ -202,6 +203,53 @@ export function useMkpTheme(theme: 'light' | 'dark' | 'auto' | undefined): void 
     m.addEventListener('change', set);
     return () => m.removeEventListener('change', set);
   }, [rt, theme]);
+}
+
+/**
+ * The document's top-level widgets drawn into a host's own elements, by place (meta.place): the host
+ * draws the prose itself, with a placeholder where each widget goes (mkp-outline's), and each
+ * widget is drawn into its placeholder, so nothing outside the widgets' boxes is touched. One
+ * runtime for all of them, so the document's state is shared as usual.
+ */
+export function MkpPlaces(props: MkpDocumentProps & { targets: Map<number, HTMLElement>; onDrawn?: () => void }): ReactNode {
+  const { targets, theme, className, onDrawn, ...rest } = props;
+  return (
+    <MkpProvider {...rest}>
+      <PlacesRoot targets={targets} theme={theme} className={className} onDrawn={onDrawn} />
+    </MkpProvider>
+  );
+}
+
+function PlacesRoot({ targets, theme, className, onDrawn }: { targets: Map<number, HTMLElement>; theme?: MkpDocumentProps['theme']; className?: string; onDrawn?: () => void }): ReactNode {
+  const tree = useMkpView();
+  // the reader's width: the first place's
+  const first = useRef<HTMLElement | null>(targets.values().next().value ?? null);
+  useMkpWidth(first);
+  useMkpTheme(theme ?? 'auto');
+  useLayoutEffect(() => {
+    for (const el of targets.values()) {
+      el.classList.add('mkp-root');
+      if (className) el.classList.add(...className.split(/\s+/).filter(Boolean));
+      if (theme && theme !== 'auto') el.setAttribute('data-mkp-theme', theme);
+      else el.removeAttribute('data-mkp-theme');
+    }
+  }, [targets, theme, className]);
+  // the widgets are in their boxes (children's layout effects, a canvas measuring its width, have
+  // run): before this frame is painted, each box can give up its reserved height
+  const told = useRef(false);
+  useLayoutEffect(() => {
+    if (told.current || !tree.length) return;
+    told.current = true;
+    onDrawn?.();
+  });
+  return (
+    <>
+      {[...targets].map(([place, el]) => {
+        const n = tree.find((x) => x.p.place === place);
+        return n ? <Fragment key={place}>{createPortal(<Node n={n} />, el)}</Fragment> : null;
+      })}
+    </>
+  );
 }
 
 function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme']; className?: string }): ReactNode {

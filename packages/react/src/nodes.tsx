@@ -351,6 +351,8 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     'data-blur': n.p.blur ? '' : undefined,
     // a control the runtime made for a state (steps, clock), so a bar can lay it out on a narrow screen
     'data-control': n.p.control as string | undefined,
+    // a top-level widget's place in the document (outline sizes and placeholders are keyed by it)
+    'data-mkp-place': typeof n.p.place === 'number' ? n.p.place : undefined,
     hidden: n.hidden || undefined,
   };
 }
@@ -766,6 +768,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       data-mkp-def={String(n.p.def)}
+      data-mkp-place={typeof n.p.place === 'number' ? n.p.place : undefined}
       // arrows behind the content sit under it, and over the scope's own background (GAPS 100)
       data-mkp-behind={n.arrows?.some((a) => a.layer === 'behind') ? '' : undefined}
       hidden={n.hidden || undefined}

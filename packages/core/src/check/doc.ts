@@ -536,6 +536,9 @@ class DocChecker {
   items(items: DocItem[], top: boolean): IRNode[] {
     const out: IRNode[] = [];
     let blockNo = 0;
+    // each top-level widget, fenced or a ::: container, in source order: where a host reserves its box
+    // (block numbers only fenced blocks, and hosts key signals by it, so it stays as it is)
+    let placeNo = 0;
     for (const it of items) {
       try {
         switch (it.k) {
@@ -559,13 +562,17 @@ class DocChecker {
             if (n) {
               (n.meta ??= {}).block = top ? blockNo++ : undefined;
               if (n.meta.block === undefined) delete n.meta.block;
+              if (top) n.meta.place = placeNo++;
               out.push(n);
             }
             break;
           }
           case 'container': {
             const n = this.container(it);
-            if (n) out.push(n);
+            if (n) {
+              if (top) (n.meta ??= {}).place = placeNo++;
+              out.push(n);
+            }
             break;
           }
         }

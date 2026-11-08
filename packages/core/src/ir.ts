@@ -98,6 +98,9 @@ export interface IRMeta {
   comment?: string[];
   summary?: string;
   block?: number;
+  /** a top-level widget's place in the document, fenced or ::: (in source order): what a host's
+   *  first paint reserves a box at, and mount() draws into */
+  place?: number;
   /** the document block's own id (#id) */
   anchor?: string;
   /** a heading's section role (profiles, 16) */
