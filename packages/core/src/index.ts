@@ -20,5 +20,4 @@ export { canonical } from './syntax/canon';
 export { IR_SCHEMAS, inputSchema, valueSchema, fixtureSchema } from './schemas';
 export { indexLine, signatureText, copySource } from './catalog';
 export { checkDocument } from './check/doc';
-export { SIZE_KEYS, sizeOf, mergeSize, sizeBox, sizeDefaults, type WidgetSize, type SizeKey } from './size';
 export { packMoves, checkMoves, applyMove, moveProps, moveItem, moveSummary, moveNames, usesOf, type PackMove, type ValueForm } from './migrate/packs';

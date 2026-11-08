@@ -131,11 +131,11 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   const draw = (): void => {
     if (gone || !runtime) return;
     const props = { bundle: doc, runtime, theme: current.theme ?? 'auto', tokens: current.tokens, icons: iconsNow(), externs: externsNow(), styles: current.styles, reducedMotion: current.reducedMotion, className: current.className } as const;
-    // drawn into the boxes: each takes its widget's drawn size in the same frame (unchanged, when its
-    // minwidth, minheight or aspect was right), and the outline is no longer busy
+    // drawn into the boxes: each takes its widget's drawn size in the same frame (the same, when it
+    // fits its minwidth, minheight and aspect, which the widget keeps), and the outline is no longer busy
     const drawn = (): void => {
       for (const t of targets!.values()) {
-        for (const k of ['height', 'width', 'aspect-ratio']) t.style.removeProperty(k);
+        for (const k of ['height', 'min-width', 'min-height', 'aspect-ratio']) t.style.removeProperty(k);
         t.removeAttribute('aria-hidden');
       }
       el.querySelector('.mkp-outline[aria-busy]')?.removeAttribute('aria-busy');

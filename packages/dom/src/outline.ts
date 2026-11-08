@@ -1,6 +1,6 @@
 // mkp-outline: a document's first paint before any of MKP has loaded, made in the page from the
-// document's source alone. Each top-level widget gets a quiet placeholder of the size it says it
-// starts at (minwidth, minheight, aspect: written on it, or its widget's defaults), so when MKP draws
+// document's source alone. Each top-level widget gets a quiet placeholder of the size it says it is
+// at least (minwidth, minheight, aspect: written on it, or its widget's defaults), so when MKP draws
 // the widgets into them (mount(el, bundle, { places: true })) nothing outside their boxes moves.
 // Like an HTML img tag's width and height: given, nothing moves; left out, it may move once.
 //
@@ -11,7 +11,7 @@
 
 import { Diagnostics } from '../../core/src/diag';
 import { parseDoc, type DocItem } from '../../core/src/syntax/doc';
-import { mergeSize, SIZE_KEYS, sizeBox, sizeOf, type WidgetSize } from '../../core/src/size';
+import { mergeSize, SIZE_KEYS, sizeOf, sizeStyle, type WidgetSize } from '../../core/src/size';
 
 /** A top-level widget of a document, fenced or ::: , in source order, with the sizes written on it. */
 export interface Place {
@@ -51,21 +51,17 @@ export function places(source: string): Place[] {
 }
 
 /**
- * A widget's placeholder: an empty box, nothing a screen reader reads, at the size it starts at
- * (its own, with `defaults`, its widget's, filling in), or DEFAULT_HEIGHT high when it says none.
+ * A widget's placeholder: an empty box, nothing a screen reader reads, at the size the widget will be
+ * drawn at least (its own sizes, with `defaults`, its widget's, filling in), or DEFAULT_HEIGHT high
+ * when it says no height.
  */
 export function placeholder(p: Place, defaults?: WidgetSize, className = ''): string {
-  const box = sizeBox(mergeSize(p.size, defaults));
-  const style: string[] = [];
-  if (box.width !== undefined) style.push(`width:min(${round(box.width)}px,100%)`);
-  if (box.aspect !== undefined) style.push(`aspect-ratio:${round(box.aspect, 4)}`);
-  else style.push(`height:${round(box.height ?? DEFAULT_HEIGHT)}px`);
+  const css = sizeStyle(mergeSize(p.size, defaults));
+  const style = [css.minWidth && `min-width:${css.minWidth}`, css.minHeight && `min-height:${css.minHeight}`, css.aspectRatio && `aspect-ratio:${css.aspectRatio}`, !css.minHeight && !css.aspectRatio && `height:${DEFAULT_HEIGHT}px`].filter(Boolean);
   return `<div class="mkp-outline-place${className ? ` ${className}` : ''}" data-mkp-place="${p.place}" data-mkp-place-name="${p.name}" aria-hidden="true" style="${style.join(';')}"></div>`;
 }
 
-const round = (n: number, places = 0): number => Math.round(n * 10 ** places) / 10 ** places;
-
-/** The height of a widget that says no size: it may move this once, when it is drawn. */
+/** The height of a widget that says no height: it may move this once, when it is drawn. */
 export const DEFAULT_HEIGHT = 160;
 
 export interface OutlineOptions {
@@ -79,7 +75,7 @@ export interface OutlineOptions {
 
 /**
  * The document's first paint: its prose (drawn by `prose`, when given) and a placeholder for each
- * top-level widget, at the size it starts at, in a container marked busy until mount() draws them.
+ * top-level widget, at the size it is at least, in a container marked busy until mount() draws them.
  */
 export function outline(source: string, opts: OutlineOptions = {}): string {
   const doc = parseDoc(source, 'doc.mkp.md', new Diagnostics());

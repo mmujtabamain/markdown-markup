@@ -66,7 +66,7 @@ function Slot({ n, extra }: { n: VNode; extra?: ViewStyle }): ReactNode {
   useEffect(() => {
     if (kept && keep && host.current) keep(host.current as Measurable);
   }, [kept, keep]);
-  // aspect= keeps its shape at its width: at least that tall, taller when its content is (the drawn size wins)
+  // minheight and aspect (at its width), as its first paint had them: taller when its content is
   const aspect = n.size?.aspect;
   const [width, setWidth] = useState(0);
   const onLayout =
@@ -84,7 +84,7 @@ function Slot({ n, extra }: { n: VNode; extra?: ViewStyle }): ReactNode {
       onLayout={onLayout}
       accessibilityElementsHidden={n.hidden}
       importantForAccessibility={n.hidden ? 'no-hide-descendants' : 'auto'}
-      style={[layoutStyle(n, theme, flow), extra, aspect && width ? { minHeight: width / aspect } : null, n.hidden ? { display: 'none' } : null]}
+      style={[layoutStyle(n, theme, flow), extra, n.size?.minheight || (aspect && width) ? { minHeight: Math.max(n.size?.minheight ?? 0, aspect && width ? width / aspect : 0) } : null, n.hidden ? { display: 'none' } : null]}
     >
       <Node n={n} />
     </View>

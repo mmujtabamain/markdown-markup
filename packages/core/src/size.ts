@@ -1,6 +1,6 @@
-// A widget's size before it is drawn, as an HTML img tag's width and height are: minwidth and
-// minheight (px, where it starts: the drawn size wins), and aspect (width over height, exact).
-// Any two give the box; they are written on a use or as a widget's own inputs (its defaults).
+// A widget's size, as an HTML img tag's width and height are: minwidth and minheight (px, the least
+// it is: bigger content wins) and aspect (width over height, exact). Any two give its box before it
+// is drawn; they are written on a use or as a widget's own inputs (its defaults).
 
 import type { IRDef } from './ir';
 
@@ -8,9 +8,9 @@ export const SIZE_KEYS = ['minwidth', 'minheight', 'aspect'] as const;
 export type SizeKey = (typeof SIZE_KEYS)[number];
 
 export interface WidgetSize {
-  /** px: at least this wide at first, up to the width it is in */
+  /** px: at least this wide, up to the width it is in */
   minwidth?: number;
-  /** px: at least this tall at first */
+  /** px: at least this tall */
   minheight?: number;
   /** width over height: kept at every width */
   aspect?: number;
@@ -42,17 +42,19 @@ export function mergeSize(own: WidgetSize, defaults: WidgetSize | undefined): Wi
 }
 
 /**
- * The box a size gives before the widget is drawn: a width (px, at most the width it is in) and a
- * shape, or a height. Two of the three fix it; one gives what it can; none gives nothing.
+ * A size as CSS, the same for a first paint's placeholder and the drawn widget, so they match: at
+ * least minwidth wide (at most the width it is in), at least minheight tall, at aspect's shape at its
+ * width. Content bigger than that still shows: the drawn size wins.
  */
-export function sizeBox(s: WidgetSize): { width?: number; aspect?: number; height?: number } {
-  const { minwidth: w, minheight: h, aspect: a } = s;
-  if (a !== undefined) return w !== undefined ? { width: w, aspect: a } : h !== undefined ? { width: h * a, aspect: a } : { aspect: a };
-  if (w !== undefined && h !== undefined) return { width: w, aspect: w / h };
-  if (h !== undefined) return { height: h };
-  if (w !== undefined) return { width: w };
-  return {};
+export function sizeStyle(s: WidgetSize): { minWidth?: string; minHeight?: string; aspectRatio?: string } {
+  const out: { minWidth?: string; minHeight?: string; aspectRatio?: string } = {};
+  if (s.minwidth !== undefined) out.minWidth = `min(${round(s.minwidth)}px, 100%)`;
+  if (s.minheight !== undefined) out.minHeight = `${round(s.minheight)}px`;
+  if (s.aspect !== undefined) out.aspectRatio = String(round(s.aspect, 4));
+  return out;
 }
+
+const round = (n: number, places = 0): number => Math.round(n * 10 ** places) / 10 ** places;
 
 /**
  * Each widget's own sizes, by name: the defaults of its minwidth, minheight and aspect inputs.

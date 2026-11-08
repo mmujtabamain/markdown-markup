@@ -558,7 +558,7 @@ describe('a host’s externs', () => {
 });
 
 describe('a widget’s size', () => {
-  it('keeps its aspect at the width it is laid out at: at least that tall', async () => {
+  it('is at least its minheight, and its aspect at the width it is laid out at', async () => {
     const c = compile({ packs: [] });
     const b = c.document('```mkp\nnote "A note."\n  text "hi"\n  project md = "hi"\n```\n\n```note\naspect: 2\nminwidth: 300\nsummary: s\n```\n', 'doc.mkp.md')!;
     expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
@@ -573,6 +573,10 @@ describe('a widget’s size', () => {
       fireEvent(box, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 20 } } });
     });
     expect(style().minHeight).toBe(150);
+    await act(async () => {
+      fireEvent(box, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 100, height: 20 } } });
+    });
+    expect(style().minHeight).toBe(50);
     await act(async () => {
       await screen.unmount();
     });

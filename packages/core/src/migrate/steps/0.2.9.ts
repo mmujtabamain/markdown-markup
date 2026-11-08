@@ -8,7 +8,7 @@ import type { Step } from '../index';
 export const step_0_2_9: Step = {
   from: '0.2.8',
   to: '0.2.9',
-  summary: 'nothing to change: minwidth, minheight and aspect are new on a widget\'s use, and a first paint is sized by them instead of by sizes a host kept.',
+  summary: 'nothing to change: minwidth, minheight and aspect are new on a widget\'s use, and a first paint is sized by them instead of by heights a host kept.',
   renames: [],
   removes: [],
   changes: [],

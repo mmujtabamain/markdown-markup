@@ -6,7 +6,7 @@ import { compile, type PackSource } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
-import { mergeSize, sizeBox, sizeDefaults, sizeOf } from '../src/size';
+import { mergeSize, sizeDefaults, sizeOf, sizeStyle } from '../src/size';
 
 const enc = new TextEncoder();
 const pack: PackSource = {
@@ -57,10 +57,10 @@ describe('a size as written', () => {
     expect(sizeOf('minheight', '16/9')).toBeUndefined();
     expect(sizeOf('minheight', 'm')).toBeUndefined();
   });
-  it('takes two of three for its box, what the use wrote before the widget’s defaults', () => {
+  it('takes two of three, what the use wrote before the widget’s defaults, as CSS minimums and a shape', () => {
     expect(mergeSize({ aspect: 2 }, { minheight: 100, aspect: 1, minwidth: 50 })).toEqual({ aspect: 2, minwidth: 50 });
-    expect(sizeBox({ minheight: 100, aspect: 2 })).toEqual({ width: 200, aspect: 2 });
-    expect(sizeBox({ minwidth: 300, minheight: 150 })).toEqual({ width: 300, aspect: 2 });
+    expect(sizeStyle({ minheight: 100, aspect: 16 / 9 })).toEqual({ minHeight: '100px', aspectRatio: '1.7778' });
+    expect(sizeStyle({ minwidth: 300, minheight: 150 })).toEqual({ minWidth: 'min(300px, 100%)', minHeight: '150px' });
   });
 });
 
