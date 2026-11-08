@@ -425,6 +425,11 @@ A pack is a folder: `manifest.mkp` (`pack name@N`, `requires core@1`, `depends o
 only through `depends`. To change a pack's widget, copy it (example 28): nothing links the copy to
 it, and the `# from …` line is only for review.
 
+A pack may hold images (SVG, PNG, JPEG, WebP). A widget names one by its path in the pack
+(`image "frames/open.svg"`, or `if(open, "frames/open.svg", "frames/closed.svg")` to swap frames), and
+every bundle that uses the widget carries it, digest-locked: drawn from the bundle, never fetched, so
+what a bundle shows is frozen with it (a release note's pictures of an app, with presses over them).
+
 A published version keeps its behaviour. **A breaking change to a pack's widget is always a new
 version beside the old one** (`callout@2` next to `callout@1`), never an edit of the old one, and it
 comes with a `migrate` block. Mark the old one `deprecated "use walk@2: …"` (its uses are warned),

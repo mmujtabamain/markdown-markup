@@ -13,6 +13,9 @@ import { Diagnostics } from '../../core/src/diag';
 import { parseDoc, type DocItem } from '../../core/src/syntax/doc';
 import { mergeSize, SIZE_KEYS, sizeOf, sizeStyle, type WidgetSize } from '../../core/src/size';
 
+// a document in its pieces, for a host that draws or caches them one by one
+export { segments, type Segment } from '../../core/src/syntax/segments';
+
 /** A top-level widget of a document, fenced or ::: , in source order, with the sizes written on it. */
 export interface Place {
   place: number;
@@ -42,12 +45,22 @@ function written(it: Extract<DocItem, { k: 'block' | 'container' }>): WidgetSize
   return out;
 }
 
-/** The document's top-level widgets, numbered as the compiler numbers them (meta.place). */
+/** A state block's controls, one row each (a var has none). */
+const controlRows = (body: string): number => body.split('\n').filter((l) => /^\s*[A-Za-z_][A-Za-z0-9_]*\s+(?:=|[a-z(])/.test(l) && !/^\s*var\s/.test(l)).length;
+
+/** A place's box for a state block: its controls' rows, as MKP's default look draws them (measured in Chromium). */
+const stateSize = (body: string): WidgetSize => ({ minheight: Math.max(1, controlRows(body)) * (CONTROL_ROW + CONTROL_GAP) - CONTROL_GAP });
+
+/** How tall one control's row is drawn (a slider, a toggle or a choice with its label), and the gap between rows, in px. */
+const CONTROL_ROW = 21;
+const CONTROL_GAP = 11;
+
+/** The document's top-level widgets and state blocks, numbered as the compiler numbers them (meta.place). */
 export function places(source: string): Place[] {
   const doc = parseDoc(source, 'doc.mkp.md', new Diagnostics());
   return doc.items
-    .filter((it): it is Extract<typeof it, { k: 'block' | 'container' }> => it.k === 'block' || it.k === 'container')
-    .map((it, place) => ({ place, name: bare(it.name), line: it.line, size: written(it) }));
+    .filter((it): it is Extract<typeof it, { k: 'block' | 'container' | 'state' }> => it.k === 'block' || it.k === 'container' || it.k === 'state')
+    .map((it, place) => (it.k === 'state' ? { place, name: 'state', line: it.line, size: stateSize(it.body) } : { place, name: bare(it.name), line: it.line, size: written(it) }));
 }
 
 /**
@@ -57,7 +70,7 @@ export function places(source: string): Place[] {
  */
 export function placeholder(p: Place, defaults?: WidgetSize, className = ''): string {
   const css = sizeStyle(mergeSize(p.size, defaults));
-  const style = [css.minWidth && `min-width:${css.minWidth}`, css.minHeight && `min-height:${css.minHeight}`, css.aspectRatio && `aspect-ratio:${css.aspectRatio}`, !css.minHeight && !css.aspectRatio && `height:${DEFAULT_HEIGHT}px`].filter(Boolean);
+  const style = [css.minWidth && `min-width:${css.minWidth}`, css.minHeight && `min-height:${css.minHeight}`, css.aspectRatio && `aspect-ratio:${css.aspectRatio}`, css.maxWidth && `max-width:${css.maxWidth}`, !css.minHeight && !css.aspectRatio && `height:${DEFAULT_HEIGHT}px`].filter(Boolean);
   return `<div class="mkp-outline-place${className ? ` ${className}` : ''}" data-mkp-place="${p.place}" data-mkp-place-name="${p.name}" aria-hidden="true" style="${style.join(';')}"></div>`;
 }
 
@@ -85,6 +98,8 @@ export function outline(source: string, opts: OutlineOptions = {}): string {
     if (it.k === 'block' || it.k === 'container') {
       const p: Place = { place: place++, name: bare(it.name), line: it.line, size: written(it) };
       parts.push(placeholder(p, opts.sizes?.[p.name], opts.className));
+    } else if (it.k === 'state') {
+      parts.push(placeholder({ place: place++, name: 'state', line: it.line, size: stateSize(it.body) }, undefined, opts.className));
     } else if (it.k === 'md' && opts.prose) parts.push(opts.prose(it.text));
   }
   return `<div class="mkp-outline" aria-busy="true">${parts.join('\n')}</div>`;

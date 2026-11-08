@@ -759,8 +759,12 @@ export class Runtime {
         if (!sv || !sv.__slot) return [];
         return this.renderNodes(sv.nodes, sv.env, sv.inst, `${key}~`);
       }
-      case 'controls':
-        return (n.names ?? []).map((nm) => this.control(inst, nm, key)).filter(Boolean) as VNode[];
+      case 'controls': {
+        const out = (n.names ?? []).map((nm) => this.control(inst, nm, key)).filter(Boolean) as VNode[];
+        // a state block's controls share its place: drawn together in its box
+        if (typeof n.meta?.place === 'number') for (const v of out) v.p = { ...v.p, place: n.meta.place };
+        return out;
+      }
       case 'arrow':
         this.pendingArrows(inst).push({ n, env, key });
         return null;
@@ -808,6 +812,17 @@ export class Runtime {
     if (n.meta?.keep && this.valueOf(n.meta.keep, env, inst)) layout.keep = true;
     if (Object.keys(layout).length) v.layout = layout;
     return v;
+  }
+
+  /**
+   * An image the bundle carries (a pack's, named by its path in the pack whose widget draws it): a
+   * data URI to draw, never fetched, and its name, for the Markdown target's file.
+   */
+  private asset(src: string, inst: Inst): { src: string; asset: string } | undefined {
+    const name = `${inst.def.pack}/${src}`;
+    const a = this.bundle.assets?.[name];
+    if (!a) return undefined;
+    return { src: a.base64 ? `data:${a.type};base64,${a.data}` : `data:${a.type};charset=utf-8,${encodeURIComponent(a.data)}`, asset: name };
   }
 
   /** A use's minwidth, minheight and aspect: written on it (or given to its inputs of those names), its widget's defaults filling in. */
@@ -1103,6 +1118,8 @@ export class Runtime {
       }
       case 'image': {
         const p = this.props(n, env, inst);
+        const a = this.asset(String(p.src), inst);
+        if (a) Object.assign(p, a);
         return { t: 'image', key, p };
       }
       case 'press': {
@@ -1307,9 +1324,11 @@ export class Runtime {
             ...opacity,
           };
           break;
-        case 'image':
-          s = { t: 'image', key: k, src: String(p.src), at: pt(p.at), w: p.w as number, h: p.h as number, alt: String(p.alt) };
+        case 'image': {
+          const a = this.asset(String(p.src), inst);
+          s = { t: 'image', key: k, src: a?.src ?? String(p.src), ...(a ? { asset: a.asset } : {}), at: pt(p.at), w: p.w as number, h: p.h as number, alt: String(p.alt) };
           break;
+        }
         case 'place':
           s = { t: 'place', key: k, at: pt(p.at), kids: this.renderNodes(r.children ?? [], env, inst, k) };
           break;

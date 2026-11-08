@@ -6,7 +6,7 @@ import { compile, type PackSource } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
-import { mergeSize, sizeDefaults, sizeOf, sizeStyle } from '../src/size';
+import { mergeSize, sizeDefaults, sizeOf, sizeStyle, sizeVars } from '../src/size';
 
 const enc = new TextEncoder();
 const pack: PackSource = {
@@ -59,8 +59,12 @@ describe('a size as written', () => {
   });
   it('takes two of three, what the use wrote before the widget’s defaults, as CSS minimums and a shape', () => {
     expect(mergeSize({ aspect: 2 }, { minheight: 100, aspect: 1, minwidth: 50 })).toEqual({ aspect: 2, minwidth: 50 });
-    expect(sizeStyle({ minheight: 100, aspect: 16 / 9 })).toEqual({ minHeight: '100px', aspectRatio: '1.7778' });
-    expect(sizeStyle({ minwidth: 300, minheight: 150 })).toEqual({ minWidth: 'min(300px, 100%)', minHeight: '150px' });
+    // an empty box (a placeholder) never wider than its column: a minheight through an aspect would widen it
+    expect(sizeStyle({ minheight: 100, aspect: 16 / 9 })).toEqual({ minHeight: '100px', aspectRatio: '1.7778', maxWidth: '100%' });
+    expect(sizeStyle({ minwidth: 300, minheight: 150 })).toEqual({ minWidth: 'min(300px, 100%)', minHeight: '150px', maxWidth: '100%' });
+    expect(sizeStyle({})).toEqual({});
+    // a drawn widget: minheight and aspect on a spacer that only reserves room, so bigger content grows it
+    expect(sizeVars({ minwidth: 300, minheight: 240, aspect: 3 })).toEqual({ minWidth: 'min(300px, 100%)', '--mkp-minheight': '240px', '--mkp-aspect': '3' });
   });
 });
 
@@ -94,6 +98,31 @@ describe('minwidth, minheight and aspect on a use', () => {
   it('refuses a size that is not one, saying how it is written', () => {
     expect(doc('```note\nminheight: tall\naspect: 2\nsummary: s\n```\n').errors.join('\n')).toMatch(/minheight takes a number of px/);
     expect(doc(':::panel aspect=wide minheight=100\nHi.\n:::\n').errors.join('\n')).toMatch(/aspect takes a ratio of width to height, e\.g\. aspect=16\/9/);
+  });
+});
+
+describe('a widget’s own lone size', () => {
+  const lone: PackSource = {
+    label: 'q',
+    files: new Map(
+      Object.entries({
+        'manifest.mkp': 'pack q@1 "Q."\n  requires core@1\n  provides tile\n',
+        'tile.mkp': 'tile@1 "A tile."\n  in minheight int = 60 "the least it is"\n  in label text\n  text label\n  project md = label\n',
+        'tile.fixture.json': JSON.stringify({ widget: 'tile@1', cases: { one: { props: { label: 'x' }, summary: 'One.' } } }),
+      }).map(([k, v]) => [k, enc.encode(v)]),
+    ),
+  };
+  it('is said of once, where the widget declares it, never on a use that writes no size', () => {
+    const c = compile({ packs: [lone] });
+    c.document('```tile\nlabel: a\nsummary: s\n```\n\n```tile\nlabel: b\nsummary: s\n```\n', 'doc.mkp.md');
+    const w = c.diags.warnings.filter((d) => d.code === 'mkp.size');
+    expect(w.map((d) => [d.pos?.file, d.pos?.line])).toEqual([['q/tile.mkp', 2]]);
+    expect(w[0].message).toMatch(/tile gives itself minheight alone/);
+  });
+  it('is completed by a use that writes the other, with no word on it', () => {
+    const c = compile({ packs: [lone] });
+    c.document('```tile\nlabel: a\naspect: 3\nsummary: s\n```\n', 'doc.mkp.md');
+    expect(c.diags.warnings.filter((d) => d.code === 'mkp.size' && d.pos?.file === 'doc.mkp.md')).toEqual([]);
   });
 });
 

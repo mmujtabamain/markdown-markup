@@ -54,20 +54,20 @@ describe('sizes', () => {
     expect(places(text).map((p) => p.size)).toEqual([{ minwidth: 480, aspect: 16 / 9 }, { minheight: 120, aspect: 1.5 }, { minheight: 200 }]);
   });
   it('gives the box the widget is drawn at least: the same CSS as the drawn widget, so they match', () => {
-    expect(at({ minwidth: 480, minheight: 240 })).toBe('min-width:min(480px, 100%);min-height:240px');
-    expect(at({ minwidth: 480, aspect: 1.6 })).toBe('min-width:min(480px, 100%);aspect-ratio:1.6');
-    expect(at({ minheight: 200, aspect: 2 })).toBe('min-height:200px;aspect-ratio:2');
-    expect(at({ aspect: 4 / 3 })).toBe('aspect-ratio:1.3333');
-    expect(at({ minheight: 300 })).toBe('min-height:300px');
+    expect(at({ minwidth: 480, minheight: 240 })).toBe('min-width:min(480px, 100%);min-height:240px;max-width:100%');
+    expect(at({ minwidth: 480, aspect: 1.6 })).toBe('min-width:min(480px, 100%);aspect-ratio:1.6;max-width:100%');
+    expect(at({ minheight: 200, aspect: 2 })).toBe('min-height:200px;aspect-ratio:2;max-width:100%');
+    expect(at({ aspect: 4 / 3 })).toBe('aspect-ratio:1.3333;max-width:100%');
+    expect(at({ minheight: 300 })).toBe('min-height:300px;max-width:100%');
   });
   it('gives a widget that says no height the default height, which it may move from once', () => {
-    expect(at({ minwidth: 300 })).toBe('min-width:min(300px, 100%);height:160px');
+    expect(at({ minwidth: 300 })).toBe('min-width:min(300px, 100%);max-width:100%;height:160px');
     expect(at({})).toBe('height:160px');
   });
   it('lets the widget’s own defaults fill in up to two, what the use wrote winning', () => {
-    expect(at({}, { minheight: 48 })).toBe('min-height:48px');
-    expect(at({ aspect: 2 }, { minheight: 100, aspect: 1 })).toBe('min-height:100px;aspect-ratio:2');
-    expect(at({ minwidth: 300, minheight: 100 }, { aspect: 1 })).toBe('min-width:min(300px, 100%);min-height:100px');
+    expect(at({}, { minheight: 48 })).toBe('min-height:48px;max-width:100%');
+    expect(at({ aspect: 2 }, { minheight: 100, aspect: 1 })).toBe('min-height:100px;aspect-ratio:2;max-width:100%');
+    expect(at({ minwidth: 300, minheight: 100 }, { aspect: 1 })).toBe('min-width:min(300px, 100%);min-height:100px;max-width:100%');
   });
 });
 
@@ -80,9 +80,9 @@ describe('outline', () => {
     el.innerHTML = html;
     const boxes = [...el.querySelectorAll<HTMLElement>('[data-mkp-place]')];
     expect(boxes.map((b) => [b.getAttribute('data-mkp-place'), b.getAttribute('data-mkp-place-name'), b.getAttribute('style')])).toEqual([
-      ['0', 'card', 'min-height:48px'],
+      ['0', 'card', 'min-height:48px;max-width:100%'],
       ['1', 'frame', 'height:160px'],
-      ['2', 'card', 'min-width:min(480px, 100%);aspect-ratio:2'],
+      ['2', 'card', 'min-width:min(480px, 100%);aspect-ratio:2;max-width:100%'],
     ]);
     expect(boxes.every((b) => b.getAttribute('aria-hidden') === 'true' && b.textContent === '')).toBe(true);
     expect(el.querySelector('.mkp-outline')!.getAttribute('aria-busy')).toBe('true');
@@ -91,6 +91,15 @@ describe('outline', () => {
     const only = document.createElement('div');
     only.innerHTML = outline(src);
     expect(only.textContent!.trim()).toBe('');
+  });
+
+  it('gives a state block a place, its box as tall as its controls are drawn', () => {
+    const text = 'A.\n\n```state\nt = slider 0..10 "turn"\nvar z int = 1\non = toggle "on"\n```\n\n' + src.replace(/^# A note\n\nSome prose.\n\n/, '');
+    expect(places(text).map((p) => `${p.place}:${p.name}`)).toEqual(['0:state', '1:card', '2:frame', '3:card']);
+    const el = document.createElement('div');
+    el.innerHTML = outline(text);
+    // two controls (the var draws none): 21 px each and 11 between, as MKP draws them
+    expect(el.querySelector<HTMLElement>('[data-mkp-place="0"]')!.style.minHeight).toBe('53px');
   });
 
   let views: MountedDocument[] = [];
@@ -108,6 +117,7 @@ describe('outline', () => {
     const el = document.body.appendChild(document.createElement('div'));
     el.innerHTML = outline(src, { prose: (md) => `<p class="host">${md.trim()}</p>` });
     const prose = [...el.querySelectorAll('p.host')];
+    const warn = vi.spyOn(console, 'warn');
     let v!: MountedDocument;
     await act(async () => {
       v = mount(el, b, { places: true });
@@ -125,16 +135,40 @@ describe('outline', () => {
     expect(boxes[2].textContent).toBe('two');
     expect(boxes.every((x) => x.classList.contains('mkp-root') && !x.getAttribute('style') && !x.hasAttribute('aria-hidden'))).toBe(true);
     // the drawn widget keeps what its placeholder had
-    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.aspectRatio).toBe('2');
-    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.minWidth).toBe('min(480px, 100%)');
-    expect(boxes[0].querySelector<HTMLElement>('[data-mkp-place="0"]')!.style.aspectRatio).toBe('');
+    const drawn = boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!;
+    expect([drawn.style.getPropertyValue('--mkp-aspect'), drawn.style.minWidth, drawn.hasAttribute('data-mkp-sized')]).toEqual(['2', 'min(480px, 100%)', true]);
+    expect(boxes[0].querySelector<HTMLElement>('[data-mkp-place="0"]')!.hasAttribute('data-mkp-sized')).toBe(false);
     // the host's prose is the same elements, never drawn again
     expect([...el.querySelectorAll('p.host')]).toEqual(prose);
     expect(el.querySelector('.mkp-outline')!.hasAttribute('aria-busy')).toBe(false);
     // one runtime for every widget: the document's state is one
     let n = 0;
+    expect(warn).not.toHaveBeenCalled();
     walkView(v.runtime!.view(), () => void n++);
     expect(n).toBeGreaterThan(3);
     expect(v.runtime).toBeInstanceOf(Runtime);
+  });
+
+  it('draws a state block’s controls into its box, and says so of anything it has no box for', async () => {
+    const text = 'A.\n\n```state\nt = slider 0..10 "turn"\n```\n\n```mkp\nw "w"\n  text "w"\n  project md = "w"\n```\n\n```w\nsummary: s\n```\n\nB.[^1]\n\n[^1]: A note.\n';
+    const c = compile({ packs: [] });
+    const b = c.document(text, 'doc.mkp.md') as IRBundle;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const el = document.body.appendChild(document.createElement('div'));
+    el.innerHTML = outline(text, { prose: (md) => `<p>${md.trim()}</p>` });
+    // the page left the widget's box out
+    el.querySelector('[data-mkp-place="1"]')!.remove();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await act(async () => {
+      const v = mount(el, b, { places: true });
+      views.push(v);
+      await v.ready;
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(el.querySelector('[data-mkp-place="0"] input[type=range]')).not.toBeNull();
+    // the footnote is prose, the page's to draw: not counted
+    expect(warn.mock.calls.map((x) => String(x[0]))).toEqual(['mkp-dom: places: no box for scope (place 1), so it is not drawn. Give each place a placeholder (outline() or placeholder() makes them), or mount without places']);
   });
 });

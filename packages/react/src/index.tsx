@@ -242,15 +242,29 @@ function PlacesRoot({ targets, theme, className, onDrawn }: { targets: Map<numbe
     told.current = true;
     onDrawn?.();
   });
+  // what MKP draws but has no box for here (a place the page left out): said once, not dropped silently.
+  // Prose (footnotes among it) is the page's to draw, so it is not counted
+  const missing = [...new Set(tree.filter((x) => !PROSE.has(x.t) && !(typeof x.p.place === 'number' && targets.has(x.p.place))).map((x) => (typeof x.p.place === 'number' ? `${x.t} (place ${x.p.place})` : x.t)))];
+  const warned = useRef('');
+  useEffect(() => {
+    const said = missing.join(', ');
+    if (!said || said === warned.current) return;
+    warned.current = said;
+    console.warn(`mkp-dom: places: no box for ${said}, so it is not drawn. Give each place a placeholder (outline() or placeholder() makes them), or mount without places`);
+  });
   return (
     <>
       {[...targets].map(([place, el]) => {
-        const n = tree.find((x) => x.p.place === place);
-        return n ? <Fragment key={place}>{createPortal(<Node n={n} />, el)}</Fragment> : null;
+        // a widget, or a state block's controls (one place, drawn together)
+        const ns = tree.filter((x) => x.p.place === place);
+        return ns.length ? <Fragment key={place}>{createPortal(<Kids nodes={ns} />, el)}</Fragment> : null;
       })}
     </>
   );
 }
+
+/** A document's prose, which the page draws itself when MKP draws into places. */
+const PROSE = new Set(['paragraph', 'heading', 'list', 'quote', 'code', 'math', 'divider', 'table', 'footnote', 'html']);
 
 function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme']; className?: string }): ReactNode {
   const tree = useMkpView();

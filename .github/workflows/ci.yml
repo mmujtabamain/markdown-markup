@@ -34,6 +34,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # the published releases the tests and the API check compare with (they never change), kept so a
+      # GitHub download outage doesn't fail the checks; a new release adds to what is kept
+      - name: Published MKP releases (cached)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mkp
+          key: mkp-releases-${{ hashFiles('VERSION') }}
+          restore-keys: mkp-releases-
       - name: Types
         run: pnpm typecheck
       - name: Tests (parser, checker, evaluator, runtime, round trip, fixtures, Markdown, CLI)
@@ -66,13 +74,19 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # the Hermes CLI release never changes: kept, so a GitHub download outage doesn't fail the job
+      - name: Hermes CLI (cached)
+        uses: actions/cache@v4
+        with:
+          path: ~/hermes
+          key: hermes-cli-linux-v0.13.0
       - name: Hermes CLI (v0.13.0, the facebook/hermes release)
         run: |
-          mkdir -p "$RUNNER_TEMP/hermes" && cd "$RUNNER_TEMP/hermes"
-          curl -sSL --fail -o hermes.tgz https://github.com/facebook/hermes/releases/download/v0.13.0/hermes-cli-linux.tar.gz
-          tar xzf hermes.tgz && ./hermes -version
+          mkdir -p ~/hermes && cd ~/hermes
+          [ -x ./hermes ] || { curl -sSL --fail -o hermes.tgz https://github.com/facebook/hermes/releases/download/v0.13.0/hermes-cli-linux.tar.gz && tar xzf hermes.tgz; }
+          ./hermes -version
       - name: Conformance, compiler and maths under Hermes
-        run: HERMES="$RUNNER_TEMP/hermes/hermes" pnpm hermes
+        run: HERMES="$HOME/hermes/hermes" pnpm hermes
 
   react-native:
     name: React Native renderer
@@ -109,6 +123,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # the published releases the tests and the API check compare with (they never change), kept so a
+      # GitHub download outage doesn't fail the checks; a new release adds to what is kept
+      - name: Published MKP releases (cached)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mkp
+          key: mkp-releases-${{ hashFiles('VERSION') }}
+          restore-keys: mkp-releases-
       - name: Build the release files
         run: node scripts/dist.mjs --out "$RUNNER_TEMP/dist"
       - name: The changelog names every API change since the last release (warnings only)

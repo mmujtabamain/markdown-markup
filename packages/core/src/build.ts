@@ -6,7 +6,7 @@ import { checkDocument, DOC_PACK, type DocFile } from './check/doc';
 import { DefChecker, signatureOf, type Sig } from './check/def';
 import { Program, type PackInfo } from './check/program';
 import { closest, Diagnostics, MkpError, type Pos } from './diag';
-import type { A, IRBundle, IRDef, IRDoc, IRExpr, IRFn, IRLock, IRNode, IRTokenSet, IRVal } from './ir';
+import type { A, IRAsset, IRBundle, IRDef, IRDoc, IRExpr, IRFn, IRLock, IRNode, IRTokenSet, IRVal } from './ir';
 import { IR_VERSION } from './ir';
 import { RELEASE } from './version';
 import { packMoves, type PackMove } from './migrate/packs';
@@ -17,6 +17,7 @@ import { fileItems, printFile, type FileItem } from './print';
 import type { Type, TypeEnv } from './types';
 import { canonicalJson } from './util/jcs';
 import { sha256 } from './util/sha256';
+import { toBase64 } from './util/base64';
 
 /** IR node names the compiler and runtime give their own meaning (statements, document state). */
 const BUILTIN_NODES = new Set(['each', 'switch', 'case', 'else', 'slot', 'fill', 'controls', 'arrow']);
@@ -202,6 +203,8 @@ export class Compiled {
     const lockDefs: Record<string, string> = {};
     for (const id of Object.keys(defs)) if (this.lock.defs[id]) lockDefs[id] = this.lock.defs[id];
     const packsUsed = new Set(Object.values(defs).map((d) => d.pack));
+    const assets = bundleAssets(prog, packsUsed, [doc.body, ...Object.values(defs)]);
+    const lockAssets = Object.fromEntries(Object.entries(assets).map(([k, a]) => [k, a.digest]));
     return {
       ir: IR_VERSION,
       mkp: RELEASE,
@@ -215,10 +218,38 @@ export class Compiled {
       macros,
       capabilities: [...caps].sort(),
       interface: iface,
-      lock: { mkp: RELEASE, packs: this.lock.packs.filter((p) => packsUsed.has(p.pack) || p.pack === 'core'), defs: lockDefs },
+      lock: { mkp: RELEASE, packs: this.lock.packs.filter((p) => packsUsed.has(p.pack) || p.pack === 'core'), defs: lockDefs, ...(Object.keys(lockAssets).length ? { assets: lockAssets } : {}) },
       profile: this.opts.profile,
+      ...(Object.keys(assets).length ? { assets } : {}),
     };
   }
+}
+
+const IMAGE_TYPES: Record<string, string> = { svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+
+/**
+ * The images of the packs a bundle uses that its document or definitions name in a string (an
+ * image's src, or a choice of frames: if(open, "open.svg", "closed.svg")), carried in it so it is
+ * drawn from them, never from a URL: what freezes a release note's design with its bundle.
+ */
+function bundleAssets(prog: Program, packs: Set<string>, roots: unknown[]): Record<string, IRAsset> {
+  const named = new Set<string>();
+  const walk = (v: unknown): void => {
+    if (typeof v === 'string') named.add(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) walk(x);
+  };
+  roots.forEach(walk);
+  const out: Record<string, IRAsset> = {};
+  for (const name of [...packs].sort()) {
+    for (const [path, bytes] of [...(prog.packs.get(name)?.assets ?? [])].sort(([a], [b]) => (a < b ? -1 : 1))) {
+      const type = IMAGE_TYPES[path.slice(path.lastIndexOf('.') + 1).toLowerCase()];
+      if (!type || !named.has(path)) continue;
+      const svg = type === 'image/svg+xml';
+      out[`${name}/${path}`] = { type, digest: 'sha256:' + sha256(bytes), data: svg ? new TextDecoder().decode(bytes) : toBase64(bytes), ...(svg ? {} : { base64: true }) };
+    }
+  }
+  return out;
 }
 
 export function digest(v: unknown): string {

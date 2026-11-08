@@ -55,13 +55,14 @@ export type ShapeEvent = 'enter' | 'leave' | 'click';
 /**
  * Canvas shapes. Lines, rectangles and curves are paths (the base set draws only these); a
  * circle's px is a radius in pixels, whatever the zoom; opacity is the shape's own (GAPS 106–109,
- * 113). Labels are kept inside the canvas and clear of each other by the renderer.
+ * 113). Labels are kept inside the canvas and clear of each other by the renderer. An image's asset is
+ * the bundle's image it is drawn from (its src then that image's data URI).
  */
 export type VShape =
   | { t: 'circle'; key: string; c: number[]; r: number; px?: number; fill: string; stroke: string; width: number; opacity?: number; label?: string; ev?: ShapeEvent[] }
   | { t: 'path'; key: string; pts: number[][]; closed: boolean; fill: string; stroke: string; width: number; dash: boolean; head?: 'arrow' | 'dot'; opacity?: number; label?: string; ev?: ShapeEvent[] }
   | { t: 'label'; key: string; at: number[]; runs: VRun[]; tone: string; anchor: string; chip?: boolean; size?: 'small' | 'large'; halo?: boolean; dx?: number; dy?: number; opacity?: number }
-  | { t: 'image'; key: string; src: string; at: number[]; w: number; h: number; alt: string }
+  | { t: 'image'; key: string; src: string; asset?: string; at: number[]; w: number; h: number; alt: string }
   | { t: 'place'; key: string; at: number[]; kids: VNode[] }
   | { t: 'handle'; key: string; at: number[]; tone: string; label: string; x: number[]; y: number[] }
   | { t: 'pixels'; key: string; glsl: string; sksl: string; uniforms: Record<string, number>; res: number; fallback?: string }

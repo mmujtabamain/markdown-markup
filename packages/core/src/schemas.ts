@@ -164,7 +164,12 @@ export const bundleSchema = {
     macros: { type: 'object', additionalProperties: { type: 'string' } },
     capabilities: { type: 'array', items: { type: 'string' } },
     interface: { type: 'object', required: ['signals', 'hosts', 'commands'] },
-    lock: { type: 'object', required: ['packs', 'defs'] },
+    lock: { type: 'object', required: ['packs', 'defs'], properties: { assets: { type: 'object', additionalProperties: { type: 'string' } } } },
+    assets: {
+      type: 'object',
+      description: 'images the bundle carries, by pack/path: drawn from here, never fetched',
+      additionalProperties: { type: 'object', required: ['type', 'digest', 'data'], properties: { type: { enum: ['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp'] }, digest: { type: 'string', pattern: '^sha256:[0-9a-f]{64}$' }, data: { type: 'string' }, base64: { type: 'boolean' } }, additionalProperties: false },
+    },
   },
 };
 

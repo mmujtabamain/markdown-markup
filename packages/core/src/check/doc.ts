@@ -547,13 +547,15 @@ class DocChecker {
             const warns: { line: number; message: string }[] = [];
             const nodes = markdownToNodes(it.text, it.line, warns);
             for (const w of warns) this.diags.warn('mkp.markdown', w.message, this.p(w.line));
+            this.valInProse(it.text, it.line);
             if (it.attrs && nodes.length) this.applyAttrs(nodes[nodes.length - 1], it.attrs.id, it.attrs.props, it.attrs.line, null);
             out.push(...nodes);
             break;
           }
           case 'state': {
             const names = this.stateNames(it.body);
-            out.push({ node: 'controls', names, pos: [it.line, 1] });
+            // its controls have a place too, so a first paint reserves their box and mount() draws them there
+            out.push({ node: 'controls', names, pos: [it.line, 1], ...(top ? { meta: { place: placeNo++ } } : {}) });
             break;
           }
           case 'defs':
@@ -1044,6 +1046,27 @@ class DocChecker {
     }
   }
 
+  /** \val{…} in a document's prose is shown as written: live values are a widget's (its text's strings). */
+  private valInProse(text: string, line: number): void {
+    let fence: string | null = null;
+    text.split('\n').forEach((l, i) => {
+      const f = /^\s*(`{3,}|~{3,})/.exec(l);
+      if (f && (!fence || f[1].startsWith(fence))) {
+        fence = fence ? null : f[1];
+        return;
+      }
+      if (fence) return;
+      // inline code is shown as written on purpose
+      const m = /\\val\{([^}]*)\}/.exec(l.replace(/(`+)[\s\S]*?\1/g, (c) => ' '.repeat(c.length)));
+      if (!m) return;
+      this.diags.warn(
+        'mkp.val-in-prose',
+        `\\val{${m[1]}} in the document's text is shown as written, not as a value: live values work in a widget's text only; found ${m[0]} here. Show it with a widget, e.g. a block of your own whose view is text "… \\val{${m[1]}} …", or write the value out`,
+        this.p(line + i, m.index + 1),
+      );
+    });
+  }
+
   /** A size written on a use whose widget has no input of that name (minheight: 320, aspect=16/9). */
   private setSize(node: IRNode, k: SizeKey, v: string | number, p: Pos): void {
     const n = sizeOf(k, v);
@@ -1063,8 +1086,9 @@ class DocChecker {
     }
     const written = Object.keys(own);
     if (written.length === 3) throw new MkpError('mkp.size', `${sig.name} is given minwidth, minheight and aspect, which can disagree: two of them fix its size before it is drawn. Remove one, e.g. keep minwidth and aspect`, p);
+    // said here only of what this use writes: a widget's own lone default is said of once, where it is declared
     const all = Object.keys(mergeSize(own, sig.sizes));
-    if (all.length === 1) {
+    if (written.length && all.length === 1) {
       const k = all[0] as SizeKey;
       const rest = SIZE_KEYS.filter((x) => x !== k).join(' or ');
       this.diags.warn('mkp.size', `${sig.name} has ${k} alone, so its box before it is drawn is ${k === 'minwidth' ? 'only as wide as that, with a height guessed' : k === 'minheight' ? 'that tall, as wide as the column' : 'that shape, as wide as the column'}, and may move once when drawn. Give ${rest} as well, so its box is fixed`, p);

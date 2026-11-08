@@ -118,8 +118,38 @@ function Run({ r, fontSize }: { r: VRun; fontSize: number }): ReactNode {
   }
 }
 
+/** An SVG a bundle carries (a data URI): its text, for react-native-svg (React Native's Image draws raster only). */
+export function svgData(src: string): string | null {
+  const m = /^data:image\/svg\+xml(;charset=[^,;]*)?(;base64)?,/.exec(src);
+  if (!m) return null;
+  const body = src.slice(m[0].length);
+  return m[2] ? (globalThis.atob ? globalThis.atob(body) : null) : decodeURIComponent(body);
+}
+
+/** An SVG's own size, from its viewBox (or width and height). */
+export function svgSize(xml: string): { w: number; h: number } | null {
+  const vb = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(xml);
+  if (vb) return { w: Number(vb[1]), h: Number(vb[2]) };
+  const w = /\swidth\s*=\s*["']([\d.]+)/.exec(xml);
+  const h = /\sheight\s*=\s*["']([\d.]+)/.exec(xml);
+  return w && h ? { w: Number(w[1]), h: Number(h[1]) } : null;
+}
+
 /** An image in running text, sized from the file (capped), or a placeholder box until known. */
 export function InlineImage({ src, alt, max = 320 }: { src: string; alt: string; max?: number }): ReactNode {
+  const xml = svgData(src);
+  if (xml) return <SvgImageOf xml={xml} alt={alt} max={max} />;
+  return <RasterImage src={src} alt={alt} max={max} />;
+}
+
+/** A carried SVG drawn by react-native-svg, at its own shape, capped. */
+function SvgImageOf({ xml, alt, max }: { xml: string; alt: string; max: number }): ReactNode {
+  const own = svgSize(xml) ?? { w: max, h: max / 2 };
+  const w = Math.min(max, own.w);
+  return <SvgXml xml={xml} width={w} height={(w * own.h) / own.w} accessibilityLabel={alt} accessible={!!alt} />;
+}
+
+function RasterImage({ src, alt, max }: { src: string; alt: string; max: number }): ReactNode {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
     let live = true;

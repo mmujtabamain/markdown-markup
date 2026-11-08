@@ -7,6 +7,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { compile, formatDiagnostic, Runtime, walkView as walk, type IRBundle, type VNode } from '@mkp/core';
 import { memo, type ReactNode } from 'react';
 import { hostDoc, hostPack } from '../../core/test/host-externs';
+import { pack as notesPack } from '../../core/test/freeze-pack';
 import { BASE_CSS, Canvas, hostIcon, type ExternProps, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
@@ -643,6 +644,32 @@ describe('what a host styles and traces', () => {
       'A panel with a footer, drawn by the host.',
     ]);
   });
+  it('draws a bundle’s carried images from it, never fetched: a frozen frame, swapped by a press', () => {
+    const c = compile({ packs: [notesPack] });
+    const b = c.document('```scene\nsummary: s\n```\n\n```still\nsummary: s\n```\n', 'notes.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion />);
+    const frame = () => container.querySelector('svg image')!.getAttribute('href')!;
+    expect(frame().startsWith('data:image/svg+xml;charset=utf-8,')).toBe(true);
+    expect(decodeURIComponent(frame())).toContain('>closed<');
+    fireEvent.click(one(container, '[aria-label="Filter"]'));
+    expect(decodeURIComponent(frame())).toContain('>open<');
+    const imgs = [...container.querySelectorAll('img')].map((i) => i.getAttribute('src')!.slice(0, 22));
+    expect(imgs).toEqual(['data:image/svg+xml;cha', 'data:image/png;base64,', 'elsewhere.svg']);
+  });
+  it('spaces a host’s extern in a document as a widget is spaced', () => {
+    const c = compile({ packs: [hostPack] });
+    const b = c.document('Before.\n\n:::panel\nBody.\n:::\n\nAfter.\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const Panel = (x: ExternProps): ReactNode => <section {...x.attrs} style={x.style}>{x.children}</section>;
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={{ 'host:panel@1': Panel }} />);
+    expect(one(container, 'section').getAttribute('data-mkp-ext')).toBe('host:panel@1');
+    expect(container.querySelector('style')!.textContent).toContain('.mkp-root > * + [data-mkp-ext], .mkp-root > [data-mkp-ext] + * { margin-top: var(--mkp-space-l); }');
+    cleanup();
+    // with no component, its placeholder is spaced too
+    const bare = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion />);
+    expect(one(bare.container, '.mkp-error').getAttribute('data-mkp-ext')).toBe('host:panel@1');
+  });
   it('draws a widget at its minwidth, minheight and aspect, as its first paint had them, and hands a host’s extern its size', () => {
     const c = compile({ packs: [hostPack] });
     const b = c.document('```mkp\nnote "A note."\n  text "hi"\n  project md = "hi"\n```\n\n```note\nminwidth: 300\naspect: 2\nsummary: s\n```\n\n```note\nsummary: s\n```\n\n:::panel minheight=100 aspect=1.5\nBody.\n:::\n', 'doc.mkp.md')!;
@@ -653,12 +680,17 @@ describe('what a host styles and traces', () => {
       return <section {...x.attrs} style={x.style} data-host-panel="">{x.children}</section>;
     };
     const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={{ 'host:panel@1': Panel }} />);
-    expect(one(container, '[data-mkp-place="0"]').style.aspectRatio).toBe('2');
-    expect(one(container, '[data-mkp-place="0"]').style.minWidth).toBe('min(300px, 100%)');
-    expect(one(container, '[data-mkp-place="1"]').style.aspectRatio).toBe('');
+    const sized = one(container, '[data-mkp-place="0"]');
+    expect([sized.style.getPropertyValue('--mkp-aspect'), sized.style.minWidth, sized.hasAttribute('data-mkp-sized')]).toEqual(['2', 'min(300px, 100%)', true]);
+    expect(one(container, '[data-mkp-place="1"]').hasAttribute('data-mkp-sized')).toBe(false);
+    // the stylesheet reserves the room with a spacer inside, so bigger content grows the box
+    expect(container.querySelector('style')!.textContent).toContain('[data-mkp-sized]::before');
     expect(given!.size).toEqual({ minheight: 100, aspect: 1.5 });
-    expect(one(container, '[data-host-panel]').style.aspectRatio).toBe('1.5');
-    expect(one(container, '[data-host-panel]').style.minHeight).toBe('100px');
+    // a sized extern is in MKP's own box, which keeps the size: the host's element keeps its own display
+    const box = one(container, '[data-mkp-place="2"]');
+    expect([box.getAttribute('data-mkp-sized'), box.style.getPropertyValue('--mkp-minheight'), box.style.getPropertyValue('--mkp-aspect')]).toEqual(['', '100px', '1.5']);
+    expect(box.firstElementChild!.hasAttribute('data-host-panel')).toBe(true);
+    expect(one(container, '[data-host-panel]').hasAttribute('data-mkp-sized')).toBe(false);
   });
   it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
     const b = doc(['text "hi"']);

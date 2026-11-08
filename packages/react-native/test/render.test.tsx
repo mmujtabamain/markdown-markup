@@ -5,6 +5,7 @@
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { hostDoc, hostPack } from '../../core/test/host-externs';
+import { pack as notesPack } from '../../core/test/freeze-pack';
 import type { TestInstance } from 'test-renderer';
 import { Text, View } from 'react-native';
 import { compile, formatDiagnostic, MathsEngine, prerender, Runtime, TokenTable, walkView, type IRBundle, type VNode, type VRun, type VShape } from '@mkp/core';
@@ -577,6 +578,24 @@ describe('a widget’s size', () => {
       fireEvent(box, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 100, height: 20 } } });
     });
     expect(style().minHeight).toBe(50);
+    await act(async () => {
+      await screen.unmount();
+    });
+  });
+});
+
+describe('a bundle’s carried images', () => {
+  it('draws a carried SVG with react-native-svg, in a canvas and as an image, never as a raster image', async () => {
+    const c = compile({ packs: [notesPack] });
+    const b = c.document('```scene\nsummary: s\n```\n\n```still\nsummary: s\n```\n', 'notes.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const rt = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    await render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="light" />);
+    // react-native-svg's SvgXml, given the carried SVG's text; never an Image with an SVG data URI
+    const xmls = all(screen.root!, (e) => typeof e.props.xml === 'string' && e.props.xml.includes('<rect')).map((e) => String(e.props.xml));
+    expect(all(screen.root!, (e) => e.type === 'Image' && String(e.props.source?.uri ?? '').startsWith('data:image/svg')).length).toBe(0);
+    expect(xmls.some((x) => x.includes('>closed<'))).toBe(true);
+    expect(xmls.some((x) => x.includes('>still<'))).toBe(true);
     await act(async () => {
       await screen.unmount();
     });
