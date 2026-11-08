@@ -409,6 +409,16 @@ add unpublished to its manifest or rebuild with --relock
   write it: use `--lock mkp.lock --no-lock` on a server or in CI.
 - While a pack is still changing, put `unpublished` in its manifest.
 
+**A bundle carries its images, frozen with it.** A pack's images (SVG, PNG, JPEG, WebP) that its
+widgets or the document name in a string (`image "frames/open.svg"`, or a choice of frames,
+`if(open, "frames/open.svg", "frames/closed.svg")`) are copied into the bundle (`assets`, by
+`pack/path`: an SVG as the pack cleaned it, a picture as base64), each with its digest in the
+bundle's lock. Renderers draw them from the bundle as data URIs, never from a URL, so a bundle
+looks the same however the pack, or your app, changes later: keep a release note's bundle and its
+design is kept with it. An image the bundle doesn't carry keeps its `src` as written. On React
+Native a carried SVG is drawn with react-native-svg (`SvgXml`), static; the Markdown target writes
+it beside the Markdown as a file named as in its pack.
+
 ### 2.4 At runtime, with `compile()`
 
 Compile in the app when documents are written or edited there (an editor, a preview, user

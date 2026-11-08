@@ -182,7 +182,7 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
       case 'text':
         return inline(p.runs as VRun[]);
       case 'image':
-        return `![${escape(String(p.alt))}](${String(p.src)})`;
+        return `![${escape(String(p.alt))}](${p.asset ? assetFile(String(p.asset), String(p.src)) : String(p.src)})`;
       case 'press':
         return p.$cond ? null : `[${plain(n)}]`;
       case 'field':
@@ -283,6 +283,22 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
   /** :::details "Title" … ::: in a projection: <details> with html, a titled block without. */
   const details = (s: string): string =>
     s.replace(/^:::details[ \t]*"?([^"\n]*)"?\n([\s\S]*?)\n:::[ \t]*$/gm, (_m, title: string, body: string) => (t.has('html') ? `<details>\n<summary>${title || 'Details'}</summary>\n\n${body}\n\n</details>` : `**${title || 'Details'}:**\n\n${body}`));
+
+  /**
+   * An image the bundle carries: an SVG written beside the Markdown as a file of its own, named as in
+   * its pack (frames/open.svg as frames-open.svg; its pack's name first when two packs share it), a
+   * picture kept as its data URI.
+   */
+  const assetFile = (name: string, src: string): string => {
+    const a = b.assets?.[name];
+    if (!a || a.base64) return src;
+    const flat = (s: string): string => s.replace(/[^A-Za-z0-9._-]+/g, '-');
+    const path = name.slice(name.indexOf('/') + 1);
+    const shared = Object.keys(b.assets ?? {}).some((k) => k !== name && k.slice(k.indexOf('/') + 1) === path);
+    const file = flat(shared ? name : path);
+    files.set(file, a.data);
+    return file;
+  };
 
   const canvas = (n: VNode): string => {
     const label = String(n.p.label || 'figure');

@@ -7,6 +7,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { compile, formatDiagnostic, Runtime, walkView as walk, type IRBundle, type VNode } from '@mkp/core';
 import { memo, type ReactNode } from 'react';
 import { hostDoc, hostPack } from '../../core/test/host-externs';
+import { pack as notesPack } from '../../core/test/freeze-pack';
 import { BASE_CSS, Canvas, hostIcon, type ExternProps, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
@@ -642,6 +643,19 @@ describe('what a host styles and traces', () => {
       'Two items.',
       'A panel with a footer, drawn by the host.',
     ]);
+  });
+  it('draws a bundle’s carried images from it, never fetched: a frozen frame, swapped by a press', () => {
+    const c = compile({ packs: [notesPack] });
+    const b = c.document('```scene\nsummary: s\n```\n\n```still\nsummary: s\n```\n', 'notes.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion />);
+    const frame = () => container.querySelector('svg image')!.getAttribute('href')!;
+    expect(frame().startsWith('data:image/svg+xml;charset=utf-8,')).toBe(true);
+    expect(decodeURIComponent(frame())).toContain('>closed<');
+    fireEvent.click(one(container, '[aria-label="Filter"]'));
+    expect(decodeURIComponent(frame())).toContain('>open<');
+    const imgs = [...container.querySelectorAll('img')].map((i) => i.getAttribute('src')!.slice(0, 22));
+    expect(imgs).toEqual(['data:image/svg+xml;cha', 'data:image/png;base64,', 'elsewhere.svg']);
   });
   it('spaces a host’s extern in a document as a widget is spaced', () => {
     const c = compile({ packs: [hostPack] });

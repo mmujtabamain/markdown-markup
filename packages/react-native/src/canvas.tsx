@@ -5,11 +5,11 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Image, PanResponder, Text, View, type AccessibilityActionEvent } from 'react-native';
-import { Circle, ClipPath, Defs, G, Image as SvgImage, Path, Polygon, Rect, Svg } from 'react-native-svg';
+import { Circle, ClipPath, Defs, G, Image as SvgImage, Path, Polygon, Rect, Svg, SvgXml } from 'react-native-svg';
 import type { VNode, VShape, VRun } from '@mkp/core';
 import { useCtx } from './context';
 import { Kids } from './nodes';
-import { Runs, useInk } from './runs';
+import { Runs, svgData, useInk } from './runs';
 import { skia, skiaUniforms } from './skia';
 import { placeCanvasLabels } from './geometry';
 import type { Theme } from './theme';
@@ -120,6 +120,9 @@ function shape(s: VShape, g: Geo): ReactNode {
     case 'image': {
       const w = s.w * unit;
       const h = (s.h || s.w) * unit;
+      // a carried SVG (a frozen frame): drawn by react-native-svg itself, which draws no SVG as an image
+      const xml = svgData(s.src);
+      if (xml) return <SvgXml key={s.key} xml={xml} x={X(s.at[0]) - w / 2} y={Y(s.at[1]) - h / 2} width={w} height={h} accessibilityLabel={s.alt} />;
       return <SvgImage key={s.key} href={{ uri: s.src }} x={X(s.at[0]) - w / 2} y={Y(s.at[1]) - h / 2} width={w} height={h} accessibilityLabel={s.alt} />;
     }
     case 'place':

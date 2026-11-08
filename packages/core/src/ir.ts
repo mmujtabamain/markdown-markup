@@ -262,6 +262,20 @@ export interface IRLock {
   mkp?: string;
   packs: IRLockEntry[];
   defs: Record<string, string>;
+  /** the images the bundle carries (assets), by name: their digests */
+  assets?: Record<string, string>;
+}
+
+/**
+ * An image from a pack that a definition (or the document) names, carried in the bundle: drawn from
+ * here, never fetched, so the bundle's design is frozen with it (a release note's frames). An SVG is
+ * its cleaned text; a PNG, JPEG or WebP its bytes in base64.
+ */
+export interface IRAsset {
+  type: string;
+  digest: string;
+  data: string;
+  base64?: boolean;
 }
 
 export interface IRInterface {
@@ -309,6 +323,8 @@ export interface IRBundle {
   interface: IRInterface;
   lock: IRLock;
   profile?: string;
+  /** the pack images its definitions and document name, carried in it, by pack/path */
+  assets?: Record<string, IRAsset>;
 }
 
 /** Expanded IR: a definition instance with its scope and its inlined view. */
