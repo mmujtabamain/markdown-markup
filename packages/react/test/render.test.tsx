@@ -559,6 +559,17 @@ describe('what a host styles and traces', () => {
     expect(same({ n: before }, { n: after })).toBe(true);
     expect(same({ n: before }, { n: { ...after, layers: [] } })).toBe(false);
   });
+  it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
+    const b = doc(['text "hi"']);
+    const rt = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const { container } = render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="dark" />);
+    const root = one(container, '.mkp-root');
+    expect(root.getAttribute('data-mkp-theme')).toBe('dark');
+    expect(root.hasAttribute('data-theme')).toBe(false);
+    const css = tokenCss(b.tokens, undefined);
+    expect(css).toContain('.mkp-root[data-mkp-theme=dark], .mkp-root[data-theme=dark]');
+    expect(css).toContain(':not([data-mkp-theme=light]):not([data-theme=light])');
+  });
   it('takes a maths engine that arrives after the document: the waiting formula fills in, and the state stays', () => {
     const b = doc(['var n int = 2', 'column', '  text "$n = \\val{n}$"', '  text "plain"', '  press label="up" id=up', '    text "Up"', '    @click set n=(n + 1)']);
     const fake = { render: (tex: string) => ({ svg: `<svg data-fake="${tex}"></svg>`, w: 1, h: 1, va: 0 }), speech: (tex: string) => `said ${tex}` };

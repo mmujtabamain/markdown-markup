@@ -121,7 +121,7 @@ function Demo({ index, theme }: { index: number; theme: Theme }): ReactNode {
   const n = nodes[index];
   if (!n) return null;
   return (
-    <div ref={ref} className="mkp-root mt-3 rounded-lg border bg-background p-4" data-theme={theme} data-demo={index}>
+    <div ref={ref} className="mkp-root mt-3 rounded-lg border bg-background p-4" data-mkp-theme={theme} data-demo={index}>
       <Node n={n} />
     </div>
   );

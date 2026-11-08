@@ -45,7 +45,7 @@ for (const [name, dir] of Object.entries(SITES)) {
     await expect(page.getByText('Right.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Dark' }).click();
-    await expect(page.locator('.mkp-root')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.mkp-root')).toHaveAttribute('data-mkp-theme', 'dark');
     await expect(field).toHaveValue('oslo');
     await expect(page.getByText('Right.')).toBeVisible();
 

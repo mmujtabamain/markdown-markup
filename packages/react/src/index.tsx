@@ -204,7 +204,7 @@ function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme'];
   useMkpWidth(root);
   useMkpTheme(theme ?? 'auto');
   return (
-    <div ref={root} className={['mkp-root', className].filter(Boolean).join(' ')} data-theme={theme && theme !== 'auto' ? theme : undefined}>
+    <div ref={root} className={['mkp-root', className].filter(Boolean).join(' ')} data-mkp-theme={theme && theme !== 'auto' ? theme : undefined}>
       <Kids nodes={tree} />
     </div>
   );

@@ -659,7 +659,8 @@ function Sections() {
 ```
 
 Your element must have the class `mkp-root` (the stylesheet is scoped to it). Set
-`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS, and call
+`data-mkp-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS
+(`data-theme` on it is read too), and call
 `useMkpTheme(theme)` in it (or `rt.setTheme('dark')`) so a widget that reads `theme` draws for it.
 
 ### 4.2 Your own design system
@@ -1238,7 +1239,7 @@ a note under **Changed** in a release:
 | a switch | `.mkp-switch > .mkp-switch-thumb` | its track and thumb, the press's first child; the thumb moves 16 px when it is on. MKP animates nothing (SPEC-NOTES 102): give the thumb a `transition` of your own to make it slide |
 | an icon | `mkp-icon`, `data-name`, `data-size` (and, drawn by your `icons`, `data-tone`, `data-host`) | the icon's name (`help`, `info`…); to draw your own, pass `icons` (4.1, 4.3, 4.7) |
 | a canvas shape that listens | `data-pointed`, and `data-press` with `role=button` when it takes `@click` | a circle or path with `@enter`, `@leave` or `@click` |
-| the root | `mkp-root`, `data-theme` | the stylesheet's scope; `light` or `dark` when it is fixed |
+| the root | `mkp-root`, `data-mkp-theme` | the stylesheet's scope; `light` or `dark` when it is fixed. A name of MKP's own, so your own `[data-theme]` rules never catch it |
 | a canvas layer with `clip=` | `clip-path` on its `<g>` | the rectangle its shapes stop at |
 
 Not promised: `data-mkp-key` (the runtime's key for a node: it changes when the document's
@@ -1288,8 +1289,11 @@ On the web each token becomes a custom property on `.mkp-root`: `--mkp-color-acc
 ### 7.3 Light and dark
 
 - A colour's `dark` value is used under `prefers-color-scheme: dark` (unless the root has
-  `data-theme="light"`) and whenever the root has `data-theme="dark"`. `theme="dark"` or
-  `"light"` on `MkpDocument` sets that attribute.
+  `data-mkp-theme="light"`) and whenever the root has `data-mkp-theme="dark"`. `theme="dark"` or
+  `"light"` on `MkpDocument` (and `mount()`, `firstPaint()`) sets that attribute. One paint holds
+  both themes' values, so switching later flips the attribute and nothing is drawn again. Until
+  0.2.6 the attribute was `data-theme`, which a host's own `[data-theme]` rules caught; MKP still
+  reads `data-theme` set on the root by a host.
 - If your app switches dark mode with its own class or setting rather than the OS, pass `theme`
   from that setting, or point both values at your own CSS variables so your stylesheet decides.
   `shadcnTokens` does the second: `{ value: 'var(--primary, #171717)', dark: 'var(--primary, #171717)' }`.
