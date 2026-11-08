@@ -2,7 +2,7 @@
 // field, overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ComponentType, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
-import type { Runtime, VNode, VRun } from '@mkp/core';
+import { sizeStyle, type Runtime, type VNode, type VRun, type WidgetSize } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
 import { Arrows } from './arrows';
@@ -55,6 +55,8 @@ export interface ExternProps {
   records: Record<string, ReactNode[]>;
   /** the summary its use wrote, if any: a label for it, or what to say while it can't be drawn */
   summary?: string;
+  /** its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect): style already holds the aspect */
+  size?: WidgetSize;
   /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
   attrs: Record<string, unknown>;
   /** the place its parent gives it: grow, basis, span, self */
@@ -195,6 +197,8 @@ export function layoutStyle(n: VNode): CSSProperties {
   // self= places a child on both axes in a grid's cell or a stack (a badge in a corner); in a row or a
   // column justify-self means nothing, so there it is the cross axis alone, as before
   if (l?.self) Object.assign(s, { alignSelf: SELF[l.self], justifySelf: l.self });
+  // minwidth, minheight and aspect, as its first paint had them: content bigger than that still shows
+  if (n.size) Object.assign(s, sizeStyle(n.size));
   return s;
 }
 
@@ -414,6 +418,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
         slots={Object.fromEntries(Object.entries(n.slots ?? {}).map(([k, s]) => [k, <Kids key={k} nodes={s} />]))}
         records={Object.fromEntries(Object.entries(n.recs ?? {}).map(([k, list]) => [k, list.map((s, i) => <Kids key={i} nodes={s} />)]))}
         summary={n.summary}
+        size={n.size}
         attrs={common}
         style={lay}
         dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}

@@ -3,7 +3,7 @@
 
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
 import type { LayoutRectangle } from 'react-native';
-import type { Runtime } from '@mkp/core';
+import type { Runtime, WidgetSize } from '@mkp/core';
 import type { Theme } from './theme';
 
 /** What a host's icon is given: the name a document chose (one of the fixed set), and how to draw it. */
@@ -37,6 +37,8 @@ export interface ExternProps {
   records: Record<string, ReactNode[]>;
   /** the summary its use wrote, if any */
   summary?: string;
+  /** its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect): its box already keeps the aspect */
+  size?: WidgetSize;
   /** reports one of the extern's outs to the document, which runs its handlers */
   dispatch: (event: string, payload?: unknown) => void;
 }

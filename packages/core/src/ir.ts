@@ -101,6 +101,11 @@ export interface IRMeta {
   /** a top-level widget's place in the document, fenced or ::: (in source order): what a host's
    *  first paint reserves a box at, and mount() draws into */
   place?: number;
+  /** its size before it is drawn (minwidth, minheight in px; aspect, width over height, kept when drawn),
+   *  written on the use where its widget has no input of that name */
+  minwidth?: number;
+  minheight?: number;
+  aspect?: number;
   /** the document block's own id (#id) */
   anchor?: string;
   /** a heading's section role (profiles, 16) */

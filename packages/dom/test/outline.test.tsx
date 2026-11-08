@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-// mkp-outline: a first paint from the source alone, with each top-level widget's box at the height
-// it was last drawn at, and mount(el, bundle, { places: true }) drawing the widgets into those boxes.
+// mkp-outline: a first paint from the source alone, with each top-level widget's box at the size it
+// says it starts at, and mount(el, bundle, { places: true }) drawing the widgets into those boxes.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { compile, formatDiagnostic, walkView, Runtime, type IRBundle, type PackSource } from '@mkp/core';
-import { heightAt, mergeSizes, mount, outline, places, type MountedDocument, type PlaceSize } from '../src/index';
+import { mount, outline, placeholder, places, type MountedDocument, type Place } from '../src/index';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const root = join(__dirname, '../../..');
@@ -44,46 +44,52 @@ describe('places', () => {
 });
 
 describe('sizes', () => {
-  const size: PlaceSize = { place: 0, name: 'plot', at: [[375, 820], [974, 406]] };
-  it('takes the height at a width from those measured: along a line between, the nearest outside', () => {
-    expect(heightAt(size, 974)).toBe(406);
-    expect(heightAt(size, 375)).toBe(820);
-    expect(heightAt(size, 674)).toBe(613);
-    expect(heightAt(size, 1400)).toBe(406);
-    expect(heightAt(size, 320)).toBe(820);
-    expect(heightAt(undefined, 500)).toBeUndefined();
+  const at = (size: Place['size'], defaults?: Place['size']): string => {
+    const el = document.createElement('div');
+    el.innerHTML = placeholder({ place: 0, name: 'w', line: 1, size }, defaults);
+    return (el.firstElementChild as HTMLElement).getAttribute('style')!;
+  };
+  it('reads minwidth, minheight and aspect written on a block, a ::: line and a {…} line', () => {
+    const text = '```plot\nminwidth: 480\naspect: 16/9 # wide\nsummary: s\n```\n\n:::card minheight=120 aspect=(1.5)\nHi.\n:::\n\n```quiz\nsummary: s\n```\n{minheight=200}\n';
+    expect(places(text).map((p) => p.size)).toEqual([{ minwidth: 480, aspect: 16 / 9 }, { minheight: 120, aspect: 1.5 }, { minheight: 200 }]);
   });
-  it('merges sizes measured now into those kept: the same width replaced, four widths kept', () => {
-    const m = mergeSizes([size], [{ place: 0, name: 'plot', at: [[976, 410]] }, { place: 1, name: 'quiz', at: [[974, 120]] }]);
-    expect(m).toEqual([
-      { place: 0, name: 'plot', at: [[375, 820], [976, 410]] },
-      { place: 1, name: 'quiz', at: [[974, 120]] },
-    ]);
-    let k = mergeSizes(undefined, []);
-    for (const w of [300, 400, 500, 600, 700]) k = mergeSizes(k, [{ place: 0, name: 'plot', at: [[w, 1000 - w]] }]);
-    expect(k[0].at.map(([w]) => w)).toEqual([400, 500, 600, 700]);
+  it('gives the box the widget is drawn at least: the same CSS as the drawn widget, so they match', () => {
+    expect(at({ minwidth: 480, minheight: 240 })).toBe('min-width:min(480px, 100%);min-height:240px');
+    expect(at({ minwidth: 480, aspect: 1.6 })).toBe('min-width:min(480px, 100%);aspect-ratio:1.6');
+    expect(at({ minheight: 200, aspect: 2 })).toBe('min-height:200px;aspect-ratio:2');
+    expect(at({ aspect: 4 / 3 })).toBe('aspect-ratio:1.3333');
+    expect(at({ minheight: 300 })).toBe('min-height:300px');
+  });
+  it('gives a widget that says no height the default height, which it may move from once', () => {
+    expect(at({ minwidth: 300 })).toBe('min-width:min(300px, 100%);height:160px');
+    expect(at({})).toBe('height:160px');
+  });
+  it('lets the widget’s own defaults fill in up to two, what the use wrote winning', () => {
+    expect(at({}, { minheight: 48 })).toBe('min-height:48px');
+    expect(at({ aspect: 2 }, { minheight: 100, aspect: 1 })).toBe('min-height:100px;aspect-ratio:2');
+    expect(at({ minwidth: 300, minheight: 100 }, { aspect: 1 })).toBe('min-width:min(300px, 100%);min-height:100px');
   });
 });
 
-const src = '# A note\n\nSome prose.\n\n```mkp\ncard "A card."\n  in word text\n  column pad=s\n    text word\n  project md = word\n```\n\n```card\nword: one\nsummary: s\n```\n\nMore prose.\n\n:::frame title="Framed"\nInside.\n:::\n\n```card\nword: two\nsummary: s\n```\n';
+const src = '# A note\n\nSome prose.\n\n```mkp\ncard "A card."\n  in word text\n  column pad=s\n    text word\n  project md = word\n```\n\n```card\nword: one\nsummary: s\n```\n\nMore prose.\n\n:::frame title="Framed"\nInside.\n:::\n\n```card\nword: two\nminwidth: 480\naspect: 2\nsummary: s\n```\n';
 
 describe('outline', () => {
-  it('reserves each widget’s box at its measured height, quiet, with the prose the host draws', () => {
-    const html = outline(src, [{ place: 0, name: 'card', at: [[600, 48]] }, { place: 2, name: 'card', at: [[600, 52]] }], { width: 600, prose: (md) => `<p>${md.replace(/^#.*$/m, '').trim()}</p>` });
+  it('reserves each widget’s box at the size it starts at, quiet, with the prose the host draws', () => {
+    const html = outline(src, { sizes: { card: { minheight: 48 } }, prose: (md) => `<p>${md.replace(/^#.*$/m, '').trim()}</p>` });
     const el = document.createElement('div');
     el.innerHTML = html;
     const boxes = [...el.querySelectorAll<HTMLElement>('[data-mkp-place]')];
-    expect(boxes.map((b) => [b.getAttribute('data-mkp-place'), b.getAttribute('data-mkp-place-name'), b.style.height])).toEqual([
-      ['0', 'card', '48px'],
-      ['1', 'frame', '160px'],
-      ['2', 'card', '52px'],
+    expect(boxes.map((b) => [b.getAttribute('data-mkp-place'), b.getAttribute('data-mkp-place-name'), b.getAttribute('style')])).toEqual([
+      ['0', 'card', 'min-height:48px'],
+      ['1', 'frame', 'height:160px'],
+      ['2', 'card', 'min-width:min(480px, 100%);aspect-ratio:2'],
     ]);
     expect(boxes.every((b) => b.getAttribute('aria-hidden') === 'true' && b.textContent === '')).toBe(true);
     expect(el.querySelector('.mkp-outline')!.getAttribute('aria-busy')).toBe('true');
     expect(el.textContent).toContain('More prose.');
     // without a prose renderer: the placeholders only
     const only = document.createElement('div');
-    only.innerHTML = outline(src, undefined, { width: 600 });
+    only.innerHTML = outline(src);
     expect(only.textContent!.trim()).toBe('');
   });
 
@@ -95,27 +101,20 @@ describe('outline', () => {
     vi.unstubAllGlobals();
   });
 
-  it('is taken over by mount({ places }): each widget drawn into its box, the host’s prose untouched, and sizes reported', async () => {
+  it('is taken over by mount({ places }): each widget drawn into its box, its size then its own, the host’s prose untouched', async () => {
     const c = compile({ packs: [] });
     const b = c.document(src, 'doc.mkp.md') as IRBundle;
     expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
     const el = document.body.appendChild(document.createElement('div'));
-    el.innerHTML = outline(src, undefined, { width: 600, prose: (md) => `<p class="host">${md.trim()}</p>` });
+    el.innerHTML = outline(src, { prose: (md) => `<p class="host">${md.trim()}</p>` });
     const prose = [...el.querySelectorAll('p.host')];
-    // a layout of its own for jsdom: each box 40 px tall, the element 600 px wide
-    Object.defineProperty(el, 'clientWidth', { value: 600 });
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 40 } as DOMRect);
-    vi.stubGlobal('ResizeObserver', class { constructor(private f: () => void) {} observe() { this.f(); } unobserve() {} disconnect() {} });
-    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => setTimeout(() => f(0), 0) as unknown as number);
-    vi.stubGlobal('cancelAnimationFrame', (h: number) => clearTimeout(h));
-    const heard: PlaceSize[][] = [];
     let v!: MountedDocument;
     await act(async () => {
-      v = mount(el, b, { places: true, onSizes: (s) => heard.push(s) });
+      v = mount(el, b, { places: true });
       views.push(v);
       await v.ready;
     });
-    // React commits at the end of act: the boxes are then released, and the sizes reported a frame later
+    // React commits at the end of act: the boxes are then released
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
@@ -124,15 +123,14 @@ describe('outline', () => {
     expect(boxes[1].textContent).toContain('Framed');
     expect(boxes[1].textContent).toContain('Inside.');
     expect(boxes[2].textContent).toBe('two');
-    expect(boxes.every((x) => x.classList.contains('mkp-root') && x.style.height === '' && !x.hasAttribute('aria-hidden'))).toBe(true);
+    expect(boxes.every((x) => x.classList.contains('mkp-root') && !x.getAttribute('style') && !x.hasAttribute('aria-hidden'))).toBe(true);
+    // the drawn widget keeps what its placeholder had
+    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.aspectRatio).toBe('2');
+    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.minWidth).toBe('min(480px, 100%)');
+    expect(boxes[0].querySelector<HTMLElement>('[data-mkp-place="0"]')!.style.aspectRatio).toBe('');
     // the host's prose is the same elements, never drawn again
     expect([...el.querySelectorAll('p.host')]).toEqual(prose);
     expect(el.querySelector('.mkp-outline')!.hasAttribute('aria-busy')).toBe(false);
-    expect(heard.at(-1)).toEqual([
-      { place: 0, name: 'card', at: [[600, 40]] },
-      { place: 1, name: 'frame', at: [[600, 40]] },
-      { place: 2, name: 'card', at: [[600, 40]] },
-    ]);
     // one runtime for every widget: the document's state is one
     let n = 0;
     walkView(v.runtime!.view(), () => void n++);

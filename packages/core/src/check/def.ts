@@ -1,5 +1,6 @@
 // Checking one definition (spec 6.3–6.14, 6.18, 6.19) and emitting its definition IR (13).
 
+import { isSizeKey, SIZE_KEYS, sizeOf, sizeTakes, type WidgetSize } from '../size';
 import { Diagnostics, MkpError, Pos, closest, didYouMean } from '../diag';
 import type { A, IRAction, IRDef, IRExpr, IRFn, IRInput, IRMeta, IRNode, IRPos, IRState, IRVal, IRValue } from '../ir';
 import { IR_VERSION } from '../ir';
@@ -44,6 +45,8 @@ export interface Sig {
   params?: string[];
   /** deprecated "…": what to use instead; every use is warned */
   deprecated?: string;
+  /** its own size before it is drawn: the defaults of its minwidth, minheight and aspect inputs */
+  sizes?: WidgetSize;
 }
 
 /** An arrow's look (6.10): its colour, its line, the marks at its ends, faded back or drawn strong. */
@@ -67,7 +70,7 @@ const ARROW_LOOK: Record<string, Type> = {
   // auto: where it crosses another line one of them hops; none: never, either way (a lifeline, a rule)
   hop: { t: 'choice', opts: ['auto', 'none'] },
 };
-const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep']);
+const META_KEYS = new Set(['id', 'if', 'basis', 'span', 'self', 'keep', ...SIZE_KEYS]);
 const META_FLAGS = new Set(['hidden', 'grow']);
 /** Canvas shapes the pointer can point at, and the only events they raise (no payload). */
 const POINTED_SHAPES = new Set(['circle', 'path']);
@@ -97,7 +100,10 @@ export function signatureOf(prog: Program, d: DefEntry): Sig {
     else if (m.m === 'requires') requires.push(m.cap);
   }
   const dep = d.syn.members.find((m): m is Extract<typeof m, { m: 'deprecated' }> => m.m === 'deprecated');
-  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires, ...(d.syn.params?.length ? { params: d.syn.params } : {}), ...(dep ? { deprecated: dep.text } : {}) };
+  const sizes: WidgetSize = {};
+  for (const m of d.syn.members) if (m.m === 'in' && isSizeKey(m.name) && m.def?.v === 'expr') sizes[m.name] = sizeOf(m.name, m.def.src);
+  for (const k of SIZE_KEYS) if (sizes[k] === undefined) delete sizes[k];
+  return { id: d.id, kind: d.syn.kind, name: d.syn.name, version: d.syn.version, pack: d.pack, inputs, order, fields, outs, records, slots, requires, ...(d.syn.params?.length ? { params: d.syn.params } : {}), ...(dep ? { deprecated: dep.text } : {}), ...(Object.keys(sizes).length ? { sizes } : {}) };
 }
 
 /** A type parameter given two types that don't join. */
@@ -1497,6 +1503,15 @@ export class DefChecker {
         // scrolls the nearest scrolling container to show it while true (GAPS 150)
         meta.keep = this.value(a.value, T.bool, scope, a.p, false, 'keep');
         break;
+      case 'minwidth':
+      case 'minheight':
+      case 'aspect': {
+        // its size before it is drawn: written as it is, so a first paint reads it from the source
+        const n = sizeOf(a.key, a.value.src);
+        if (n === undefined) this.fail(a.p, `${a.key} takes ${sizeTakes(a.key)}, written as it is (a first paint reads it before anything runs); found ${a.key}=${a.value.src}. Write e.g. ${a.key === 'aspect' ? 'aspect=16/9' : `${a.key}=320`}`, 'mkp.size');
+        meta[a.key] = n;
+        break;
+      }
     }
   }
 

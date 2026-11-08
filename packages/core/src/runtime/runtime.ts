@@ -8,6 +8,7 @@ import { Env, EvalError, EVAL_LIMITS, fromJson, Fun, Programme, toJson, V, withB
 import { resolve, showType, Type } from '../types';
 import type { VArrow, VLayer, VNode, VRun, VShape } from './view';
 import { compilePixels, sampleMesh } from '../gfx/compile';
+import { mergeSize, SIZE_KEYS, sizeOf, type WidgetSize } from '../size';
 
 export interface MathsRenderer {
   render(tex: string, display: boolean): { svg: string; w: number; h: number; va: number } | null;
@@ -786,6 +787,11 @@ export class Runtime {
     if (n.pos) v.src = [inst.def.file ?? inst.def.id, n.pos[0], n.pos[1]];
     // a top-level widget's place in the document: a host sizes and places it by this
     if (typeof n.meta?.place === 'number') v.p = { ...v.p, place: n.meta.place };
+    // its size before it is drawn, and the shape it keeps (aspect): a pack's or the document's widget
+    if (def && def.pack !== 'core') {
+      const size = this.sizeOfUse(n, def, env, inst);
+      if (size) v.size = size;
+    }
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
       // a snapshot draws every branch whose condition reads state, so exclusive branches may share an id
@@ -802,6 +808,31 @@ export class Runtime {
     if (n.meta?.keep && this.valueOf(n.meta.keep, env, inst)) layout.keep = true;
     if (Object.keys(layout).length) v.layout = layout;
     return v;
+  }
+
+  /** A use's minwidth, minheight and aspect: written on it (or given to its inputs of those names), its widget's defaults filling in. */
+  private sizeOfUse(n: IRNode, def: IRDef, env: Env, inst: Inst): WidgetSize | undefined {
+    const own: WidgetSize = {};
+    const dflt: WidgetSize = {};
+    for (const k of SIZE_KEYS) {
+      if (n.meta?.[k] !== undefined) {
+        own[k] = n.meta[k];
+        continue;
+      }
+      const i = def.inputs.find((x) => x.name === k);
+      if (!i) continue;
+      const given = n.props?.[k];
+      let raw: V | undefined;
+      try {
+        raw = given ? this.valueOf(given, env, inst) : i.default ? this.valueOf(i.default, new Env(null, null, null, this.prog), this.root) : undefined;
+      } catch {
+        // a default that reads something gives no size
+      }
+      const x = typeof raw === 'number' || typeof raw === 'string' ? sizeOf(k, raw) : undefined;
+      if (x !== undefined) (given ? own : dflt)[k] = x;
+    }
+    const size = mergeSize(own, dflt);
+    return Object.keys(size).length ? size : undefined;
   }
 
   private readonly arrowQueue = new Map<Inst, { n: IRNode; env: Env; key: string }[]>();

@@ -2,6 +2,7 @@
 // container) with resolved props; renderers map these to components and report events back by key.
 
 import type { Run } from '../markdown';
+import type { WidgetSize } from '../size';
 
 export interface VMaths {
   tex: string;
@@ -100,6 +101,8 @@ export interface VNode {
   recs?: Record<string, VNode[][]>;
   /** an extern's summary, as its use wrote it (summary: or summary=) */
   summary?: string;
+  /** a pack's or the document's widget: its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect) */
+  size?: WidgetSize;
 }
 
 export function walk(nodes: VNode[], f: (n: VNode) => void): void {

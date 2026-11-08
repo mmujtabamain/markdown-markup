@@ -11,11 +11,10 @@
 
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
-import type { PlaceSize } from './outline';
 import { domExterns, domIcons, MkpDocument, MkpPlaces, type DomExterns, type DomIcons, type MkpExterns, type MkpIcons, type TokenMap } from '@mkp/react';
 
 export type { DomIcon, DomIcons, DomExtern, DomExterns, DomExternProps } from '@mkp/react';
-export { outline, places, placeholder, heightAt, mergeSizes, DEFAULT_HEIGHT, type PlaceSize, type Place, type OutlineOptions } from './outline';
+export { outline, places, placeholder, DEFAULT_HEIGHT, type Place, type OutlineOptions } from './outline';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
@@ -53,12 +52,6 @@ export interface MountOptions {
    * its placeholder, and nothing else in the element is touched
    */
   places?: boolean;
-  /**
-   * hears each top-level widget's height at the element's width, once drawn and whenever it
-   * changes: keep them with the document (mergeSizes) and give them to outline() next time, so a
-   * first paint reserves each widget's box at its real height
-   */
-  onSizes?: (sizes: PlaceSize[]) => void;
   /**
    * 'external': the page loads mkp.css (from the web zip) once, and each document writes only its
    * own tokens; 'inline' (the default) writes the whole stylesheet with each document. A first paint
@@ -138,15 +131,14 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   const draw = (): void => {
     if (gone || !runtime) return;
     const props = { bundle: doc, runtime, theme: current.theme ?? 'auto', tokens: current.tokens, icons: iconsNow(), externs: externsNow(), styles: current.styles, reducedMotion: current.reducedMotion, className: current.className } as const;
-    // drawn into the boxes: each takes its widget's own height in the same frame (unchanged, when the
-    // size kept was right), and the outline is no longer busy
+    // drawn into the boxes: each takes its widget's drawn size in the same frame (the same, when it
+    // fits its minwidth, minheight and aspect, which the widget keeps), and the outline is no longer busy
     const drawn = (): void => {
       for (const t of targets!.values()) {
-        t.style.height = '';
+        for (const k of ['height', 'min-width', 'min-height', 'aspect-ratio']) t.style.removeProperty(k);
         t.removeAttribute('aria-hidden');
       }
       el.querySelector('.mkp-outline[aria-busy]')?.removeAttribute('aria-busy');
-      requestAnimationFrame(watchSizes);
     };
     const view = targets ? <MkpPlaces {...props} targets={targets} onDrawn={drawn} /> : <MkpDocument {...props} />;
     if (targets && host) {
@@ -167,35 +159,6 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
       root = createRoot(el);
       root.render(view);
     }
-    requestAnimationFrame(watchSizes);
-  };
-  // the widgets' heights, for the page to keep (onSizes): reported once drawn and when they change
-  let sizer: ResizeObserver | null = null;
-  let pending = 0;
-  const report = (): void => {
-    pending = 0;
-    if (gone || !runtime || !current.onSizes) return;
-    const width = Math.round(el.clientWidth);
-    if (!width) return;
-    const names = new Map<number, string>();
-    for (const n of runtime.view()) if (typeof n.p.place === 'number') names.set(n.p.place, n.t === 'scope' ? String(n.p.name) : n.t);
-    const sizes: PlaceSize[] = [];
-    for (const box of placesIn()) {
-      const place = Number(box.getAttribute('data-mkp-place'));
-      const name = names.get(place);
-      if (name !== undefined) sizes.push({ place, name, at: [[width, Math.round(box.getBoundingClientRect().height)]] });
-    }
-    current.onSizes(sizes);
-  };
-  const placesIn = (): HTMLElement[] => (targets ? [...targets.values()] : [...el.querySelectorAll<HTMLElement>('.mkp-root > [data-mkp-place]')]);
-  const watchSizes = (): void => {
-    if (gone || !current.onSizes || typeof ResizeObserver === 'undefined') return;
-    sizer?.disconnect();
-    sizer = new ResizeObserver(() => {
-      if (!pending) pending = requestAnimationFrame(report);
-    });
-    sizer.observe(el);
-    for (const b of placesIn()) sizer.observe(b);
   };
   /** The engine this document draws with: the host's, MKP's when it has maths to typeset, or none. */
   const engineFor = (b: IRBundle): Promise<MathsRenderer | undefined> => {
@@ -237,7 +200,6 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
     },
     unmount() {
       gone = true;
-      sizer?.disconnect();
       root?.unmount();
       host?.remove();
     },
