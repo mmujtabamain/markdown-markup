@@ -2,9 +2,10 @@
 // (`Button`), so the frame's icon buttons and the zoom's lock are its own; everything else is here.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
 import { color, layer, size } from './style';
-import { Kids, Runs } from './nodes';
+import { Kids, Runs, type ExternProps, type MkpExterns } from './nodes';
 
 /** Tells the arrows around an element that what it holds has moved without changing size. */
 export function relayout(el: Element | null): void {
@@ -84,6 +85,66 @@ export function domIcons(icons: DomIcons | undefined): MkpIcons | undefined {
   };
   if (typeof icons === 'string' || typeof icons === 'function') return one(icons);
   return Object.fromEntries(Object.entries(icons).flatMap(([k, v]) => (v === undefined ? [] : [[k, one(v)]])));
+}
+
+/** What a page's own code gets to draw a pack's extern with mount() (no React of its own). */
+export interface DomExternProps {
+  id: string;
+  props: Record<string, unknown>;
+  /** what the document put inside it, drawn by MKP into this element: place it where it goes */
+  slot: HTMLElement;
+  /** reports one of the extern's outs to the document */
+  dispatch: (event: string, payload?: unknown) => void;
+}
+/**
+ * A page's own drawing of an extern: it draws into `box` once, and gets the new inputs through
+ * `update` when they change (so its own state, an accordion's open sections, is kept); `destroy`
+ * runs when it goes. A plain function returned is taken as `destroy`.
+ */
+export type DomExtern = (box: HTMLElement, props: DomExternProps) => void | (() => void) | { update?: (props: DomExternProps) => void; destroy?: () => void };
+export type DomExterns = Record<string, DomExtern>;
+
+function DomExternBox({ draw, id, props, children, attrs, style, dispatch }: ExternProps & { draw: DomExtern }): ReactNode {
+  const box = useRef<HTMLDivElement>(null);
+  // made once on the page (not in a first paint, so the paint and the page agree), for MKP to draw into
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const live = useRef<{ update?: (p: DomExternProps) => void; destroy?: () => void } | null>(null);
+  const latest = useRef({ props, dispatch });
+  latest.current = { props, dispatch };
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const s = document.createElement('div');
+    s.className = 'mkp-extern-slot';
+    setSlot(s);
+    const out = draw(el, { id, props: latest.current.props, slot: s, dispatch: (e, p) => latest.current.dispatch(e, p) });
+    live.current = typeof out === 'function' ? { destroy: out } : out ?? null;
+    return () => {
+      live.current?.destroy?.();
+      live.current = null;
+      el.replaceChildren();
+    };
+  }, [draw, id]);
+  const json = JSON.stringify(props);
+  useEffect(() => {
+    if (slot) live.current?.update?.({ id, props, slot, dispatch: (e, p) => latest.current.dispatch(e, p) });
+  }, [json]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div ref={box} {...attrs} style={style} data-mkp-extern={id}>
+      {slot ? createPortal(children, slot) : null}
+    </div>
+  );
+}
+
+/** mount()'s and firstPaint()'s externs as the components <MkpDocument externs> takes. */
+export function domExterns(externs: DomExterns | undefined): MkpExterns | undefined {
+  if (!externs) return undefined;
+  return Object.fromEntries(
+    Object.entries(externs).map(([id, draw]) => {
+      const C = (p: ExternProps): ReactNode => <DomExternBox {...p} draw={draw} />;
+      return [id, C];
+    }),
+  );
 }
 
 /** A symbol: the host's (icons), or a text one. */

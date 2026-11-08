@@ -9,7 +9,11 @@ function px(v: unknown): string {
   return typeof v === 'number' ? `${v}px` : String(v);
 }
 
-/** CSS for a token table: light values on .mkp-root, dark under prefers-color-scheme and [data-theme=dark]. */
+/**
+ * CSS for a token table: light values on .mkp-root, dark under prefers-color-scheme and when the root
+ * says dark. MKP writes data-mkp-theme on its root, a name of its own, so a host's [data-theme] rules
+ * never catch it; data-theme set on the root by a host is still read.
+ */
 export function tokenCss(sets: IRTokenSet[], overrides?: TokenMap, scope = '.mkp-root'): string {
   const t = new TokenTable(sets, overrides);
   const light: string[] = [];
@@ -36,8 +40,8 @@ export function tokenCss(sets: IRTokenSet[], overrides?: TokenMap, scope = '.mkp
     }
   }
   return layer(`${scope} { ${light.join(' ')} }
-@media (prefers-color-scheme: dark) { ${scope}:not([data-theme=light]) { ${dark.join(' ')} } }
-${scope}[data-theme=dark] { ${dark.join(' ')} }`);
+@media (prefers-color-scheme: dark) { ${scope}:not([data-mkp-theme=light]):not([data-theme=light]) { ${dark.join(' ')} } }
+${scope}[data-mkp-theme=dark], ${scope}[data-theme=dark] { ${dark.join(' ')} }`);
 }
 
 /**

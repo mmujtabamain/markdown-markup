@@ -585,6 +585,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `tokens` | your values for token names (step 7) |
 | `components` | your own components for base widgets (4.2) |
 | `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
+| `externs` | your components for your pack's externs, by id: `{ "myapp:accordion@1": Accordion }` (below) |
 | `styles` | `'inline'` (the default) or `'external'`: MKP's stylesheet left to your page (below) |
 | `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state; it may arrive later (below) |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
@@ -594,6 +595,15 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 
 What to know:
 
+- **Your pack's externs.** An `extern` in your pack is drawn by your own code only: MKP has no view
+  for it. Give each one a component with `externs`, by id (`{ "myapp:accordion@1": Accordion }`). It
+  gets `{ id, props, children, attrs, style, dispatch }`: its inputs with their defaults,
+  `children` (what the document put inside it, drawn by MKP: place it where it goes), `attrs` for
+  your outer element, and `dispatch('toggled')` to report one of its outs, which runs the document's
+  `@toggled` handlers. Its own state (an accordion's open sections) lives in your component, so a
+  click there doesn't draw the document again. Unlike `components`, `externs` keeps MKP's own look.
+  An extern with no component shows a placeholder with its summary; the Markdown target writes its
+  summary and its children.
 - **A maths engine that loads later.** Draw the document at once and pass `maths` when the engine
   has loaded: the document keeps its state, and only the formulas without a picture change. Until
   then such a formula is its TeX in a `.mkp-math[data-pending]`, for a loading look of your own. A
@@ -659,7 +669,8 @@ function Sections() {
 ```
 
 Your element must have the class `mkp-root` (the stylesheet is scoped to it). Set
-`data-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS, and call
+`data-mkp-theme="dark"` or `"light"` on it yourself if you don't want it to follow the OS
+(`data-theme` on it is read too), and call
 `useMkpTheme(theme)` in it (or `rt.setTheme('dark')`) so a widget that reads `theme` draws for it.
 
 ### 4.2 Your own design system
@@ -763,6 +774,8 @@ function Lesson({ bundle }: { bundle: IRBundle }) {
 Props: `bundle`, `runtime`, `maths`, `theme` (`'auto'` follows `useColorScheme()`), `tokens`,
 `icons`, `reducedMotion` (default: the system's setting), `options`, `style`.
 
+- `externs` takes your components for your pack's externs, by id, as on the web: they get
+  `{ id, props, children, dispatch }`.
 - `icons` takes any React Native component, for every name or for some (`{ help: HelpIcon }`),
   given `{ name, size, tone, color, px, label }`: `px` is its size in points (the body text's,
   scaled for `small` and `large`) and `color` its tone resolved. The box carries the label, and
@@ -903,6 +916,32 @@ view.unmount();
   so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
+- **Nothing moves on a first visit, with no server.** Until `mkp-dom.js` has loaded, a page can show
+  the document with each widget's box already the height it will have. Keep each widget's measured
+  height with the document: `mount(el, bundle, { onSizes })` reports `[{ place, name, at: [[width,
+  height]] }]` once drawn and when they change, and `mergeSizes(kept, fresh)` keeps the four latest
+  widths. Next time, before anything else loads, `mkp-outline.js` (about 3 KB gzipped, no compiler,
+  no React) draws the first paint from the source alone:
+
+  ```js
+  import { outline } from './vendor/mkp/mkp-outline.js';
+  el.innerHTML = outline(source, sizes, { width: el.clientWidth, prose: (md) => myMarkdown(md) });
+  const { mount, mergeSizes } = await import('./vendor/mkp/mkp-dom.js');
+  mount(el, bundle, { places: true, onSizes: (s) => save(mergeSizes(sizes, s)) });
+  ```
+
+  `outline()` puts your prose (drawn by your renderer; left out without `prose`) and a quiet
+  placeholder for each top-level widget (`aria-hidden`, no text, `class="mkp-outline-place"` plus
+  your `className`, in a container marked `aria-busy`) at the height measured at that width, or
+  between widths along a line. With `places: true`, `mount()` draws each widget into its
+  placeholder from one runtime, and touches nothing else in the element; each box then takes its
+  widget's own height in the same frame. A widget never measured gets a 160 px box and may move
+  once. Places count every top-level widget, fenced or `:::`, in source order (`meta.place`).
+- **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
+  dispatch })` draws into `box` once and puts `slot` (what the document put inside the extern, drawn
+  by MKP) where it goes. It may return `{ update(props), destroy() }`: new inputs then arrive through
+  `update` and your own state is kept; `destroy` runs when it goes (a function returned is taken as
+  `destroy`). `firstPaint()` takes the same `externs` and leaves each box empty; `mount()` fills it.
 - **Many documents or first paints on one page.** Each writes MKP's stylesheet (about 19 KB) with
   its own tokens (about 2 KB). Pass `styles: 'external'` to `mount()`, `firstPaint()` or
   `mkp build --target fragment --styles external`, and load the web zip's `mkp.css` once in the
@@ -1238,7 +1277,7 @@ a note under **Changed** in a release:
 | a switch | `.mkp-switch > .mkp-switch-thumb` | its track and thumb, the press's first child; the thumb moves 16 px when it is on. MKP animates nothing (SPEC-NOTES 102): give the thumb a `transition` of your own to make it slide |
 | an icon | `mkp-icon`, `data-name`, `data-size` (and, drawn by your `icons`, `data-tone`, `data-host`) | the icon's name (`help`, `info`…); to draw your own, pass `icons` (4.1, 4.3, 4.7) |
 | a canvas shape that listens | `data-pointed`, and `data-press` with `role=button` when it takes `@click` | a circle or path with `@enter`, `@leave` or `@click` |
-| the root | `mkp-root`, `data-theme` | the stylesheet's scope; `light` or `dark` when it is fixed |
+| the root | `mkp-root`, `data-mkp-theme` | the stylesheet's scope; `light` or `dark` when it is fixed. A name of MKP's own, so your own `[data-theme]` rules never catch it |
 | a canvas layer with `clip=` | `clip-path` on its `<g>` | the rectangle its shapes stop at |
 
 Not promised: `data-mkp-key` (the runtime's key for a node: it changes when the document's
@@ -1288,8 +1327,11 @@ On the web each token becomes a custom property on `.mkp-root`: `--mkp-color-acc
 ### 7.3 Light and dark
 
 - A colour's `dark` value is used under `prefers-color-scheme: dark` (unless the root has
-  `data-theme="light"`) and whenever the root has `data-theme="dark"`. `theme="dark"` or
-  `"light"` on `MkpDocument` sets that attribute.
+  `data-mkp-theme="light"`) and whenever the root has `data-mkp-theme="dark"`. `theme="dark"` or
+  `"light"` on `MkpDocument` (and `mount()`, `firstPaint()`) sets that attribute. One paint holds
+  both themes' values, so switching later flips the attribute and nothing is drawn again. Until
+  0.2.6 the attribute was `data-theme`, which a host's own `[data-theme]` rules caught; MKP still
+  reads `data-theme` set on the root by a host.
 - If your app switches dark mode with its own class or setting rather than the OS, pass `theme`
   from that setting, or point both values at your own CSS variables so your stylesheet decides.
   `shadcnTokens` does the second: `{ value: 'var(--primary, #171717)', dark: 'var(--primary, #171717)' }`.

@@ -771,6 +771,8 @@ export class Runtime {
     else v = this.renderBase(n, env, inst, key);
     if (!v) return null;
     if (n.pos) v.src = [inst.def.file ?? inst.def.id, n.pos[0], n.pos[1]];
+    // a top-level widget's place in the document: a host sizes and places it by this
+    if (typeof n.meta?.place === 'number') v.p = { ...v.p, place: n.meta.place };
     if (cond) v.p = { ...v.p, $cond: true };
     if (id !== undefined) {
       // a snapshot draws every branch whose condition reads state, so exclusive branches may share an id
@@ -1135,8 +1137,14 @@ export class Runtime {
         return p.name === 'none' ? null : { t: 'icon', key, p, kids: kids() };
       }
       default:
-        // a transitional extern a provider implements: pass its props through
-        return { t: n.node, key, p: this.props(n, env, inst), kids: kids() };
+        // an extern the host implements (a pack's, or a transitional base one): its props and what it
+        // holds, drawn, and its id, for a host's component chosen by id
+        {
+          const v: VNode = { t: n.node, key, p: this.props(n, env, inst), kids: kids(), ...(n.def && !n.def.startsWith('core:') ? { ext: n.def } : {}) };
+          // its outs, written on the use (@toggled …), run when the host reports them
+          this.wire(n, v, env, inst);
+          return v;
+        }
     }
   }
 

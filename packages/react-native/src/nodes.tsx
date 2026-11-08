@@ -163,10 +163,18 @@ function Box({ n, style, flow, role, children }: { n: VNode; style: ViewStyle; f
 const runs = (p: Record<string, unknown>): VRun[] => (p.runs as VRun[] | undefined) ?? [];
 
 export function Node({ n }: { n: VNode }): ReactNode {
-  const { theme } = useCtx();
+  const { theme, externs, rt } = useCtx();
   const ink = useInk();
   const p = n.p;
   const body = theme.font('body');
+  // a pack's extern the host draws itself, by id
+  const Ext = n.ext ? externs?.[n.ext] : undefined;
+  if (Ext)
+    return (
+      <Ext id={n.ext!} props={p} dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}>
+        <Kids nodes={n.kids ?? []} />
+      </Ext>
+    );
   switch (n.t) {
     case 'scope':
       return <Scope n={n} />;

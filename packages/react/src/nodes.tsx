@@ -1,7 +1,7 @@
 // The base set as React DOM components (spec 8): the four containers, text, media, press, range,
 // field, overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ComponentType, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Runtime, VNode, VRun } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
@@ -37,7 +37,28 @@ export interface Ctx {
   components?: MkpComponents;
   /** a host's icons, drawn in place of MKP's text symbols */
   icons?: MkpIcons;
+  /** a host's components for a pack's externs, by id */
+  externs?: MkpExterns;
 }
+
+/** What a host's component for an extern gets: the extern's id, its inputs, and what it holds, drawn. */
+export interface ExternProps {
+  /** the extern's id, pack:name@N */
+  id: string;
+  /** its inputs, with their defaults filled in */
+  props: Record<string, unknown>;
+  /** what the document put inside it (its slot), already drawn by MKP: place it where it goes */
+  children: ReactNode;
+  /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
+  attrs: Record<string, unknown>;
+  /** the place its parent gives it: grow, basis, span, self */
+  style: CSSProperties;
+  /** reports one of the extern's outs (\`out toggled\`) to the document, which runs its handlers */
+  dispatch: (event: string, payload?: unknown) => void;
+}
+/** A host's components for a pack's externs, by id ("devbench:accordion@1"): an extern is drawn by
+ *  the app's own code only, so where a host gives none, a placeholder with its summary is drawn. */
+export type MkpExterns = Record<string, ComponentType<ExternProps>>;
 
 export const RuntimeCtx = createContext<Ctx | null>(null);
 
@@ -330,6 +351,8 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     'data-blur': n.p.blur ? '' : undefined,
     // a control the runtime made for a state (steps, clock), so a bar can lay it out on a narrow screen
     'data-control': n.p.control as string | undefined,
+    // a top-level widget's place in the document (outline sizes and placeholders are keyed by it)
+    'data-mkp-place': typeof n.p.place === 'number' ? n.p.place : undefined,
     hidden: n.hidden || undefined,
   };
 }
@@ -369,12 +392,20 @@ function useKeep(n: VNode): void {
 const QUOTE_TONE: Record<string, string> = { note: 'info', tip: 'ok', important: 'accent', warning: 'warn', caution: 'bad' };
 
 export function Node({ n }: { n: VNode }): ReactNode {
-  const { rt, components, icons } = useCtx();
+  const { rt, components, icons, externs } = useCtx();
   useKeep(n);
   const p = n.p;
   // data-mkp names the base widget, so a provider's stylesheet can say what it styles
   const common = nodeAttrs(n);
   const lay = layoutStyle(n);
+  // a pack's extern the host draws itself, by id
+  const Ext = n.ext ? externs?.[n.ext] : undefined;
+  if (Ext)
+    return (
+      <Ext id={n.ext!} props={p} attrs={common} style={lay} dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}>
+        <Kids nodes={n.kids ?? []} />
+      </Ext>
+    );
   const route = (components as Record<string, HostRoute> | undefined)?.[n.t];
   if (route) return route({ n, attrs: common, style: lay, dispatch: rt.dispatch.bind(rt) });
   switch (n.t) {
@@ -737,6 +768,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       data-mkp-key={n.key}
       data-mkp-id={n.id}
       data-mkp-def={String(n.p.def)}
+      data-mkp-place={typeof n.p.place === 'number' ? n.p.place : undefined}
       // arrows behind the content sit under it, and over the scope's own background (GAPS 100)
       data-mkp-behind={n.arrows?.some((a) => a.layer === 'behind') ? '' : undefined}
       hidden={n.hidden || undefined}

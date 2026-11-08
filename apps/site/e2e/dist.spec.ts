@@ -89,7 +89,7 @@ document.getElementById('off').onclick = () => view.unmount();
   await expect(page.getByText('Right.')).toBeVisible();
   // a new theme redraws the document; what the reader typed stays
   await page.locator('#dark').click();
-  await expect(page.locator('#doc .mkp-root')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('#doc .mkp-root')).toHaveAttribute('data-mkp-theme', 'dark');
   await expect(field).toHaveValue('oslo');
   await expect(page.getByText('Right.')).toBeVisible();
   await page.locator('#off').click();

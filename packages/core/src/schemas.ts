@@ -85,7 +85,7 @@ export const nodeSchema = {
     fills: { type: 'object', additionalProperties: { type: 'array', items: { $ref: '#' } } },
     meta: {
       type: 'object',
-      properties: { id: {}, if: { $ref: `${BASE}/ir/expr` }, hidden: { type: 'boolean' }, grow: { type: 'boolean' }, basis: { type: 'string' }, comment: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' }, block: { type: 'integer' }, anchor: { type: 'string' }, role: { type: 'string' }, attrs: { type: 'object', additionalProperties: { type: 'string' } } },
+      properties: { id: {}, if: { $ref: `${BASE}/ir/expr` }, hidden: { type: 'boolean' }, grow: { type: 'boolean' }, basis: { type: 'string' }, comment: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' }, block: { type: 'integer' }, place: { type: 'integer' }, anchor: { type: 'string' }, role: { type: 'string' }, attrs: { type: 'object', additionalProperties: { type: 'string' } } },
     },
     on: { type: 'object', additionalProperties: { type: 'array', items: actionSchema } },
     pos,

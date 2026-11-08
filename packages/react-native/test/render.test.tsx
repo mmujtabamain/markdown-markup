@@ -5,9 +5,9 @@
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import type { TestInstance } from 'test-renderer';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { compile, formatDiagnostic, MathsEngine, prerender, Runtime, TokenTable, walkView, type IRBundle, type VNode, type VRun, type VShape } from '@mkp/core';
-import { capabilities, markSvg, MkpDocument, placeCanvasLabels, setSkia, widthClass, type HostIconProps } from '../src';
+import { capabilities, markSvg, MkpDocument, placeCanvasLabels, setSkia, widthClass, type ExternProps, type HostIconProps } from '../src';
 
 const H = { includeHiddenElements: true } as const;
 let maths: MathsEngine;
@@ -466,6 +466,40 @@ describe('a host’s icons', () => {
     await render(<MkpDocument bundle={b} runtime={all} reducedMotion theme="light" icons={Glyph} />);
     expect(screen.getByText('<info>', H)).toBeTruthy();
     expect(seen.some((x) => x.startsWith('info normal accent'))).toBe(true);
+    await act(async () => {
+      await screen.unmount();
+    });
+  });
+});
+
+describe('a host’s externs', () => {
+  it('draws a pack’s extern with the host’s component, by id, its out reaching the document', async () => {
+    const enc = new TextEncoder();
+    const pack = {
+      label: 'p',
+      files: new Map<string, Uint8Array>([
+        ['manifest.mkp', enc.encode('pack p@1 "P."\n  requires core@1\n  provides accordion counted\n')],
+        ['accordion.mkp', enc.encode('extern accordion@1 "A section, drawn by the app."\n  in title text "its heading"\n  in body slot\n  out toggled "opened or closed"\n\ncounted@1 "Counts its accordion’s toggles."\n  var n int = 0\n  column\n    accordion title="Details"\n      text "Inside: \\val{n}"\n      @toggled set n=(n + 1)\n  project md = "counted"\n')],
+        ['counted.fixture.json', enc.encode(JSON.stringify({ widget: 'counted@1', cases: { one: { props: {}, summary: 'One.' } } }))],
+      ]),
+    };
+    const c = compile({ packs: [pack] });
+    const b = c.document('```counted\nsummary: s\n```\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const Accordion = ({ props, children, dispatch }: ExternProps) => (
+      <View>
+        <Text onPress={() => dispatch('toggled')}>{`[${String(props.title)}]`}</Text>
+        {children}
+      </View>
+    );
+    const rt = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    await render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="light" externs={{ 'p:accordion@1': Accordion }} />);
+    expect(screen.getByText('[Details]', H)).toBeTruthy();
+    expect(screen.getByText('Inside: 0', H)).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('[Details]', H));
+    });
+    expect(screen.getByText('Inside: 1', H)).toBeTruthy();
     await act(async () => {
       await screen.unmount();
     });

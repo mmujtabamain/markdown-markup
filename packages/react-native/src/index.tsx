@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AccessibilityInfo, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions } from '@mkp/core';
-import { RuntimeCtx, type Ctx, type MkpIcons } from './context';
+import { RuntimeCtx, type Ctx, type MkpExterns, type MkpIcons } from './context';
 import { Kids } from './nodes';
 import { capabilities } from './skia';
 import { makeTheme, type Scheme, type TokenMap } from './theme';
@@ -13,7 +13,7 @@ export { Node, Kids, Scroller } from './nodes';
 export { widthClass, placeCanvasLabels, placeLabels, curve, MIN_BEND, markSvg, trackList } from './geometry';
 export { Runs, MathView, InkCtx } from './runs';
 export { Canvas } from './canvas';
-export { RuntimeCtx, MeasureCtx, KeepCtx, FlowCtx, useCtx, type Ctx, type Registry, type HostIconProps, type IconComponent, type MkpIcons } from './context';
+export { RuntimeCtx, MeasureCtx, KeepCtx, FlowCtx, useCtx, type Ctx, type Registry, type HostIconProps, type IconComponent, type MkpIcons, type ExternProps, type MkpExterns } from './context';
 export { hostIcon } from './shell';
 export { makeTheme, mixColors, fontFamily, type Theme, type TokenMap, type Scheme, type FontToken } from './theme';
 export { capabilities, setSkia, skia, skiaUniforms, type SkiaModule } from './skia';
@@ -33,6 +33,11 @@ export interface MkpDocumentProps {
    * Documents still only name icons from the fixed set; MKP's text symbol is left out
    */
   icons?: MkpIcons;
+  /**
+   * a host's components for a pack's externs, by id ({ "devbench:accordion@1": Accordion }), given
+   * { id, props, children, dispatch }. One with none here shows a placeholder with its summary
+   */
+  externs?: MkpExterns;
   options?: RuntimeOptions;
   style?: StyleProp<ViewStyle>;
 }
@@ -102,7 +107,7 @@ export function MkpDocument(props: MkpDocumentProps): ReactNode {
 
   // `theme` in the document reads the scheme drawn: the one given, or the system's
   useEffect(() => rt.setTheme(mode), [rt, mode]);
-  const ctx = useMemo<Ctx>(() => ({ rt, theme, icons: props.icons }), [rt, theme, props.icons]);
+  const ctx = useMemo<Ctx>(() => ({ rt, theme, icons: props.icons, externs: props.externs }), [rt, theme, props.icons, props.externs]);
   return (
     <RuntimeCtx.Provider value={ctx}>
       {/* the document's width is the reader's: narrow, medium or wide (GAPS 30, 160) */}

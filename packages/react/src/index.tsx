@@ -1,16 +1,17 @@
 // @mkp/react: render an MKP bundle on the web with the core runtime.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Fragment, useLayoutEffect, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Runtime, type IRBundle, type MathsRenderer, type RuntimeOptions, type VNode } from '@mkp/core';
 import { BASE_CSS, NEUTRAL_CSS, tokenCss, type TokenMap } from './style';
-import { Kids, RuntimeCtx, type MkpComponents } from './nodes';
+import { Kids, Node, RuntimeCtx, type MkpComponents, type MkpExterns } from './nodes';
 import type { MkpIcons } from './shell';
 import { SHELL_CSS } from './shell';
 
-export { Node, Kids, Runs, MathSpan, MathBlock, TextBlock, Box, CodeLines, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, boxStyle, flowStyle, gridTracks, rowRole, textStyle, hoverEvents, fieldTone, fieldKeys, keepInView, type BaseWidget, type CodeMark, type MathMark, type HostProps, type HostRoute, type MkpComponents } from './nodes';
+export { Node, Kids, Runs, MathSpan, MathBlock, TextBlock, Box, CodeLines, RuntimeCtx, BASE_WIDGETS, nodeAttrs, layoutStyle, boxStyle, flowStyle, gridTracks, rowRole, textStyle, hoverEvents, fieldTone, fieldKeys, keepInView, type BaseWidget, type CodeMark, type MathMark, type HostProps, type HostRoute, type MkpComponents, type ExternProps, type MkpExterns } from './nodes';
 export { Arrows, curve, placeLabels, MIN_BEND, type Drawn } from './arrows';
 export { Canvas, placeCanvasLabels, pathHead } from './canvas';
-export { Frame, Pane, Zoom, FitBox, fitsWidth, zoomBounds, Icon, hostIcon, domIcons, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps, type HostIconProps, type IconComponent, type MkpIcons, type DomIcon, type DomIcons } from './shell';
+export { Frame, Pane, Zoom, FitBox, fitsWidth, zoomBounds, Icon, hostIcon, domIcons, domExterns, relayout, SHELL_CSS, type ShellButton, type ShellButtonProps, type HostIconProps, type IconComponent, type MkpIcons, type DomIcon, type DomIcons, type DomExtern, type DomExterns, type DomExternProps } from './shell';
 export { tokenCss, layer, color, size, BASE_CSS, NEUTRAL_CSS, type TokenMap } from './style';
 
 export interface MkpProviderProps {
@@ -28,6 +29,12 @@ export interface MkpProviderProps {
    * size, colour and label, and MKP's text symbol is left out
    */
   icons?: MkpIcons;
+  /**
+   * a host's components for a pack's externs, by id ({ "devbench:accordion@1": Accordion }). An
+   * extern is drawn by the app's own code only; one with no component here shows a placeholder
+   * with its summary. Unlike `components`, giving these keeps MKP's own look for everything else
+   */
+  externs?: MkpExterns;
   /**
    * 'inline' (the default) writes MKP's stylesheet in a <style> of its own; 'external' writes only
    * this document's tokens there, and the page loads the rest once: mkp.css from the web zip, or
@@ -166,7 +173,7 @@ export function MkpProvider(props: MkpProviderProps): ReactNode {
     return () => cancelAnimationFrame(raf);
   }, [rt]);
   const css = useMemo(() => (props.styles === 'external' ? '' : mkpCss({ neutral: !props.components })) + tokenCss(props.bundle.tokens, props.tokens), [props.bundle, props.tokens, props.components, props.styles]);
-  const ctx = useMemo(() => ({ rt, components: props.components, icons: props.icons }), [rt, props.components, props.icons]);
+  const ctx = useMemo(() => ({ rt, components: props.components, icons: props.icons, externs: props.externs }), [rt, props.components, props.icons, props.externs]);
   const measure = useWidthReport(rt);
   return (
     <RuntimeCtx.Provider value={ctx}>
@@ -198,13 +205,60 @@ export function useMkpTheme(theme: 'light' | 'dark' | 'auto' | undefined): void 
   }, [rt, theme]);
 }
 
+/**
+ * The document's top-level widgets drawn into a host's own elements, by place (meta.place): the host
+ * draws the prose itself, with a placeholder where each widget goes (mkp-outline's), and each
+ * widget is drawn into its placeholder, so nothing outside the widgets' boxes is touched. One
+ * runtime for all of them, so the document's state is shared as usual.
+ */
+export function MkpPlaces(props: MkpDocumentProps & { targets: Map<number, HTMLElement>; onDrawn?: () => void }): ReactNode {
+  const { targets, theme, className, onDrawn, ...rest } = props;
+  return (
+    <MkpProvider {...rest}>
+      <PlacesRoot targets={targets} theme={theme} className={className} onDrawn={onDrawn} />
+    </MkpProvider>
+  );
+}
+
+function PlacesRoot({ targets, theme, className, onDrawn }: { targets: Map<number, HTMLElement>; theme?: MkpDocumentProps['theme']; className?: string; onDrawn?: () => void }): ReactNode {
+  const tree = useMkpView();
+  // the reader's width: the first place's
+  const first = useRef<HTMLElement | null>(targets.values().next().value ?? null);
+  useMkpWidth(first);
+  useMkpTheme(theme ?? 'auto');
+  useLayoutEffect(() => {
+    for (const el of targets.values()) {
+      el.classList.add('mkp-root');
+      if (className) el.classList.add(...className.split(/\s+/).filter(Boolean));
+      if (theme && theme !== 'auto') el.setAttribute('data-mkp-theme', theme);
+      else el.removeAttribute('data-mkp-theme');
+    }
+  }, [targets, theme, className]);
+  // the widgets are in their boxes (children's layout effects, a canvas measuring its width, have
+  // run): before this frame is painted, each box can give up its reserved height
+  const told = useRef(false);
+  useLayoutEffect(() => {
+    if (told.current || !tree.length) return;
+    told.current = true;
+    onDrawn?.();
+  });
+  return (
+    <>
+      {[...targets].map(([place, el]) => {
+        const n = tree.find((x) => x.p.place === place);
+        return n ? <Fragment key={place}>{createPortal(<Node n={n} />, el)}</Fragment> : null;
+      })}
+    </>
+  );
+}
+
 function DocumentRoot({ theme, className }: { theme?: MkpDocumentProps['theme']; className?: string }): ReactNode {
   const tree = useMkpView();
   const root = useRef<HTMLDivElement>(null);
   useMkpWidth(root);
   useMkpTheme(theme ?? 'auto');
   return (
-    <div ref={root} className={['mkp-root', className].filter(Boolean).join(' ')} data-theme={theme && theme !== 'auto' ? theme : undefined}>
+    <div ref={root} className={['mkp-root', className].filter(Boolean).join(' ')} data-mkp-theme={theme && theme !== 'auto' ? theme : undefined}>
       <Kids nodes={tree} />
     </div>
   );
