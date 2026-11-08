@@ -365,6 +365,35 @@ export function resolve(ty: Type, env: TypeEnv): Type {
   return cur;
 }
 
+/**
+ * A type with every named type in it resolved in `env`, however deep (a choice inside a list
+ * inside a record), so it can be read where those names aren't visible: a record field's default,
+ * checked in a document that can't see the pack's own types. A recursive type stays named where it
+ * recurs.
+ */
+export function resolveDeep(ty: Type, env: TypeEnv, seen: ReadonlySet<string> = new Set()): Type {
+  if (ty.t === 'named') {
+    if (seen.has(ty.name)) return ty;
+    const r = resolve(ty, env);
+    return r.t === 'named' ? r : resolveDeep(r, env, new Set([...seen, ty.name]));
+  }
+  const field = ([n, f]: [string, Type]): [string, Type] => [n, resolveDeep(f, env, seen)];
+  switch (ty.t) {
+    case 'list':
+      return { ...ty, of: resolveDeep(ty.of, env, seen) };
+    case 'dict':
+      return { ...ty, of: resolveDeep(ty.of, env, seen) };
+    case 'ref':
+      return { ...ty, of: resolveDeep(ty.of, env, seen) };
+    case 'rec':
+      return { ...ty, fields: ty.fields.map(field), ...(ty.name ? { name: ty.name } : {}) };
+    case 'records':
+      return { ...ty, fields: ty.fields.map(field) };
+    default:
+      return ty;
+  }
+}
+
 /** Structural equality, with named types resolved. */
 export function sameType(a: Type, b: Type, env: TypeEnv, seen = new Set<string>()): boolean {
   if (a.t === 'named' && b.t === 'named' && a.name === b.name) return true;

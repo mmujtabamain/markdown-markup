@@ -409,3 +409,28 @@ describe('arrow lanes=', () => {
     expect(doc(src('never')).all[0]).toMatch(/hop/);
   });
 });
+
+describe('a record field typed by a pack’s own type, left out', () => {
+  const enc2 = new TextEncoder();
+  const packOf = (label: string, files: Record<string, string>): PackSource => ({ label, files: new Map(Object.entries(files).map(([k, v]) => [k, enc2.encode(v)])) });
+  const tasks = packOf('p', {
+    'manifest.mkp': 'pack p@1 "P."\n  requires core@1\n  provides tasks\n',
+    'tasks.mkp': 'type state = choice(none|done|todo)\n\ntasks@1 "Items with a state."\n  in items list(record item {name: text, state: state = todo, marks: list(state) = [none]})\n  column\n    each it in items key=it.name\n      text "\\val{it.name}: \\val{it.state}"\n  project md = "tasks"\n',
+    'tasks.fixture.json': JSON.stringify({ widget: 'tasks@1', cases: { one: { props: { items: [{ name: 'A' }] }, summary: 'One.' } } }),
+  });
+  it('takes its default in a document, which cannot see the type (it read todo as a name)', () => {
+    const r = doc('# Doc\n\n```tasks\nitems:\n  - {name: Tea, state: done}\n  - {name: Post}\nsummary: s\n```\n', { packs: [tasks] });
+    expect(r.all).toEqual([]);
+    expect(texts(new Runtime(r.b!).view())).toEqual(['Tea: done', 'Post: todo']);
+  });
+  it('takes its default in another pack’s widget that uses it by record lines', () => {
+    const other = packOf('q', {
+      'manifest.mkp': 'pack q@1 "Q."\n  requires core@1\n  depends p@1\n  provides today\n',
+      'today.mkp': 'today@1 "Today."\n  tasks\n    item "Tea" done\n    item "Post"\n  project md = "today"\n',
+      'today.fixture.json': JSON.stringify({ widget: 'today@1', cases: { one: { props: {}, summary: 'One.' } } }),
+    });
+    const r = doc('# Doc\n\n```today\nsummary: s\n```\n', { packs: [tasks, other] });
+    expect(r.all).toEqual([]);
+    expect(texts(new Runtime(r.b!).view())).toEqual(['Tea: done', 'Post: todo']);
+  });
+});

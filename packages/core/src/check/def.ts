@@ -6,7 +6,7 @@ import { IR_VERSION } from '../ir';
 import { GFX_SHAPES } from '../base';
 import type { Ex } from '../syntax/expr';
 import { parseValueString, type ActionSyn, type Arg, type DefSyn, type EventSyn, type NodeSyn, type Val } from '../syntax/mkp';
-import { fits, hasParam, join, resolve, sameType, showType, substitute, T, Type, TypeEnv } from '../types';
+import { resolveDeep, fits, hasParam, join, resolve, sameType, showType, substitute, T, Type, TypeEnv } from '../types';
 import { canonical } from '../syntax/canon';
 import { ExprChecker, GLOBALS, Scope, withParams, type Checked } from './expr';
 import type { DefEntry, FnEntry, Program } from './program';
@@ -1173,7 +1173,9 @@ export class DefChecker {
 
   private record(n: NodeSyn, rec: { input: string; type: Extract<Type, { t: 'records' }> }, sig: Sig, scope: Scope, depth: number): IRNode {
     const t = rec.type;
-    const fieldTypes = new Map(t.fields);
+    // the fields' types as the declaring pack sees them: given values and defaults alike are read in
+    // them, so another pack's own type names (a choice of states) mean what they mean there
+    const fieldTypes = new Map(t.fields.map(([f, ft]) => [f, resolveDeep(ft, this.prog.typeEnv(sig.pack))] as [string, Type]));
     const order = t.fields.filter(([, ft]) => resolve(ft, this.env).t !== 'records').map(([n2]) => n2);
     const { props, meta } = this.fillArgs(n.args, fieldTypes, order, scope, `${t.kind} record`, new Set());
     // defaults and required fields
@@ -1181,7 +1183,8 @@ export class DefChecker {
       if (props[f] !== undefined || resolve(ft, this.env).t === 'records') continue;
       const d = t.defaults?.[f];
       if (d !== undefined) {
-        props[f] = this.staticValue(parseValueString(d, this.entry.file, n.p.line, n.p.col), ft, n.p);
+        // in the types of the pack that declares the widget: another pack's own type names aren't in this one's
+        props[f] = this.staticValue(parseValueString(d, this.entry.file, n.p.line, n.p.col), resolveDeep(ft, this.prog.typeEnv(sig.pack)), n.p);
         continue;
       }
       if (n.children.some((c) => c.head === f)) continue;

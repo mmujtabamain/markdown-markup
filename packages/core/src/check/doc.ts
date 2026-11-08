@@ -11,7 +11,7 @@ import { chunks } from '../syntax/lexer';
 import { parseDoc, type DocItem, type DocSyn } from '../syntax/doc';
 import { yamlPositions, type YamlAt } from '../syntax/yamlpos';
 import { parseExprString, parseMkp, parseValueString, type Arg, type DefSyn, type MkpFile } from '../syntax/mkp';
-import { fits, join, resolve, showType, T, Type, type TypeEnv } from '../types';
+import { resolveDeep, fits, join, resolve, showType, T, Type, type TypeEnv } from '../types';
 import { DefChecker, instantiate, pos, signatureOf, unify, yamlType, type Sig, type DefCheckOptions } from './def';
 import type { PackInfo, Program } from './program';
 
@@ -852,7 +852,8 @@ class DocChecker {
         const given = Object.keys(obj);
         throw new MkpError('mkp.missing-input', `${path} (a ${t.kind}) is missing ${k}, which takes ${this.takes(ft, sig.pack)}; found ${given.length ? `only ${given.join(', ')}` : 'no fields'}. Add it, e.g. ${k}: ${example(ft, env, this.dc.opts.tokenNames)}`, p);
       }
-      props[k] = this.dc.staticValue(parseValueString(d, this.file, p.line, p.col), ft, p);
+      // the default is read in its pack's types: a document can't see a pack's own type names
+      props[k] = this.dc.staticValue(parseValueString(d, this.file, p.line, p.col), resolveDeep(ft, this.prog.typeEnv(sig.pack)), p);
     }
     return out;
   }
@@ -1015,7 +1016,8 @@ class DocChecker {
           if (!(k in src)) {
             const d = t.defaults?.[k];
             if (d !== undefined) {
-              const dv = this.dc.staticValue(parseValueString(d), ft, p) as Record<string, unknown>;
+              // read in the types of the pack that declares the field: the document may not see them
+              const dv = this.dc.staticValue(parseValueString(d), resolveDeep(ft, env), p) as Record<string, unknown>;
               o[k] = 'lit' in dv ? dv.lit : 'text' in dv ? dv.text : 'tex' in dv ? dv.tex : 'tok' in dv ? dv.tok : 'ms' in dv ? dv.ms : 'ast' in dv ? constant(dv as unknown as IRExpr, `${what}.${k}`, this.at(what, p)) : dv.lit;
               continue;
             }
@@ -1060,7 +1062,8 @@ class DocChecker {
         const rargs = this.args(inner.args, inner.line, inner.name.length + inner.colons + 1);
         const t = rec.type;
         const order = t.fields.filter(([, ft]) => resolve(ft, this.prog.typeEnv(sig.pack)).t !== 'records').map(([n]) => n);
-        const filled = this.dc.fillArgs(rargs, new Map(t.fields), order, this.dc.scope, `${t.kind} record`, new Set());
+        // the fields' types as the declaring pack sees them (its own type names aren't the document's)
+        const filled = this.dc.fillArgs(rargs, new Map(t.fields.map(([f, ft]) => [f, resolveDeep(ft, this.prog.typeEnv(sig.pack))] as [string, Type])), order, this.dc.scope, `${t.kind} record`, new Set());
         for (const [f, ft] of t.fields) {
           if (filled.props[f] !== undefined || resolve(ft, this.prog.typeEnv(sig.pack)).t === 'records') continue;
           const d = t.defaults?.[f];
@@ -1069,7 +1072,7 @@ class DocChecker {
             const env = this.prog.typeEnv(sig.pack);
             throw new MkpError('mkp.missing-input', `the ${head} record is missing ${f}, which takes ${this.takes(ft, sig.pack)}; its fields, in order, are ${order.join(', ')}. Add it on the ::: line, by position or by name, e.g. ${head} ${f}=${example(ft, env, this.dc.opts.tokenNames, true)}`, this.p(inner.line));
           }
-          filled.props[f] = this.dc.staticValue(parseValueString(d), ft, this.p(inner.line));
+          filled.props[f] = this.dc.staticValue(parseValueString(d), resolveDeep(ft, this.prog.typeEnv(sig.pack)), this.p(inner.line));
         }
         const r: IRNode = { node: '$record', record: t.kind, input: rec.input, props: filled.props, pos: [inner.line, 1] };
         if (Object.keys(filled.meta).length) r.meta = filled.meta;
