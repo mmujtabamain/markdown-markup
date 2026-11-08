@@ -3,7 +3,7 @@
 // plus its summary and any `project md` / `project mermaid` of its own.
 
 import type { IRBundle } from './ir';
-import { Runtime, type MathsRenderer } from './runtime/runtime';
+import { Runtime, type Inst, type MathsRenderer } from './runtime/runtime';
 import type { VNode, VRun, VShape } from './runtime/view';
 import { Env } from './eval';
 import { TokenTable } from './tokens';
@@ -104,6 +104,7 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
 
   const block = (n: VNode): string | null => {
     const p = n.p;
+    if (n.ext) return extern(n);
     switch (n.t) {
       case 'paragraph':
         return inline(p.runs as VRun[]);
@@ -236,14 +237,9 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
     const out: string[] = [];
     // a summary is Markdown already (with $…$ maths): kept as written
     if (n.p.summary) out.push(`*${String(n.p.summary).trim()}*`);
-    const project = def?.project;
-    if (project?.mermaid && t.has('mermaid')) {
-      const src = String(rt.evalExpr(project.mermaid, inst!.env as Env, inst!));
-      out.push('```mermaid\n' + src + '\n```');
-      return out.join('\n\n');
-    }
-    if (project?.md) {
-      out.push(details(String(rt.evalExpr(project.md, inst!.env as Env, inst!))));
+    const projected = projection(inst);
+    if (projected !== null) {
+      out.push(projected);
       return out.join('\n\n');
     }
     // without answers, a widget that holds one and says nothing of its own writes its summary only
@@ -252,6 +248,35 @@ export function writeMarkdown(b: IRBundle, opts: MdOptions = {}): MdResult {
     out.push(...blocks(n.kids));
     const after = later.pop()!;
     out.push(...after);
+    return out.filter(Boolean).join('\n\n');
+  };
+
+  /** What a widget's project says it is in Markdown (mermaid where that is on), or null if it says nothing. */
+  const projection = (inst: Inst | undefined): string | null => {
+    const project = inst?.def.project;
+    if (project?.mermaid && t.has('mermaid')) return '```mermaid\n' + String(rt.evalExpr(project.mermaid, inst!.env as Env, inst!)) + '\n```';
+    if (project?.md) return details(String(rt.evalExpr(project.md, inst!.env as Env, inst!)));
+    return null;
+  };
+
+  /**
+   * A pack's extern, drawn by a host: its summary, then its project md, or what it holds (each
+   * record's content under the record's first text field, as a slot chosen by state is written).
+   */
+  const extern = (n: VNode): string => {
+    const out: string[] = [];
+    if (n.summary) out.push(`*${n.summary.trim()}*`);
+    const projected = projection(rt.externAt(n.key));
+    if (projected !== null) return [...out, projected].join('\n\n');
+    out.push(...blocks(n.kids));
+    for (const [name, list] of Object.entries(n.recs ?? {}))
+      list.forEach((kids, i) => {
+        const rec = ((n.p[name] as Record<string, unknown>[] | undefined) ?? [])[i] ?? {};
+        const title = Object.values(rec).find((v) => typeof v === 'string');
+        const body = blocks(kids).join('\n\n');
+        out.push(title === undefined ? body : `**${escape(String(title))}**${body ? `\n\n${body}` : ''}`);
+      });
+    for (const s of Object.values(n.slots ?? {})) out.push(...blocks(s));
     return out.filter(Boolean).join('\n\n');
   };
 

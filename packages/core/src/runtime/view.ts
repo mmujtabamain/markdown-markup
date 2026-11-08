@@ -96,6 +96,10 @@ export interface VNode {
   src?: [string, number, number];
   /** an extern's id (pack:name@N), for a host that draws it with its own component */
   ext?: string;
+  /** an extern's record lists with a slot: each record's content, drawn, in the order of its values in p */
+  recs?: Record<string, VNode[][]>;
+  /** an extern's summary, as its use wrote it (summary: or summary=) */
+  summary?: string;
 }
 
 export function walk(nodes: VNode[], f: (n: VNode) => void): void {
@@ -104,6 +108,7 @@ export function walk(nodes: VNode[], f: (n: VNode) => void): void {
     if (n.kids) walk(n.kids, f);
     if (n.body) walk(n.body, f);
     for (const s of Object.values(n.slots ?? {})) walk(s, f);
+    for (const r of Object.values(n.recs ?? {})) for (const k of r) walk(k, f);
     for (const l of n.layers ?? []) for (const s of l.shapes) if (s.t === 'place') walk(s.kids, f);
   }
 }

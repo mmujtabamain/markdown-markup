@@ -47,8 +47,14 @@ export interface ExternProps {
   id: string;
   /** its inputs, with their defaults filled in */
   props: Record<string, unknown>;
-  /** what the document put inside it (its slot), already drawn by MKP: place it where it goes */
+  /** what the document put inside it (its first slot), already drawn by MKP: place it where it goes */
   children: ReactNode;
+  /** its other slots (filled by name with :::fill), drawn, by input name */
+  slots: Record<string, ReactNode>;
+  /** each record's content, drawn, for its record lists with a slot: records.sections[i] goes with props.sections[i] */
+  records: Record<string, ReactNode[]>;
+  /** the summary its use wrote, if any: a label for it, or what to say while it can't be drawn */
+  summary?: string;
   /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
   attrs: Record<string, unknown>;
   /** the place its parent gives it: grow, basis, span, self */
@@ -402,10 +408,20 @@ export function Node({ n }: { n: VNode }): ReactNode {
   const Ext = n.ext ? externs?.[n.ext] : undefined;
   if (Ext)
     return (
-      <Ext id={n.ext!} props={p} attrs={common} style={lay} dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}>
+      <Ext
+        id={n.ext!}
+        props={p}
+        slots={Object.fromEntries(Object.entries(n.slots ?? {}).map(([k, s]) => [k, <Kids key={k} nodes={s} />]))}
+        records={Object.fromEntries(Object.entries(n.recs ?? {}).map(([k, list]) => [k, list.map((s, i) => <Kids key={i} nodes={s} />)]))}
+        summary={n.summary}
+        attrs={common}
+        style={lay}
+        dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}
+      >
         <Kids nodes={n.kids ?? []} />
       </Ext>
     );
+
   const route = (components as Record<string, HostRoute> | undefined)?.[n.t];
   if (route) return route({ n, attrs: common, style: lay, dispatch: rt.dispatch.bind(rt) });
   switch (n.t) {
@@ -599,10 +615,10 @@ export function Node({ n }: { n: VNode }): ReactNode {
     case 'icon':
       return <Icon n={n} attrs={common} style={lay} icons={icons} />;
     default:
-      // a transitional extern this renderer does not implement: say so, accessibly
+      // an extern with no component here: its summary, or what its pack says it is, accessibly
       return (
         <div {...common} className="mkp-error" role="note">
-          {String(p.summary ?? n.t)}
+          {String(n.summary ?? p.summary ?? (n.ext && rt.bundle.defs[n.ext]?.about) ?? n.t)}
         </div>
       );
   }

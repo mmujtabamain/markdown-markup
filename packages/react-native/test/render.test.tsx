@@ -4,6 +4,7 @@
 // and interactions: tabs, a range, a field, an overlay, a handle, pixels and play.
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { hostDoc, hostPack } from '../../core/test/host-externs';
 import type { TestInstance } from 'test-renderer';
 import { Text, View } from 'react-native';
 import { compile, formatDiagnostic, MathsEngine, prerender, Runtime, TokenTable, walkView, type IRBundle, type VNode, type VRun, type VShape } from '@mkp/core';
@@ -500,6 +501,56 @@ describe('a host’s externs', () => {
       fireEvent.press(screen.getByText('[Details]', H));
     });
     expect(screen.getByText('Inside: 1', H)).toBeTruthy();
+    await act(async () => {
+      await screen.unmount();
+    });
+  });
+  it('gives the host’s components their record lists, each record’s content, their other slots and their summary', async () => {
+    const c = compile({ packs: [hostPack] });
+    const b = c.document(hostDoc, 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const got: Record<string, ExternProps> = {};
+    const Box = (x: ExternProps) => {
+      got[x.id] = x;
+      return (
+        <View>
+          {x.children}
+          {Object.entries(x.records).flatMap(([k, list]) =>
+            list.map((content, i) => (
+              <View key={`${k}${i}`}>
+                <Text>{`[${String((x.props[k] as { title: string }[])[i].title)}]`}</Text>
+                {content}
+              </View>
+            )),
+          )}
+          {Object.entries(x.slots).map(([k, s]) => (
+            <View key={k}>
+              <Text>{`[${k}]`}</Text>
+              {s}
+            </View>
+          ))}
+        </View>
+      );
+    };
+    const all = Object.fromEntries(['sections', 'single', 'noted', 'items', 'panel'].map((n) => [`host:${n}@1`, Box]));
+    const rt = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    await render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="light" externs={all} />);
+    expect(got['host:sections@1'].props.sections).toEqual([
+      { title: 'First', open: true },
+      { title: 'Second', open: false },
+    ]);
+    expect(got['host:sections@1'].records.sections).toHaveLength(2);
+    expect(screen.getByText('[Second]', H)).toBeTruthy();
+    expect(screen.getByText('Inside second.', H)).toBeTruthy();
+    expect(screen.getByText('Up 0', H)).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('Up 0', H));
+    });
+    expect(screen.getByText('Up 1', H)).toBeTruthy();
+    expect(got['host:items@1'].props.items).toEqual([{ title: 'one' }, { title: 'two' }]);
+    expect(got['host:items@1'].summary).toBe('Two items.');
+    expect(screen.getByText('[footer]', H)).toBeTruthy();
+    expect(screen.getByText('Foot.', H)).toBeTruthy();
     await act(async () => {
       await screen.unmount();
     });

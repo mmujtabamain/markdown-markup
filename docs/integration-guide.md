@@ -597,13 +597,18 @@ What to know:
 
 - **Your pack's externs.** An `extern` in your pack is drawn by your own code only: MKP has no view
   for it. Give each one a component with `externs`, by id (`{ "myapp:accordion@1": Accordion }`). It
-  gets `{ id, props, children, attrs, style, dispatch }`: its inputs with their defaults,
-  `children` (what the document put inside it, drawn by MKP: place it where it goes), `attrs` for
-  your outer element, and `dispatch('toggled')` to report one of its outs, which runs the document's
+  gets `{ id, props, children, slots, records, summary, attrs, style, dispatch }`: its inputs with
+  their defaults (a record list as plain values: `props.sections` is
+  `[{ title: "First", open: true }, …]`), `children` (what the document put in its first slot,
+  drawn by MKP: place it where it goes), `slots` (its other slots, filled with `:::fill`, by name),
+  `records` (each record's content, drawn, for a record list with a slot: `records.sections[i]`
+  goes with `props.sections[i]`), `summary` (what its use wrote, for a label), `attrs` for your
+  outer element, and `dispatch('toggled')` to report one of its outs, which runs the document's
   `@toggled` handlers. Its own state (an accordion's open sections) lives in your component, so a
   click there doesn't draw the document again. Unlike `components`, `externs` keeps MKP's own look.
-  An extern with no component shows a placeholder with its summary; the Markdown target writes its
-  summary and its children.
+  An extern with no component shows a placeholder with its summary, or its pack's description. The
+  Markdown target writes its summary, then its `project md` (from its inputs) if it has one, or else
+  what it holds: its slots, and each record's content under the record's first text field.
 - **A maths engine that loads later.** Draw the document at once and pass `maths` when the engine
   has loaded: the document keeps its state, and only the formulas without a picture change. Until
   then such a formula is its TeX in a `.mkp-math[data-pending]`, for a loading look of your own. A
@@ -775,7 +780,7 @@ Props: `bundle`, `runtime`, `maths`, `theme` (`'auto'` follows `useColorScheme()
 `icons`, `reducedMotion` (default: the system's setting), `options`, `style`.
 
 - `externs` takes your components for your pack's externs, by id, as on the web: they get
-  `{ id, props, children, dispatch }`.
+  `{ id, props, children, slots, records, summary, dispatch }`.
 - `icons` takes any React Native component, for every name or for some (`{ help: HelpIcon }`),
   given `{ name, size, tone, color, px, label }`: `px` is its size in points (the body text's,
   scaled for `small` and `large`) and `color` its tone resolved. The box carries the label, and
@@ -938,8 +943,10 @@ view.unmount();
   widget's own height in the same frame. A widget never measured gets a 160 px box and may move
   once. Places count every top-level widget, fenced or `:::`, in source order (`meta.place`).
 - **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
-  dispatch })` draws into `box` once and puts `slot` (what the document put inside the extern, drawn
-  by MKP) where it goes. It may return `{ update(props), destroy() }`: new inputs then arrive through
+  slots, records, summary, dispatch })` draws into `box` once and puts `slot` (what the document put
+  in the extern's first slot, drawn by MKP) where it goes, and each of `slots` (its other slots, by
+  name) and `records` (an element per record's content: `records.sections[i]` goes with
+  `props.sections[i]`, and stays the same element while that record is there). It may return `{ update(props), destroy() }`: new inputs then arrive through
   `update` and your own state is kept; `destroy` runs when it goes (a function returned is taken as
   `destroy`). `firstPaint()` takes the same `externs` and leaves each box empty; `mount()` fills it.
 - **Many documents or first paints on one page.** Each writes MKP's stylesheet (about 19 KB) with

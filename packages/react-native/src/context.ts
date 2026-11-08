@@ -29,8 +29,14 @@ export interface ExternProps {
   id: string;
   /** its inputs, with their defaults filled in */
   props: Record<string, unknown>;
-  /** what the document put inside it (its slot), already drawn by MKP */
+  /** what the document put inside it (its first slot), already drawn by MKP */
   children: ReactNode;
+  /** its other slots (filled by name with :::fill), drawn, by input name */
+  slots: Record<string, ReactNode>;
+  /** each record's content, drawn, for its record lists with a slot: records.sections[i] goes with props.sections[i] */
+  records: Record<string, ReactNode[]>;
+  /** the summary its use wrote, if any */
+  summary?: string;
   /** reports one of the extern's outs to the document, which runs its handlers */
   dispatch: (event: string, payload?: unknown) => void;
 }
