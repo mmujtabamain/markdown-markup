@@ -5,6 +5,7 @@ export * from './types';
 export { CORE_MKP, REQUIRED_TOKENS } from './base';
 export { parseMkp, parseExprString, parseValueString } from './syntax/mkp';
 export { parseDoc } from './syntax/doc';
+export { segments, type Segment } from './syntax/segments';
 export { compile, Compiled, digest, stripPos, omitPos, type CompileOptions, type PackSource } from './build';
 export { readZip, writeZip, loadPack, sanitizeSvg, safePath } from './pack';
 export { markdownToNodes } from './markdown';

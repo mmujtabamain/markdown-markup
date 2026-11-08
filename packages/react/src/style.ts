@@ -100,6 +100,10 @@ export const BASE_CSS = layer(`
 .mkp-place { position: absolute; transform: translate(-50%, -50%); }
 .mkp-handle { cursor: grab; } .mkp-handle:focus { outline: none; } .mkp-handle:focus-visible circle { stroke: var(--mkp-color-accent); stroke-width: 3; }
 .mkp-scope { position: relative; }
+/* a widget's minheight and aspect (0.2.10): a spacer that only reserves room, so the box is the larger of
+   that and its content, never wider than its column; minwidth is on the box itself */
+.mkp-root [data-mkp-sized] { display: flow-root; }
+.mkp-root [data-mkp-sized]::before { content: ''; float: left; width: 100%; max-width: 100%; margin-right: -100%; aspect-ratio: var(--mkp-aspect, auto); min-height: var(--mkp-minheight, 0px); }
 /* a document's blocks: a widget block keeps the paragraph gap from what is beside it (a root of one block adds none) */
 .mkp-root > * + .mkp-scope, .mkp-root > .mkp-scope + * { margin-top: var(--mkp-space-l); }
 .mkp-root [data-mkp-behind] { isolation: isolate; }

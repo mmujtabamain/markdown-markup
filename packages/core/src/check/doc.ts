@@ -547,6 +547,7 @@ class DocChecker {
             const warns: { line: number; message: string }[] = [];
             const nodes = markdownToNodes(it.text, it.line, warns);
             for (const w of warns) this.diags.warn('mkp.markdown', w.message, this.p(w.line));
+            this.valInProse(it.text, it.line);
             if (it.attrs && nodes.length) this.applyAttrs(nodes[nodes.length - 1], it.attrs.id, it.attrs.props, it.attrs.line, null);
             out.push(...nodes);
             break;
@@ -1042,6 +1043,27 @@ class DocChecker {
       default:
         throw new MkpError('mkp.input-type', `${what} takes ${showType(type)}, which a value written in YAML can't be; found ${shown(v)}. Pass ${what} from a widget definition instead, or give it a type YAML can write (text, a number, a list, a record)`, this.at(what, p));
     }
+  }
+
+  /** \val{…} in a document's prose is shown as written: live values are a widget's (its text's strings). */
+  private valInProse(text: string, line: number): void {
+    let fence: string | null = null;
+    text.split('\n').forEach((l, i) => {
+      const f = /^\s*(`{3,}|~{3,})/.exec(l);
+      if (f && (!fence || f[1].startsWith(fence))) {
+        fence = fence ? null : f[1];
+        return;
+      }
+      if (fence) return;
+      // inline code is shown as written on purpose
+      const m = /\\val\{([^}]*)\}/.exec(l.replace(/(`+)[\s\S]*?\1/g, (c) => ' '.repeat(c.length)));
+      if (!m) return;
+      this.diags.warn(
+        'mkp.val-in-prose',
+        `\\val{${m[1]}} in the document's text is shown as written, not as a value: live values work in a widget's text only; found ${m[0]} here. Show it with a widget, e.g. a block of your own whose view is text "… \\val{${m[1]}} …", or write the value out`,
+        this.p(line + i, m.index + 1),
+      );
+    });
   }
 
   /** A size written on a use whose widget has no input of that name (minheight: 320, aspect=16/9). */

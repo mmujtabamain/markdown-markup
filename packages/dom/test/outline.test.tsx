@@ -54,20 +54,20 @@ describe('sizes', () => {
     expect(places(text).map((p) => p.size)).toEqual([{ minwidth: 480, aspect: 16 / 9 }, { minheight: 120, aspect: 1.5 }, { minheight: 200 }]);
   });
   it('gives the box the widget is drawn at least: the same CSS as the drawn widget, so they match', () => {
-    expect(at({ minwidth: 480, minheight: 240 })).toBe('min-width:min(480px, 100%);min-height:240px');
-    expect(at({ minwidth: 480, aspect: 1.6 })).toBe('min-width:min(480px, 100%);aspect-ratio:1.6');
-    expect(at({ minheight: 200, aspect: 2 })).toBe('min-height:200px;aspect-ratio:2');
-    expect(at({ aspect: 4 / 3 })).toBe('aspect-ratio:1.3333');
-    expect(at({ minheight: 300 })).toBe('min-height:300px');
+    expect(at({ minwidth: 480, minheight: 240 })).toBe('min-width:min(480px, 100%);min-height:240px;max-width:100%');
+    expect(at({ minwidth: 480, aspect: 1.6 })).toBe('min-width:min(480px, 100%);aspect-ratio:1.6;max-width:100%');
+    expect(at({ minheight: 200, aspect: 2 })).toBe('min-height:200px;aspect-ratio:2;max-width:100%');
+    expect(at({ aspect: 4 / 3 })).toBe('aspect-ratio:1.3333;max-width:100%');
+    expect(at({ minheight: 300 })).toBe('min-height:300px;max-width:100%');
   });
   it('gives a widget that says no height the default height, which it may move from once', () => {
-    expect(at({ minwidth: 300 })).toBe('min-width:min(300px, 100%);height:160px');
+    expect(at({ minwidth: 300 })).toBe('min-width:min(300px, 100%);max-width:100%;height:160px');
     expect(at({})).toBe('height:160px');
   });
   it('lets the widget’s own defaults fill in up to two, what the use wrote winning', () => {
-    expect(at({}, { minheight: 48 })).toBe('min-height:48px');
-    expect(at({ aspect: 2 }, { minheight: 100, aspect: 1 })).toBe('min-height:100px;aspect-ratio:2');
-    expect(at({ minwidth: 300, minheight: 100 }, { aspect: 1 })).toBe('min-width:min(300px, 100%);min-height:100px');
+    expect(at({}, { minheight: 48 })).toBe('min-height:48px;max-width:100%');
+    expect(at({ aspect: 2 }, { minheight: 100, aspect: 1 })).toBe('min-height:100px;aspect-ratio:2;max-width:100%');
+    expect(at({ minwidth: 300, minheight: 100 }, { aspect: 1 })).toBe('min-width:min(300px, 100%);min-height:100px;max-width:100%');
   });
 });
 
@@ -80,9 +80,9 @@ describe('outline', () => {
     el.innerHTML = html;
     const boxes = [...el.querySelectorAll<HTMLElement>('[data-mkp-place]')];
     expect(boxes.map((b) => [b.getAttribute('data-mkp-place'), b.getAttribute('data-mkp-place-name'), b.getAttribute('style')])).toEqual([
-      ['0', 'card', 'min-height:48px'],
+      ['0', 'card', 'min-height:48px;max-width:100%'],
       ['1', 'frame', 'height:160px'],
-      ['2', 'card', 'min-width:min(480px, 100%);aspect-ratio:2'],
+      ['2', 'card', 'min-width:min(480px, 100%);aspect-ratio:2;max-width:100%'],
     ]);
     expect(boxes.every((b) => b.getAttribute('aria-hidden') === 'true' && b.textContent === '')).toBe(true);
     expect(el.querySelector('.mkp-outline')!.getAttribute('aria-busy')).toBe('true');
@@ -125,9 +125,9 @@ describe('outline', () => {
     expect(boxes[2].textContent).toBe('two');
     expect(boxes.every((x) => x.classList.contains('mkp-root') && !x.getAttribute('style') && !x.hasAttribute('aria-hidden'))).toBe(true);
     // the drawn widget keeps what its placeholder had
-    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.aspectRatio).toBe('2');
-    expect(boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!.style.minWidth).toBe('min(480px, 100%)');
-    expect(boxes[0].querySelector<HTMLElement>('[data-mkp-place="0"]')!.style.aspectRatio).toBe('');
+    const drawn = boxes[2].querySelector<HTMLElement>('[data-mkp-place="2"]')!;
+    expect([drawn.style.getPropertyValue('--mkp-aspect'), drawn.style.minWidth, drawn.hasAttribute('data-mkp-sized')]).toEqual(['2', 'min(480px, 100%)', true]);
+    expect(boxes[0].querySelector<HTMLElement>('[data-mkp-place="0"]')!.hasAttribute('data-mkp-sized')).toBe(false);
     // the host's prose is the same elements, never drawn again
     expect([...el.querySelectorAll('p.host')]).toEqual(prose);
     expect(el.querySelector('.mkp-outline')!.hasAttribute('aria-busy')).toBe(false);

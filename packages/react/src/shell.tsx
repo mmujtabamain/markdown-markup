@@ -100,7 +100,7 @@ export interface DomExternProps {
   records: Record<string, HTMLElement[]>;
   /** the summary its use wrote, if any */
   summary?: string;
-  /** its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect): box already keeps the aspect */
+  /** its size (minwidth, minheight, aspect): MKP's box around `box` already keeps it */
   size?: WidgetSize;
   /** reports one of the extern's outs to the document */
   dispatch: (event: string, payload?: unknown) => void;

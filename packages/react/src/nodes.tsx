@@ -2,7 +2,7 @@
 // field, overlay, canvas, Markdown blocks, the control bar, scopes with arrows, and the error boundary.
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ComponentType, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
-import { sizeStyle, type Runtime, type VNode, type VRun, type WidgetSize } from '@mkp/core';
+import { sizeVars, type Runtime, type VNode, type VRun, type WidgetSize } from '@mkp/core';
 import { color, radius, shadow, size, space } from './style';
 import { Canvas } from './canvas';
 import { Arrows } from './arrows';
@@ -55,7 +55,7 @@ export interface ExternProps {
   records: Record<string, ReactNode[]>;
   /** the summary its use wrote, if any: a label for it, or what to say while it can't be drawn */
   summary?: string;
-  /** its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect): style already holds the aspect */
+  /** its size (minwidth, minheight, aspect): MKP draws it in a box of its own that keeps them, and attrs are on that box */
   size?: WidgetSize;
   /** data-mkp-* and hidden: spread on the outer element, so arrows and selectors still find it */
   attrs: Record<string, unknown>;
@@ -198,7 +198,7 @@ export function layoutStyle(n: VNode): CSSProperties {
   // column justify-self means nothing, so there it is the cross axis alone, as before
   if (l?.self) Object.assign(s, { alignSelf: SELF[l.self], justifySelf: l.self });
   // minwidth, minheight and aspect, as its first paint had them: content bigger than that still shows
-  if (n.size) Object.assign(s, sizeStyle(n.size));
+  if (n.size) Object.assign(s, sizeVars(n.size));
   return s;
 }
 
@@ -363,6 +363,8 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     'data-control': n.p.control as string | undefined,
     // a top-level widget's place in the document (outline sizes and placeholders are keyed by it)
     'data-mkp-place': typeof n.p.place === 'number' ? n.p.place : undefined,
+    // a size (minheight, aspect): MKP's stylesheet reserves its room with a spacer inside it
+    'data-mkp-sized': n.size ? '' : undefined,
     hidden: n.hidden || undefined,
   };
 }
@@ -410,8 +412,8 @@ export function Node({ n }: { n: VNode }): ReactNode {
   const lay = layoutStyle(n);
   // a pack's extern the host draws itself, by id
   const Ext = n.ext ? externs?.[n.ext] : undefined;
-  if (Ext)
-    return (
+  if (Ext) {
+    const ext = (attrs: Record<string, unknown>, style: CSSProperties): ReactNode => (
       <Ext
         id={n.ext!}
         props={p}
@@ -419,13 +421,22 @@ export function Node({ n }: { n: VNode }): ReactNode {
         records={Object.fromEntries(Object.entries(n.recs ?? {}).map(([k, list]) => [k, list.map((s, i) => <Kids key={i} nodes={s} />)]))}
         summary={n.summary}
         size={n.size}
-        attrs={common}
-        style={lay}
+        attrs={attrs}
+        style={style}
         dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}
       >
         <Kids nodes={n.kids ?? []} />
       </Ext>
     );
+    // a sized one is in a box of MKP's own, which reserves its room: the host's element keeps its own display
+    return n.size ? (
+      <div {...common} style={lay}>
+        {ext({}, {})}
+      </div>
+    ) : (
+      ext(common, lay)
+    );
+  }
 
   const route = (components as Record<string, HostRoute> | undefined)?.[n.t];
   if (route) return route({ n, attrs: common, style: lay, dispatch: rt.dispatch.bind(rt) });
@@ -790,6 +801,7 @@ function Scope({ n }: { n: VNode }): ReactNode {
       data-mkp-id={n.id}
       data-mkp-def={String(n.p.def)}
       data-mkp-place={typeof n.p.place === 'number' ? n.p.place : undefined}
+      data-mkp-sized={n.size ? '' : undefined}
       // arrows behind the content sit under it, and over the scope's own background (GAPS 100)
       data-mkp-behind={n.arrows?.some((a) => a.layer === 'behind') ? '' : undefined}
       hidden={n.hidden || undefined}

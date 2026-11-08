@@ -653,12 +653,17 @@ describe('what a host styles and traces', () => {
       return <section {...x.attrs} style={x.style} data-host-panel="">{x.children}</section>;
     };
     const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={{ 'host:panel@1': Panel }} />);
-    expect(one(container, '[data-mkp-place="0"]').style.aspectRatio).toBe('2');
-    expect(one(container, '[data-mkp-place="0"]').style.minWidth).toBe('min(300px, 100%)');
-    expect(one(container, '[data-mkp-place="1"]').style.aspectRatio).toBe('');
+    const sized = one(container, '[data-mkp-place="0"]');
+    expect([sized.style.getPropertyValue('--mkp-aspect'), sized.style.minWidth, sized.hasAttribute('data-mkp-sized')]).toEqual(['2', 'min(300px, 100%)', true]);
+    expect(one(container, '[data-mkp-place="1"]').hasAttribute('data-mkp-sized')).toBe(false);
+    // the stylesheet reserves the room with a spacer inside, so bigger content grows the box
+    expect(container.querySelector('style')!.textContent).toContain('[data-mkp-sized]::before');
     expect(given!.size).toEqual({ minheight: 100, aspect: 1.5 });
-    expect(one(container, '[data-host-panel]').style.aspectRatio).toBe('1.5');
-    expect(one(container, '[data-host-panel]').style.minHeight).toBe('100px');
+    // a sized extern is in MKP's own box, which keeps the size: the host's element keeps its own display
+    const box = one(container, '[data-mkp-place="2"]');
+    expect([box.getAttribute('data-mkp-sized'), box.style.getPropertyValue('--mkp-minheight'), box.style.getPropertyValue('--mkp-aspect')]).toEqual(['', '100px', '1.5']);
+    expect(box.firstElementChild!.hasAttribute('data-host-panel')).toBe(true);
+    expect(one(container, '[data-host-panel]').hasAttribute('data-mkp-sized')).toBe(false);
   });
   it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
     const b = doc(['text "hi"']);

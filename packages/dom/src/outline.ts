@@ -13,6 +13,9 @@ import { Diagnostics } from '../../core/src/diag';
 import { parseDoc, type DocItem } from '../../core/src/syntax/doc';
 import { mergeSize, SIZE_KEYS, sizeOf, sizeStyle, type WidgetSize } from '../../core/src/size';
 
+// a document in its pieces, for a host that draws or caches them one by one
+export { segments, type Segment } from '../../core/src/syntax/segments';
+
 /** A top-level widget of a document, fenced or ::: , in source order, with the sizes written on it. */
 export interface Place {
   place: number;
@@ -57,7 +60,7 @@ export function places(source: string): Place[] {
  */
 export function placeholder(p: Place, defaults?: WidgetSize, className = ''): string {
   const css = sizeStyle(mergeSize(p.size, defaults));
-  const style = [css.minWidth && `min-width:${css.minWidth}`, css.minHeight && `min-height:${css.minHeight}`, css.aspectRatio && `aspect-ratio:${css.aspectRatio}`, !css.minHeight && !css.aspectRatio && `height:${DEFAULT_HEIGHT}px`].filter(Boolean);
+  const style = [css.minWidth && `min-width:${css.minWidth}`, css.minHeight && `min-height:${css.minHeight}`, css.aspectRatio && `aspect-ratio:${css.aspectRatio}`, css.maxWidth && `max-width:${css.maxWidth}`, !css.minHeight && !css.aspectRatio && `height:${DEFAULT_HEIGHT}px`].filter(Boolean);
   return `<div class="mkp-outline-place${className ? ` ${className}` : ''}" data-mkp-place="${p.place}" data-mkp-place-name="${p.name}" aria-hidden="true" style="${style.join(';')}"></div>`;
 }
 

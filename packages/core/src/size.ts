@@ -42,15 +42,29 @@ export function mergeSize(own: WidgetSize, defaults: WidgetSize | undefined): Wi
 }
 
 /**
- * A size as CSS, the same for a first paint's placeholder and the drawn widget, so they match: at
- * least minwidth wide (at most the width it is in), at least minheight tall, at aspect's shape at its
- * width. Content bigger than that still shows: the drawn size wins.
+ * A size as CSS for an empty box, a first paint's placeholder: at least minwidth wide and minheight
+ * tall, at aspect's shape, never wider than the width it is in (a minheight with an aspect would
+ * otherwise make it as wide as that shape needs).
  */
-export function sizeStyle(s: WidgetSize): { minWidth?: string; minHeight?: string; aspectRatio?: string } {
-  const out: { minWidth?: string; minHeight?: string; aspectRatio?: string } = {};
+export function sizeStyle(s: WidgetSize): { minWidth?: string; minHeight?: string; aspectRatio?: string; maxWidth?: string } {
+  const out: { minWidth?: string; minHeight?: string; aspectRatio?: string; maxWidth?: string } = {};
   if (s.minwidth !== undefined) out.minWidth = `min(${round(s.minwidth)}px, 100%)`;
   if (s.minheight !== undefined) out.minHeight = `${round(s.minheight)}px`;
   if (s.aspect !== undefined) out.aspectRatio = String(round(s.aspect, 4));
+  if (Object.keys(out).length) out.maxWidth = '100%';
+  return out;
+}
+
+/**
+ * A size as CSS for a drawn widget, the box its placeholder was when its content fits: minwidth on
+ * it, minheight and aspect on a spacer inside it (data-mkp-sized, in MKP's stylesheet) that only
+ * reserves room, so content bigger than that still shows and the box grows.
+ */
+export function sizeVars(s: WidgetSize): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (s.minwidth !== undefined) out.minWidth = `min(${round(s.minwidth)}px, 100%)`;
+  if (s.minheight !== undefined) out['--mkp-minheight'] = `${round(s.minheight)}px`;
+  if (s.aspect !== undefined) out['--mkp-aspect'] = String(round(s.aspect, 4));
   return out;
 }
 

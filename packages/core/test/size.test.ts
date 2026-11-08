@@ -6,7 +6,7 @@ import { compile, type PackSource } from '../src/build';
 import { formatDiagnostic } from '../src/diag';
 import { Runtime } from '../src/runtime/runtime';
 import { walk, type VNode } from '../src/runtime/view';
-import { mergeSize, sizeDefaults, sizeOf, sizeStyle } from '../src/size';
+import { mergeSize, sizeDefaults, sizeOf, sizeStyle, sizeVars } from '../src/size';
 
 const enc = new TextEncoder();
 const pack: PackSource = {
@@ -59,8 +59,12 @@ describe('a size as written', () => {
   });
   it('takes two of three, what the use wrote before the widget’s defaults, as CSS minimums and a shape', () => {
     expect(mergeSize({ aspect: 2 }, { minheight: 100, aspect: 1, minwidth: 50 })).toEqual({ aspect: 2, minwidth: 50 });
-    expect(sizeStyle({ minheight: 100, aspect: 16 / 9 })).toEqual({ minHeight: '100px', aspectRatio: '1.7778' });
-    expect(sizeStyle({ minwidth: 300, minheight: 150 })).toEqual({ minWidth: 'min(300px, 100%)', minHeight: '150px' });
+    // an empty box (a placeholder) never wider than its column: a minheight through an aspect would widen it
+    expect(sizeStyle({ minheight: 100, aspect: 16 / 9 })).toEqual({ minHeight: '100px', aspectRatio: '1.7778', maxWidth: '100%' });
+    expect(sizeStyle({ minwidth: 300, minheight: 150 })).toEqual({ minWidth: 'min(300px, 100%)', minHeight: '150px', maxWidth: '100%' });
+    expect(sizeStyle({})).toEqual({});
+    // a drawn widget: minheight and aspect on a spacer that only reserves room, so bigger content grows it
+    expect(sizeVars({ minwidth: 300, minheight: 240, aspect: 3 })).toEqual({ minWidth: 'min(300px, 100%)', '--mkp-minheight': '240px', '--mkp-aspect': '3' });
   });
 });
 

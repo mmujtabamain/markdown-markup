@@ -14,7 +14,7 @@ import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, pr
 import { domExterns, domIcons, MkpDocument, MkpPlaces, type DomExterns, type DomIcons, type MkpExterns, type MkpIcons, type TokenMap } from '@mkp/react';
 
 export type { DomIcon, DomIcons, DomExtern, DomExterns, DomExternProps } from '@mkp/react';
-export { outline, places, placeholder, DEFAULT_HEIGHT, type Place, type OutlineOptions } from './outline';
+export { outline, places, placeholder, segments, DEFAULT_HEIGHT, type Place, type OutlineOptions, type Segment } from './outline';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
@@ -135,7 +135,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
     // fits its minwidth, minheight and aspect, which the widget keeps), and the outline is no longer busy
     const drawn = (): void => {
       for (const t of targets!.values()) {
-        for (const k of ['height', 'min-width', 'min-height', 'aspect-ratio']) t.style.removeProperty(k);
+        for (const k of ['height', 'min-width', 'min-height', 'aspect-ratio', 'max-width']) t.style.removeProperty(k);
         t.removeAttribute('aria-hidden');
       }
       el.querySelector('.mkp-outline[aria-busy]')?.removeAttribute('aria-busy');
