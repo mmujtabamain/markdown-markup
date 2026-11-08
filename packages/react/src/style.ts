@@ -104,8 +104,8 @@ export const BASE_CSS = layer(`
    that and its content, never wider than its column; minwidth is on the box itself */
 .mkp-root [data-mkp-sized] { display: flow-root; }
 .mkp-root [data-mkp-sized]::before { content: ''; float: left; width: 100%; max-width: 100%; margin-right: -100%; aspect-ratio: var(--mkp-aspect, auto); min-height: var(--mkp-minheight, 0px); }
-/* a document's blocks: a widget block keeps the paragraph gap from what is beside it (a root of one block adds none) */
-.mkp-root > * + .mkp-scope, .mkp-root > .mkp-scope + * { margin-top: var(--mkp-space-l); }
+/* a document's blocks: a widget block, a host's extern among them, keeps the paragraph gap from what is beside it (a root of one block adds none) */
+.mkp-root > * + .mkp-scope, .mkp-root > .mkp-scope + *, .mkp-root > * + [data-mkp-ext], .mkp-root > [data-mkp-ext] + * { margin-top: var(--mkp-space-l); }
 .mkp-root [data-mkp-behind] { isolation: isolate; }
 /* a layer arrows are drawn in: zero specificity, so a full-screen frame stays fixed */
 .mkp-root :where([data-mkp-arrow-host]) { position: relative; isolation: isolate; }

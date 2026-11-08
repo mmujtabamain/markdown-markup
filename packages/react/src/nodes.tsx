@@ -365,6 +365,8 @@ export function nodeAttrs(n: VNode): Record<string, unknown> {
     'data-mkp-place': typeof n.p.place === 'number' ? n.p.place : undefined,
     // a size (minheight, aspect): MKP's stylesheet reserves its room with a spacer inside it
     'data-mkp-sized': n.size ? '' : undefined,
+    // a pack's extern, drawn by the host: spaced in a document as a widget is
+    'data-mkp-ext': n.ext,
     hidden: n.hidden || undefined,
   };
 }

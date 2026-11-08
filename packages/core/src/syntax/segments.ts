@@ -9,8 +9,10 @@ export type Segment =
   | { kind: 'prose'; text: string; lines: [number, number] }
   /** a top-level widget: its place (meta.place, data-mkp-place), its name (no pack, no version) */
   | { kind: 'widget'; place: number; name: string; text: string; lines: [number, number] }
-  /** what a widget's text may need to compile on its own: front matter, an mkp fence, a state block */
-  | { kind: 'front' | 'defs' | 'state'; text: string; lines: [number, number] };
+  /** a state block: its controls are drawn at its place; widgets that read its state need it to compile */
+  | { kind: 'state'; place: number; text: string; lines: [number, number] }
+  /** what a widget's text may need to compile on its own: front matter, an mkp fence */
+  | { kind: 'front' | 'defs'; text: string; lines: [number, number] };
 
 /** The document's pieces in order. lines are 1-based and inclusive; blank lines around pieces belong to none. */
 export function segments(source: string): Segment[] {
@@ -31,6 +33,7 @@ export function segments(source: string): Segment[] {
     while (end > start && !lines[end - 1]?.trim()) end--;
     const at: [number, number] = [start, end];
     if (it.k === 'block' || it.k === 'container') out.push({ kind: 'widget', place: place++, name: it.name.replace(/^.*:/, '').replace(/@\d+$/, ''), text: text(...at), lines: at });
+    else if (it.k === 'state') out.push({ kind: 'state', place: place++, text: text(...at), lines: at });
     else out.push({ kind: it.k === 'md' ? 'prose' : it.k, text: text(...at), lines: at });
   });
   return out;

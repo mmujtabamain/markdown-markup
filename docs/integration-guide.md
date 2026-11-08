@@ -944,8 +944,11 @@ view.unmount();
   resized before MKP loads; a widget that says no height gets 160 px. With `places: true`, `mount()`
   draws each widget into its placeholder from one runtime, and touches nothing else in the element;
   each box then takes its widget's drawn size in the same frame: the same, when the content fits,
-  and bigger content still shows. Places count every top-level widget, fenced or `:::`, in source order
-  (`meta.place`).
+  and bigger content still shows. Places count every top-level widget, fenced or `:::`, and every
+  `state` block (its controls are drawn in its box, as tall as MKP draws them), in source order
+  (`meta.place`). Everything else is prose, the page's to draw: a footnote among it (`[^1]` and its
+  `[^1]: …` line), so give your renderer footnotes. A place the page leaves without a box is said of
+  once on the console (`mkp-dom: places: no box for …`), never dropped silently.
 - **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
   slots, records, summary, dispatch })` draws into `box` once and puts `slot` (what the document put
   in the extern's first slot, drawn by MKP) where it goes, and each of `slots` (its other slots, by

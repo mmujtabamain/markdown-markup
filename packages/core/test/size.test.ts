@@ -101,6 +101,31 @@ describe('minwidth, minheight and aspect on a use', () => {
   });
 });
 
+describe('a widget’s own lone size', () => {
+  const lone: PackSource = {
+    label: 'q',
+    files: new Map(
+      Object.entries({
+        'manifest.mkp': 'pack q@1 "Q."\n  requires core@1\n  provides tile\n',
+        'tile.mkp': 'tile@1 "A tile."\n  in minheight int = 60 "the least it is"\n  in label text\n  text label\n  project md = label\n',
+        'tile.fixture.json': JSON.stringify({ widget: 'tile@1', cases: { one: { props: { label: 'x' }, summary: 'One.' } } }),
+      }).map(([k, v]) => [k, enc.encode(v)]),
+    ),
+  };
+  it('is said of once, where the widget declares it, never on a use that writes no size', () => {
+    const c = compile({ packs: [lone] });
+    c.document('```tile\nlabel: a\nsummary: s\n```\n\n```tile\nlabel: b\nsummary: s\n```\n', 'doc.mkp.md');
+    const w = c.diags.warnings.filter((d) => d.code === 'mkp.size');
+    expect(w.map((d) => [d.pos?.file, d.pos?.line])).toEqual([['q/tile.mkp', 2]]);
+    expect(w[0].message).toMatch(/tile gives itself minheight alone/);
+  });
+  it('is completed by a use that writes the other, with no word on it', () => {
+    const c = compile({ packs: [lone] });
+    c.document('```tile\nlabel: a\naspect: 3\nsummary: s\n```\n', 'doc.mkp.md');
+    expect(c.diags.warnings.filter((d) => d.code === 'mkp.size' && d.pos?.file === 'doc.mkp.md')).toEqual([]);
+  });
+});
+
 describe('a widget’s own sizes', () => {
   it('are its minwidth, minheight and aspect inputs’ defaults, for outline(), made once from the packs', () => {
     const c = compile({ packs: [pack] });

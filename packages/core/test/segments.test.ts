@@ -41,27 +41,27 @@ const src = [
 describe('segments', () => {
   it('gives the document’s pieces in order, each its lines as written', () => {
     const s = segments(src);
-    expect(s.map((x) => [x.kind, x.lines, 'place' in x ? `${x.place}:${x.name}` : ''])).toEqual([
+    expect(s.map((x) => [x.kind, x.lines, x.kind === 'widget' ? `${x.place}:${x.name}` : x.kind === 'state' ? `${x.place}` : ''])).toEqual([
       ['front', [1, 3], ''],
       ['prose', [4, 6], ''],
       ['defs', [8, 13], ''],
-      ['state', [15, 17], ''],
-      ['widget', [19, 23], '0:note'],
+      ['state', [15, 17], '0'],
+      ['widget', [19, 23], '1:note'],
       ['prose', [25, 25], ''],
-      ['widget', [27, 29], '1:card'],
+      ['widget', [27, 29], '2:card'],
     ]);
     const lines = src.split('\n');
     for (const x of s) expect(x.text).toBe(lines.slice(x.lines[0] - 1, x.lines[1]).join('\n'));
     // the widget's attribute line goes with it
     expect(s[4].text.endsWith('{minheight=40}')).toBe(true);
   });
-  it('numbers widgets as the compiler places them, and a document without front matter has none', () => {
+  it('numbers widgets and state blocks as the compiler places them, and a document without front matter has none', () => {
     const doc = src.split('\n').slice(3).join('\n').replace(':::lib:card@1 title="x"\nInside.\n:::\n', '');
     const c = compile({ packs: [] });
     const b = c.document(doc, 'doc.mkp.md')!;
     expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
     const placed = b.doc.body.filter((n) => n.meta?.place !== undefined).map((n) => n.meta!.place);
-    expect(segments(doc).filter((x) => x.kind === 'widget').map((x) => (x as { place: number }).place)).toEqual(placed);
+    expect(segments(doc).flatMap((x) => (x.kind === 'widget' || x.kind === 'state' ? [x.place] : []))).toEqual(placed);
     expect(segments(doc)[0].kind).toBe('prose');
   });
 });

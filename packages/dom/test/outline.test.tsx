@@ -93,6 +93,15 @@ describe('outline', () => {
     expect(only.textContent!.trim()).toBe('');
   });
 
+  it('gives a state block a place, its box as tall as its controls are drawn', () => {
+    const text = 'A.\n\n```state\nt = slider 0..10 "turn"\nvar z int = 1\non = toggle "on"\n```\n\n' + src.replace(/^# A note\n\nSome prose.\n\n/, '');
+    expect(places(text).map((p) => `${p.place}:${p.name}`)).toEqual(['0:state', '1:card', '2:frame', '3:card']);
+    const el = document.createElement('div');
+    el.innerHTML = outline(text);
+    // two controls (the var draws none): 21 px each and 11 between, as MKP draws them
+    expect(el.querySelector<HTMLElement>('[data-mkp-place="0"]')!.style.minHeight).toBe('53px');
+  });
+
   let views: MountedDocument[] = [];
   afterEach(() => {
     act(() => views.forEach((v) => v.unmount()));
@@ -108,6 +117,7 @@ describe('outline', () => {
     const el = document.body.appendChild(document.createElement('div'));
     el.innerHTML = outline(src, { prose: (md) => `<p class="host">${md.trim()}</p>` });
     const prose = [...el.querySelectorAll('p.host')];
+    const warn = vi.spyOn(console, 'warn');
     let v!: MountedDocument;
     await act(async () => {
       v = mount(el, b, { places: true });
@@ -133,8 +143,32 @@ describe('outline', () => {
     expect(el.querySelector('.mkp-outline')!.hasAttribute('aria-busy')).toBe(false);
     // one runtime for every widget: the document's state is one
     let n = 0;
+    expect(warn).not.toHaveBeenCalled();
     walkView(v.runtime!.view(), () => void n++);
     expect(n).toBeGreaterThan(3);
     expect(v.runtime).toBeInstanceOf(Runtime);
+  });
+
+  it('draws a state block’s controls into its box, and says so of anything it has no box for', async () => {
+    const text = 'A.\n\n```state\nt = slider 0..10 "turn"\n```\n\n```mkp\nw "w"\n  text "w"\n  project md = "w"\n```\n\n```w\nsummary: s\n```\n\nB.[^1]\n\n[^1]: A note.\n';
+    const c = compile({ packs: [] });
+    const b = c.document(text, 'doc.mkp.md') as IRBundle;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const el = document.body.appendChild(document.createElement('div'));
+    el.innerHTML = outline(text, { prose: (md) => `<p>${md.trim()}</p>` });
+    // the page left the widget's box out
+    el.querySelector('[data-mkp-place="1"]')!.remove();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await act(async () => {
+      const v = mount(el, b, { places: true });
+      views.push(v);
+      await v.ready;
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(el.querySelector('[data-mkp-place="0"] input[type=range]')).not.toBeNull();
+    // the footnote is prose, the page's to draw: not counted
+    expect(warn.mock.calls.map((x) => String(x[0]))).toEqual(['mkp-dom: places: no box for scope (place 1), so it is not drawn. Give each place a placeholder (outline() or placeholder() makes them), or mount without places']);
   });
 });

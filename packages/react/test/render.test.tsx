@@ -643,6 +643,19 @@ describe('what a host styles and traces', () => {
       'A panel with a footer, drawn by the host.',
     ]);
   });
+  it('spaces a host’s extern in a document as a widget is spaced', () => {
+    const c = compile({ packs: [hostPack] });
+    const b = c.document('Before.\n\n:::panel\nBody.\n:::\n\nAfter.\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const Panel = (x: ExternProps): ReactNode => <section {...x.attrs} style={x.style}>{x.children}</section>;
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={{ 'host:panel@1': Panel }} />);
+    expect(one(container, 'section').getAttribute('data-mkp-ext')).toBe('host:panel@1');
+    expect(container.querySelector('style')!.textContent).toContain('.mkp-root > * + [data-mkp-ext], .mkp-root > [data-mkp-ext] + * { margin-top: var(--mkp-space-l); }');
+    cleanup();
+    // with no component, its placeholder is spaced too
+    const bare = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion />);
+    expect(one(bare.container, '.mkp-error').getAttribute('data-mkp-ext')).toBe('host:panel@1');
+  });
   it('draws a widget at its minwidth, minheight and aspect, as its first paint had them, and hands a host’s extern its size', () => {
     const c = compile({ packs: [hostPack] });
     const b = c.document('```mkp\nnote "A note."\n  text "hi"\n  project md = "hi"\n```\n\n```note\nminwidth: 300\naspect: 2\nsummary: s\n```\n\n```note\nsummary: s\n```\n\n:::panel minheight=100 aspect=1.5\nBody.\n:::\n', 'doc.mkp.md')!;

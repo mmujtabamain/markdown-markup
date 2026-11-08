@@ -554,7 +554,8 @@ class DocChecker {
           }
           case 'state': {
             const names = this.stateNames(it.body);
-            out.push({ node: 'controls', names, pos: [it.line, 1] });
+            // its controls have a place too, so a first paint reserves their box and mount() draws them there
+            out.push({ node: 'controls', names, pos: [it.line, 1], ...(top ? { meta: { place: placeNo++ } } : {}) });
             break;
           }
           case 'defs':
@@ -1085,8 +1086,9 @@ class DocChecker {
     }
     const written = Object.keys(own);
     if (written.length === 3) throw new MkpError('mkp.size', `${sig.name} is given minwidth, minheight and aspect, which can disagree: two of them fix its size before it is drawn. Remove one, e.g. keep minwidth and aspect`, p);
+    // said here only of what this use writes: a widget's own lone default is said of once, where it is declared
     const all = Object.keys(mergeSize(own, sig.sizes));
-    if (all.length === 1) {
+    if (written.length && all.length === 1) {
       const k = all[0] as SizeKey;
       const rest = SIZE_KEYS.filter((x) => x !== k).join(' or ');
       this.diags.warn('mkp.size', `${sig.name} has ${k} alone, so its box before it is drawn is ${k === 'minwidth' ? 'only as wide as that, with a height guessed' : k === 'minheight' ? 'that tall, as wide as the column' : 'that shape, as wide as the column'}, and may move once when drawn. Give ${rest} as well, so its box is fixed`, p);

@@ -759,8 +759,12 @@ export class Runtime {
         if (!sv || !sv.__slot) return [];
         return this.renderNodes(sv.nodes, sv.env, sv.inst, `${key}~`);
       }
-      case 'controls':
-        return (n.names ?? []).map((nm) => this.control(inst, nm, key)).filter(Boolean) as VNode[];
+      case 'controls': {
+        const out = (n.names ?? []).map((nm) => this.control(inst, nm, key)).filter(Boolean) as VNode[];
+        // a state block's controls share its place: drawn together in its box
+        if (typeof n.meta?.place === 'number') for (const v of out) v.p = { ...v.p, place: n.meta.place };
+        return out;
+      }
       case 'arrow':
         this.pendingArrows(inst).push({ n, env, key });
         return null;

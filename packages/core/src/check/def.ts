@@ -1,6 +1,6 @@
 // Checking one definition (spec 6.3–6.14, 6.18, 6.19) and emitting its definition IR (13).
 
-import { isSizeKey, SIZE_KEYS, sizeOf, sizeTakes, type WidgetSize } from '../size';
+import { isSizeKey, SIZE_KEYS, sizeOf, sizeTakes, type SizeKey, type WidgetSize } from '../size';
 import { Diagnostics, MkpError, Pos, closest, didYouMean } from '../diag';
 import type { A, IRAction, IRDef, IRExpr, IRFn, IRInput, IRMeta, IRNode, IRPos, IRState, IRVal, IRValue } from '../ir';
 import { IR_VERSION } from '../ir';
@@ -296,6 +296,7 @@ export class DefChecker {
   check(): IRDef {
     const s = this.entry.syn;
     const ir = this.ir;
+    this.checkSizes();
     // header members
     for (const m of s.members) {
       try {
@@ -1512,6 +1513,22 @@ export class DefChecker {
         meta[a.key] = n;
         break;
       }
+    }
+  }
+
+  /**
+   * A widget's own sizes (its minwidth, minheight and aspect inputs' defaults): said of here, once,
+   * not on each use. One alone gives a box that may move once; all three can disagree.
+   */
+  private checkSizes(): void {
+    if (this.entry.syn.kind === 'part' || this.entry.pack === 'core') return;
+    const given = this.entry.syn.members.filter((m): m is Extract<typeof m, { m: 'in' }> => m.m === 'in' && isSizeKey(m.name) && m.def?.v === 'expr' && sizeOf(m.name, m.def.src) !== undefined);
+    const name = this.entry.syn.name;
+    if (given.length === 3) this.fail(given[2].p, `${name} gives itself minwidth, minheight and aspect, which can disagree: two of them fix its size before it is drawn. Remove one default, e.g. keep minheight and aspect`, 'mkp.size');
+    if (given.length === 1) {
+      const k = given[0].name as SizeKey;
+      const rest = SIZE_KEYS.filter((x) => x !== k).join(' or ');
+      this.diags.warn('mkp.size', `${name} gives itself ${k} alone, so its box before it is drawn is ${k === 'minwidth' ? 'only as wide as that, with a height guessed' : k === 'minheight' ? 'that tall, as wide as the column' : 'that shape, as wide as the column'}, and may move once when drawn. Give ${rest} a default as well, so its box is fixed; a use can still give its own`, given[0].p, [...this.path]);
     }
   }
 
