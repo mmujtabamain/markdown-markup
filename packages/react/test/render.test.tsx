@@ -643,6 +643,21 @@ describe('what a host styles and traces', () => {
       'A panel with a footer, drawn by the host.',
     ]);
   });
+  it('keeps a widget’s aspect where it is drawn, and hands a host’s extern its size', () => {
+    const c = compile({ packs: [hostPack] });
+    const b = c.document('```mkp\nnote "A note."\n  text "hi"\n  project md = "hi"\n```\n\n```note\nminwidth: 300\naspect: 2\nsummary: s\n```\n\n```note\nsummary: s\n```\n\n:::panel minheight=100 aspect=1.5\nBody.\n:::\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    let given: ExternProps | undefined;
+    const Panel = (x: ExternProps): ReactNode => {
+      given = x;
+      return <section {...x.attrs} style={x.style} data-host-panel="">{x.children}</section>;
+    };
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={{ 'host:panel@1': Panel }} />);
+    expect(one(container, '[data-mkp-place="0"]').style.aspectRatio).toBe('2');
+    expect(one(container, '[data-mkp-place="1"]').style.aspectRatio).toBe('');
+    expect(given!.size).toEqual({ minheight: 100, aspect: 1.5 });
+    expect(one(container, '[data-host-panel]').style.aspectRatio).toBe('1.5');
+  });
   it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
     const b = doc(['text "hi"']);
     const rt = new Runtime(b, { now: () => 0, reducedMotion: true });

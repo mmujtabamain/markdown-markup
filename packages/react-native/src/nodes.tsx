@@ -66,7 +66,16 @@ function Slot({ n, extra }: { n: VNode; extra?: ViewStyle }): ReactNode {
   useEffect(() => {
     if (kept && keep && host.current) keep(host.current as Measurable);
   }, [kept, keep]);
-  const onLayout = regs.length ? (e: LayoutChangeEvent) => regs.forEach((r) => r.layout(n.key, e.nativeEvent.layout)) : undefined;
+  // aspect= keeps its shape at its width: at least that tall, taller when its content is (the drawn size wins)
+  const aspect = n.size?.aspect;
+  const [width, setWidth] = useState(0);
+  const onLayout =
+    regs.length || aspect
+      ? (e: LayoutChangeEvent) => {
+          regs.forEach((r) => r.layout(n.key, e.nativeEvent.layout));
+          if (aspect) setWidth(e.nativeEvent.layout.width);
+        }
+      : undefined;
   return (
     <View
       ref={host}
@@ -75,7 +84,7 @@ function Slot({ n, extra }: { n: VNode; extra?: ViewStyle }): ReactNode {
       onLayout={onLayout}
       accessibilityElementsHidden={n.hidden}
       importantForAccessibility={n.hidden ? 'no-hide-descendants' : 'auto'}
-      style={[layoutStyle(n, theme, flow), extra, n.hidden ? { display: 'none' } : null]}
+      style={[layoutStyle(n, theme, flow), extra, aspect && width ? { minHeight: width / aspect } : null, n.hidden ? { display: 'none' } : null]}
     >
       <Node n={n} />
     </View>
@@ -177,6 +186,7 @@ export function Node({ n }: { n: VNode }): ReactNode {
         slots={Object.fromEntries(Object.entries(n.slots ?? {}).map(([k, s]) => [k, <Kids key={k} nodes={s} />]))}
         records={Object.fromEntries(Object.entries(n.recs ?? {}).map(([k, list]) => [k, list.map((s, i) => <Kids key={i} nodes={s} />)]))}
         summary={n.summary}
+        size={n.size}
         dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}
       >
         <Kids nodes={n.kids ?? []} />

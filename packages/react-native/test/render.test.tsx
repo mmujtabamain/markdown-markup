@@ -556,3 +556,25 @@ describe('a host’s externs', () => {
     });
   });
 });
+
+describe('a widget’s size', () => {
+  it('keeps its aspect at the width it is laid out at: at least that tall', async () => {
+    const c = compile({ packs: [] });
+    const b = c.document('```mkp\nnote "A note."\n  text "hi"\n  project md = "hi"\n```\n\n```note\naspect: 2\nminwidth: 300\nsummary: s\n```\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const rt = new Runtime(b, { now: () => 0, maths, capabilities: ['core@1', 'gfx@1'], reducedMotion: true });
+    let key = '';
+    walkView(rt.view(), (n) => void (n.p.place === 0 && (key = n.key)));
+    await render(<MkpDocument bundle={b} runtime={rt} reducedMotion theme="light" />);
+    const box = screen.getByTestId(key);
+    const style = () => Object.assign({}, ...[box.props.style].flat(Infinity).filter(Boolean));
+    expect(style().minHeight).toBeUndefined();
+    await act(async () => {
+      fireEvent(box, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 20 } } });
+    });
+    expect(style().minHeight).toBe(150);
+    await act(async () => {
+      await screen.unmount();
+    });
+  });
+});

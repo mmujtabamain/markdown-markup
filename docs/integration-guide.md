@@ -922,26 +922,31 @@ view.unmount();
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
 - **Nothing moves on a first visit, with no server.** Until `mkp-dom.js` has loaded, a page can show
-  the document with each widget's box already the height it will have. Keep each widget's measured
-  height with the document: `mount(el, bundle, { onSizes })` reports `[{ place, name, at: [[width,
-  height]] }]` once drawn and when they change, and `mergeSizes(kept, fresh)` keeps the four latest
-  widths. Next time, before anything else loads, `mkp-outline.js` (about 3 KB gzipped, no compiler,
-  no React) draws the first paint from the source alone:
+  the document with each widget's box already the size it starts at, from the source alone, as an
+  HTML img tag's `width` and `height` do. A widget says its size with `minwidth`, `minheight` (px)
+  and `aspect` (width over height): written on its use (`aspect: 16/9`), or its widget's own
+  defaults, the defaults of its inputs of those names. `sizeDefaults(compiled)` (in `mkp.js`) gives
+  those, by widget name; make it once from your packs and ship it with your page. Then, before
+  anything else loads, `mkp-outline.js` (about 3 KB gzipped, no compiler, no React) draws the first
+  paint:
 
   ```js
   import { outline } from './vendor/mkp/mkp-outline.js';
-  el.innerHTML = outline(source, sizes, { width: el.clientWidth, prose: (md) => myMarkdown(md) });
-  const { mount, mergeSizes } = await import('./vendor/mkp/mkp-dom.js');
-  mount(el, bundle, { places: true, onSizes: (s) => save(mergeSizes(sizes, s)) });
+  el.innerHTML = outline(source, { sizes: SIZES, prose: (md) => myMarkdown(md) });  // SIZES = sizeDefaults(compiled), once
+  const { mount } = await import('./vendor/mkp/mkp-dom.js');
+  mount(el, bundle, { places: true });
   ```
 
   `outline()` puts your prose (drawn by your renderer; left out without `prose`) and a quiet
   placeholder for each top-level widget (`aria-hidden`, no text, `class="mkp-outline-place"` plus
-  your `className`, in a container marked `aria-busy`) at the height measured at that width, or
-  between widths along a line. With `places: true`, `mount()` draws each widget into its
-  placeholder from one runtime, and touches nothing else in the element; each box then takes its
-  widget's own height in the same frame. A widget never measured gets a 160 px box and may move
-  once. Places count every top-level widget, fenced or `:::`, in source order (`meta.place`).
+  your `className`, in a container marked `aria-busy`). Two of the three fix a box: a width (at most
+  the column's) and a shape, so it stays right if the page is resized before MKP loads; `minheight`
+  alone is that height, `aspect` alone that shape at the column's width, and none is 160 px. With
+  `places: true`, `mount()` draws each widget into its placeholder from one runtime, and touches
+  nothing else in the element; each box then takes its widget's drawn size in the same frame, which
+  wins, bigger or smaller. A widget keeps its `aspect` where it is drawn (CSS `aspect-ratio`; a
+  taller content still shows). Places count every top-level widget, fenced or `:::`, in source order
+  (`meta.place`).
 - **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
   slots, records, summary, dispatch })` draws into `box` once and puts `slot` (what the document put
   in the extern's first slot, drawn by MKP) where it goes, and each of `slots` (its other slots, by

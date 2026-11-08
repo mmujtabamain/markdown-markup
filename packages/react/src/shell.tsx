@@ -3,7 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ICON_GLYPHS, type VNode, type VRun } from '@mkp/core';
+import { ICON_GLYPHS, type VNode, type VRun, type WidgetSize } from '@mkp/core';
 import { color, layer, size } from './style';
 import { Kids, Runs, type ExternProps, type MkpExterns } from './nodes';
 
@@ -100,6 +100,8 @@ export interface DomExternProps {
   records: Record<string, HTMLElement[]>;
   /** the summary its use wrote, if any */
   summary?: string;
+  /** its size before it is drawn (minwidth, minheight) and the shape it keeps (aspect): box already keeps the aspect */
+  size?: WidgetSize;
   /** reports one of the extern's outs to the document */
   dispatch: (event: string, payload?: unknown) => void;
 }
@@ -111,7 +113,7 @@ export interface DomExternProps {
 export type DomExtern = (box: HTMLElement, props: DomExternProps) => void | (() => void) | { update?: (props: DomExternProps) => void; destroy?: () => void };
 export type DomExterns = Record<string, DomExtern>;
 
-function DomExternBox({ draw, id, props, children, slots, records, summary, attrs, style, dispatch }: ExternProps & { draw: DomExtern }): ReactNode {
+function DomExternBox({ draw, id, props, children, slots, records, summary, size, attrs, style, dispatch }: ExternProps & { draw: DomExtern }): ReactNode {
   const box = useRef<HTMLDivElement>(null);
   // made on the page only (not in a first paint, so the paint and the page agree), for MKP to draw into;
   // kept by name, so a host that has placed one keeps it
@@ -127,8 +129,8 @@ function DomExternBox({ draw, id, props, children, slots, records, summary, attr
     return e;
   };
   const live = useRef<{ update?: (p: DomExternProps) => void; destroy?: () => void } | null>(null);
-  const latest = useRef({ props, slots, records, summary, dispatch });
-  latest.current = { props, slots, records, summary, dispatch };
+  const latest = useRef({ props, slots, records, summary, size, dispatch });
+  latest.current = { props, slots, records, summary, size, dispatch };
   const given = (): DomExternProps => ({
     id,
     props: latest.current.props,
@@ -136,6 +138,7 @@ function DomExternBox({ draw, id, props, children, slots, records, summary, attr
     slots: Object.fromEntries(Object.keys(latest.current.slots).map((k) => [k, el(`slot:${k}`)])),
     records: Object.fromEntries(Object.entries(latest.current.records).map(([k, list]) => [k, list.map((_, i) => el(`rec:${k}[${i}]`))])),
     summary: latest.current.summary,
+    size: latest.current.size,
     dispatch: (e, p) => latest.current.dispatch(e, p),
   });
   useLayoutEffect(() => {
@@ -151,7 +154,7 @@ function DomExternBox({ draw, id, props, children, slots, records, summary, attr
     };
   }, [draw, id]); // eslint-disable-line react-hooks/exhaustive-deps
   // the inputs, and how many records and which slots there are
-  const shape = JSON.stringify([props, Object.keys(slots), Object.entries(records).map(([k, l]) => [k, l.length]), summary]);
+  const shape = JSON.stringify([props, Object.keys(slots), Object.entries(records).map(([k, l]) => [k, l.length]), summary, size]);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {

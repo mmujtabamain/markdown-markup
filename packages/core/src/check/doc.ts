@@ -2,6 +2,7 @@
 // document state, front matter. A document is checked as a synthetic definition, so its state
 // blocks and {ref: name} bindings work like any definition's state.
 
+import { isSizeKey, mergeSize, SIZE_KEYS, sizeOf, sizeTakes, type SizeKey, type WidgetSize } from '../size';
 import YAML from 'yaml';
 import { Diagnostics, MkpError, Pos, closest } from '../diag';
 import { compileAst, Env, type Programme } from '../eval';
@@ -645,6 +646,7 @@ class DocChecker {
     }
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
     this.requireInputs(node, sig, p, failed);
+    this.checkSize(node, sig, p);
     this.yamlAt = null;
     return node;
   }
@@ -812,6 +814,7 @@ class DocChecker {
 
   private setProp(node: IRNode, sig: Sig, k: string, v: unknown, p: Pos): void {
     const inp = sig.inputs.get(k);
+    if (!inp && isSizeKey(k)) return this.setSize(node, k, typeof v === 'number' || typeof v === 'string' ? v : shown(v), p);
     if (!inp) throw this.unknownInput(sig, k, `${k}: ${typeof v === 'string' && v.length < 40 ? v : shown(v)}`, 'Rename the key to one of them, or Remove the line', p);
     const env = this.prog.typeEnv(sig.pack);
     const t = resolve(inp.type, env);
@@ -1041,6 +1044,33 @@ class DocChecker {
     }
   }
 
+  /** A size written on a use whose widget has no input of that name (minheight: 320, aspect=16/9). */
+  private setSize(node: IRNode, k: SizeKey, v: string | number, p: Pos): void {
+    const n = sizeOf(k, v);
+    if (n === undefined) throw new MkpError('mkp.size', `${k} takes ${sizeTakes(k)}, written as it is (a first paint reads it before anything runs); found ${k}: ${v}. Write e.g. ${k === 'aspect' ? 'aspect: 16/9' : `${k}: 320`}`, p);
+    (node.meta ??= {})[k] = n;
+  }
+
+  /**
+   * A top-level use's size before it is drawn: two of minwidth, minheight and aspect fix its box
+   * (its widget's own defaults fill in); one alone leaves the other to the drawing; three can disagree.
+   */
+  private checkSize(node: IRNode, sig: Sig, p: Pos): void {
+    const own: WidgetSize = {};
+    for (const k of SIZE_KEYS) {
+      const given = node.meta?.[k] ?? (node.props?.[k] && 'lit' in node.props[k] ? sizeOf(k, (node.props[k] as { lit: unknown }).lit as number) : node.props?.[k] && 'expr' in node.props[k] ? sizeOf(k, (node.props[k] as { expr: string }).expr) : undefined);
+      if (given !== undefined) own[k] = given;
+    }
+    const written = Object.keys(own);
+    if (written.length === 3) throw new MkpError('mkp.size', `${sig.name} is given minwidth, minheight and aspect, which can disagree: two of them fix its size before it is drawn. Remove one, e.g. keep minwidth and aspect`, p);
+    const all = Object.keys(mergeSize(own, sig.sizes));
+    if (all.length === 1) {
+      const k = all[0] as SizeKey;
+      const rest = SIZE_KEYS.filter((x) => x !== k).join(' or ');
+      this.diags.warn('mkp.size', `${sig.name} has ${k} alone, so its box before it is drawn is ${k === 'minwidth' ? 'only as wide as that, with a height guessed' : k === 'minheight' ? 'that tall, as wide as the column' : 'that shape, as wide as the column'}, and may move once when drawn. Give ${rest} as well, so its box is fixed`, p);
+    }
+  }
+
   private container(it: Extract<DocItem, { k: 'container' }>): IRNode | null {
     const p = this.p(it.line);
     const sig = this.widgetSig(it.name, p);
@@ -1101,6 +1131,7 @@ class DocChecker {
     }
     if (it.attrs) this.applyAttrs(node, it.attrs.id, it.attrs.props, it.attrs.line, sig);
     this.requireInputs(node, sig, p, new Set(), `:::${it.name}${it.args.trim() ? ' ' + it.args.trim() : ''}`);
+    this.checkSize(node, sig, p);
     return node;
   }
 
@@ -1135,6 +1166,10 @@ class DocChecker {
         continue;
       }
       const inp = sig.inputs.get(k);
+      if (!inp && isSizeKey(k)) {
+        this.setSize(node, k, v, p);
+        continue;
+      }
       if (!inp) throw this.unknownInput(sig, k, `{${k}=${v}} under the block`, 'Rename the attribute to one of them, or Remove it', p);
       node.props![k] = this.dc.value(parseValueString(v, this.file, line, 1), inp.type, this.dc.scope, p);
     }

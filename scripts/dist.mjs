@@ -142,7 +142,7 @@ await build({
 });
 
 // mkp-outline.js: a document's first paint from its source alone, before the rest of MKP loads:
-// the widgets' boxes at their measured heights (outline(), places(), mergeSizes()). Tiny: the
+// the widgets' boxes at the size each says it starts at (outline(), places(), placeholder()). Tiny: the
 // compiler's document splitter only, no compiler, no React
 await build({
   entryPoints: [join(root, 'packages/dom/src/outline.ts')],
@@ -216,8 +216,8 @@ writeFileSync(
                   for your design system. Types: mkp-react.d.ts
   mkp-dom.js      draws documents into an element, from Vue, Svelte, Angular or plain JS: MKP's
                   own look, its own React inside. Types: mkp-dom.d.ts
-  mkp-outline.js  outline(source, sizes, { width, prose }): a document's first paint before the
-                  rest of MKP loads, each widget's box at the height mount()'s onSizes measured;
+  mkp-outline.js  outline(source, { sizes, prose }): a document's first paint before the
+                  rest of MKP loads, each widget's box at its minwidth, minheight and aspect;
                   mount(el, bundle, { places: true }) then draws the widgets into those boxes.
                   Tiny: no compiler, no React. Types: mkp-outline.d.ts
   mkp.css         MKP's stylesheet in its own look, for a page whose documents or first paints are

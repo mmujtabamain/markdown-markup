@@ -45,6 +45,13 @@ what the reader sees).
 
 - **Quote text in YAML** when it could read as something else: `on: no` is the text "no" in
   YAML 1.2, not false. LaTeX goes in single quotes (`'\theta'`): in double quotes `\t` is a tab.
+- **Its size before it is drawn**, as an HTML img tag's width and height: `minwidth` and
+  `minheight` (px, where it starts; the drawn size wins, bigger or smaller) and `aspect` (width over
+  height, `16/9` or `1.6`, kept at every width). Any two fix its box, so a page's first paint keeps it
+  and nothing moves when it loads; one alone is warned of, all three refused (`mkp.size`). Write them
+  like any other input (`aspect: 16/9`, `:::card minheight=120 aspect=2`, or `{minheight=200}` under a
+  block); a widget sets its own with inputs of those names (`in aspect num = 16/9`), and what a use
+  writes wins. Leave them out and the widget takes its size when drawn, and may move what is below once.
 - **Shared state**: a ```` ```state ```` block (`t = slider 0..1 "turn"`) and `t: {ref: t}` in each
   block that reads it (example 07).
 - **A container** fills a widget's slots: what goes inside a widget (Markdown, widget blocks, other
