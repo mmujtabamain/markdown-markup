@@ -171,7 +171,14 @@ export function Node({ n }: { n: VNode }): ReactNode {
   const Ext = n.ext ? externs?.[n.ext] : undefined;
   if (Ext)
     return (
-      <Ext id={n.ext!} props={p} dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}>
+      <Ext
+        id={n.ext!}
+        props={p}
+        slots={Object.fromEntries(Object.entries(n.slots ?? {}).map(([k, s]) => [k, <Kids key={k} nodes={s} />]))}
+        records={Object.fromEntries(Object.entries(n.recs ?? {}).map(([k, list]) => [k, list.map((s, i) => <Kids key={i} nodes={s} />)]))}
+        summary={n.summary}
+        dispatch={(event, payload) => rt.dispatch(n.key, event, payload)}
+      >
         <Kids nodes={n.kids ?? []} />
       </Ext>
     );
@@ -311,10 +318,10 @@ export function Node({ n }: { n: VNode }): ReactNode {
         </View>
       );
     default:
-      // a transitional extern this renderer does not implement: say so, accessibly
+      // an extern with no component here: its summary, or what its pack says it is, accessibly
       return (
         <View accessible accessibilityRole="text" style={{ borderWidth: 1, borderColor: theme.color('muted'), borderRadius: theme.radius('card'), padding: theme.space('m') }}>
-          <Text style={{ color: ink }}>{String(p.summary ?? n.t)}</Text>
+          <Text style={{ color: ink }}>{String(n.summary ?? p.summary ?? (n.ext && rt.bundle.defs[n.ext]?.about) ?? n.t)}</Text>
         </View>
       );
   }

@@ -227,6 +227,8 @@ export class Runtime {
   private readonly mathsCache = new Map<string, IRMaths>();
   /** each pixels layer's last shape, by its key, with what it was drawn from */
   private readonly pixelsLast = new Map<string, { sig: string; shape: VShape }>();
+  /** this render's pack externs with a project, by key: where each was written, for externAt */
+  private readonly externUses = new Map<string, { n: IRNode; env: Env; inst: Inst }>();
   private nodeCount = 0;
   /** the reader's width: narrow, medium or wide, as the provider measures it */
   readonly widthCell: Cell;
@@ -378,6 +380,16 @@ export class Runtime {
   /** The instance a scope view node stands for. */
   instanceAt(key: string): Inst | undefined {
     return this.instances.get(key);
+  }
+
+  /** A pack extern's inputs as an instance, for its project md (the Markdown target): made when asked, not kept. */
+  externAt(key: string): Inst | undefined {
+    const u = this.externUses.get(key);
+    const def = u?.n.def ? this.bundle.defs[u.n.def] : undefined;
+    if (!u || !def) return undefined;
+    const x = new Inst(this, def, `${key}#${def.name}`, u.n, u.env, u.inst, u.inst.depth + 1, null);
+    this.setupInst(x);
+    return x;
   }
 
   /** Values of every instance's state and derived values (for conformance and tests). */
@@ -636,6 +648,7 @@ export class Runtime {
   private render(): void {
     this.generation++;
     this.handlers.clear();
+    this.externUses.clear();
     this.nodeCount = 0;
     const root = this.root;
     root.ids = new Map();
@@ -1140,12 +1153,45 @@ export class Runtime {
         // an extern the host implements (a pack's, or a transitional base one): its props and what it
         // holds, drawn, and its id, for a host's component chosen by id
         {
-          const v: VNode = { t: n.node, key, p: this.props(n, env, inst), kids: kids(), ...(n.def && !n.def.startsWith('core:') ? { ext: n.def } : {}) };
-          // its outs, written on the use (@toggled …), run when the host reports them
+          const def = n.def && !n.def.startsWith('core:') ? this.bundle.defs[n.def] : undefined;
+          if (def?.kind === 'extern') return this.renderExtern(n, def, env, inst, key);
+          const v: VNode = { t: n.node, key, p: this.props(n, env, inst), kids: kids() };
           this.wire(n, v, env, inst);
           return v;
         }
     }
+  }
+
+  /**
+   * A pack's extern, for the host to draw: its inputs (record lists as plain values), its first slot
+   * drawn as kids and its others in slots, each record's content in recs, its summary, and its id.
+   */
+  private renderExtern(n: IRNode, def: IRDef, env: Env, inst: Inst, key: string): VNode {
+    const p = this.props(n, env, inst);
+    const v: VNode = { t: n.node, key, p, kids: this.renderNodes(n.children ?? [], env, inst, key), ext: def.id };
+    let first = true;
+    for (const i of def.inputs) {
+      const t = this.resolveType(i.type);
+      if (t.t === 'slot') {
+        // the first slot is what the use holds (kids); the others are filled by name (:::fill)
+        if (first) first = false;
+        else (v.slots ??= {})[i.name] = this.renderNodes(n.fills?.[i.name] ?? [], env, inst, `${key}.${i.name}`);
+      } else if (t.t === 'records') {
+        const recs = (n.records ?? []).filter((r) => r.input === i.name || r.node === 'each' || r.node === 'switch');
+        const list = this.recordValues(recs, i.name, env, inst, t) as Record<string, V>[];
+        p[i.name] = list.map(withoutSlots) as V;
+        if (t.slot)
+          (v.recs ??= {})[i.name] = list.map((r, k) => {
+            const s = r.slot as unknown as SlotValue;
+            return this.renderNodes(s.nodes, s.env, s.inst, `${key}.${i.name}[${k}]`);
+          });
+      }
+    }
+    if (n.meta?.summary) v.summary = n.meta.summary;
+    if (def.project) this.externUses.set(key, { n, env, inst });
+    // its outs, written on the use (@toggled …), run when the host reports them
+    this.wire(n, v, env, inst);
+    return v;
   }
 
   private canvas(n: IRNode, env: Env, inst: Inst, key: string): VNode {
@@ -1844,4 +1890,15 @@ export function checkValue(v: unknown, t: Type, env: (n: string) => Type | undef
     default:
       return null;
   }
+}
+
+/** A record's values without its slot (and its nested records' slots): what a host gets as data. */
+function withoutSlots(v: V): V {
+  if (Array.isArray(v)) return v.map(withoutSlots) as V;
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === null) {
+    const o = Object.create(null) as Record<string, V>;
+    for (const [k, x] of Object.entries(v as Record<string, V>)) if (!(x && typeof x === 'object' && (x as unknown as SlotValue).__slot)) o[k] = withoutSlots(x);
+    return o as V;
+  }
+  return v;
 }

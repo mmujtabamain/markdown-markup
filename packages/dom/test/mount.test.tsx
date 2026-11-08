@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { compile, formatDiagnostic, MathsEngine, type IRBundle } from '@mkp/core';
 import { firstPaint } from '@mkp/page';
-import { mount, type DomExtern, type MountedDocument } from '../src/index';
+import { mount, type DomExtern, type DomExternProps, type MountedDocument } from '../src/index';
+import { hostDoc, hostPack } from '../../core/test/host-externs';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -172,6 +173,45 @@ describe('mount, a host’s externs', () => {
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
     expect(el.querySelector('[data-mkp-extern="p:accordion@1"] .mkp-extern-slot')!.textContent).toBe('Inside: 0');
+  });
+
+  it('gives the page an element for each record’s content and each other slot, with the widgets in them live', async () => {
+    const c = compile({ packs: [hostPack] });
+    const hb = c.document(hostDoc, 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const got: Record<string, DomExternProps> = {};
+    const updated: DomExternProps[] = [];
+    const draw: DomExtern = (box, x) => {
+      got[x.id] = x;
+      box.append(x.slot);
+      for (const [k, list] of Object.entries(x.records))
+        list.forEach((e, i) => {
+          const sec = document.createElement('section');
+          sec.dataset.rec = `${k}:${String((x.props[k] as { title: string }[])[i].title)}`;
+          sec.append(e);
+          box.append(sec);
+        });
+      for (const [k, e] of Object.entries(x.slots)) box.append(Object.assign(document.createElement('footer'), { className: k }), e);
+      return { update: (p) => updated.push(p) };
+    };
+    const el = document.body.appendChild(document.createElement('div'));
+    const all = Object.fromEntries(['sections', 'single', 'noted', 'items', 'panel'].map((n) => [`host:${n}@1`, draw]));
+    await mounted(el, hb, { externs: all });
+    const rec = (k: string) => el.querySelector<HTMLElement>(`[data-rec="${k}"]`)!;
+    expect(rec('sections:First').textContent).toBe('Inside first.Up 0');
+    expect(rec('sections:Second').textContent).toBe('Inside second.');
+    expect(got['host:sections@1'].records.sections).toHaveLength(2);
+    expect(got['host:items@1'].props.items).toEqual([{ title: 'one' }, { title: 'two' }]);
+    expect(got['host:items@1'].summary).toBe('Two items.');
+    expect(got['host:panel@1'].slot.textContent).toBe('Body.');
+    expect(got['host:panel@1'].slots.footer.textContent).toBe('Foot.');
+    // a widget in a record’s content runs there, in the element the page placed
+    const first = got['host:sections@1'].records.sections[0];
+    act(() => rec('sections:First').querySelector<HTMLElement>('[data-mkp-id=up]')!.click());
+    expect(rec('sections:First').textContent).toBe('Inside first.Up 1');
+    expect(rec('sections:First').contains(first)).toBe(true);
+    // what it holds changed, not its inputs: no update
+    expect(updated).toEqual([]);
   });
 });
 

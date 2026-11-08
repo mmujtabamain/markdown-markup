@@ -91,8 +91,15 @@ export function domIcons(icons: DomIcons | undefined): MkpIcons | undefined {
 export interface DomExternProps {
   id: string;
   props: Record<string, unknown>;
-  /** what the document put inside it, drawn by MKP into this element: place it where it goes */
+  /** what the document put inside it (its first slot), drawn by MKP into this element: place it where it goes */
   slot: HTMLElement;
+  /** its other slots (filled by name with :::fill), each drawn into its own element, by input name */
+  slots: Record<string, HTMLElement>;
+  /** each record's content, drawn into its own element, for its record lists with a slot:
+   *  records.sections[i] goes with props.sections[i]. The same element stays with a record's place. */
+  records: Record<string, HTMLElement[]>;
+  /** the summary its use wrote, if any */
+  summary?: string;
   /** reports one of the extern's outs to the document */
   dispatch: (event: string, payload?: unknown) => void;
 }
@@ -104,34 +111,64 @@ export interface DomExternProps {
 export type DomExtern = (box: HTMLElement, props: DomExternProps) => void | (() => void) | { update?: (props: DomExternProps) => void; destroy?: () => void };
 export type DomExterns = Record<string, DomExtern>;
 
-function DomExternBox({ draw, id, props, children, attrs, style, dispatch }: ExternProps & { draw: DomExtern }): ReactNode {
+function DomExternBox({ draw, id, props, children, slots, records, summary, attrs, style, dispatch }: ExternProps & { draw: DomExtern }): ReactNode {
   const box = useRef<HTMLDivElement>(null);
-  // made once on the page (not in a first paint, so the paint and the page agree), for MKP to draw into
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  // made on the page only (not in a first paint, so the paint and the page agree), for MKP to draw into;
+  // kept by name, so a host that has placed one keeps it
+  const [ready, setReady] = useState(false);
+  const els = useRef(new Map<string, HTMLElement>());
+  const el = (name: string): HTMLElement => {
+    let e = els.current.get(name);
+    if (!e) {
+      e = document.createElement('div');
+      e.className = 'mkp-extern-slot';
+      els.current.set(name, e);
+    }
+    return e;
+  };
   const live = useRef<{ update?: (p: DomExternProps) => void; destroy?: () => void } | null>(null);
-  const latest = useRef({ props, dispatch });
-  latest.current = { props, dispatch };
+  const latest = useRef({ props, slots, records, summary, dispatch });
+  latest.current = { props, slots, records, summary, dispatch };
+  const given = (): DomExternProps => ({
+    id,
+    props: latest.current.props,
+    slot: el(''),
+    slots: Object.fromEntries(Object.keys(latest.current.slots).map((k) => [k, el(`slot:${k}`)])),
+    records: Object.fromEntries(Object.entries(latest.current.records).map(([k, list]) => [k, list.map((_, i) => el(`rec:${k}[${i}]`))])),
+    summary: latest.current.summary,
+    dispatch: (e, p) => latest.current.dispatch(e, p),
+  });
   useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const s = document.createElement('div');
-    s.className = 'mkp-extern-slot';
-    setSlot(s);
-    const out = draw(el, { id, props: latest.current.props, slot: s, dispatch: (e, p) => latest.current.dispatch(e, p) });
+    const host = box.current;
+    if (!host) return;
+    setReady(true);
+    const out = draw(host, given());
     live.current = typeof out === 'function' ? { destroy: out } : out ?? null;
     return () => {
       live.current?.destroy?.();
       live.current = null;
-      el.replaceChildren();
+      host.replaceChildren();
     };
-  }, [draw, id]);
-  const json = JSON.stringify(props);
+  }, [draw, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the inputs, and how many records and which slots there are
+  const shape = JSON.stringify([props, Object.keys(slots), Object.entries(records).map(([k, l]) => [k, l.length]), summary]);
+  const first = useRef(true);
   useEffect(() => {
-    if (slot) live.current?.update?.({ id, props, slot, dispatch: (e, p) => latest.current.dispatch(e, p) });
-  }, [json]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    live.current?.update?.(given());
+  }, [shape]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div ref={box} {...attrs} style={style} data-mkp-extern={id}>
-      {slot ? createPortal(children, slot) : null}
+      {ready ? (
+        <>
+          {createPortal(children, el(''))}
+          {Object.entries(slots).map(([k, s]) => createPortal(s, el(`slot:${k}`), `slot:${k}`))}
+          {Object.entries(records).flatMap(([k, list]) => list.map((s, i) => createPortal(s, el(`rec:${k}[${i}]`), `rec:${k}[${i}]`)))}
+        </>
+      ) : null}
     </div>
   );
 }

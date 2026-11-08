@@ -5,7 +5,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { compile, formatDiagnostic, Runtime, walkView as walk, type IRBundle, type VNode } from '@mkp/core';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
+import { hostDoc, hostPack } from '../../core/test/host-externs';
 import { BASE_CSS, Canvas, hostIcon, type ExternProps, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
@@ -598,6 +599,49 @@ describe('what a host styles and traces', () => {
     const two = render(<MkpDocument bundle={b} runtime={rt2} reducedMotion />);
     expect(two.container.querySelector('[data-host-accordion]')).toBeNull();
     expect(two.container.querySelector('.mkp-error')).not.toBeNull();
+  });
+  it('gives a host’s externs their record lists, each record’s content, their other slots and their summary', () => {
+    const c = compile({ packs: [hostPack] });
+    const b = c.document(hostDoc, 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const got: Record<string, ExternProps> = {};
+    const Box = (x: ExternProps): ReactNode => {
+      got[x.id] = x;
+      const recs = Object.entries(x.records).flatMap(([k, list]) => list.map((content, i) => <div key={`${k}${i}`} data-rec={`${k}:${String((x.props[k] as { title: string }[])[i].title)}`}>{content}</div>));
+      const slots = Object.entries(x.slots).map(([k, s]) => <div key={k} data-slot={k}>{s}</div>);
+      return (
+        <section {...x.attrs} data-host={x.id}>
+          {x.children}
+          {recs}
+          {slots}
+        </section>
+      );
+    };
+    const all = Object.fromEntries(['sections', 'single', 'noted', 'items', 'panel'].map((n) => [`host:${n}@1`, Box]));
+    const { container } = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion externs={all} />);
+    expect(got['host:sections@1'].props.sections).toEqual([
+      { title: 'First', open: true },
+      { title: 'Second', open: false },
+    ]);
+    expect(one(container, '[data-rec="sections:First"]').textContent).toBe('Inside first.Up 0');
+    expect(one(container, '[data-rec="sections:Second"]').textContent).toBe('Inside second.');
+    // a widget in a record’s content is live there
+    fireEvent.click(one(container, '[data-rec="sections:First"] [data-mkp-id=up]'));
+    expect(one(container, '[data-rec="sections:First"]').textContent).toBe('Inside first.Up 1');
+    expect(got['host:items@1'].props.items).toEqual([{ title: 'one' }, { title: 'two' }]);
+    expect(got['host:items@1'].summary).toBe('Two items.');
+    expect(one(container, '[data-host="host:panel@1"]').textContent).toBe('Body.Foot.');
+    expect(one(container, '[data-host="host:panel@1"] [data-slot=footer]').textContent).toBe('Foot.');
+    cleanup();
+    // with no components: each placeholder says its summary, or what its pack says it is
+    const bare = render(<MkpDocument bundle={b} runtime={new Runtime(b, { now: () => 0 })} reducedMotion />);
+    expect([...bare.container.querySelectorAll('.mkp-error')].map((e) => e.textContent)).toEqual([
+      'Sections that open and close, drawn by the host.',
+      'One section, drawn by the host.',
+      'One section with its own Markdown, drawn by the host.',
+      'Two items.',
+      'A panel with a footer, drawn by the host.',
+    ]);
   });
   it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
     const b = doc(['text "hi"']);
