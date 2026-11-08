@@ -585,6 +585,7 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 | `tokens` | your values for token names (step 7) |
 | `components` | your own components for base widgets (4.2) |
 | `icons` | your icons: one component for every name, or `{ help: HelpIcon, … }` for some (below) |
+| `externs` | your components for your pack's externs, by id: `{ "myapp:accordion@1": Accordion }` (below) |
 | `styles` | `'inline'` (the default) or `'external'`: MKP's stylesheet left to your page (below) |
 | `maths` | a `MathsRenderer` (a `MathsEngine`), for maths that changes with reader state; it may arrive later (below) |
 | `reducedMotion` | overrides `prefers-reduced-motion` (playing sliders then move in steps) |
@@ -594,6 +595,15 @@ export const Page = () => <Lesson bundle={lab as unknown as IRBundle} />;
 
 What to know:
 
+- **Your pack's externs.** An `extern` in your pack is drawn by your own code only: MKP has no view
+  for it. Give each one a component with `externs`, by id (`{ "myapp:accordion@1": Accordion }`). It
+  gets `{ id, props, children, attrs, style, dispatch }`: its inputs with their defaults,
+  `children` (what the document put inside it, drawn by MKP: place it where it goes), `attrs` for
+  your outer element, and `dispatch('toggled')` to report one of its outs, which runs the document's
+  `@toggled` handlers. Its own state (an accordion's open sections) lives in your component, so a
+  click there doesn't draw the document again. Unlike `components`, `externs` keeps MKP's own look.
+  An extern with no component shows a placeholder with its summary; the Markdown target writes its
+  summary and its children.
 - **A maths engine that loads later.** Draw the document at once and pass `maths` when the engine
   has loaded: the document keeps its state, and only the formulas without a picture change. Until
   then such a formula is its TeX in a `.mkp-math[data-pending]`, for a loading look of your own. A
@@ -764,6 +774,8 @@ function Lesson({ bundle }: { bundle: IRBundle }) {
 Props: `bundle`, `runtime`, `maths`, `theme` (`'auto'` follows `useColorScheme()`), `tokens`,
 `icons`, `reducedMotion` (default: the system's setting), `options`, `style`.
 
+- `externs` takes your components for your pack's externs, by id, as on the web: they get
+  `{ id, props, children, dispatch }`.
 - `icons` takes any React Native component, for every name or for some (`{ help: HelpIcon }`),
   given `{ name, size, tone, color, px, label }`: `px` is its size in points (the body text's,
   scaled for `small` and `large`) and `color` its tone resolved. The box carries the label, and
@@ -904,6 +916,11 @@ view.unmount();
   so MKP puts it in as it is. The box keeps its `data-name`, `data-size`, `data-tone`, colour and
   label; the function's cleanup runs when the icon goes or the document is unmounted. Pass the same
   `icons` to `update()` (a new object draws them again).
+- **Your pack's externs.** `externs: { "myapp:accordion@1": draw }`: `draw(box, { id, props, slot,
+  dispatch })` draws into `box` once and puts `slot` (what the document put inside the extern, drawn
+  by MKP) where it goes. It may return `{ update(props), destroy() }`: new inputs then arrive through
+  `update` and your own state is kept; `destroy` runs when it goes (a function returned is taken as
+  `destroy`). `firstPaint()` takes the same `externs` and leaves each box empty; `mount()` fills it.
 - **Many documents or first paints on one page.** Each writes MKP's stylesheet (about 19 KB) with
   its own tokens (about 2 KB). Pass `styles: 'external'` to `mount()`, `firstPaint()` or
   `mkp build --target fragment --styles external`, and load the web zip's `mkp.css` once in the

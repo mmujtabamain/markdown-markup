@@ -1,7 +1,7 @@
 // What every node reads: the runtime it reports events to, the resolved tokens,
 // and the measurement registries of the scopes above it (for arrows, spec 6.10).
 
-import { createContext, useContext, type ComponentType } from 'react';
+import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
 import type { LayoutRectangle } from 'react-native';
 import type { Runtime } from '@mkp/core';
 import type { Theme } from './theme';
@@ -23,11 +23,27 @@ export type IconComponent = ComponentType<HostIconProps>;
 /** A host's icons: one component for every name, or one per name (the rest stay MKP's). */
 export type MkpIcons = IconComponent | Partial<Record<string, IconComponent>>;
 
+/** What a host's component for an extern gets: its id, its inputs, and what it holds, drawn. */
+export interface ExternProps {
+  /** the extern's id, pack:name@N */
+  id: string;
+  /** its inputs, with their defaults filled in */
+  props: Record<string, unknown>;
+  /** what the document put inside it (its slot), already drawn by MKP */
+  children: ReactNode;
+  /** reports one of the extern's outs to the document, which runs its handlers */
+  dispatch: (event: string, payload?: unknown) => void;
+}
+/** A host's components for a pack's externs, by id ("devbench:accordion@1"). */
+export type MkpExterns = Record<string, ComponentType<ExternProps>>;
+
 export interface Ctx {
   rt: Runtime;
   theme: Theme;
   /** a host's icons, drawn in place of MKP's text symbols */
   icons?: MkpIcons;
+  /** a host's components for a pack's externs, by id */
+  externs?: MkpExterns;
 }
 
 export const RuntimeCtx = createContext<Ctx | null>(null);

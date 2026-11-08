@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { compile, formatDiagnostic, Runtime, walkView as walk, type IRBundle, type VNode } from '@mkp/core';
 import { memo } from 'react';
-import { BASE_CSS, Canvas, hostIcon, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
+import { BASE_CSS, Canvas, hostIcon, type ExternProps, keepInView, mkpCss, MkpDocument, type HostIconProps, MkpProvider, NEUTRAL_CSS, Node, placeCanvasLabels, SHELL_CSS, tokenCss, useMkpView, widthClass } from '../src/index';
 
 afterEach(cleanup);
 
@@ -558,6 +558,46 @@ describe('what a host styles and traces', () => {
     expect(after).not.toBe(before);
     expect(same({ n: before }, { n: after })).toBe(true);
     expect(same({ n: before }, { n: { ...after, layers: [] } })).toBe(false);
+  });
+  it('draws a pack’s extern with the host’s own component, by id, and keeps MKP’s look for the rest', () => {
+    const enc = new TextEncoder();
+    const pack = {
+      label: 'p',
+      files: new Map<string, Uint8Array>([
+        ['manifest.mkp', enc.encode('pack p@1 "P."\n  requires core@1\n  provides accordion counted\n')],
+        ['accordion.mkp', enc.encode('extern accordion@1 "A section, drawn by the app."\n  in title text "its heading"\n  in open bool = false "open at first"\n  in body slot\n  out toggled "opened or closed"\n\ncounted@1 "Counts its accordion’s toggles."\n  var n int = 0\n  column\n    accordion title="Details"\n      text "Inside: \\val{n}"\n      @toggled set n=(n + 1)\n  project md = "counted"\n')],
+        ['counted.fixture.json', enc.encode(JSON.stringify({ widget: 'counted@1', cases: { one: { props: {}, summary: 'One.' } } }))],
+      ]),
+    };
+    const c = compile({ packs: [pack] });
+    const b = c.document('```counted\nsummary: s\n```\n', 'doc.mkp.md')!;
+    expect(c.diags.errors.map(formatDiagnostic)).toEqual([]);
+    const seen: { id: string; title: unknown; open: unknown }[] = [];
+    const Accordion = ({ id, props, children, attrs, dispatch }: ExternProps) => {
+      seen.push({ id, title: props.title, open: props.open });
+      return (
+        <section {...attrs} data-host-accordion="">
+          <button type="button" onClick={() => dispatch('toggled')}>{String(props.title)}</button>
+          {children}
+        </section>
+      );
+    };
+    const rt = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const { container } = render(<MkpDocument bundle={b} runtime={rt} reducedMotion externs={{ 'p:accordion@1': Accordion }} />);
+    expect(seen[0]).toEqual({ id: 'p:accordion@1', title: 'Details', open: false });
+    const host = one(container, '[data-host-accordion]');
+    expect(host.textContent).toBe('DetailsInside: 0');
+    // its out reaches the document's handler
+    fireEvent.click(host.querySelector('button')!);
+    expect(one(container, '[data-host-accordion]').textContent).toBe('DetailsInside: 1');
+    // MKP's own look stays (unlike components=)
+    expect(container.querySelector('style')!.textContent).toContain('.mkp-frame');
+    cleanup();
+    // with no component: a placeholder with its summary
+    const rt2 = new Runtime(b, { now: () => 0, reducedMotion: true });
+    const two = render(<MkpDocument bundle={b} runtime={rt2} reducedMotion />);
+    expect(two.container.querySelector('[data-host-accordion]')).toBeNull();
+    expect(two.container.querySelector('.mkp-error')).not.toBeNull();
   });
   it('says its theme with data-mkp-theme, a name no host’s [data-theme] rules catch, and still reads data-theme', () => {
     const b = doc(['text "hi"']);

@@ -11,9 +11,9 @@
 
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { Diagnostics, MathsEngine, migrateBundle, needsMaths, needsMigration, prerender, Runtime, type Diagnostic, type IRBundle, type MathsRenderer, type SignalEvent } from '@mkp/core';
-import { domIcons, MkpDocument, type DomIcons, type MkpIcons, type TokenMap } from '@mkp/react';
+import { domExterns, domIcons, MkpDocument, type DomExterns, type DomIcons, type MkpExterns, type MkpIcons, type TokenMap } from '@mkp/react';
 
-export type { DomIcon, DomIcons } from '@mkp/react';
+export type { DomIcon, DomIcons, DomExtern, DomExterns, DomExternProps } from '@mkp/react';
 
 export interface MountOptions {
   /** light or dark, or the reader's system setting (the default) */
@@ -38,6 +38,13 @@ export interface MountOptions {
    * fixed set; the box keeps its data-name, data-size, colour and label
    */
   icons?: DomIcons;
+  /**
+   * your own code for a pack's externs, by id ({ "devbench:accordion@1": draw }): draw(box,
+   * { id, props, slot, dispatch }) draws into box once, places `slot` (what the document put inside
+   * it, drawn by MKP) where it goes, and may return { update(props), destroy() } or a cleanup. An
+   * extern with none here shows a placeholder with its summary
+   */
+  externs?: DomExterns;
   /**
    * 'external': the page loads mkp.css (from the web zip) once, and each document writes only its
    * own tokens; 'inline' (the default) writes the whole stylesheet with each document. A first paint
@@ -94,6 +101,8 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   // the icons as components, made again only when update() is given other icons (so none is redrawn)
   let icons: { from: DomIcons | undefined; as: MkpIcons | undefined } = { from: undefined, as: undefined };
   const iconsNow = (): MkpIcons | undefined => (icons.from === current.icons ? icons.as : (icons = { from: current.icons, as: domIcons(current.icons) }).as);
+  let externs: { from: DomExterns | undefined; as: MkpExterns | undefined } = { from: undefined, as: undefined };
+  const externsNow = (): MkpExterns | undefined => (externs.from === current.externs ? externs.as : (externs = { from: current.externs, as: domExterns(current.externs) }).as);
 
   const start = (): void => {
     if (gone) return;
@@ -104,7 +113,7 @@ export function mount(el: HTMLElement, bundle: IRBundle, opts: MountOptions = {}
   };
   const draw = (): void => {
     if (gone || !runtime) return;
-    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} styles={current.styles} reducedMotion={current.reducedMotion} className={current.className} />;
+    const view = <MkpDocument bundle={doc} runtime={runtime} theme={current.theme ?? 'auto'} tokens={current.tokens} icons={iconsNow()} externs={externsNow()} styles={current.styles} reducedMotion={current.reducedMotion} className={current.className} />;
     if (root) return root.render(view);
     if (opts.hydrate && el.firstElementChild)
       root = hydrateRoot(el, view, {

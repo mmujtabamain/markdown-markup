@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { compile, formatDiagnostic, MathsEngine, type IRBundle } from '@mkp/core';
 import { firstPaint } from '@mkp/page';
-import { mount, type MountedDocument } from '../src/index';
+import { mount, type DomExtern, type MountedDocument } from '../src/index';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -105,6 +105,73 @@ describe('mount, styles: external', () => {
     expect(el.querySelector('[data-mkp-id=up]')).toBe(press);
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
+  });
+});
+
+describe('mount, a host’s externs', () => {
+  const enc = new TextEncoder();
+  const pack = {
+    label: 'p',
+    files: new Map<string, Uint8Array>([
+      ['manifest.mkp', enc.encode('pack p@1 "P."\n  requires core@1\n  provides accordion counted\n')],
+      ['accordion.mkp', enc.encode('extern accordion@1 "A section, drawn by the app."\n  in title text "its heading"\n  in body slot\n  out toggled "opened or closed"\n\ncounted@1 "Counts its accordion’s toggles."\n  var n int = 0\n  column\n    accordion title=(if(n > 0, "Details again", "Details"))\n      text "Inside: \\val{n}"\n      @toggled set n=(n + 1)\n  project md = "counted"\n')],
+      ['counted.fixture.json', enc.encode(JSON.stringify({ widget: 'counted@1', cases: { one: { props: {}, summary: 'One.' } } }))],
+    ]),
+  };
+  const b = (() => {
+    const c = compile({ packs: [pack] });
+    const x = c.document('```counted\nsummary: s\n```\n', 'doc.mkp.md');
+    if (!x || c.diags.errors.length) throw new Error(c.diags.errors.map(formatDiagnostic).join('\n'));
+    return x;
+  })();
+
+  it('lets the page draw it once, gives it new inputs through update (its own state kept), and cleans up', async () => {
+    const log: string[] = [];
+    const draw: DomExtern = (box, { props, slot, dispatch }) => {
+      const head = document.createElement('button');
+      head.textContent = String(props.title);
+      // the page's own state: how often it was opened, never seen by the document
+      let opened = 0;
+      head.onclick = () => {
+        opened++;
+        dispatch('toggled');
+      };
+      box.append(head, slot);
+      log.push('draw');
+      return {
+        update: (p) => {
+          head.textContent = `${String(p.props.title)} (${opened})`;
+          log.push('update');
+        },
+        destroy: () => log.push('destroy'),
+      };
+    };
+    const el = document.body.appendChild(document.createElement('div'));
+    const v = await mounted(el, b, { externs: { 'p:accordion@1': draw } });
+    const box = el.querySelector<HTMLElement>('[data-mkp-extern="p:accordion@1"]')!;
+    expect(box.querySelector('button')!.textContent).toBe('Details');
+    expect(box.querySelector('.mkp-extern-slot')!.textContent).toBe('Inside: 0');
+    act(() => box.querySelector('button')!.click());
+    // the document ran its handler; the page was given the new title, and kept its own count
+    expect(box.querySelector('.mkp-extern-slot')!.textContent).toBe('Inside: 1');
+    expect(box.querySelector('button')!.textContent).toBe('Details again (1)');
+    expect(log).toEqual(['draw', 'update']);
+    act(() => v.unmount());
+    views = [];
+    expect(log).toEqual(['draw', 'update', 'destroy']);
+  });
+
+  it('leaves an empty box in a first paint, which mount takes over and fills', async () => {
+    const draw: DomExtern = (box, { slot }) => void box.append(slot);
+    const el = document.body.appendChild(document.createElement('div'));
+    el.innerHTML = firstPaint(b, { externs: { 'p:accordion@1': draw } });
+    expect(el.querySelector('[data-mkp-extern="p:accordion@1"]')!.innerHTML).toBe('');
+    const warn = vi.spyOn(console, 'warn');
+    const error = vi.spyOn(console, 'error');
+    await mounted(el, b, { hydrate: true, externs: { 'p:accordion@1': draw } });
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(el.querySelector('[data-mkp-extern="p:accordion@1"] .mkp-extern-slot')!.textContent).toBe('Inside: 0');
   });
 });
 

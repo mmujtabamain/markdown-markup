@@ -94,6 +94,8 @@ export interface VNode {
   layers?: VLayer[];
   /** source map (12.1): the definition (or document) and the [line, col] this node was written at */
   src?: [string, number, number];
+  /** an extern's id (pack:name@N), for a host that draws it with its own component */
+  ext?: string;
 }
 
 export function walk(nodes: VNode[], f: (n: VNode) => void): void {
