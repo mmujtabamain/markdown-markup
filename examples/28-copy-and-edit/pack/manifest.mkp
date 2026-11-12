@@ -1,3 +1,0 @@
-pack scores@1 "A small library for showing scores."
-  requires core@1
-  provides tally

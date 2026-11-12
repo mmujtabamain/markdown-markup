@@ -1,3 +1,0 @@
-{ "widget": "controlset@1", "cases": {
-  "played": { "summary": "Every control.", "play": [{ "press": "s.play" }, { "press": "n.play" }, { "wait": 1500 }, { "press": "t" }, { "press": "c.blue" }] }
-} }

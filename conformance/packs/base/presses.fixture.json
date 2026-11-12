@@ -1,3 +1,0 @@
-{ "widget": "presses@1", "cases": {
-  "pressed": { "summary": "Every kind of press.", "play": [{ "press": "main" }, { "press": "main" }, { "press": "main" }] }
-} }

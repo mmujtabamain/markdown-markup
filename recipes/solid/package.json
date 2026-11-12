@@ -1,8 +1,0 @@
-{
-  "name": "mkp-recipe-solid",
-  "private": true,
-  "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
-  "dependencies": { "solid-js": "1.9.18" },
-  "devDependencies": { "vite": "8.3.6", "vite-plugin-solid": "2.11.15" }
-}

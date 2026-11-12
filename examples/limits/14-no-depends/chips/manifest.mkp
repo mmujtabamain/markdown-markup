@@ -1,3 +1,0 @@
-pack chips@1 "Chips."
-  requires core@1
-  provides chip

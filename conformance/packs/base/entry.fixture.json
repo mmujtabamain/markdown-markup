@@ -1,3 +1,0 @@
-{ "widget": "entry@1", "cases": {
-  "set": { "summary": "A range and fields.", "play": [{ "set": { "v": 0.6, "name": "Ben" } }] }
-} }

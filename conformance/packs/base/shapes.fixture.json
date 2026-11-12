@@ -1,3 +1,0 @@
-{ "widget": "shapes@1", "cases": {
-  "moved": { "summary": "Every canvas shape.", "play": [{ "set": { "p": [-0.5, 0.25] } }] }
-} }

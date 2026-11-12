@@ -1,4 +1,0 @@
-{ "widget": "boxes@1", "cases": {
-  "narrow-grid": { "summary": "Every container prop." },
-  "wide-grid": { "props": { "wide": true }, "summary": "With four equal columns." }
-} }

@@ -1,7 +1,0 @@
-{
-  "name": "mkp-recipe-astro",
-  "private": true,
-  "type": "module",
-  "scripts": { "dev": "astro dev", "build": "astro build" },
-  "dependencies": { "astro": "7.4.7" }
-}

@@ -1,3 +1,0 @@
-pack scoreboard@1 "A made-up host that adds up the scores of every widget that offers one."
-  requires core@1
-  provides scored

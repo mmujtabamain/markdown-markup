@@ -1,8 +1,0 @@
-{
-  "name": "mkp-recipe-vue",
-  "private": true,
-  "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
-  "dependencies": { "vue": "3.5.45" },
-  "devDependencies": { "@vitejs/plugin-vue": "6.0.10", "vite": "8.3.6" }
-}

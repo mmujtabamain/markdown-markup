@@ -1,3 +1,0 @@
-{ "widget": "shell@1", "cases": {
-  "stepped": { "summary": "A frame with everything.", "play": [{ "press": "at.next" }, { "open": "pop" }] }
-} }

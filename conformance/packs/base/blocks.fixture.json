@@ -1,5 +1,0 @@
-{ "widget": "blocks@1", "cases": {
-  "all": { "summary": "Every Markdown block." },
-  "level-five": { "props": { "level": 5 }, "summary": "With a level-five heading." },
-  "too-deep": { "props": { "level": 7 }, "expect": { "errors": ["mkp.input-range"] } }
-} }
