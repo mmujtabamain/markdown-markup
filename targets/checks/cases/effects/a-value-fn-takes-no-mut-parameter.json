@@ -1,0 +1,10 @@
+{
+  "id": "effects.a-value-fn-takes-no-mut-parameter",
+  "about": "a fn that returns a value can't take a mut parameter",
+  "source": "a-value-fn-takes-no-mut-parameter.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.mut-parameter-on-value-fn", "line": 3, "column": 13}
+    ]
+  }
+}

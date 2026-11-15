@@ -1,0 +1,12 @@
+package t;
+
+fn sorted_copy(xs: list<number>): list<number> {
+    mut out: list<number> = xs;
+    out.sort();
+    out.add(0);
+    mut total: number = 0;
+    for (x in xs) {
+        total = total + x;
+    }
+    return out;
+}

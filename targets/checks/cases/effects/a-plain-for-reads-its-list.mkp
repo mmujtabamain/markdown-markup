@@ -1,0 +1,14 @@
+package t;
+
+fn doubled(mut xs: list<number>) {
+    for (x in xs) {
+        xs.add(x);
+    }
+    mut total: number = 0;
+    for (x in xs) {
+        total = total + x;
+    }
+    for (k, x in xs) {
+        xs[k] = x * 2;
+    }
+}

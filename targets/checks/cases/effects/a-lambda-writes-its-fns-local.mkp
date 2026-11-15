@@ -1,0 +1,9 @@
+package t;
+
+fn counter(): number {
+    mut n: number = 0;
+    let bump: fn() = fn() {
+        n = n + 1;
+    };
+    return n;
+}

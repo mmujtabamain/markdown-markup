@@ -1,0 +1,17 @@
+package t;
+
+record pair {
+    a: number;
+    b: number;
+}
+
+fn set_a(mut p: pair, v: number) {
+    p = p with { a = v };
+}
+
+fn mixed() {
+    mut p: pair = pair { a = 1, b = 2 };
+    set_a(p, p.b);
+    let b: number = p.b;
+    set_a(p, b);
+}

@@ -1,0 +1,16 @@
+package t;
+
+fn bump_at(mut xs: list<number>, i: int) {
+    if (mut x: number = xs[i]) {
+        x = x + 1;
+    }
+}
+
+fn bumped(i: int): list<number> {
+    mut xs: list<number> = [1, 2];
+    bump_at(xs, i);
+    if (mut y: number = xs[0]) {
+        y = 0;
+    }
+    return xs;
+}

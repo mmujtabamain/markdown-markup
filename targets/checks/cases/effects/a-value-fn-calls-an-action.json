@@ -1,0 +1,10 @@
+{
+  "id": "effects.a-value-fn-calls-an-action",
+  "about": "a fn that returns a value can't call an action, except on its own mut locals",
+  "source": "a-value-fn-calls-an-action.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.action-where-nothing-changes", "line": 10, "column": 5}
+    ]
+  }
+}

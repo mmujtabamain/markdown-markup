@@ -1,0 +1,22 @@
+package t;
+
+widget dial() {
+    mut turns: int = 0;
+
+    fn caption(): text {
+        turns = turns + 1;
+        return "\{turns}";
+    }
+
+    fn turn() {
+        turns = turns + 1;
+    }
+
+    view {
+        @label(value = caption());
+        @press(label = "Turn", click = turn);
+    }
+    markdown {
+        Dial
+    }
+}

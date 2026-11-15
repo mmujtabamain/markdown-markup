@@ -1,0 +1,8 @@
+{
+  "id": "effects.an-action-writes-through-mut-for",
+  "about": "an action writes the real item through mut for and if (mut …), and may remove it (page 2's sweep)",
+  "source": "an-action-writes-through-mut-for.mkp",
+  "expect": {
+    "diagnostics": []
+  }
+}

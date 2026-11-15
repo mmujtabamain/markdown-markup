@@ -1,0 +1,11 @@
+{
+  "id": "effects.a-plain-for-reads-its-list",
+  "about": "a plain for can't change the list it walks or its items",
+  "source": "a-plain-for-reads-its-list.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.for-changes-its-list", "line": 5, "column": 9},
+      {"code": "effects.for-changes-its-list", "line": 12, "column": 9}
+    ]
+  }
+}

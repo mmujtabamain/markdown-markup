@@ -1,0 +1,21 @@
+package t;
+
+widget ask() {
+    event solved();
+
+    fn check(): bool {
+        invoke solved();
+        return true;
+    }
+
+    fn done() {
+        invoke solved();
+    }
+
+    view {
+        @press(label = "Done", click = done);
+    }
+    markdown {
+        Ask
+    }
+}

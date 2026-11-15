@@ -1,0 +1,9 @@
+package t;
+
+fn grow(mut xs: list<number>): number {
+    return xs.len();
+}
+
+fn add_one(mut xs: list<number>) {
+    xs.add(1);
+}

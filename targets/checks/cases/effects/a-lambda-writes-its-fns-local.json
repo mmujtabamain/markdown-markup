@@ -1,0 +1,10 @@
+{
+  "id": "effects.a-lambda-writes-its-fns-local",
+  "about": "a lambda can't assign a mut local of the fn it is written in",
+  "source": "a-lambda-writes-its-fns-local.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.lambda-writes-outer-local", "line": 6, "column": 9}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "effects.one-value-one-mut",
+  "about": "a variable given to a mut parameter can't also be given, or a part of it, to another parameter of the same call",
+  "source": "one-value-one-mut.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.one-value-one-mut", "line": 14, "column": 14}
+    ]
+  }
+}

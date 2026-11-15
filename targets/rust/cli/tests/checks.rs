@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 /// The passes that exist, by the prefix of the codes they report.
-const PASSES: &[&str] = &["syntax.", "file.", "widget.", "prose.", "doc.", "layout.", "fmt.", "names.", "views.", "types.", "contracts."];
+const PASSES: &[&str] = &["syntax.", "file.", "widget.", "prose.", "doc.", "layout.", "fmt.", "names.", "views.", "types.", "contracts.", "effects."];
 
 fn cases_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../checks/cases")
