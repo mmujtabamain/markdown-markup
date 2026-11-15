@@ -28,11 +28,15 @@ let check_overlap: bool = range.overlap(1..10, 5..20).or(0..0) == 5..10 && range
 let check_span: bool = range.span(1..3, 7..9) == 1..9;
 let check_ends: bool = (1..10).low().or(0) == 1 && (1...).high() == opt.NONE;
 
-fn bumped(i: int): list<number> {
-    mut xs: list<number> = [1, 2];
+fn bump_at(mut xs: list<number>, i: int) {
     if (mut x: number = xs[i]) {
         x = x + 1;
     }
+}
+
+fn bumped(i: int): list<number> {
+    mut xs: list<number> = [1, 2];
+    bump_at(xs, i);
     return xs;
 }
 

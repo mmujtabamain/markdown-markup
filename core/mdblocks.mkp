@@ -10,7 +10,8 @@ fn md.from(value: template): opt<md> {
     }
     for (round in 0..200) {
         if (p.nodes.len() > 0 && mb_open(p.nodes, 0)) {
-            p.finalize(p.tip);
+            let tip: number = p.tip;
+            p.finalize(tip);
         }
     }
     let links: map<text> = map { entries = p.links };
@@ -86,6 +87,9 @@ record mb_parser {
     mut all_closed: bool = true;
     mut last_matched: number = 0;
     mut links: list<{ key: text, value: text }> = [];
+    // what the last of continues and block_start found, and what take_link_defs left
+    mut answer: number = 0;
+    mut left: text = "";
 }
 
 // What turning blocks into md's blocks gave: the blocks, the next hole, and whether every inline read worked. Private to core
@@ -214,7 +218,8 @@ fn mb_can_contain(parent: text, child: text): bool {
 fn mb_parser.child(mut self, node: mb_node) {
     for (round in 0..64) {
         if (!mb_can_contain(mb_kind(self.nodes, self.tip), node.kind)) {
-            self.finalize(self.tip);
+            let tip: number = self.tip;
+            self.finalize(tip);
         }
     }
     let id: number = self.nodes.len();
@@ -235,7 +240,8 @@ fn mb_parser.close_unmatched(mut self) {
             if (self.old_tip != self.last_matched) {
                 if (let n: mb_node = self.nodes[self.old_tip]) {
                     let parent: number = n.parent;
-                    self.finalize(self.old_tip);
+                    let old: number = self.old_tip;
+                    self.finalize(old);
                     self.old_tip = parent;
                 }
             }
@@ -245,10 +251,11 @@ fn mb_parser.close_unmatched(mut self) {
 }
 
 // 0: the open block goes on, 1: it doesn't, 2: the line is used up (a closing fence). Private to core
-fn mb_parser.continues(mut self, k: number): number {
+fn mb_parser.continues(mut self, k: number) {
     let n: mb_node = self.nodes[k].or(mb_node { kind = "", parent = -1 });
     if (n.kind == "document" || n.kind == "list") {
-        return 0;
+        self.answer = 0;
+        return;
     }
     if (n.kind == "quote") {
         if (!self.indented && self.peek(self.next_nonspace) == ">") {
@@ -257,44 +264,55 @@ fn mb_parser.continues(mut self, k: number): number {
             if (mb_is_space_or_tab(self.peek(self.offset))) {
                 self.advance_offset(1, true);
             }
-            return 0;
+            self.answer = 0;
+            return;
         }
-        return 1;
+        self.answer = 1;
+        return;
     }
     if (n.kind == "item") {
         if (self.blank) {
             if (n.children.len() == 0) {
-                return 1;
+                self.answer = 1;
+                return;
             }
             self.advance_next_nonspace();
-            return 0;
+            self.answer = 0;
+            return;
         }
         if (self.indent >= n.marker_offset + n.padding) {
             self.advance_offset(n.marker_offset + n.padding, true);
-            return 0;
+            self.answer = 0;
+            return;
         }
-        return 1;
+        self.answer = 1;
+        return;
     }
     if (n.kind == "footnote") {
         if (self.blank) {
             self.advance_next_nonspace();
-            return 0;
+            self.answer = 0;
+            return;
         }
         if (self.indent >= 4) {
             self.advance_offset(4, true);
-            return 0;
+            self.answer = 0;
+            return;
         }
-        return 1;
+        self.answer = 1;
+        return;
     }
     if (n.kind == "heading" || n.kind == "thematic") {
-        return 1;
+        self.answer = 1;
+        return;
     }
     if (n.kind == "code" && n.fenced) {
         let rest: text = self.rest(self.next_nonspace);
         let run: number = md_run(self.line, self.next_nonspace, n.fence_char);
         if (self.indent <= 3 && run >= n.fence_len && run > 0 && rest.slice(md_pos(run), rest.len()).trim() == "") {
             self.finalize(k);
-            return 2;
+            self.answer = 2;
+            return;
         }
         mut i: number = n.fence_offset;
         for (round in 1..(n.fence_offset)) {
@@ -303,26 +321,33 @@ fn mb_parser.continues(mut self, k: number): number {
                 i = i - 1;
             }
         }
-        return 0;
+        self.answer = 0;
+        return;
     }
     if (n.kind == "code") {
         if (self.indent >= 4) {
             self.advance_offset(4, true);
-            return 0;
+            self.answer = 0;
+            return;
         }
         if (self.blank) {
             self.advance_next_nonspace();
-            return 0;
+            self.answer = 0;
+            return;
         }
-        return 1;
+        self.answer = 1;
+        return;
     }
     if (n.kind == "html") {
-        return self.blank && (n.html == 6 || n.html == 7) ? 1 : 0;
+        self.answer = self.blank && (n.html == 6 || n.html == 7) ? 1 : 0;
+        return;
     }
     if (n.kind == "paragraph" || n.kind == "table") {
-        return self.blank ? 1 : 0;
+        self.answer = self.blank ? 1 : 0;
+        return;
     }
-    return 1;
+    self.answer = 1;
+    return;
 }
 
 fn mb_parser.incorporate(mut self, ln: text) {
@@ -340,7 +365,8 @@ fn mb_parser.incorporate(mut self, ln: text) {
         if (matching && last >= 0 && mb_open(self.nodes, last)) {
             container = last;
             self.find_next_nonspace();
-            let r: number = self.continues(container);
+            self.continues(container);
+            let r: number = self.answer;
             if (r == 1) {
                 if (let n: mb_node = self.nodes[container]) {
                     container = n.parent;
@@ -365,7 +391,8 @@ fn mb_parser.incorporate(mut self, ln: text) {
                 self.advance_next_nonspace();
                 matched_leaf = true;
             } else {
-                let r: number = self.block_start(container);
+                self.block_start(container);
+                let r: number = self.answer;
                 if (r == 0) {
                     self.advance_next_nonspace();
                     matched_leaf = true;
@@ -452,7 +479,7 @@ fn mb_fenced(nodes: list<mb_node>, k: number): bool {
 }
 
 // 0: no block starts here, 1: a container started, 2: a leaf started. Private to core
-fn mb_parser.block_start(mut self, container: number): number {
+fn mb_parser.block_start(mut self, container: number) {
     let c: text = self.peek(self.next_nonspace);
     let rest: text = self.rest(self.next_nonspace);
     let ckind: text = mb_kind(self.nodes, container);
@@ -465,7 +492,8 @@ fn mb_parser.block_start(mut self, container: number): number {
         }
         self.close_unmatched();
         self.child(mb_node { kind = "quote", parent = 0 });
-        return 1;
+        self.answer = 1;
+        return;
     }
     // ATX heading
     if (!self.indented && c == "#") {
@@ -486,7 +514,8 @@ fn mb_parser.block_start(mut self, container: number): number {
                 self.child(mb_node { kind = "heading", parent = 0, level = hashes, content = text_part });
             }
             self.advance_offset(self.line.len() - self.offset, false);
-            return 2;
+            self.answer = 2;
+            return;
         }
     }
     // fenced code
@@ -499,7 +528,8 @@ fn mb_parser.block_start(mut self, container: number): number {
             self.advance_next_nonspace();
             self.advance_offset(run, false);
             self.advance_offset(self.line.len() - self.offset, false);
-            return 2;
+            self.answer = 2;
+            return;
         }
     }
     // HTML block
@@ -508,7 +538,8 @@ fn mb_parser.block_start(mut self, container: number): number {
             if (mb_html_start(kind, rest) && (kind < 7 || (ckind != "paragraph" && !(!self.all_closed && !self.blank && mb_kind(self.nodes, self.tip) == "paragraph")))) {
                 self.close_unmatched();
                 self.child(mb_node { kind = "html", parent = 0, html = kind });
-                return 2;
+                self.answer = 2;
+                return;
             }
         }
     }
@@ -518,7 +549,8 @@ fn mb_parser.block_start(mut self, container: number): number {
         if (t != "" && mb_trim_end_char(t, c) == "") {
             self.close_unmatched();
             let content: text = self.nodes[container].or(mb_node { kind = "", parent = -1 }).content;
-            let left: text = self.take_link_defs(content);
+            self.take_link_defs(content);
+            let left: text = self.left;
             if (mut n: mb_node = self.nodes[container]) {
                 if (left.trim() != "") {
                     n.kind = "heading";
@@ -526,7 +558,8 @@ fn mb_parser.block_start(mut self, container: number): number {
                     n.setext = true;
                     n.content = left;
                     self.advance_offset(self.line.len() - self.offset, false);
-                    return 2;
+                    self.answer = 2;
+                    return;
                 }
                 n.content = left;
             }
@@ -537,7 +570,8 @@ fn mb_parser.block_start(mut self, container: number): number {
         self.close_unmatched();
         self.child(mb_node { kind = "thematic", parent = 0 });
         self.advance_offset(self.line.len() - self.offset, false);
-        return 2;
+        self.answer = 2;
+        return;
     }
     // a table's delimiter row, under a one-line paragraph
     if (!self.indented && ckind == "paragraph") {
@@ -555,7 +589,8 @@ fn mb_parser.block_start(mut self, container: number): number {
                     n.content = "";
                 }
                 self.advance_offset(self.line.len() - self.offset, false);
-                return 2;
+                self.answer = 2;
+                return;
             }
         }
     }
@@ -572,7 +607,8 @@ fn mb_parser.block_start(mut self, container: number): number {
                 if (mb_is_space_or_tab(self.peek(self.offset))) {
                     self.advance_offset(1, true);
                 }
-                return 1;
+                self.answer = 1;
+                return;
             }
         }
     }
@@ -620,16 +656,19 @@ fn mb_parser.block_start(mut self, container: number): number {
             self.advance_offset(4, false);
         }
         self.child(mb_node { kind = "item", parent = 0, marker_offset = marker_offset, padding = padding, done = done });
-        return 1;
+        self.answer = 1;
+        return;
     }
     // indented code
     if (self.indented && mb_kind(self.nodes, self.tip) != "paragraph" && !self.blank) {
         self.advance_offset(4, true);
         self.close_unmatched();
         self.child(mb_node { kind = "code", parent = 0 });
-        return 2;
+        self.answer = 2;
+        return;
     }
-    return 0;
+    self.answer = 0;
+    return;
 }
 
 //@about A list marker: its length (0 for none), and the list it starts. Private to core
@@ -693,7 +732,8 @@ fn mb_parser.finalize(mut self, k: number) {
         x.open = false;
     }
     if (n.kind == "paragraph") {
-        let left: text = self.take_link_defs(n.content);
+        self.take_link_defs(n.content);
+        let left: text = self.left;
         if (mut x: mb_node = self.nodes[k]) {
             x.content = left;
         }
@@ -757,8 +797,8 @@ fn mb_tight(nodes: list<mb_node>, list: number): bool {
     return true;
 }
 
-// Takes the link reference definitions off the start of a paragraph's text. Private to core
-fn mb_parser.take_link_defs(mut self, content: text): text {
+// Takes the link reference definitions off the start of a paragraph's text, leaving the rest in left. Private to core
+fn mb_parser.take_link_defs(mut self, content: text) {
     let cs: list<text> = content.chars();
     mut at: number = 0;
     mut going: bool = true;
@@ -778,7 +818,8 @@ fn mb_parser.take_link_defs(mut self, content: text): text {
             going = false;
         }
     }
-    return md_join(cs, at, cs.len());
+    self.left = md_join(cs, at, cs.len());
+    return;
 }
 
 //@about A link reference definition read from a paragraph: where it ends (at its start for none), its label and its destination. Private to core
