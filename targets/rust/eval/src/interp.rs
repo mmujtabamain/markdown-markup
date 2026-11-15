@@ -268,6 +268,16 @@ impl<'p> Machine<'p> {
         self.frame().owner
     }
 
+    /// Works out an expression with these locals, inside the widget instance `owner`: how a
+    /// runtime or the Markdown writer reads a node's values.
+    pub fn eval_in(&mut self, locals: &[(Rc<str>, Value)], owner: Option<u64>, e: &Expr) -> R<Value> {
+        let vars = locals.iter().map(|(n, v)| (n.clone(), Binding::Value(v.clone()))).collect();
+        self.frames.push(Frame { vars, owner });
+        let out = self.eval(e);
+        self.frames.pop();
+        out
+    }
+
     fn bind(&mut self, name: &str, b: Binding) {
         self.frames.last_mut().unwrap().vars.push((Rc::from(name), b));
     }
@@ -714,7 +724,8 @@ impl<'p> Machine<'p> {
                 for (k, x) in &v.args {
                     args.insert(k.clone(), self.eval(x)?);
                 }
-                Value::View(Rc::new(ViewValue { widget: Rc::from(v.widget.as_str()), args, slots: v.slots.clone(), events: v.events.clone(), exprs: v.args.clone() }))
+                let captured = self.frame().vars.clone();
+                Value::View(Rc::new(ViewValue { widget: Rc::from(v.widget.as_str()), args, slots: v.slots.clone(), events: v.events.clone(), exprs: v.args.clone(), captured, owner: self.owner() }))
             }
             Expr::Get(g) => self.get(g)?,
             Expr::Bind(id) => return Err(Failure::new(FailKind::NotConstant, format!("binding {} is worked out when the page runs", id))),

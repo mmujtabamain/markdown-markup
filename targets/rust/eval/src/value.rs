@@ -88,6 +88,10 @@ pub struct ViewValue {
     pub slots: BTreeMap<String, Vec<Node>>,
     pub events: BTreeMap<String, String>,
     pub exprs: BTreeMap<String, Expr>,
+    /// The locals where it was made, which its slots' nodes read, as a lambda's body does.
+    pub captured: Vec<(Rc<str>, crate::interp::Binding)>,
+    /// The widget instance it was made in, for its cells and inputs.
+    pub owner: Option<u64>,
 }
 
 impl Value {
