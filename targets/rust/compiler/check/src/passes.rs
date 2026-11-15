@@ -131,7 +131,7 @@ impl Checker {
             fns: Vec::new(),
             view: nodes.clone(),
             markdown: nodes,
-            level: ir::Level::CoreLive,
+            levels: Vec::new(),
         });
     }
 

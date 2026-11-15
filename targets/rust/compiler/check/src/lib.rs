@@ -9,6 +9,7 @@ mod body;
 mod decl;
 mod effects;
 mod fit;
+pub mod levels;
 mod passes;
 pub mod proof;
 pub mod ty;
@@ -58,6 +59,10 @@ pub mod codes {
     pub const VIEW_NEEDS_AT: &str = "views.view-needs-at";
     pub const EMPTY_MARKDOWN: &str = "widget.markdown-empty";
     pub const OPT_HOLE: &str = "prose.opt-hole";
+    pub const MD_HOLE: &str = "prose.md-in-hole";
+    pub const SLOT_TYPE: &str = "views.slot-takes-its-type";
+    pub const SLOT_LENGTH: &str = "views.slot-length";
+    pub const BUILT_MARKDOWN: &str = "widget.built-markdown-reads-a-variable";
     pub const NEEDS_PROOF: &str = "contracts.needs-proof";
     pub const OUTSIDE: &str = "contracts.outside";
     pub const LENGTH_CHANGE: &str = "contracts.length-change";

@@ -431,7 +431,8 @@ impl Checker {
                     })));
                 }
                 DefKind::Widget { external: true, inputs, slots, events } => {
-                    let level = if def.pack == "core" && ["canvas", "layer", "circle", "path", "place", "handle", "shade"].contains(&def.name.as_str()) { ir::Level::CoreGfx } else { ir::Level::CoreDraw };
+                    // page 6: core.gfx draws the canvas and what goes on one; every other widget is core.draw's
+                    let levels = if def.pack == "core" && ["canvas", "layer", "circle", "path", "place", "handle", "shade"].contains(&def.name.as_str()) { vec![ir::Level::CoreGfx] } else { vec![ir::Level::CoreDraw] };
                     decls.push(decl(ir::Decl::Extern(ir::Extern::Widget(ir::ExternWidget {
                         name: def.full.clone(),
                         generics: self.ir_generics(&def.generics),
@@ -439,7 +440,7 @@ impl Checker {
                         slots: slots.iter().map(|s| ir::Slot { name: s.name.clone(), ty: s.ir.clone() }).collect(),
                         events: events.iter().map(|e| ir::Event { name: e.name.clone(), params: self.ir_params(&e.params) }).collect(),
                         markdown: out.extern_markdown.get(&d).cloned().unwrap_or_default(),
-                        level,
+                        levels,
                         supplier: self.supplier(&def.pack),
                     }))));
                 }
@@ -503,17 +504,19 @@ impl Checker {
         }
         let core_needs: Vec<String> = self.defs.iter().filter(|d| d.pack == "core" && matches!(d.kind, DefKind::Widget { external: true, .. })).map(|d| d.full.clone()).collect();
         let app_needs: Vec<String> = self.channels.iter().filter(|c| c.pack == self.module).flat_map(|c| c.fns.iter().map(move |f| format!("{}.{}", c.full, f.0))).collect();
-        ir::Module {
+        let mut m = ir::Module {
             version: 3,
             mkp: env!("CARGO_PKG_VERSION").to_string(),
             module: self.module.clone(),
-            level: ir::Level::CoreLive,
+            levels: Vec::new(),
             needs: ir::Needs { core: core_needs, packs: Vec::new(), app: app_needs },
             declarations: decls,
             templates,
             bindings: Vec::new(),
             handlers: std::mem::take(&mut self.handlers),
-        }
+        };
+        crate::levels::compute(&mut m);
+        m
     }
 
     /// Whether a fn is an interface's own member (sent to each type's fn), not one added to it.

@@ -215,13 +215,13 @@ impl Checker {
         let full = self.defs[d].full.clone();
         let external = matches!(self.defs[d].kind, DefKind::Widget { external: true, .. });
         if external {
-            vec![ir::Node::Extern(ir::NodeExtern { name: full, site, props: parts.props, slots: parts.slots, events: parts.events, writes: parts.places, level: None, fallback: Vec::new() })]
+            vec![ir::Node::Extern(ir::NodeExtern { name: full, site, props: parts.props, slots: parts.slots, events: parts.events, writes: parts.places, levels: Vec::new(), fallback: Vec::new() })]
         } else {
             let mut args = parts.props;
             for (k, p) in parts.places {
                 args.insert(k, ir::Expr::Place(p));
             }
-            vec![ir::Node::Use(ir::NodeUse { name: full, site, args, slots: parts.slots, events: parts.events, level: None, fallback: Vec::new() })]
+            vec![ir::Node::Use(ir::NodeUse { name: full, site, args, slots: parts.slots, events: parts.events, levels: Vec::new(), fallback: Vec::new() })]
         }
     }
 
@@ -311,8 +311,11 @@ impl Checker {
                 self.error(file, codes::MISSING_INPUT, call.name.span, format!("`{}` needs its input `{}`", wname, i.name));
             }
         }
-        for (name, block, _) in slot_blocks {
+        for (name, block, at) in slot_blocks {
             let nodes = self.view_nodes(cx, &block);
+            if let Some(s) = slots.iter().find(|s| s.name == name) {
+                self.check_slot(file, &wname, s, &nodes, at);
+            }
             parts.slots.insert(name, nodes);
         }
         parts
@@ -366,6 +369,7 @@ impl Checker {
         let mut fns = Vec::new();
         let mut view = Vec::new();
         let mut markdown = None;
+        let mut view_ast: Option<(Cx, ast::Block)> = None;
         let mut prefix: Vec<ir::Node> = Vec::new();
         // own variables, lets and fns first, so the view sees them all
         for m in body.iter() {
@@ -459,6 +463,7 @@ impl Checker {
                 ast::WidgetMember::View(b) => {
                     let mut c = cx.clone();
                     view = self.view_nodes(&mut c, b);
+                    view_ast = Some((c, b.clone()));
                 }
                 ast::WidgetMember::Markdown(md) => {
                     if md.empty {
@@ -478,6 +483,13 @@ impl Checker {
             }
             return;
         }
+        // a document's widget may leave its markdown out: it is built from the view (page 1)
+        if markdown.is_none() {
+            if let Some((c, b)) = &view_ast {
+                self.warn_built_markdown(c, &b.stmts);
+            }
+            markdown = Some(view.clone());
+        }
         let mut full_view = prefix.clone();
         full_view.extend(view);
         let mut md = prefix;
@@ -493,7 +505,7 @@ impl Checker {
             fns,
             view: full_view,
             markdown: md,
-            level: ir::Level::CoreDraw,
+            levels: Vec::new(),
         };
         self.out.templates.push((d, t));
     }
@@ -749,6 +761,9 @@ impl Checker {
                 let k = c as usize - 0xE000;
                 if let Some((x, ty, span)) = holes.get(k) {
                     let ty = self.vars.resolve(ty);
+                    if matches!(&ty, Ty::Def(d, _) if self.defs[*d].full == "core/md") {
+                        self.error(cx.file, codes::MD_HOLE, *span, "an `md` holds blocks, so it goes in no hole: place its blocks with `@blocks(value = …);`");
+                    }
                     if let Ty::Opt(_) = ty {
                         self.error(cx.file, codes::OPT_HOLE, *span, "a paragraph takes rich_text, not an opt: give this hole a fallback, `\\{x.or(…)}`, or open it first with `@if (let …)`");
                     }
@@ -795,7 +810,7 @@ fn extern_node(name: &str, site: String, props: Vec<(&str, ir::Expr)>, slots: BT
         slots,
         events: BTreeMap::new(),
         writes: BTreeMap::new(),
-        level: None,
+        levels: Vec::new(),
         fallback: Vec::new(),
     })
 }
@@ -811,4 +826,165 @@ struct Parts {
     places: BTreeMap<String, ir::Place>,
     slots: BTreeMap<String, Vec<ir::Node>>,
     events: BTreeMap<String, String>,
+}
+
+// ---- slots' types and lengths, and a document widget's built Markdown
+
+impl Checker {
+    /// A slot with a widget type takes only calls of that type, through `for`, `if` and `match`;
+    /// a length contract is checked here when the children are written out one by one.
+    pub(crate) fn check_slot(&mut self, file: usize, widget: &str, slot: &crate::SlotSym, nodes: &[ir::Node], at: Span) {
+        // the element type: a list's items, an opt's inside
+        let mut el = &slot.ir;
+        if matches!(el.name.as_str(), "core/list" | "core/opt") {
+            if let Some(a) = el.args.first() {
+                el = a;
+            }
+        }
+        let want: Option<(String, Option<DefId>)> = match el.name.as_str() {
+            "core/view" => None,
+            "any" => el.interface.clone().map(|i| (i.clone(), self.defs.iter().position(|d| d.full == i))),
+            name => self.defs.iter().any(|d| d.full == name && matches!(d.kind, DefKind::Widget { .. })).then(|| (name.to_string(), None)),
+        };
+        let mut calls = Vec::new();
+        let mut one_by_one = true;
+        collect_calls(nodes, &mut calls, &mut one_by_one);
+        if let Some((name, iface)) = &want {
+            for c in &calls {
+                let ok = match (c, iface) {
+                    (Some(called), Some(i)) => match self.defs.iter().position(|d| d.full == *called) {
+                        Some(w) => self.accepts(&Ty::Any(*i, Vec::new()), &Ty::Def(w, self.defs[w].generics.iter().map(|_| Ty::Err).collect()), &[]).is_some(),
+                        None => false,
+                    },
+                    (Some(called), None) => called == name,
+                    (None, _) => false,
+                };
+                if !ok {
+                    let short = name.rsplit('/').next().unwrap_or(name);
+                    let what = match c {
+                        Some(called) => format!("`{}`", called.rsplit('/').next().unwrap_or(called)),
+                        None => "text or a view held in a value".into(),
+                    };
+                    let takes = if iface.is_some() { format!("widgets that fit `{}`", short) } else { format!("`{}` widgets", short) };
+                    self.error(file, codes::SLOT_TYPE, at, format!("`{}`'s slot `{}` takes only {}, with `for`, `if` and `match` around them; {} can't go there", widget, slot.name, takes, what));
+                    break;
+                }
+            }
+        }
+        // a length, when the children are written out one by one
+        if one_by_one && slot.ir.name == "core/list" {
+            if let Some(len) = slot.ir.contract.as_ref().and_then(|c| c.length.clone()) {
+                let n = calls.len() as i64;
+                let num = |x: &Option<ir::Expr>| match x {
+                    Some(ir::Expr::Num(t)) => t.parse::<i64>().ok(),
+                    _ => None,
+                };
+                let (lo, hi) = (num(&len.low), num(&len.high));
+                if lo.map_or(false, |l| n < l) || hi.map_or(false, |h| n > h) {
+                    let shown = crate::proof::show_contract(&slot.ir);
+                    self.error(file, codes::SLOT_LENGTH, at, format!("`{}`'s slot `{}` is a {}, and {} {} written here", widget, slot.name, shown, n, if n == 1 { "is" } else { "are" }));
+                }
+            }
+        }
+    }
+
+    /// A document widget with no `markdown` block: whether its view's branches read a variable,
+    /// which its built Markdown, written with the starting values, can't follow.
+    pub(crate) fn warn_built_markdown(&mut self, cx: &Cx, stmts: &[ast::Node<ast::Stmt>]) {
+        for s in stmts {
+            match &s.item {
+                ast::Stmt::If(i) => {
+                    for (c, b) in &i.branches {
+                        let e = match c {
+                            ast::Cond::Expr(e) => e,
+                            ast::Cond::Open { value, .. } => value,
+                        };
+                        if self.reads_variable(cx, e) {
+                            self.warning(cx.file, codes::BUILT_MARKDOWN, e.span, "this branch reads a variable, and the widget's Markdown is built from its view with the starting values: write a `markdown` block to say what it is either way");
+                        }
+                        self.warn_built_markdown(cx, &b.stmts);
+                    }
+                    if let Some(b) = &i.otherwise {
+                        self.warn_built_markdown(cx, &b.stmts);
+                    }
+                }
+                ast::Stmt::Match(m) => {
+                    if self.reads_variable(cx, &m.subject) {
+                        self.warning(cx.file, codes::BUILT_MARKDOWN, m.span, "this match reads a variable, and the widget's Markdown is built from its view with the starting values: write a `markdown` block to say what it is either way");
+                    }
+                    for c in m.cases.iter() {
+                        self.warn_built_markdown(cx, &c.body.stmts);
+                    }
+                }
+                ast::Stmt::For(f) => self.warn_built_markdown(cx, &f.body.stmts),
+                ast::Stmt::Expr(ast::Expr { kind: ast::ExprKind::View(v), .. }) => match &v.block {
+                    Some(ast::CallBlock::Children(b)) => self.warn_built_markdown(cx, &b.stmts),
+                    Some(ast::CallBlock::Named(body)) => {
+                        for entry in body.iter() {
+                            if let ast::NamedEntry::Slot { block, .. } = entry {
+                                self.warn_built_markdown(cx, &block.stmts);
+                            }
+                        }
+                    }
+                    None => {}
+                },
+                _ => {}
+            }
+        }
+    }
+
+    /// Whether an expression reads `$state`, the widget's own variable or a `mut` input.
+    fn reads_variable(&self, cx: &Cx, e: &ast::Expr) -> bool {
+        use ast::ExprKind as E;
+        let r = |x: &ast::Expr| self.reads_variable(cx, x);
+        match &e.kind {
+            E::State => true,
+            E::Name(n) => cx.local(&n.name).is_none() && cx.widget.as_ref().map_or(false, |w| w.cells.iter().any(|c| c.0 == n.name) || w.inputs.iter().any(|i| i.0 == n.name && i.2)),
+            E::Paren(x) | E::Try(x) => r(x),
+            E::Field { target, .. } => r(target),
+            E::Index { target, index } => r(target) || r(index),
+            E::Call { callee, args } => r(callee) || args.iter().any(|a| r(&a.value)),
+            E::Case { target, args, .. } => r(target) || args.as_ref().map_or(false, |a| a.iter().any(|x| r(&x.value))),
+            E::With { target, inits } => r(target) || inits.iter().any(|i| r(&i.value)),
+            E::Record { inits, .. } => inits.iter().any(|i| r(&i.value)),
+            E::List(items) => items.iter().any(|x| r(x)),
+            E::Unary { operand, .. } => r(operand),
+            E::Binary { left, right, .. } => r(left) || r(right),
+            E::Ternary { cond, then, otherwise } => r(cond) || r(then) || r(otherwise),
+            E::Range { low, high, step } => [low, high, step].iter().any(|x| x.as_ref().map_or(false, |x| r(x))),
+            E::Text(t) => t.parts.iter().any(|p| matches!(p, ast::TextPart::Hole(h) if r(h))),
+            _ => false,
+        }
+    }
+}
+
+/// The calls a slot is filled with, through loops and branches; `None` for anything that isn't
+/// a call. Whether they are written out one by one, with no loop or branch around them.
+fn collect_calls(nodes: &[ir::Node], out: &mut Vec<Option<String>>, one_by_one: &mut bool) {
+    for n in nodes {
+        match n {
+            ir::Node::Extern(e) => out.push(Some(e.name.clone())),
+            ir::Node::Use(u) => out.push(Some(u.name.clone())),
+            ir::Node::Place(_) => out.push(None),
+            ir::Node::For(f) => {
+                *one_by_one = false;
+                collect_calls(&f.body, out, one_by_one);
+            }
+            ir::Node::If(i) => {
+                *one_by_one = false;
+                for b in &i.branches {
+                    collect_calls(&b.then, out, one_by_one);
+                }
+                collect_calls(&i.else_, out, one_by_one);
+            }
+            ir::Node::Match(m) => {
+                *one_by_one = false;
+                for c in &m.cases {
+                    collect_calls(&c.then, out, one_by_one);
+                }
+                collect_calls(&m.else_, out, one_by_one);
+            }
+            ir::Node::Declare(_) => {}
+        }
+    }
 }
