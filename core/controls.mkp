@@ -1,0 +1,87 @@
+package core;
+
+//@about A plain text value.
+extern widget label(
+    value: text,
+    tone: opt<color> = opt.NONE,
+    size: text_size = text_size.NORMAL,
+    weight: weight = weight.REGULAR,
+    font: opt<font> = opt.NONE,
+    align: align = align.START,
+    wrap: bool = true,
+    clip: bool = false,
+    halo: bool = false,                         // an outline in the surface colour, so it reads over lines
+) {
+    markdown {
+        \{value}
+    }
+}
+
+//@about A picture.
+extern widget image(src: text, alt: text, width: opt<size> = opt.NONE) {
+    markdown {
+        ![\{alt}](\{src})
+    }
+}
+
+//@about A symbol from a fixed set.
+extern widget icon(
+    name: glyph,
+    tone: opt<color> = opt.NONE,
+    size: text_size = text_size.NORMAL,
+    label: text = "",
+) {
+    markdown {
+        \{label}
+    }
+}
+
+//@about Something to press. With no content it shows its label.
+extern widget press(
+    label: text,
+    kind: press_kind = press_kind.BUTTON,
+    selected: bool = false,
+    disabled: bool = false,
+    tone: opt<color> = opt.NONE,
+) {
+    slot content: opt<view>;
+    event click();
+
+    markdown {
+        \{label}
+    }
+}
+
+//@about Text typed by the reader.
+extern widget field(
+    mut value: text,
+    label: text,
+    placeholder: text = "",
+    lines: int 1..20 = 1,
+) {
+    event submit();
+
+    markdown {
+        \{label}: \{value}
+    }
+}
+
+//@about A number picked by dragging. Its ends come from range when it is given, and otherwise, with its step, from the variable it is given.
+extern widget slider(mut value: number, label: text, range: opt<range<number>> = opt.NONE, disabled: bool = false) {
+    markdown {
+        \{label}: \{value}
+    }
+}
+
+//@about Content shown over the page, opened from its anchor. Pass open to keep it with the caller.
+extern widget overlay(label: text, mode: overlay_mode = overlay_mode.POPOVER, mut open: bool = false) {
+    slot anchor: view;
+    slot body: view;
+    event open_changed();
+
+    markdown {
+        \{anchor}
+
+        \{body}
+    }
+}

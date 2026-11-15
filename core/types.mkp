@@ -1,0 +1,592 @@
+package core;
+
+//@about Values looked up by a text key.
+record map<T> {
+    entries: list<{ key: text, value: T }>;
+}
+
+fn map<T>.get(self, key: text): opt<T> {
+    for (entry in self.entries) {
+        if (entry.key == key) {
+            return opt.SOME(entry.value);
+        }
+    }
+    return opt.NONE;
+}
+
+fn map<T>.keys(self): list<text> {
+    return self.entries.map(fn(entry) { return entry.key; });
+}
+
+fn map<T>.has(self, key: text): bool {
+    return self.keys().some(fn(k) { return k == key; });
+}
+
+//@about A calendar day, written as a text: "2026-11-10". Its fields mirror the text.
+record date implements literal<text>, same, ordered, shown {
+    year: int 1..9999;
+    month: int 1..12;
+    day: int 1..31;
+
+    require "this month has no such day" {
+        return day <= days_in(year, month);
+    }
+}
+
+//@about Cuts the text and checks its separators. The record checks the numbers.
+fn date.from(value: text): opt<date> {
+    if (value.len() != 10 || value.slice(4, 1) != "-" || value.slice(7, 1) != "-") {
+        return opt.NONE;
+    }
+    return try date {
+        year = value.slice(0, 4).number().or(0),
+        month = value.slice(5, 2).number().or(0),
+        day = value.slice(8, 2).number().or(0),
+    };
+}
+
+// days since 1970-01-01
+fn date.days(self): int {
+    let y: int = self.month <= 2 ? self.year - 1 : self.year;
+    let era: int = (y / 400).floor();
+    let yoe: int = y - era * 400;
+    let mp: int = (self.month + 9) % 12;
+    let doy: int = ((153 * mp + 2) / 5).floor() + self.day - 1;
+    let doe: int = yoe * 365 + (yoe / 4).floor() - (yoe / 100).floor() + doy;
+    return era * 146097 + doe - 719468;
+}
+
+fn date.before(self, other: date): bool {
+    return self.days() < other.days();
+}
+
+fn date.plus(self, days: number): date {
+    return day_number(self.days() + days.round());
+}
+
+fn date.days_to(self, other: date): int {
+    return other.days() - self.days();
+}
+
+fn date.show(self): text {
+    let y: text = "\{self.year}";
+    let pad: text = "0000".slice(0, (4 - y.len()).clamp(0, 4));
+    return "\{pad}\{y}-\{two(self.month)}-\{two(self.day)}";
+}
+
+//@about A moment, written as a text with its offset: "2026-11-10T09:30+01:00". Its fields mirror the text.
+record moment implements literal<text>, same, ordered, shown {
+    day: date;
+    hour: int 0..23;
+    minute: int 0..59;
+    east: bool;                                 // + in the text: the offset is east of UTC
+    offset_hour: int 0..14;
+    offset_minute: int 0..59;
+
+    require "an offset is at most 14:00" {
+        return offset_hour < 14 || offset_minute == 0;
+    }
+}
+
+//@about Cuts the text and checks its T, colons and sign. The records check the numbers.
+fn moment.from(value: text): opt<moment> {
+    let sign: text = value.slice(16, 1);
+    if (value.len() != 22 || value.slice(10, 1) != "T" || value.slice(13, 1) != ":" || value.slice(19, 1) != ":" || (sign != "+" && sign != "-")) {
+        return opt.NONE;
+    }
+    if (let date_part: date = date.from(value.slice(0, 10))) {
+        return try moment {
+            day = date_part,
+            hour = value.slice(11, 2).number().or(-1),
+            minute = value.slice(14, 2).number().or(-1),
+            east = sign == "+",
+            offset_hour = value.slice(17, 2).number().or(-1),
+            offset_minute = value.slice(20, 2).number().or(-1),
+        };
+    }
+    return opt.NONE;
+}
+
+// the offset in minutes, east of UTC above 0
+fn moment.offset(self): int {
+    let size: int = self.offset_hour * 60 + self.offset_minute;
+    return self.east ? size : -size;
+}
+
+// minutes since 1970-01-01T00:00 in UTC
+fn moment.utc(self): int {
+    return self.day.days() * 1440 + self.hour * 60 + self.minute - self.offset();
+}
+
+// equal when they are the same instant: this same replaces the field-by-field one
+fn moment.same(self, other: moment): bool {
+    return self.utc() == other.utc();
+}
+
+fn moment.before(self, other: moment): bool {
+    return self.utc() < other.utc();
+}
+
+fn moment.plus(self, minutes: number): moment {
+    return moment_at(self.utc() + minutes.round(), self);
+}
+
+fn moment.minutes_to(self, other: moment): int {
+    return other.utc() - self.utc();
+}
+
+// the same moment, with the offset the reader's zone uses on its date.
+// Supplied by the implementer from the platform's zone rules: MKP can never know them
+extern fn moment.local(self): moment;
+
+fn moment.time(self): text {
+    return "\{two(self.hour)}:\{two(self.minute)}";
+}
+
+fn moment.show(self): text {
+    let sign: text = self.east ? "+" : "-";
+    return "\{self.day}T\{self.time()}\{sign}\{two(self.offset_hour)}:\{two(self.offset_minute)}";
+}
+
+// helpers, private to core
+fn leap(y: int): bool {
+    return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+}
+
+fn days_in(y: int, m: int): int {
+    if (m == 2) {
+        return leap(y) ? 29 : 28;
+    }
+    return [4, 6, 9, 11].has(m) ? 30 : 31;
+}
+
+fn two(n: number): text {
+    return n < 10 ? "0\{n}" : "\{n}";
+}
+
+// the date count days after 1970-01-01, kept between 0001-01-01 and 9999-12-31
+fn day_number(count: int): date {
+    let z: int = count.clamp(-719162, 2932896) + 719468;
+    let era: int = (z / 146097).floor();
+    let doe: int = z - era * 146097;
+    let yoe: int = ((doe - (doe / 1460).floor() + (doe / 36524).floor() - (doe / 146096).floor()) / 365).floor();
+    let doy: int = doe - (365 * yoe + (yoe / 4).floor() - (yoe / 100).floor());
+    let mp: int = ((5 * doy + 2) / 153).floor();
+    let d: int = doy - ((153 * mp + 2) / 5).floor() + 1;
+    let m: int = mp < 10 ? mp + 3 : mp - 9;
+    let y: int = yoe + era * 400 + (m <= 2 ? 1 : 0);
+    // the sums always land in these ranges, so clamp proves them without changing them
+    return date { year = y.clamp(1, 9999), month = m.clamp(1, 12), day = d.clamp(1, 31) };
+}
+
+// the moment utc minutes after 1970-01-01T00:00 in UTC, with the offset source has
+fn moment_at(utc: int, source: moment): moment {
+    let local: int = utc + source.offset();
+    let days: int = (local / 1440).floor();
+    let minutes: int = local - days * 1440;     // 0 to 1439, so clamp only proves the hour and the minute
+    return moment {
+        day = day_number(days),
+        hour = (minutes / 60).floor().clamp(0, 23),
+        minute = (minutes % 60).clamp(0, 59),
+        east = source.east,
+        offset_hour = source.offset_hour,
+        offset_minute = source.offset_minute,
+    };
+}
+
+//@about A literal with holes: the text between them, and their values. A hole is never part of a piece.
+record template {
+    pieces: list<text>[1...];                   // one more piece than holes
+    holes: list<hole>;
+}
+
+//@about One hole of a template, which from places as a value and never reads.
+enum hole {
+    TEXT(value: text),                          // a value that fits shown, already shown
+    VIEW(child: view),                          // \{@icon(…)} in a sentence
+}
+
+//@about A template from a plain text, with no holes.
+fn template.of(value: text): template {
+    return template { pieces = [value], holes = [] };
+}
+
+fn hole.words(self): text {
+    match (self) {
+        case hole.TEXT(value) {
+            return value;
+        }
+        case hole.VIEW(child) {
+            return "";
+        }
+    }
+}
+
+//@about Maths, written in TeX. Core checks how it is written; the target may also refuse what it can't draw.
+//@about Its holes stay values: each counts as one token in the checks, and show escapes it for TeX.
+record latex implements literal<template>, shown {
+    tex: template;
+
+    require "TeX is not empty" {
+        return tex_tokens(tex).len() > 0;
+    }
+
+    require "every { in TeX has a matching }" {
+        return tex_pairs(tex_tokens(tex), "{", "}");
+    }
+
+    require "every \\begin in TeX has a matching \\end" {
+        return tex_environments(tex_tokens(tex));
+    }
+
+    require "every \\left in TeX has a matching \\right" {
+        return tex_pairs(tex_tokens(tex), "\\left", "\\right");
+    }
+
+    require "every ^ and _ in TeX has something after it" {
+        return tex_scripts(tex_tokens(tex));
+    }
+
+    require "every backslash in TeX starts a command" {
+        return !tex_tokens(tex).has("\\");
+    }
+
+    require "a hole in TeX holds a value, not a widget" {
+        return tex_values(tex);
+    }
+
+    require "the target can draw this TeX" {
+        return can_draw_tex(tex);
+    }
+}
+
+fn latex.from(value: template): opt<latex> {
+    return try latex { tex = value };
+}
+
+//@about The TeX, with each hole's characters escaped so that TeX reads them as themselves. A target draws this.
+fn latex.show(self): text {
+    mut out: text = "";
+    for (k, piece in self.tex.pieces) {
+        out = "\{out}\{piece}";
+        if (let h: hole = self.tex.holes[k]) {
+            out = "\{out}\{tex_escape(h.words())}";
+        }
+    }
+    return out;
+}
+
+//@about Whether the target can draw this TeX, for example whether it knows every command in it. A target may supply its own; without one, all TeX that core accepts is drawn.
+extern fn can_draw_tex(tex: template): bool {
+    return true;
+}
+
+//@about Markdown blocks, parsed by core when the value is made. @blocks draws them.
+record md implements literal<template> {
+    blocks: list<block>;
+}
+
+//@about One Markdown block, as md holds it. Each case is drawn by the extern block of its kind.
+enum block {
+    PARAGRAPH(value: rich_text),
+    HEADING(level: int 1..6, value: rich_text),
+    BULLETS(ordered: bool, start: int 0..., items: list<list_item>[1...]),
+    QUOTE(body: list<block>),
+    CODE(src: text, lang: text),
+    MATH(tex: latex),
+    TABLE(head: list<rich_text>[1...], rows: list<list<rich_text>>, align: list<cell_align>),
+    FOOTNOTE(mark: text, body: list<block>),
+    DIVIDER,
+}
+
+//@about One item of a list in md. done is a task box: ticked, not ticked, or none for an ordinary item.
+record list_item {
+    done: opt<bool> = opt.NONE;
+    body: list<block>;
+}
+
+//@about Inline Markdown as segments, parsed by core's rich_text.from: from prose, or from a text literal where rich_text is wanted.
+record rich_text implements literal<template>, shown {
+    segments: list<segment>;
+}
+
+//@about A part of a sentence and how it is marked.
+record segment {
+    part: part;
+    marks: marks = marks { };
+}
+
+//@about What a segment holds. A hole's value is TEXT, or VIEW for a widget, so a value never becomes formatting.
+enum part {
+    TEXT(value: text),
+    CODE(value: text),                          // a code span
+    MATH(tex: latex),                           // $x^2$
+    IMAGE(src: text, alt: text),                // ![alt](src)
+    NOTE(mark: text),                           // [^1], the mark of a footnote
+    BREAK,                                      // a hard line break
+    VIEW(child: view),                          // \{@icon(…)} in a sentence
+}
+
+//@about How a segment is marked. A link is a mark, so bold words inside a link are one segment.
+record marks {
+    bold: bool = false;
+    italic: bool = false;
+    strike: bool = false;
+    link: opt<text> = opt.NONE;
+}
+
+//@about Text from a value, as one plain segment: nothing in it is read as Markdown.
+fn rich_text.plain(value: text): rich_text {
+    return rich_text { segments = [segment { part = part.TEXT(value) }] };
+}
+
+//@about The words, without their marks.
+fn rich_text.show(self): text {
+    return self.segments.map(fn(s) { return s.part.words(); }).join("");
+}
+
+fn part.words(self): text {
+    match (self) {
+        case part.TEXT(v) {
+            return v;
+        }
+        case part.CODE(v) {
+            return v;
+        }
+        case part.MATH(m) {
+            return m.show();
+        }
+        case part.IMAGE(src, alt) {
+            return alt;
+        }
+        case part.BREAK {
+            return " ";
+        }
+        case else {
+            return "";
+        }
+    }
+}
+
+// TeX as tokens: a command (\frac, \{, \\), one character, or a hole, which is the one token "hole".
+// Whitespace is dropped. Private to core
+fn tex_tokens(tex: template): list<text> {
+    mut out: list<text> = [];
+    for (k, piece in tex.pieces) {
+        if (k > 0) {
+            out.add("hole");                    // TeX's own tokens are one character or a command, never this
+        }
+        for (x in tex_piece(piece)) {
+            out.add(x);
+        }
+    }
+    return out;
+}
+
+// the tokens of one piece of TeX. Private to core
+fn tex_piece(tex: text): list<text> {
+    let letters: text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    mut out: list<text> = [];
+    mut cmd: text = "";                         // a command being read, from its backslash
+    for (c in tex.chars()) {
+        if (cmd == "\\") {
+            if (letters.has(c)) {
+                cmd = "\\\{c}";
+            } else {
+                out.add("\\\{c}");              // \{, \\ and the like are whole commands
+                cmd = "";
+            }
+        } else if (cmd != "" && letters.has(c)) {
+            cmd = "\{cmd}\{c}";
+        } else {
+            if (cmd != "") {
+                out.add(cmd);
+                cmd = "";
+            }
+            if (c == "\\") {
+                cmd = "\\";
+            } else if (![" ", "\t", "\n", "\u{d}"].has(c)) {
+                out.add(c);
+            }
+        }
+    }
+    if (cmd != "") {
+        out.add(cmd);                           // a backslash at the very end stays a lone \
+    }
+    return out;
+}
+
+// every open token is closed, and no close comes first. Private to core
+fn tex_pairs(t: list<text>, open: text, close: text): bool {
+    mut depth: int = 0;
+    mut ok: bool = true;
+    for (x in t) {
+        if (x == open) {
+            depth = depth + 1;
+        } else if (x == close) {
+            if (depth == 0) {
+                ok = false;
+            } else {
+                depth = depth - 1;
+            }
+        }
+    }
+    return ok && depth == 0;
+}
+
+// \begin{name} and \end{name} pair up by name, innermost first. Private to core
+fn tex_environments(t: list<text>): bool {
+    mut open: list<text> = [];                  // names begun; the first depth of them are still open
+    mut depth: int = 0;
+    mut ok: bool = true;
+    for (k, x in t) {
+        if (x == "\\begin") {
+            if (depth == open.len()) {
+                open.add(tex_group(t, k + 1));
+            } else {
+                open[depth] = tex_group(t, k + 1);
+            }
+            depth = depth + 1;
+        } else if (x == "\\end") {
+            let name: text = tex_group(t, k + 1);
+            if (name != "" && open[depth - 1].or("") == name) {
+                depth = depth - 1;
+            } else {
+                ok = false;
+            }
+        }
+    }
+    return ok && depth == 0;
+}
+
+// the text of the {group} that starts at token k, or "" when there is none. Private to core
+fn tex_group(t: list<text>, k: int): text {
+    mut name: text = "";
+    mut done: bool = t[k].or("") != "{";
+    mut closed: bool = false;
+    for (j, x in t) {
+        if (j > k && !done) {
+            if (x == "}") {
+                done = true;
+                closed = true;
+            } else {
+                name = "\{name}\{x}";
+            }
+        }
+    }
+    return closed ? name : "";
+}
+
+// every ^ and _ has something after it. Private to core
+fn tex_scripts(t: list<text>): bool {
+    mut ok: bool = true;
+    for (k, x in t) {
+        if (x == "^" || x == "_") {
+            if (["", "}", "^", "_", "&", "\\\\", "\\right", "\\end"].has(t[k + 1].or(""))) {
+                ok = false;
+            }
+        }
+    }
+    return ok;
+}
+
+// every hole holds a value, not a widget. Private to core
+fn tex_values(t: template): bool {
+    for (h in t.holes) {
+        match (h) {
+            case hole.TEXT(value) { }
+            case hole.VIEW(child) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// a hole's text, with every character TeX gives a meaning to escaped. Private to core
+fn tex_escape(value: text): text {
+    mut out: text = "";
+    for (c in value.chars()) {
+        if (["{", "}", "$", "&", "#", "_", "%"].has(c)) {
+            out = "\{out}\\\{c}";
+        } else if (c == "\\") {
+            out = "\{out}\\backslash ";
+        } else if (c == "^") {
+            out = "\{out}\\hat{} ";
+        } else if (c == "~") {
+            out = "\{out}\\sim ";
+        } else {
+            out = "\{out}\{c}";
+        }
+    }
+    return out;
+}
+
+//@about A place on a canvas or a plane.
+record point implements numeric, scaled, same, shown {
+    x: number;
+    y: number;
+}
+
+fn point.add(self, other: point): point {
+    return point { x = self.x + other.x, y = self.y + other.y };
+}
+
+fn point.sub(self, other: point): point {
+    return point { x = self.x - other.x, y = self.y - other.y };
+}
+
+fn point.scale(self, k: number): point {
+    return point { x = self.x * k, y = self.y * k };
+}
+
+fn point.show(self): text {
+    return "(\{self.x}, \{self.y})";
+}
+
+//@about A part of a canvas or a plane, from one corner to the other, in its units.
+record region {
+    from: point;
+    to: point;
+}
+
+fn region.width(self): number {
+    return (self.to.x - self.from.x).abs();
+}
+
+fn region.height(self): number {
+    return (self.to.y - self.from.y).abs();
+}
+
+fn region.middle(self): point {
+    return self.from.add(self.to).scale(0.5);
+}
+
+//@about Whether two regions share a point. Both go from their bottom-left corner to their top-right one, as a spot's box and a plane's drawn region do.
+fn region.overlaps(self, other: region): bool {
+    return self.from.x <= other.to.x && other.from.x <= self.to.x && self.from.y <= other.to.y && other.from.y <= self.to.y;
+}
+
+fn opt<T>.or(self, fallback: T): T {
+    match (self) {
+        case opt.SOME(v) {
+            return v;
+        }
+        case opt.NONE {
+            return fallback;
+        }
+    }
+}
+
+// constants, to 34 digits like every number
+let pi: number = 3.141592653589793238462643383279503;
+let euler: number = 2.718281828459045235360287471352662;
+
+// on every ordered type
+fn ordered.min(self, other: self): self {
+    return other.before(self) ? other : self;
+}
+
+fn ordered.max(self, other: self): self {
+    return self.before(other) ? other : self;
+}

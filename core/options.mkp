@@ -1,0 +1,36 @@
+package core;
+
+enum align { START, CENTER, END, STRETCH, BASELINE }
+enum justify { START, CENTER, END, BETWEEN, AROUND }
+enum weight { REGULAR, MEDIUM, BOLD }
+enum text_size { SMALL, NORMAL, LARGE }
+enum press_kind { BUTTON, TAB, OPTION, TOGGLE, SWITCH, CHECK, RADIO, PLAIN }
+enum edge { ALL, TOP, RIGHT, BOTTOM, LEFT, X, Y }
+enum overlay_mode { POPOVER, TOOLTIP, DIALOG, MENU }
+enum axis { X, Y }
+enum anchor { CENTER, N, S, E, W, NE, NW, SE, SW }
+enum head { NONE, ARROW, DOT }
+enum width { NARROW, MEDIUM, WIDE }
+enum theme { LIGHT, DARK }
+
+enum track {
+    AUTO,
+    FR(share: int 1...),
+    CH(count: int 1...),
+    SIZE(of: size),
+}
+
+enum cols {
+    EQUAL(count: int 1..12),
+    TRACKS(of: list<track>[1...]),
+}
+
+//@about A symbol from a fixed set, drawn in the implementer's own icon style.
+enum glyph {
+    PLAY, PAUSE, PREV, NEXT, MORE, LESS, FIRST, LAST, RESET, CHECK, CROSS, PLUS, MINUS,
+    UP, DOWN, LEFT, RIGHT, BAN, ALERT, INFO, HELP, LOCK, UNLOCK, EYE, EDIT, SEARCH,
+    USER, USERS, FILE, FOLDER, DATABASE, SERVER, CLOUD, MAIL, CLOCK, CALENDAR, FLAG,
+    TARGET, GAUGE, LAYERS, BRANCH, BOX, SQUARE, CIRCLE, DOT, STAR, BOLT, LINK, KEY,
+    SHIELD, CART, CHART, CODE, TERMINAL, BELL, HOME, SETTINGS, SLIDERS, TRASH, COPY,
+    DOWNLOAD, UPLOAD, EXPAND, LIGHTBULB, BOOK,
+}

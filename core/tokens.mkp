@@ -1,0 +1,89 @@
+package core;
+
+//@about The value of a colour token: one colour for each theme.
+record color_value {
+    light: text[7..9];
+    dark: text[7..9];
+
+    require "a colour is # and six or eight hex digits" {
+        return hex(light) && hex(dark);
+    }
+}
+
+//@about The value of a font token.
+record font_value {
+    family: text[1...];
+    size: number 1...;
+    weight: int 100..900;
+    line: number 1..3 = 1.5;
+}
+
+//@about The value of a shadow token.
+record shadow_value {
+    x: number = 0;
+    y: number = 0;
+    blur: number 0...;
+    tone: color;
+}
+
+// # and six or eight hex digits. Private to core
+fn hex(value: text): bool {
+    let digits: list<text[1]> = value.slice(1, 8).lower().chars();
+    return value.starts("#") && value.len() != 8 && digits.all(fn(c) { return "0123456789abcdef".has(c); });
+}
+
+token color: color_value { SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW }
+token space: number 0... { XS, S, M, L, XL }
+token size: number 0... { XS, S, M, L }
+token radius: number 0... { CARD, PILL }
+token font: font_value { BODY, HEADING, MONO }
+token shadow: shadow_value { RAISED }
+token stroke: number 0.25..16 implements literal<number> { HAIRLINE, THIN, BOLD, PX(px: number 0.25..16) }
+
+//@about A plain number where a stroke is wanted: width = 2.5 is stroke.PX(2.5).
+fn stroke.from(value: number): opt<stroke> {
+    return try stroke.PX(value);
+}
+
+tokens core {
+    color.SURFACE = color_value { light = "#ffffff", dark = "#15171a" };
+    color.INK = color_value { light = "#1a1c1f", dark = "#eceef1" };
+    color.MUTED = color_value { light = "#6b7280", dark = "#9aa3ae" };
+    color.LINE = color_value { light = "#d4d7dc", dark = "#3a3f46" };
+    color.ACCENT = color_value { light = "#2563eb", dark = "#7aa7ff" };
+    color.INFO = color_value { light = "#0284c7", dark = "#38bdf8" };
+    color.OK = color_value { light = "#15803d", dark = "#4ade80" };
+    color.WARN = color_value { light = "#b45309", dark = "#fbbf24" };
+    color.BAD = color_value { light = "#dc2626", dark = "#f87171" };
+    color.C1 = color_value { light = "#2563eb", dark = "#7aa7ff" };
+    color.C2 = color_value { light = "#0d9488", dark = "#2dd4bf" };
+    color.C3 = color_value { light = "#d97706", dark = "#fbbf24" };
+    color.C4 = color_value { light = "#7c3aed", dark = "#c4b5fd" };
+    color.C5 = color_value { light = "#db2777", dark = "#f9a8d4" };
+    color.C6 = color_value { light = "#475569", dark = "#cbd5e1" };
+    color.SHADOW = color_value { light = "#0000001f", dark = "#0000001f" };
+
+    space.XS = 2;
+    space.S = 4;
+    space.M = 8;
+    space.L = 16;
+    space.XL = 32;
+
+    size.XS = 8;
+    size.S = 160;
+    size.M = 320;
+    size.L = 480;
+
+    radius.CARD = 8;
+    radius.PILL = 999;
+
+    font.BODY = font_value { family = "system-ui, sans-serif", size = 16, weight = 400 };
+    font.HEADING = font_value { family = "system-ui, sans-serif", size = 22, weight = 650, line = 1.25 };
+    font.MONO = font_value { family = "ui-monospace, monospace", size = 14, weight = 400, line = 1.45 };
+
+    shadow.RAISED = shadow_value { y = 1, blur = 3, tone = color.SHADOW };
+
+    stroke.HAIRLINE = 0.5;
+    stroke.THIN = 1;
+    stroke.BOLD = 2;
+}

@@ -1,0 +1,42 @@
+package core;
+
+//@about A paragraph of inline Markdown, parsed by core.
+extern widget paragraph(value: rich_text, tone: opt<color> = opt.NONE, align: align = align.START);
+
+//@about A heading, level 1 to 6.
+extern widget heading(level: int 1..6, value: rich_text);
+
+//@about A list: bulleted, or numbered from start.
+extern widget bullets(ordered: bool = false, start: int 0... = 1) {
+    slot items: list<item>[1...];
+}
+
+//@about One item of a list. done is a task box: ticked, not ticked, or none for an ordinary item.
+extern widget item(done: opt<bool> = opt.NONE) {
+    slot body: view;
+}
+
+//@about A quotation.
+extern widget quote() {
+    slot body: view;
+}
+
+//@about A block of literal text, such as code, in the mono font.
+extern widget code(src: text, lang: text = "");
+
+//@about Maths on a line of its own, drawn from TeX.
+extern widget math(tex: latex);
+
+//@about A table: a header row, rows of cells, and how each column is aligned.
+extern widget table(head: list<rich_text>[1...], rows: list<list<rich_text>>, align: list<cell_align> = []);
+
+//@about A note at the foot of the page, with its mark.
+extern widget footnote(mark: text) {
+    slot body: view;
+}
+
+//@about A line across the page.
+extern widget divider();
+
+//@about How a table column is aligned. A column the list doesn't reach starts.
+enum cell_align { START, CENTER, END }

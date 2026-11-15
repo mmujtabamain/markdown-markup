@@ -1,0 +1,130 @@
+package core;
+
+fn list<T>.some(self, test: fn(item: T): bool): bool {
+    for (x in self) {
+        if (test(x)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn list<T>.all(self, test: fn(item: T): bool): bool {
+    for (x in self) {
+        if (!test(x)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn list<T>.count(self, test: fn(item: T): bool): int {
+    mut n: int = 0;
+    for (x in self) {
+        if (test(x)) {
+            n = n + 1;
+        }
+    }
+    return n;
+}
+
+fn list<T>.find(self, test: fn(item: T): bool): opt<T> {
+    for (x in self) {
+        if (test(x)) {
+            return opt.SOME(x);
+        }
+    }
+    return opt.NONE;
+}
+
+fn list<T>.filter(self, keep: fn(item: T): bool): list<T> {
+    mut out: list<T> = [];
+    for (x in self) {
+        if (keep(x)) {
+            out.add(x);
+        }
+    }
+    return out;
+}
+
+fn list<T>.map<U>(self, f: fn(item: T): U): list<U> {
+    mut out: list<U> = [];
+    for (x in self) {
+        out.add(f(x));
+    }
+    return out;
+}
+
+fn list<T>.remove_where(mut self, test: fn(item: T): bool) {
+    self = self.filter(fn(x) { return !test(x); });
+}
+
+fn list<T>.first(self): opt<T> {
+    return self.at(0);
+}
+
+fn list<T>.last(self): opt<T> {
+    return self.at(self.len() - 1);
+}
+
+fn list<T>.reversed(self): list<T> {
+    mut out: list<T> = [];
+    for (x in self) {
+        out.insert(0, x);
+    }
+    return out;
+}
+
+// a bound on the list's type: has exists only for items that fit same
+fn list<T: same>.has(self, x: T): bool {
+    return self.some(fn(y) { return y == x; });
+}
+
+fn list<T: same>.position(self, x: T): opt<number> {
+    for (k, y in self) {
+        if (y == x) {
+            return opt.SOME(k);
+        }
+    }
+    return opt.NONE;
+}
+
+fn list<T: same>.unique(self): list<T> {
+    mut out: list<T> = [];
+    for (x in self) {
+        if (!out.has(x)) {
+            out.add(x);
+        }
+    }
+    return out;
+}
+
+fn list<T: ordered>.sorted(self): list<T> {
+    mut out: list<T> = self;
+    out.sort();
+    return out;
+}
+
+fn list<T: shown>.join(self, between: text): text {
+    mut out: text = "";
+    for (k, x in self) {
+        out = k == 0 ? "\{x}" : "\{out}\{between}\{x}";
+    }
+    return out;
+}
+
+// opt.NONE for an empty list
+fn list<T: numeric>.sum(self): opt<T> {
+    mut total: opt<T> = opt.NONE;
+    for (x in self) {
+        match (total) {
+            case opt.SOME(s) {
+                total = opt.SOME(s + x);
+            }
+            case opt.NONE {
+                total = opt.SOME(x);
+            }
+        }
+    }
+    return total;
+}

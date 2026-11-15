@@ -1,0 +1,292 @@
+package core;
+
+//@about Takes a share of the spare room in a row or column.
+widget grow(by: number 0... = 1) {
+    slot child: view;
+
+    view {
+        @sizing(grow = by) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about How much it gives up when there isn't room. 0 never shrinks.
+widget shrink(by: number 0... = 1) {
+    slot child: view;
+
+    view {
+        @sizing(shrink = by) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about The size it starts from, before growing or shrinking.
+widget basis(size: size) {
+    slot child: view;
+
+    view {
+        @sizing(basis = size) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about Its smallest width and height.
+widget min_size(width: opt<size> = opt.NONE, height: opt<size> = opt.NONE) {
+    slot child: view;
+
+    view {
+        @sizing(min_width = width, min_height = height) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about Its largest width and height.
+widget max_size(width: opt<size> = opt.NONE, height: opt<size> = opt.NONE) {
+    slot child: view;
+
+    view {
+        @sizing(max_width = width, max_height = height) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about Its shape: width divided by height.
+widget aspect(ratio: number 0.1..10) {
+    slot child: view;
+
+    view {
+        @sizing(aspect = ratio) {
+            @child;
+        }
+    }
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about Children one below another.
+widget column(
+    align: align = align.STRETCH,
+    justify: justify = justify.START,
+    gap: opt<space> = opt.NONE,
+    pad: opt<space> = opt.NONE,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = opt.NONE,
+    edge: edge = edge.ALL,
+    radius: opt<radius> = opt.NONE,
+    shadow: opt<shadow> = opt.NONE,
+) {
+    slot children: view;
+    event click();
+
+    view {
+        @flex(axis = axis.Y, align = align, justify = justify, gap = gap, pad = pad, fill = fill, stroke = stroke, edge = edge, radius = radius, shadow = shadow, click = fn() { invoke click(); }) {
+            @children;
+        }
+    }
+
+    markdown {
+        \{children}
+    }
+}
+
+//@about Children side by side, wrapping when there is no room.
+widget row(
+    align: align = align.STRETCH,
+    justify: justify = justify.START,
+    gap: opt<space> = opt.NONE,
+    pad: opt<space> = opt.NONE,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = opt.NONE,
+    edge: edge = edge.ALL,
+    radius: opt<radius> = opt.NONE,
+    shadow: opt<shadow> = opt.NONE,
+    wrap: bool = true,
+) {
+    slot children: view;
+    event click();
+
+    view {
+        @flex(axis = axis.X, wrap = wrap, align = align, justify = justify, gap = gap, pad = pad, fill = fill, stroke = stroke, edge = edge, radius = radius, shadow = shadow, click = fn() { invoke click(); }) {
+            @children;
+        }
+    }
+
+    markdown {
+        \{children}
+    }
+}
+
+//@about Children on top of each other, the last one in front: a grid with every child in one cell.
+widget stack(align: align = align.CENTER, justify: justify = justify.CENTER, pad: opt<space> = opt.NONE) {
+    slot children: list<view>;
+
+    view {
+        @grid(cols = cols.EQUAL(1), align = align, justify = justify, pad = pad) {
+            for (c in children) {
+                @cell(row = 1, col = 1) {
+                    @c;
+                }
+            }
+        }
+    }
+
+    markdown {
+        @for (c in children) {
+        \{c}
+        }
+    }
+}
+
+//@about How much of something, as a bar.
+widget meter(value: number 0..., label: text, max: number 0... = 100, tone: opt<color> = opt.NONE) {
+    view {
+        @flex(axis = axis.X, fill = color.LINE, radius = radius.PILL, label = label) {
+            @grow(by = value.clamp(0, max)) {
+                @min_size(height = size.XS) {
+                    @flex(fill = tone.or(color.ACCENT), radius = radius.PILL) { }
+                }
+            }
+            @grow(by = (max - value).clamp(0, max)) {     // the same share as max - value.clamp(0, max)
+                @flex { }
+            }
+        }
+    }
+
+    markdown {
+        \{label}: \{value} of \{max}
+    }
+}
+
+//@about A titled shell around content, with room for actions.
+widget frame(title: text = "", height: opt<size> = opt.NONE) {
+    slot body: view;
+    slot actions: opt<view>;
+
+    view {
+        @column(gap = space.S, pad = space.M, stroke = color.LINE, radius = radius.CARD) {
+            @row(justify = justify.BETWEEN, align = align.CENTER) {
+                @label(value = title, weight = weight.BOLD);
+                if (let a: view = actions) {
+                    @a;
+                }
+            }
+            @min_size(height = height) {
+                @body;
+            }
+        }
+    }
+
+    markdown {
+        **\{title}**
+
+        \{body}
+    }
+}
+
+//@about A plain titled section, with a note and an optional footer.
+widget pane(title: text = "", note: text = "") {
+    slot body: view;
+    slot footer: opt<view>;
+
+    view {
+        @column(gap = space.S) {
+            @label(value = title, weight = weight.BOLD);
+            @label(value = note, size = text_size.SMALL, tone = color.MUTED);
+            @body;
+            if (let f: view = footer) {
+                @f;
+            }
+        }
+    }
+
+    markdown {
+        **\{title}**
+
+        \{body}
+    }
+}
+
+// one block of an md value, as the extern block of its kind. Private to core
+fn block_view(b: block): view {
+    match (b) {
+        case block.PARAGRAPH(words) {
+            return @paragraph(value = words);
+        }
+        case block.HEADING(level, words) {
+            return @heading(level = level, value = words);
+        }
+        case block.BULLETS(ordered, start, items) {
+            return @bullets(ordered = ordered, start = start) {
+                for (it in items) {
+                    @item(done = it.done) {
+                        @blocks(value = md { blocks = it.body });
+                    }
+                }
+            };
+        }
+        case block.QUOTE(body) {
+            return @quote {
+                @blocks(value = md { blocks = body });
+            };
+        }
+        case block.CODE(src, lang) {
+            return @code(src = src, lang = lang);
+        }
+        case block.MATH(tex) {
+            return @math(tex = tex);
+        }
+        case block.TABLE(head, rows, align) {
+            return @table(head = head, rows = rows, align = align);
+        }
+        case block.FOOTNOTE(mark, body) {
+            return @footnote(mark = mark) {
+                @blocks(value = md { blocks = body });
+            };
+        }
+        case block.DIVIDER {
+            return @divider;
+        }
+    }
+}
+
+//@about The blocks of an md value, each drawn by the extern Markdown block of its kind.
+widget blocks(value: md) {
+    view {
+        for (b in value.blocks) {
+            @block_view(b);
+        }
+    }
+
+    markdown {
+        @for (b in value.blocks) {
+        \{@block_view(b)}
+        }
+    }
+}

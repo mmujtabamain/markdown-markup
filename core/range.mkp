@@ -1,0 +1,127 @@
+package core;
+
+//@about Each bound negated: 1..10 gives -10..-1, and 1... gives ...-1.
+fn range.negate<T: scaled>(r: range<T>): range<T> {
+    if (let low: T = r.low()) {
+        if (let high: T = r.high()) {
+            return (-high)..(-low);
+        }
+        return ...(-low);
+    }
+    if (let high: T = r.high()) {
+        return (-high)...;
+    }
+    return r;                                   // never reached: a range always has a bound
+}
+
+//@about Each bound moved by the same amount: 1..10 by 5 gives 6..15.
+fn range.shift<T: numeric>(r: range<T>, by: T): range<T> {
+    if (let low: T = r.low()) {
+        if (let high: T = r.high()) {
+            return (low + by)..(high + by);
+        }
+        return (low + by)...;
+    }
+    if (let high: T = r.high()) {
+        return ...(high + by);
+    }
+    return r;                                   // never reached: a range always has a bound
+}
+
+//@about Each bound multiplied: 1..10 by 2 gives 2..20, and a negative k flips the range.
+fn range.scale<T: scaled>(r: range<T>, k: number): range<T> {
+    if (k < 0) {
+        return range.negate(range.scale(r, -k));
+    }
+    if (let low: T = r.low()) {
+        if (let high: T = r.high()) {
+            return (low * k)..(high * k);
+        }
+        return (low * k)...;
+    }
+    if (let high: T = r.high()) {
+        return ...(high * k);
+    }
+    return r;                                   // never reached: a range always has a bound
+}
+
+//@about Each bound moved out by an amount: 1..10 by 1 gives 0..11.
+fn range.widen<T: numeric>(r: range<T>, by: T): range<T> {
+    if (let low: T = r.low()) {
+        if (let high: T = r.high()) {
+            return (low - by)..(high + by);
+        }
+        return (low - by)...;
+    }
+    if (let high: T = r.high()) {
+        return ...(high + by);
+    }
+    return r;                                   // never reached: a range always has a bound
+}
+
+//@about Where two ranges meet: 1..10 and 5..20 give 5..10, and ranges that don't meet give opt.NONE.
+fn range.overlap<T: ordered>(a: range<T>, b: range<T>): opt<range<T>> {
+    let low: opt<T> = later_bound(a.low(), b.low());
+    let high: opt<T> = earlier_bound(a.high(), b.high());
+    if (let l: T = low) {
+        if (let h: T = high) {
+            if (h < l) {
+                return opt.NONE;
+            }
+            return l..h;
+        }
+        return l...;
+    }
+    if (let h: T = high) {
+        return ...h;
+    }
+    return opt.NONE;                            // never reached: a range always has a bound
+}
+
+//@about The smallest range that holds both: 1..3 and 7..9 give 1..9. A side open in either is open in it.
+fn range.span<T: ordered>(a: range<T>, b: range<T>): range<T> {
+    mut low: opt<T> = opt.NONE;
+    mut high: opt<T> = opt.NONE;
+    if (let x: T = a.low()) {
+        if (let y: T = b.low()) {
+            low = x.min(y);
+        }
+    }
+    if (let x: T = a.high()) {
+        if (let y: T = b.high()) {
+            high = x.max(y);
+        }
+    }
+    if (let l: T = low) {
+        if (let h: T = high) {
+            return l..h;
+        }
+        return l...;
+    }
+    if (let h: T = high) {
+        return ...h;
+    }
+    return a;                                   // 1... and ...3 hold every value together, which no range does
+}
+
+// the later of two bounds, where a missing one is open. Private to core
+fn later_bound<T: ordered>(a: opt<T>, b: opt<T>): opt<T> {
+    if (let x: T = a) {
+        if (let y: T = b) {
+            return x.max(y);
+        }
+        return x;
+    }
+    return b;
+}
+
+// the earlier of two bounds, where a missing one is open. Private to core
+fn earlier_bound<T: ordered>(a: opt<T>, b: opt<T>): opt<T> {
+    if (let x: T = a) {
+        if (let y: T = b) {
+            return x.min(y);
+        }
+        return x;
+    }
+    return b;
+}

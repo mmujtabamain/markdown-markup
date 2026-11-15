@@ -1,0 +1,23 @@
+package core;
+
+fn text.starts(self, part: text): bool {
+    return self.slice(0, part.len()) == part;
+}
+
+fn text.ends(self, part: text): bool {
+    let start: int = self.len() - part.len();
+    // start is worked out, so it has to be proved before slice takes it
+    if (start in 0...) {
+        return self.slice(start, part.len()) == part;
+    }
+    return false;
+}
+
+//@about The same text, ignoring case and the spaces around it.
+fn text.like(self, other: text): bool {
+    return self.trim().lower() == other.trim().lower();
+}
+
+fn text.replace(self, old: text[1...], new: text): text {
+    return self.split(old).join(new);
+}

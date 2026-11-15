@@ -1,0 +1,110 @@
+package core;
+
+//@about A drawing surface with coordinates of its own: x from left to right, y from bottom to top.
+extern widget canvas(
+    label: text,                                // what it shows, for screen readers and Markdown
+    x: range<number> = -1..1,
+    y: range<number> = -1..1,
+    width: size = size.M,
+    aspect: opt<number 0.1..10> = opt.NONE,     // width over height; left out, from the two ranges
+) {
+    slot layers: list<layer>[1...];
+    event click(at: point);                     // a click on empty space, in the canvas's units
+
+    markdown {
+        \{label}
+    }
+}
+
+//@about Shapes drawn together, in the order written. Later layers are drawn on top.
+extern widget layer(opacity: number 0..1 = 1, clip: opt<region> = opt.NONE) {
+    slot shapes: list<any shape>;
+
+    // writes nothing: the canvas or plane around it writes what the picture shows
+    markdown { }
+}
+
+//@about What every shape has: a label for screen readers, and an opacity. A shape call that sets an event must give a label.
+widget interface shape {
+    label: text;
+    opacity: number 0..1;
+}
+
+//@about A circle around a point, r in the units of its canvas or plane.
+extern widget circle(
+    at: point,
+    r: number 0...,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = opt.NONE,
+    width: stroke = stroke.THIN,                // the stroke's width: a stroke token, or a plain number of pixels
+    opacity: number 0..1 = 1,
+    label: text = "",
+) implements shape {
+    event click();
+    event enter();
+    event leave();
+
+    markdown { }
+}
+
+//@about A line through points; closed, it is a polygon and can be filled.
+extern widget path(
+    points: list<point>[2...],
+    closed: bool = false,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = color.INK,
+    width: stroke = stroke.THIN,
+    dash: bool = false,
+    head: head = head.NONE,                     // an arrow or a dot at the last point
+    opacity: number 0..1 = 1,
+    label: text = "",
+) implements shape {
+    event click();
+    event enter();
+    event leave();
+
+    markdown { }
+}
+
+//@about Ordinary widgets placed at a point of the canvas: a label, an image, anything. nudge moves them by pixels, with y up like the canvas.
+extern widget place(
+    at: point,
+    anchor: anchor = anchor.CENTER,
+    nudge: point = point { x = 0, y = 0 },
+    opacity: number 0..1 = 1,
+    label: text = "",
+) implements shape {
+    slot child: view;
+
+    markdown { }
+}
+
+//@about A point the reader drags. It writes where it is to the variable it is given.
+extern widget handle(mut at: point, tone: opt<color> = opt.NONE, opacity: number 0..1 = 1, label: text) implements shape {
+    markdown { }
+}
+
+//@about A colour a shader works out for one pixel. Its channels go from 0 to 1.
+record pixel {
+    r: number 0..1;
+    g: number 0..1;
+    b: number 0..1;
+    a: number 0..1 = 1;
+}
+
+//@about Fills an area with the colour a shader works out for each pixel: at is the pixel's middle,
+//@about in the units of the canvas or plane, and px is one pixel's size in those units.
+extern widget shade<A>(
+    area: region,
+    shader: fn(at: point, px: number, args: A): pixel,
+    args: A,
+    opacity: number 0..1 = 1,
+    label: text,
+) implements shape {
+    markdown { }
+}
+
+//@about The four corners of a rectangle, for a path.
+fn rect(x0: number, y0: number, x1: number, y1: number): list<point>[4] {
+    return [point { x = x0, y = y0 }, point { x = x1, y = y0 }, point { x = x1, y = y1 }, point { x = x0, y = y1 }];
+}

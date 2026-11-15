@@ -1,0 +1,118 @@
+package core;
+
+//@about Children along one axis, wrapping onto new lines when wrap is true.
+extern widget flex(
+    axis: axis = axis.Y,
+    wrap: bool = false,
+    align: align = align.STRETCH,
+    justify: justify = justify.START,
+    gap: opt<space> = opt.NONE,
+    pad: opt<space> = opt.NONE,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = opt.NONE,
+    edge: edge = edge.ALL,
+    radius: opt<radius> = opt.NONE,
+    shadow: opt<shadow> = opt.NONE,
+    label: text = "",
+) {
+    slot children: view;
+    event click();
+
+    markdown {
+        \{children}
+    }
+}
+
+//@about Children in columns that line up across rows.
+extern widget grid(
+    cols: cols,
+    align: align = align.STRETCH,
+    justify: justify = justify.START,
+    gap: opt<space> = opt.NONE,
+    pad: opt<space> = opt.NONE,
+    fill: opt<color> = opt.NONE,
+    stroke: opt<color> = opt.NONE,
+    edge: edge = edge.ALL,
+    radius: opt<radius> = opt.NONE,
+    shadow: opt<shadow> = opt.NONE,
+) {
+    slot children: view;
+    event click();
+
+    markdown {
+        \{children}
+    }
+}
+
+//@about Where a child sits in a grid. Several children may share one cell.
+extern widget cell(
+    span: int 1..12 = 1,
+    row: opt<int 1...> = opt.NONE,
+    col: opt<int 1...> = opt.NONE,
+    place: opt<align> = opt.NONE,
+) {
+    slot child: view;
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about How big a child is, for implementers. Authors use grow, shrink, basis, min_size, max_size and aspect.
+extern widget sizing(
+    grow: opt<number 0...> = opt.NONE,
+    shrink: opt<number 0...> = opt.NONE,
+    basis: opt<size> = opt.NONE,
+    min_width: opt<size> = opt.NONE,
+    min_height: opt<size> = opt.NONE,
+    max_width: opt<size> = opt.NONE,
+    max_height: opt<size> = opt.NONE,
+    aspect: opt<number 0.1..10> = opt.NONE,
+) {
+    slot child: view;
+
+    markdown {
+        \{child}
+    }
+}
+
+//@about Widgets placed anywhere on a plane with coordinates of its own: x from left to right, y from bottom to top.
+//@about It draws the part of the plane around center, as big as the widget is on the page.
+extern widget plane(
+    label: text,                                    // what it shows, for screen readers and Markdown
+    bounds: opt<region> = opt.NONE,                 // the whole plane; left out, the region around every spot's box
+    mut center: point = point { x = 0, y = 0 },     // the middle of what is drawn, kept inside bounds; the caller may keep it
+    mut zoom: number 0.1..10 = 1,                   // at 1, one unit is one of the page's own lengths; the caller may keep it
+    zoom_range: range<number> = 1..1,               // how far the reader may zoom; 1..1 means not at all
+    fit: bool = false,                              // start zoomed so the whole of bounds fits; zoom_range counts from there
+    mut drawn: opt<region> = opt.NONE,              // written by the target: the part of the plane being drawn
+    width: opt<size> = opt.NONE,                    // left out, the width it is given, like a column
+    aspect: number 0.1..10 = 1.5,                   // the drawn area's width over its height
+) {
+    slot background: list<layer>;                   // core.gfx: drawn under the spots, in the plane's units
+    slot items: list<spot>;
+    event click(at: point);                         // a click on empty space, in the plane's units
+
+    markdown {
+        \{label}
+
+        @for (p in items) {
+        \{p}
+        }
+    }
+}
+
+//@about Any widget at a point of a plane, as cell places a child in a grid. anchor says which part of it sits on the point.
+//@about After each layout, it writes where it landed to box.
+extern widget spot(
+    at: point,
+    anchor: anchor = anchor.CENTER,
+    nudge: point = point { x = 0, y = 0 },          // by the page's own lengths, y up
+    mut box: opt<region> = opt.NONE,                // written by the target: from the bottom-left corner to the top-right one
+) {
+    slot child: view;
+
+    markdown {
+        \{child}
+    }
+}
