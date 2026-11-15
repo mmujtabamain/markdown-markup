@@ -1,0 +1,945 @@
+package core;
+
+//@about Inline Markdown as segments: CommonMark's emphasis, GitHub's strikethrough, links and bare links, code spans, maths, pictures, footnote marks, hard breaks and escapes. Each hole is a segment of its own, with its marks. opt.NONE when the TeX of a maths span fails latex's checks.
+fn rich_text.from(value: template): opt<rich_text> {
+    return rich_text.read(value, map { entries = [] });
+}
+
+//@about Inline Markdown as segments, with the link reference definitions of the page or the md value around it, by their labels as CommonMark matches them.
+fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
+    let cs: list<text> = md_chars(value);
+    let n: int = cs.len();
+    mut pieces: list<md_piece> = [];
+    mut brackets: list<md_bracket> = [];
+    mut buf: text = "";
+    mut holes: int = 0;
+    mut skip: int = 0;
+    for (i in 0..(n - 1)) {
+        if (i >= skip) {
+            let c: text = cs[i].or("");
+            let next: text = cs[i + 1].or("");
+            if (c == "\u{fffc}") {
+                md_flush(pieces, buf);
+                buf = "";
+                if (let h: hole = value.holes[holes]) {
+                    match (h) {
+                        case hole.TEXT(v) {
+                            pieces.add(md_piece { part = part.TEXT(v), hole = true });
+                        }
+                        case hole.VIEW(child) {
+                            pieces.add(md_piece { part = part.VIEW(child), hole = true });
+                        }
+                    }
+                }
+                holes = holes + 1;
+            } else if (c == "\\") {
+                if (next == "\n") {
+                    md_flush(pieces, buf);
+                    buf = "";
+                    pieces.add(md_piece { part = part.BREAK });
+                    skip = md_after_spaces(cs, i + 2);
+                } else if (md_is_punct(next)) {
+                    buf = "\{buf}\{next}";
+                    skip = i + 2;
+                } else {
+                    buf = "\{buf}\\";
+                }
+            } else if (c == "`") {
+                let run: int = md_run(cs, i, "`");
+                let close: int = md_find_ticks(cs, i + run, run);
+                if (close >= 0) {
+                    md_flush(pieces, buf);
+                    buf = "";
+                    pieces.add(md_piece { part = part.CODE(md_code_text(cs, i + run, close)) });
+                    skip = close + run;
+                } else {
+                    buf = "\{buf}\{md_join(cs, i, i + run)}";
+                    skip = i + run;
+                }
+            } else if (c == "$" && md_maths_opens(cs, i)) {
+                let close: int = md_maths_close(cs, i + 1);
+                if (close > 0) {
+                    let tex: template = md_template(cs, value, i + 1, close, holes);
+                    if (let m: latex = latex.from(tex)) {
+                        md_flush(pieces, buf);
+                        buf = "";
+                        pieces.add(md_piece { part = part.MATH(m) });
+                        holes = holes + tex.holes.len();
+                        skip = close + 1;
+                    } else {
+                        return opt.NONE;
+                    }
+                } else {
+                    buf = "\{buf}$";
+                }
+            } else if (c == "*" || c == "_" || c == "~") {
+                let run: int = md_run(cs, i, c);
+                let before: text = cs[i - 1].or(" ");
+                let after: text = cs[i + run].or(" ");
+                let left: bool = !md_is_space(after) && (!md_is_punct(after) || md_is_space(before) || md_is_punct(before));
+                let right: bool = !md_is_space(before) && (!md_is_punct(before) || md_is_space(after) || md_is_punct(after));
+                mut opens: bool = left;
+                mut closes: bool = right;
+                if (c == "_") {
+                    opens = left && (!right || md_is_punct(before));
+                    closes = right && (!left || md_is_punct(after));
+                }
+                if (c == "~" && run > 2) {
+                    opens = false;
+                    closes = false;
+                }
+                md_flush(pieces, buf);
+                buf = "";
+                pieces.add(md_piece { part = part.TEXT(md_join(cs, i, i + run)), run = c, left = run, size = run, opens = opens, closes = closes, live = opens || closes });
+                skip = i + run;
+            } else if (c == "[" && next == "^" && md_note_end(cs, i) > 0) {
+                let end: int = md_note_end(cs, i);
+                md_flush(pieces, buf);
+                buf = "";
+                pieces.add(md_piece { part = part.NOTE(md_join(cs, i + 2, end)) });
+                skip = end + 1;
+            } else if (c == "[" || (c == "!" && next == "[")) {
+                md_flush(pieces, buf);
+                buf = "";
+                let image: bool = c == "!";
+                brackets.add(md_bracket { at = pieces.len(), image = image, start = image ? i + 2 : i + 1 });
+                pieces.add(md_piece { part = part.TEXT(image ? "![" : "[") });
+                skip = image ? i + 2 : i + 1;
+            } else if (c == "]") {
+                md_flush(pieces, buf);
+                buf = "";
+                let found: md_link = md_close_bracket(cs, i, brackets, links);
+                if (found.end > 0) {
+                    if (let b: md_bracket = brackets.last()) {
+                        md_make_link(pieces, b, found);
+                        md_drop_bracket(brackets, !b.image);
+                    }
+                    skip = found.end;
+                } else {
+                    md_drop_bracket(brackets, false);
+                    pieces.add(md_piece { part = part.TEXT("]") });
+                }
+            } else if (c == "<") {
+                let auto: md_link = md_autolink(cs, i);
+                let html: int = md_html(cs, i);
+                if (auto.end > 0) {
+                    md_flush(pieces, buf);
+                    buf = "";
+                    pieces.add(md_piece { part = part.TEXT(auto.label), marks = marks { link = auto.dest } });
+                    skip = auto.end;
+                } else if (html > 0) {
+                    // raw HTML is shown as text, never run
+                    buf = "\{buf}\{md_join(cs, i, html)}";
+                    skip = html;
+                } else {
+                    buf = "\{buf}<";
+                }
+            } else if (c == "&") {
+                let entity: md_link = md_entity(cs, i);
+                if (entity.end > 0) {
+                    buf = "\{buf}\{entity.label}";
+                    skip = entity.end;
+                } else {
+                    buf = "\{buf}&";
+                }
+            } else if (c == "\n") {
+                if (buf.ends("  ")) {
+                    md_flush(pieces, md_trim_end(buf));
+                    buf = "";
+                    pieces.add(md_piece { part = part.BREAK });
+                } else {
+                    buf = "\{md_trim_end(buf)}\n";
+                }
+                skip = md_after_spaces(cs, i + 1);
+            } else if ((c == "w" || c == "h") && md_word_start(cs, i)) {
+                let bare: md_link = md_bare_link(cs, i);
+                if (bare.end > 0) {
+                    md_flush(pieces, buf);
+                    buf = "";
+                    pieces.add(md_piece { part = part.TEXT(bare.label), marks = marks { link = bare.dest } });
+                    skip = bare.end;
+                } else {
+                    buf = "\{buf}\{c}";
+                }
+            } else {
+                buf = "\{buf}\{c}";
+            }
+        }
+    }
+    md_flush(pieces, md_trim_end(buf));
+    md_emphasis(pieces, 0);
+    return rich_text { segments = md_segments(pieces) };
+}
+
+//@about A piece of inline Markdown while it is read: text, or a run of `*`, `_` or `~` that may open or close emphasis. Private to core
+record md_piece {
+    mut part: part;
+    mut marks: marks = marks { };
+    mut run: text = "";
+    mut left: int 0... = 0;
+    mut size: int 0... = 0;
+    mut opens: bool = false;
+    mut closes: bool = false;
+    mut live: bool = false;
+    mut gone: bool = false;
+    hole: bool = false;
+}
+
+//@about An open bracket while links are read. Private to core
+record md_bracket {
+    at: int 0...;
+    image: bool;
+    start: int 0...;
+    mut active: bool = true;
+}
+
+//@about What reading a link, an autolink or an entity found: where it ends (0 for nothing), its destination and its text. Private to core
+record md_link {
+    end: int 0... = 0;
+    dest: text = "";
+    label: text = "";
+}
+
+// The characters of a template, each hole one object replacement character. Private to core
+fn md_chars(value: template): list<text> {
+    mut out: list<text> = [];
+    for (k, piece in value.pieces) {
+        if (k > 0) {
+            out.add("\u{fffc}");
+        }
+        for (c in piece.chars()) {
+            out.add(c);
+        }
+    }
+    return out;
+}
+
+// The characters from start up to end, not including it. Private to core
+fn md_join(cs: list<text>, start: int, end: int): text {
+    mut out: text = "";
+    for (k in start..(end - 1)) {
+        out = "\{out}\{cs[k].or("")}";
+    }
+    return out;
+}
+
+// How many times c repeats from at. Private to core
+fn md_run(cs: list<text>, at: int, c: text): int {
+    mut n: int = 0;
+    mut going: bool = true;
+    for (k in at..(cs.len() - 1)) {
+        if (going && cs[k].or("") == c) {
+            n = n + 1;
+        } else {
+            going = false;
+        }
+    }
+    return n;
+}
+
+// The first character that isn't a space or a tab, from at. Private to core
+fn md_after_spaces(cs: list<text>, at: int): int {
+    mut k: int = at;
+    mut going: bool = true;
+    for (j in at..(cs.len() - 1)) {
+        if (going && (cs[j].or("") == " " || cs[j].or("") == "\t")) {
+            k = j + 1;
+        } else {
+            going = false;
+        }
+    }
+    return k;
+}
+
+// The text without the spaces and tabs at its end. Private to core
+fn md_trim_end(s: text): text {
+    mut end: int = s.len();
+    let cs: list<text[1]> = s.chars();
+    mut going: bool = true;
+    for (k in (s.len() - 1)..0 step -1) {
+        if (going && (cs[k].or("") == " " || cs[k].or("") == "\t")) {
+            end = k;
+        } else {
+            going = false;
+        }
+    }
+    return s.slice(0, end.clamp(0, s.len()));
+}
+
+// Unicode whitespace, as CommonMark's flanking rules read it; the ends count as space. Private to core
+fn md_is_space(c: text): bool {
+    return [" ", "\t", "\n", "\u{b}", "\u{c}", "\u{d}", "\u{a0}", "\u{1680}", "\u{2000}", "\u{2001}", "\u{2002}", "\u{2003}", "\u{2004}", "\u{2005}", "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}", "\u{200a}", "\u{202f}", "\u{205f}", "\u{3000}"].has(c);
+}
+
+// ASCII punctuation, and the Unicode punctuation and symbols CommonMark's examples meet. Private to core
+fn md_is_punct(c: text): bool {
+    return c.len() == 1 && "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~¡§«¶·»¿×÷‐‑‒–—―‖‗‘’‚‛“”„‟†‡•‣․‥…‧‰‱′″‴‵‶‷‸‹›※‼‽‾‿⁀⁁⁂⁃⁄⁅⁆⁇⁈⁉⁊⁋⁌⁍⁎⁏⁐⁑⁒⁓⁔⁕⁖⁗⁘⁙⁚⁛⁜⁝⁞£€¥¢©®°±™、。〃〈〉《》「」『』【】〔〕〖〗〘〙〚〛〜〝〞〟".has(c);
+}
+
+// Where a closing run of exactly count backticks starts, after at; -1 for none. Private to core
+fn md_find_ticks(cs: list<text>, at: int, count: int): int {
+    mut found: int = -1;
+    mut k: int = at;
+    for (j in at..(cs.len() - 1)) {
+        if (found < 0 && j >= k && cs[j].or("") == "`") {
+            let run: int = md_run(cs, j, "`");
+            if (run == count) {
+                found = j;
+            }
+            k = j + run;
+        }
+    }
+    return found;
+}
+
+// A code span's text: line breaks as spaces, and one space off each end when both have one. Private to core
+fn md_code_text(cs: list<text>, start: int, end: int): text {
+    let raw: text = md_join(cs, start, end).replace("\n", " ");
+    if (raw.len() >= 2 && raw.starts(" ") && raw.ends(" ") && raw.trim() != "") {
+        return raw.slice(1, (raw.len() - 2).clamp(0, raw.len()));
+    }
+    return raw;
+}
+
+// An opening $ is followed by a character that is not a space. Private to core
+fn md_maths_opens(cs: list<text>, at: int): bool {
+    let next: text = cs[at + 1].or(" ");
+    return next != " " && next != "\t" && next != "\n" && next != "$";
+}
+
+// The $ that closes maths opened before at, on the same line, or 0 for none. Private to core
+fn md_maths_close(cs: list<text>, at: int): int {
+    mut found: int = 0;
+    mut stop: bool = false;
+    for (k in at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (!stop && found == 0) {
+            if (c == "\n") {
+                stop = true;
+            } else if (c == "$" && cs[k - 1].or("") != "\\") {
+                let before: text = cs[k - 1].or(" ");
+                let after: text = cs[k + 1].or(" ");
+                if (before != " " && before != "\t" && !"0123456789".has(after)) {
+                    found = k;
+                } else {
+                    stop = true;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+// The characters from start to end as a template, its holes taken in order from first. Private to core
+fn md_template(cs: list<text>, value: template, start: int, end: int, first: int): template {
+    mut pieces: list<text> = [];
+    mut holes: list<hole> = [];
+    mut piece: text = "";
+    mut at: int = first;
+    mut skip: int = start;
+    for (k in start..(end - 1)) {
+        let c: text = cs[k].or("");
+        if (k >= skip) {
+            if (c == "\u{fffc}") {
+                pieces.add(piece);
+                piece = "";
+                if (let h: hole = value.holes[at]) {
+                    holes.add(h);
+                }
+                at = at + 1;
+            } else if (c == "\\" && cs[k + 1].or("") == "\\" && cs[k + 2].or("") == "{") {
+                // in maths, \\{ gives TeX \{
+                piece = "\{piece}\\{";
+                skip = k + 3;
+            } else {
+                piece = "\{piece}\{c}";
+            }
+        }
+    }
+    pieces.add(piece);
+    return template { pieces = pieces, holes = holes };
+}
+
+// The ] that ends a footnote mark [^label] opened at at, or 0. Private to core
+fn md_note_end(cs: list<text>, at: int): int {
+    mut found: int = 0;
+    mut stop: bool = false;
+    for (k in (at + 2)..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (!stop && found == 0) {
+            if (c == "]") {
+                found = k > at + 2 ? k : 0;
+                stop = true;
+            } else if (md_is_space(c) || c == "[" || c == "\u{fffc}") {
+                stop = true;
+            }
+        }
+    }
+    return found;
+}
+
+// Whether a bare link may start here: at the start, or after a space or ( * _ ~. Private to core
+fn md_word_start(cs: list<text>, at: int): bool {
+    let before: text = cs[at - 1].or(" ");
+    return md_is_space(before) || ["(", "*", "_", "~"].has(before);
+}
+
+// A bare link: www. or http:// or https://, up to a space or a <, without trailing punctuation. Private to core
+fn md_bare_link(cs: list<text>, at: int): md_link {
+    let head: text = md_join(cs, at, at + 8).lower();
+    mut scheme: text = "";
+    if (head.starts("www.")) {
+        scheme = "http://";
+    } else if (!head.starts("http://") && !head.starts("https://")) {
+        return md_link { };
+    }
+    mut end: int = at;
+    mut stop: bool = false;
+    for (k in at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (!stop) {
+            if (md_is_space(c) || c == "<" || c == "\u{fffc}") {
+                stop = true;
+            } else {
+                end = k + 1;
+            }
+        }
+    }
+    // trailing punctuation is not part of the link, nor an unmatched )
+    mut cut: int = end;
+    mut trimming: bool = true;
+    for (k in (end - 1)..at step -1) {
+        let c: text = cs[k].or("");
+        if (trimming && ["?", "!", ".", ",", ":", "*", "_", "~", "'", "\""].has(c)) {
+            cut = k;
+        } else if (trimming && c == ")" && md_count(cs, at, k + 1, ")") > md_count(cs, at, k + 1, "(")) {
+            cut = k;
+        } else {
+            trimming = false;
+        }
+    }
+    let label: text = md_join(cs, at, cut);
+    let host: text = label.slice(scheme == "" ? (label.lower().starts("https://") ? 8 : 7) : 0, label.len());
+    let domain: text = host.split("/").first().or("");
+    if (!domain.has(".") || domain.starts(".") || domain.ends(".") || domain.has("_")) {
+        return md_link { };
+    }
+    return md_link { end = cut, dest = "\{scheme}\{label}", label = label };
+}
+
+// How many times c appears from start up to end. Private to core
+fn md_count(cs: list<text>, start: int, end: int, c: text): int {
+    mut n: int = 0;
+    for (k in start..(end - 1)) {
+        if (cs[k].or("") == c) {
+            n = n + 1;
+        }
+    }
+    return n;
+}
+
+// An autolink <scheme:…> or <address@host>. Private to core
+fn md_autolink(cs: list<text>, at: int): md_link {
+    mut end: int = 0;
+    mut stop: bool = false;
+    for (k in (at + 1)..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (!stop && end == 0) {
+            if (c == ">") {
+                end = k;
+            } else if (c == "<" || md_is_space(c) || c == "\u{fffc}") {
+                stop = true;
+            }
+        }
+    }
+    if (end == 0) {
+        return md_link { };
+    }
+    let body: text = md_join(cs, at + 1, end);
+    let colon: list<text> = body.split(":");
+    let scheme: text = colon.first().or("");
+    if (colon.len() >= 2 && scheme.len() >= 2 && scheme.len() <= 32 && md_scheme(scheme)) {
+        return md_link { end = end + 1, dest = body, label = body };
+    }
+    let at_parts: list<text> = body.split("@");
+    if (at_parts.len() == 2 && md_email(at_parts.first().or(""), at_parts.last().or(""))) {
+        return md_link { end = end + 1, dest = "mailto:\{body}", label = body };
+    }
+    return md_link { };
+}
+
+// A scheme: a letter, then letters, digits, + . or -. Private to core
+fn md_scheme(s: text): bool {
+    let letters: text = "abcdefghijklmnopqrstuvwxyz";
+    let cs: list<text[1]> = s.lower().chars();
+    for (k, c in cs) {
+        if (!letters.has(c) && (k == 0 || !"0123456789+.-".has(c))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// An email address's two halves, as CommonMark's autolinks allow them. Private to core
+fn md_email(local: text, host: text): bool {
+    let word: text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    if (local == "" || host == "") {
+        return false;
+    }
+    for (c in local.chars()) {
+        if (!word.has(c) && !".!#$%&'*+/=?^_`{|}~-".has(c)) {
+            return false;
+        }
+    }
+    for (label in host.split(".")) {
+        if (label == "" || label.starts("-") || label.ends("-") || label.len() > 63) {
+            return false;
+        }
+        for (c in label.chars()) {
+            if (!word.has(c) && c != "-") {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Where raw HTML that starts at at ends: a tag, a comment, a processing instruction, a declaration or CDATA; 0 for none. Private to core
+fn md_html(cs: list<text>, at: int): int {
+    let rest: text = md_join(cs, at, (at + 4).clamp(0, cs.len()));
+    if (rest.starts("<!--")) {
+        return md_html_until(cs, at + 4, "-->", at);
+    }
+    if (rest.starts("<?")) {
+        return md_html_until(cs, at + 2, "?>", at);
+    }
+    if (rest.starts("<![")) {
+        return md_html_until(cs, at + 3, "]]>", at);
+    }
+    if (rest.starts("<!")) {
+        return md_html_until(cs, at + 2, ">", at);
+    }
+    let letters: text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let closing: bool = rest.starts("</");
+    let name_at: int = closing ? at + 2 : at + 1;
+    if (!letters.has(cs[name_at].or(" "))) {
+        return 0;
+    }
+    // the tag's name, then attributes, then > or />, with no hole in it
+    mut quote: text = "";
+    mut end: int = 0;
+    mut bad: bool = false;
+    for (k in name_at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (end == 0 && !bad) {
+            if (quote != "") {
+                if (c == quote) {
+                    quote = "";
+                }
+            } else if (c == "\"" || c == "'") {
+                quote = closing ? "" : c;
+                bad = closing;
+            } else if (c == ">") {
+                end = k + 1;
+            } else if (c == "<" || c == "\u{fffc}" || c == "`") {
+                bad = true;
+            }
+        }
+    }
+    if (bad || end == 0) {
+        return 0;
+    }
+    let inside: text = md_join(cs, name_at, end - 1);
+    if (closing && inside.trim().has(" ")) {
+        return 0;
+    }
+    return end;
+}
+
+// Where text that started at start ends once close is found after from; 0 when it never is. Private to core
+fn md_html_until(cs: list<text>, from: int, close: text, start: int): int {
+    let n: int = close.len();
+    for (k in from..(cs.len() - n)) {
+        if (md_join(cs, k, k + n) == close) {
+            return k + n > start ? k + n : 0;
+        }
+    }
+    return 0;
+}
+
+// An entity: &name; from HTML5's list, or a numeric one, which stays as written. Private to core
+fn md_entity(cs: list<text>, at: int): md_link {
+    mut end: int = 0;
+    mut stop: bool = false;
+    for (k in (at + 1)..((at + 40).clamp(0, cs.len() - 1))) {
+        let c: text = cs[k].or("");
+        if (!stop && end == 0) {
+            if (c == ";") {
+                end = k;
+            } else if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#".has(c)) {
+                stop = true;
+            }
+        }
+    }
+    if (end == 0) {
+        return md_link { };
+    }
+    let name: text = md_join(cs, at + 1, end);
+    if (let value: text = entities.get(name)) {
+        return md_link { end = end + 1, label = value };
+    }
+    return md_link { };
+}
+
+// Adds the text read so far as a piece. Private to core
+fn md_flush(mut pieces: list<md_piece>, buf: text) {
+    if (buf != "") {
+        pieces.add(md_piece { part = part.TEXT(buf) });
+    }
+}
+
+// Takes the last bracket off; for a link, every bracket before it can no longer make one. Private to core
+fn md_drop_bracket(mut brackets: list<md_bracket>, link: bool) {
+    let last: int = brackets.len() - 1;
+    if (last in 0...) {
+        brackets.remove_at(last);
+    }
+    if (link) {
+        mut for (b in brackets) {
+            if (mut x: md_bracket = b) {
+                if (!x.image) {
+                    x.active = false;
+                }
+            }
+        }
+    }
+}
+
+// What a ] at at closes: an inline link, a reference, or nothing (end 0). Private to core
+fn md_close_bracket(cs: list<text>, at: int, brackets: list<md_bracket>, links: map<text>): md_link {
+    if (let b: md_bracket = brackets.last()) {
+        if (!b.active) {
+            return md_link { };
+        }
+        let label: text = md_join(cs, b.start, at);
+        if (cs[at + 1].or("") == "(") {
+            let inline: md_link = md_inline_link(cs, at + 2);
+            if (inline.end > 0) {
+                return inline;
+            }
+        }
+        // a full reference [text][label], a collapsed one [text][], or a shortcut [text]
+        if (cs[at + 1].or("") == "[") {
+            mut close: int = 0;
+            mut stop: bool = false;
+            for (k in (at + 2)..(cs.len() - 1)) {
+                let c: text = cs[k].or("");
+                if (!stop && close == 0) {
+                    if (c == "]") {
+                        close = k;
+                    } else if (c == "[") {
+                        stop = true;
+                    }
+                }
+            }
+            if (close > 0) {
+                let inner: text = md_join(cs, at + 2, close);
+                let key: text = md_label(inner == "" ? label : inner);
+                if (let dest: text = links.get(key)) {
+                    return md_link { end = close + 1, dest = dest, label = label };
+                }
+                if (inner != "") {
+                    return md_link { };
+                }
+            }
+        }
+        if (let dest: text = links.get(md_label(label))) {
+            return md_link { end = at + 1, dest = dest, label = label };
+        }
+    }
+    return md_link { };
+}
+
+// A label as CommonMark matches them: case folded, spaces collapsed. Private to core
+fn md_label(s: text): text {
+    let flat: text = s.replace("\n", " ").replace("\t", " ").lower();
+    return flat.split(" ").filter(fn(w) { return w != ""; }).join(" ");
+}
+
+// An inline link's (destination "title"), from just after its (. Private to core
+fn md_inline_link(cs: list<text>, from: int): md_link {
+    mut k: int = md_after_blank(cs, from);
+    mut dest: text = "";
+    if (cs[k].or("") == "<") {
+        mut close: int = 0;
+        mut stop: bool = false;
+        for (j in (k + 1)..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (!stop && close == 0) {
+                if (c == ">") {
+                    close = j;
+                } else if (c == "\n" || c == "<") {
+                    stop = true;
+                }
+            }
+        }
+        if (close == 0) {
+            return md_link { };
+        }
+        dest = md_unescape(md_join(cs, k + 1, close));
+        k = close + 1;
+    } else {
+        mut depth: int = 0;
+        mut end: int = k;
+        mut stop: bool = false;
+        for (j in k..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (!stop) {
+                if (md_is_space(c) || c == "\u{fffc}") {
+                    stop = true;
+                } else if (c == "(") {
+                    depth = depth + 1;
+                    end = j + 1;
+                } else if (c == ")") {
+                    if (depth == 0) {
+                        stop = true;
+                    } else {
+                        depth = depth - 1;
+                        end = j + 1;
+                    }
+                } else {
+                    end = j + 1;
+                }
+            }
+        }
+        if (depth != 0) {
+            return md_link { };
+        }
+        dest = md_unescape(md_join(cs, k, end));
+        k = end;
+    }
+    let before_title: int = k;
+    k = md_after_blank(cs, k);
+    let q: text = cs[k].or("");
+    if (k > before_title && (q == "\"" || q == "'" || q == "(")) {
+        let close: text = q == "(" ? ")" : q;
+        mut end: int = 0;
+        mut stop: bool = false;
+        for (j in (k + 1)..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (!stop && end == 0) {
+                if (c == close && cs[j - 1].or("") != "\\") {
+                    end = j;
+                } else if (c == "(" && q == "(") {
+                    stop = true;
+                }
+            }
+        }
+        if (end == 0) {
+            return md_link { };
+        }
+        k = md_after_blank(cs, end + 1);
+    }
+    if (cs[k].or("") != ")") {
+        return md_link { };
+    }
+    return md_link { end = k + 1, dest = dest };
+}
+
+// After spaces, tabs and at most one line break. Private to core
+fn md_after_blank(cs: list<text>, at: int): int {
+    mut k: int = at;
+    mut going: bool = true;
+    mut lines: int = 0;
+    for (j in at..(cs.len() - 1)) {
+        let c: text = cs[j].or("");
+        if (going && (c == " " || c == "\t" || (c == "\n" && lines == 0))) {
+            if (c == "\n") {
+                lines = 1;
+            }
+            k = j + 1;
+        } else {
+            going = false;
+        }
+    }
+    return k;
+}
+
+// Backslash escapes and entities in a destination. Private to core
+fn md_unescape(s: text): text {
+    let cs: list<text> = s.chars();
+    mut out: text = "";
+    mut skip: int = 0;
+    for (k, c in cs) {
+        if (k >= skip) {
+            if (c == "\\" && md_is_punct(cs[k + 1].or(""))) {
+                out = "\{out}\{cs[k + 1].or("")}";
+                skip = k + 2;
+            } else if (c == "&") {
+                let e: md_link = md_entity(cs, k);
+                if (e.end > 0) {
+                    out = "\{out}\{e.label}";
+                    skip = e.end;
+                } else {
+                    out = "\{out}&";
+                }
+            } else {
+                out = "\{out}\{c}";
+            }
+        }
+    }
+    return out;
+}
+
+// A link: the pieces after its bracket get its link mark; an image: they become its alt text. Private to core
+fn md_make_link(mut pieces: list<md_piece>, b: md_bracket, found: md_link) {
+    md_emphasis(pieces, b.at + 1);
+    if (b.image) {
+        mut alt: text = "";
+        mut for (k, t in pieces) {
+            if (mut x: md_piece = t) {
+                if (k > b.at && !x.gone) {
+                    alt = "\{alt}\{x.part.words()}";
+                    x.gone = true;
+                }
+            }
+        }
+        if (mut x: md_piece = pieces[b.at]) {
+            x.part = part.IMAGE(found.dest, alt);
+            x.live = false;
+        }
+        return;
+    }
+    mut for (k, t in pieces) {
+        if (mut x: md_piece = t) {
+            if (k > b.at && !x.gone && x.marks.link == opt.NONE) {
+                x.marks = x.marks with { link = found.dest };
+            }
+            if (k > b.at) {
+                x.live = false;
+            }
+        }
+    }
+    if (mut x: md_piece = pieces[b.at]) {
+        x.gone = true;
+    }
+}
+
+// CommonMark's emphasis: each closing run, in order, finds the nearest run that can open it. Private to core
+fn md_emphasis(mut pieces: list<md_piece>, bottom: int) {
+    let n: int = pieces.len();
+    for (c in bottom..(n - 1)) {
+        // a closer may close several openers, two characters at a time
+        for (round in 0..32) {
+            let closer: md_piece = pieces[c].or(md_piece { part = part.BREAK });
+            if (closer.live && closer.closes && closer.left > 0) {
+                let o: int = md_opener(pieces, bottom, c);
+                if (o >= 0) {
+                    let opener: md_piece = pieces[o].or(md_piece { part = part.BREAK });
+                    mut used: int = closer.left >= 2 && opener.left >= 2 ? 2 : 1;
+                    if (closer.run == "~") {
+                        used = closer.left;
+                    }
+                    mut for (k, t in pieces) {
+                        if (mut x: md_piece = t) {
+                            if (k > o && k < c) {
+                                if (!x.gone && x.run == "") {
+                                    if (closer.run == "~") {
+                                        x.marks = x.marks with { strike = true };
+                                    } else if (used == 2) {
+                                        x.marks = x.marks with { bold = true };
+                                    } else {
+                                        x.marks = x.marks with { italic = true };
+                                    }
+                                }
+                                if (x.run != "" && !x.gone && x.left > 0) {
+                                    // a run inside keeps its characters, now marked like the text around it
+                                    if (closer.run == "~") {
+                                        x.marks = x.marks with { strike = true };
+                                    } else if (used == 2) {
+                                        x.marks = x.marks with { bold = true };
+                                    } else {
+                                        x.marks = x.marks with { italic = true };
+                                    }
+                                }
+                                x.live = false;
+                            }
+                        }
+                    }
+                    if (mut x: md_piece = pieces[o]) {
+                        x.left = (x.left - used).clamp(0, 64);
+                        x.live = x.left > 0;
+                    }
+                    if (mut x: md_piece = pieces[c]) {
+                        x.left = (x.left - used).clamp(0, 64);
+                        x.live = x.left > 0;
+                    }
+                } else if (mut x: md_piece = pieces[c]) {
+                    if (!x.opens) {
+                        x.live = false;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The nearest run before c that can open it, or -1. Private to core
+fn md_opener(pieces: list<md_piece>, bottom: int, c: int): int {
+    if (let closer: md_piece = pieces[c]) {
+        for (k in (c - 1)..bottom step -1) {
+            if (let x: md_piece = pieces[k]) {
+                if (x.live && x.opens && x.run == closer.run && x.left > 0) {
+                    let both: bool = x.closes || closer.opens;
+                    let three: bool = (x.size + closer.size) % 3 == 0 && !(x.size % 3 == 0 && closer.size % 3 == 0);
+                    let tildes: bool = closer.run != "~" || x.left == closer.left;
+                    if (!(both && three) && tildes) {
+                        return k;
+                    }
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+// The pieces as segments: a run's characters that nothing used are text, and neighbours with the same marks join. Private to core
+fn md_segments(pieces: list<md_piece>): list<segment> {
+    mut out: list<segment> = [];
+    mut after_hole: bool = true;
+    for (p in pieces) {
+        if (!p.gone) {
+            mut part: part = p.part;
+            if (p.run != "") {
+                mut chars: text = "";
+                for (k in 1..(p.left)) {
+                    chars = "\{chars}\{p.run}";
+                }
+                part = part.TEXT(chars);
+            }
+            let words: text = part.words();
+            mut joined: bool = false;
+            if (let last: segment = out.last()) {
+                match (part) {
+                    case part.TEXT(v) {
+                        match (last.part) {
+                            case part.TEXT(w) {
+                                if (last.marks == p.marks && !p.hole && !after_hole) {
+                                    out[out.len() - 1] = segment { part = part.TEXT("\{w}\{v}"), marks = p.marks };
+                                    joined = true;
+                                }
+                            }
+                            case else { }
+                        }
+                    }
+                    case else { }
+                }
+            }
+            if (!joined && !(p.run != "" && words == "")) {
+                out.add(segment { part = part, marks = p.marks });
+                after_hole = p.hole;
+            }
+        }
+    }
+    return out;
+}
