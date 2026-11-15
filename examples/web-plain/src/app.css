@@ -1,0 +1,4 @@
+body { margin: 0; font-family: system-ui, sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 16px; }
+.from { color: #666; font-size: 14px; }
+#shop { width: 100%; }

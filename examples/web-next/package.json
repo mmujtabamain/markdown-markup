@@ -1,0 +1,25 @@
+{
+  "name": "@mkp/example-web-next",
+  "version": "0.3.0",
+  "private": true,
+  "description": "The shop page in Next.js's app router: <MkpPage> from @mkp/next, the page compiled by mkp at build time and pre-rendered as HTML on the server",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:webpack": "next build --webpack",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mkp/next": "file:../../targets/ts/bindings/next",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}
