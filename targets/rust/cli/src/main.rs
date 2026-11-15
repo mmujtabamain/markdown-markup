@@ -46,17 +46,46 @@ fn pack_sources(list: &str) -> Result<Vec<mkp_check::Source>, String> {
 }
 
 /// `--pack a,b` and `-o out` taken out of the arguments, the files left.
+/// What an `mkp.toml` holds: the packs a document uses, as `--pack` takes them, relative to it.
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct Config {
+    #[serde(default)]
+    packs: Vec<String>,
+}
+
+/// The `mkp.toml` named, or else the one beside the document or in a folder above it.
+fn config_for(named: Option<&str>, file: Option<&String>) -> Result<Vec<mkp_check::Source>, String> {
+    let path = match named {
+        Some(p) => Some(std::path::PathBuf::from(p)),
+        None => file.and_then(|f| {
+            let start = std::fs::canonicalize(f).ok()?;
+            start.ancestors().skip(1).map(|d| d.join("mkp.toml")).find(|p| p.is_file())
+        }),
+    };
+    let Some(path) = path else { return Ok(Vec::new()) };
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {}", path.display(), e))?;
+    let config: Config = toml::from_str(&text).map_err(|e| format!("{}: {}", path.display(), e.message()))?;
+    let dir = path.parent().map(|d| d.to_path_buf()).unwrap_or_default();
+    let mut out = Vec::new();
+    for p in &config.packs {
+        out.extend(pack_sources(&dir.join(p).to_string_lossy())?);
+    }
+    Ok(out)
+}
+
 fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Option<String>), String> {
     let (mut files, mut packs, mut out) = (Vec::new(), Vec::new(), None);
+    let mut config: Option<String> = None;
     let mut k = 0;
     while k < args.len() {
         match args[k].as_str() {
-            "-o" | "--pack" => {
+            "-o" | "--pack" | "--config" | "-c" => {
                 let Some(v) = args.get(k + 1) else { return Err(format!("{} needs a value", args[k])) };
-                if args[k] == "-o" {
-                    out = Some(v.clone());
-                } else {
-                    packs.extend(pack_sources(v)?);
+                match args[k].as_str() {
+                    "-o" => out = Some(v.clone()),
+                    "--pack" => packs.extend(pack_sources(v)?),
+                    _ => config = Some(v.clone()),
                 }
                 k += 2;
             }
@@ -71,7 +100,12 @@ fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Opti
             }
         }
     }
-    Ok((files, packs, out))
+    // the config's packs, then --pack's; a file named twice is read once
+    let mut all = config_for(config.as_deref(), files.first())?;
+    all.extend(packs);
+    let mut seen = std::collections::HashSet::new();
+    all.retain(|s| seen.insert(std::fs::canonicalize(&s.path).unwrap_or_else(|_| s.path.clone().into())));
+    Ok((files, all, out))
 }
 
 /// `mkp build doc.mkp.md [--pack a,b] [-o out.ir.json]`: one standalone IR, core and the packs in it.
@@ -123,7 +157,8 @@ const USAGE: &str = "usage:
   mkp parse <file>                  print a file's syntax tree as JSON
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
   mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
-  (--pack takes a comma-separated list of folders and .mkp files)";
+  (--pack takes a comma-separated list of folders and .mkp files; --config/-c names an mkp.toml,
+   and left out, mkp looks for one beside the file and in the folders above: packs = [\"kit\", \"extra.mkp\"])";
 
 fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
     let entry = entry_for(path).ok_or_else(|| format!("{}: not an MKP file (.mkp or .mkp.md)", path))?;

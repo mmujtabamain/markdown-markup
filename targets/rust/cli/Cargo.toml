@@ -16,3 +16,5 @@ mkp-ir = { path = "../compiler/ir" }
 mkp-lower = { path = "../compiler/lower" }
 mkp-markdown = { path = "../compiler/markdown" }
 serde_json.workspace = true
+serde.workspace = true
+toml = "0.8"

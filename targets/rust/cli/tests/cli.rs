@@ -54,3 +54,24 @@ fn packs_from_folders_and_files() {
     assert_eq!(code, 2);
     assert!(err.contains("not a folder or a .mkp file"), "{}", err);
 }
+
+#[test]
+fn an_mkp_toml_names_the_packs() {
+    // beside the document
+    let dir = scratch("config", &[("packs/shelf/shelf.mkp", SHELF), ("mkp.toml", "packs = [\"packs\"]\n"), ("doc.mkp.md", DOC)]);
+    let doc = dir.join("doc.mkp.md");
+    let (code, _, err) = mkp(&["check", doc.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    // in a folder above, and named with -c
+    let dir = scratch("config-above", &[("site/packs/shelf/shelf.mkp", SHELF), ("site/mkp.toml", "packs = [\"packs\"]\n"), ("site/pages/doc.mkp.md", DOC), ("other.toml", "packs = [\"site/packs\"]\n")]);
+    let doc = dir.join("site/pages/doc.mkp.md");
+    let (code, _, err) = mkp(&["check", doc.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "-c", dir.join("other.toml").to_str().unwrap(), "-o", dir.join("doc.ir.json").to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    // a key mkp.toml doesn't have
+    let dir = scratch("config-bad", &[("mkp.toml", "pack = [\"packs\"]\n"), ("doc.mkp.md", "# Hi\n")]);
+    let (code, _, err) = mkp(&["check", dir.join("doc.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 2, "{}", err);
+    assert!(err.contains("unknown field `pack`"), "{}", err);
+}
