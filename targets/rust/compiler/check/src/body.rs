@@ -1,5 +1,6 @@
 //! Bodies: every expression typed and every statement checked, written as IR.
 
+use crate::proof::Known;
 use crate::ty::{FnParam, Ty};
 use crate::*;
 use mkp_syntax::ast::{BinOp, ExprKind as E, UnOp};
@@ -20,6 +21,8 @@ pub struct Local {
     pub ty: Ty,
     pub mutable: bool,
     pub kind: LocalKind,
+    /// What is known of its value: its declared type, and proofs that hold where it is read.
+    pub known: Option<Known>,
 }
 
 /// The widget whose code is being checked.
@@ -31,6 +34,8 @@ pub struct WidgetCx {
     pub events: Vec<EventSym>,
     pub cells: Vec<(String, Ty)>,
     pub fns: HashMap<String, usize>,
+    /// The inputs' and own variables' declared types, with their contracts.
+    pub declared: Vec<(String, ir::Type)>,
 }
 
 /// Where code is being checked.
@@ -47,11 +52,17 @@ pub struct Cx {
     pub state: Option<Vec<(String, Ty)>>,
     /// Inside `$state`'s own rules, its fields are read by name.
     pub state_rules: bool,
+    /// The declared return type, for its contract.
+    pub ret_ir: Option<ir::Type>,
+    /// Under `try`: a record's fields need no proof.
+    pub trying: bool,
+    /// Proofs that hold from a scope down: `if (n in 0..100)`, at the depth of its block.
+    pub facts: Vec<(usize, String, Known)>,
 }
 
 impl Cx {
     pub fn new(file: usize) -> Cx {
-        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false }
+        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false, ret_ir: None, trying: false, facts: Vec::new() }
     }
 
     pub fn push(&mut self) {
@@ -60,6 +71,8 @@ impl Cx {
 
     pub fn pop(&mut self) {
         self.scopes.pop();
+        let depth = self.scopes.len();
+        self.facts.retain(|f| f.0 <= depth);
     }
 
     pub fn local(&self, name: &str) -> Option<&Local> {
@@ -90,7 +103,7 @@ impl Checker {
         if cx.local(&name.name).is_some() || self.visible_value(cx, &name.name) {
             self.error(cx.file, codes::SHADOWING, name.span, format!("`{}` is already a visible name: a declaration can't reuse it", name.name));
         }
-        cx.scopes.last_mut().unwrap().push(Local { name: name.name.clone(), ty, mutable, kind });
+        cx.scopes.last_mut().unwrap().push(Local { name: name.name.clone(), ty, mutable, kind, known: None });
     }
 
     /// Whether a name is a value outside the locals: an input, a cell, a slot or a file's name.
@@ -108,6 +121,7 @@ impl Checker {
 
     pub fn expr(&mut self, cx: &mut Cx, e: &ast::Expr, expect: Option<&Ty>) -> (ir::Expr, Ty) {
         let (x, t) = self.expr_raw(cx, e, expect);
+        self.note_known(cx, e, &x);
         match expect {
             Some(want) if !t.is_err() => {
                 let x = self.coerce(cx.file, x, &t, want, e.span, &cx.bounds.clone());
@@ -217,6 +231,7 @@ impl Checker {
             }
             E::Call { callee, args } => self.call_expr(cx, callee, args, expect, e.span),
             E::With { target, inits } => {
+                let trying = std::mem::replace(&mut cx.trying, false);
                 let (base, bt) = self.expr(cx, target, expect);
                 let fields = self.fields_in(cx, &bt);
                 let mut out = BTreeMap::new();
@@ -225,6 +240,11 @@ impl Checker {
                         Some((_, ft)) => {
                             let ft = ft.clone();
                             let (x, _) = self.expr(cx, &i.value, Some(&ft));
+                            if !trying {
+                                if let Some(w) = self.field_ir(cx, &bt, &i.name.name) {
+                                    self.want(cx, &i.value, &x, &w, format!("`{}`", i.name.name));
+                                }
+                            }
                             out.insert(i.name.name.clone(), x);
                         }
                         None => {
@@ -293,7 +313,9 @@ impl Checker {
                     Some(Ty::Opt(t)) => Some(*t),
                     _ => None,
                 };
+                let was = std::mem::replace(&mut cx.trying, true);
                 let (x, t) = self.expr(cx, inner, inner_want.as_ref());
+                cx.trying = was;
                 (ir::Expr::Try(Box::new(ir::ExprTry { value: x })), Ty::opt(t))
             }
             E::Lambda(l) => self.lambda(cx, l, expect),
@@ -492,12 +514,16 @@ impl Checker {
         };
         let map = self.generic_map(d, &args);
         let DefKind::Record { fields } = self.defs[d].kind.clone() else { unreachable!() };
+        let trying = std::mem::replace(&mut cx.trying, false);
         let mut out = BTreeMap::new();
         for i in inits.iter() {
             match fields.iter().find(|f| f.name == i.name.name) {
                 Some(f) => {
                     let ft = f.ty.subst(&map);
                     let (x, _) = self.expr(cx, &i.value, Some(&ft));
+                    if !trying {
+                        self.want(cx, &i.value, &x, &f.ir, format!("`{}`'s `{}`", self.defs[d].name, f.name));
+                    }
                     out.insert(i.name.name.clone(), x);
                 }
                 None => self.error(file, codes::UNKNOWN_FIELD, i.name.span, format!("record `{}` has no field `{}`", name.name, i.name.name)),
@@ -516,7 +542,12 @@ impl Checker {
         let file = cx.file;
         if let E::State = target.kind {
             return match cx.state.as_ref().and_then(|s| s.iter().find(|f| f.0 == name.name)).map(|f| f.1.clone()) {
-                Some(t) => (ir::Expr::Get(ir::Get::State(name.name.clone())), t),
+                Some(t) => {
+                    if let Some(w) = self.state_ir(&name.name) {
+                        self.known_at.insert((file, span.start, span.end), Known::of(&w));
+                    }
+                    (ir::Expr::Get(ir::Get::State(name.name.clone())), t)
+                }
                 None => {
                     self.error(file, codes::UNKNOWN_FIELD, name.span, format!("`$state` has no field `{}`", name.name));
                     (ir::Expr::Num("0".into()), Ty::Err)
@@ -540,7 +571,15 @@ impl Checker {
         let (x, t) = self.expr(cx, target, None);
         let fields = self.fields_in(cx, &t);
         match fields.into_iter().find(|(n, _)| *n == name.name) {
-            Some((_, ft)) => (ir::Expr::Field(Box::new(ir::ExprField { value: x, name: name.name.clone() })), ft),
+            Some((_, ft)) => {
+                let mut k = self.field_ir(cx, &t, &name.name).map(|w| Known::of(&w)).unwrap_or_default();
+                // a constant's field is a constant
+                if self.known_of(cx, target).value.is_some() {
+                    k.value = Some(ir::Expr::Field(Box::new(ir::ExprField { value: x.clone(), name: name.name.clone() })));
+                }
+                self.known_at.insert((file, span.start, span.end), k);
+                (ir::Expr::Field(Box::new(ir::ExprField { value: x, name: name.name.clone() })), ft)
+            }
             None => {
                 if !t.is_err() {
                     let s = self.show(&t);
@@ -608,9 +647,13 @@ impl Checker {
                     self.error(file, codes::ARGUMENTS, span, format!("`{}.{}` carries {} value(s), and {} are given", tn.name, name.name, c.fields.len(), given.len()));
                 }
                 let mut values = BTreeMap::new();
+                let trying = std::mem::replace(&mut cx.trying, false);
                 for (f, a) in c.fields.iter().zip(given.iter()) {
                     let ft = f.ty.subst(&map);
                     let (x, _) = self.expr(cx, &a.value, Some(&ft));
+                    if !trying {
+                        self.want(cx, &a.value, &x, &f.ir, format!("`{}.{}`'s `{}`", tn.name, name.name, f.name));
+                    }
                     values.insert(f.name.clone(), x);
                 }
                 let ty = Ty::Def(d, targs);
@@ -742,6 +785,8 @@ impl Checker {
         };
         let mut inner = cx.clone();
         inner.push();
+        // a lambda's own return; its parameters' contracts are read where it is called
+        inner.ret_ir = None;
         let mut params = Vec::new();
         let mut ptys = Vec::new();
         for (k, p) in l.params.iter().enumerate() {
@@ -920,6 +965,7 @@ impl Checker {
         let map: HashMap<String, Ty> = s.generics.iter().map(|g| (g.name.clone(), self.vars.fresh())).collect();
         let mut out = Vec::new();
         let mut params = s.params.iter();
+        let recv_src = recv.as_ref().map(|r| r.2);
         if let Some((rx, rt, rsrc)) = recv {
             match params.next() {
                 Some(p) if p.is_self => {
@@ -952,12 +998,29 @@ impl Checker {
             let pt = p.ty.subst(&map);
             if p.mutable {
                 let place = self.place_arg(cx, &a.value);
+                if let Some(k) = self.place_known(cx, &a.value) {
+                    self.known_at.insert((cx.file, a.value.span.start, a.value.span.end), k);
+                    self.want_shared(cx, &a.value, &p.ir, format!("`{}`'s `mut {}`", s.name, p.name));
+                }
                 out.push(place);
             } else {
                 let (x, _) = self.expr(cx, &a.value, Some(&pt));
+                self.want(cx, &a.value, &x, &p.ir, format!("`{}`'s `{}`", s.name, p.name));
                 out.push(x);
             }
         }
+        // add, insert and the removes change a list's length: not for a list with a length contract
+        if matches!(s.full.as_str(), "core/list.add" | "core/list.insert" | "core/list.remove" | "core/list.remove_at" | "core/list.remove_where") {
+            if let Some(r) = recv_src {
+                if let Some(t) = self.place_ir(cx, r) {
+                    if self.has_length(&t) {
+                        self.error(file, codes::LENGTH_CHANGE, span, format!("`{}` changes a list's length, and this list has a length contract, {}: build a new list instead", s.name, crate::proof::show_contract(&t)));
+                    }
+                }
+            }
+        }
+        let arg_exprs: Vec<&ast::Expr> = args.iter().map(|a| &a.value).collect();
+        self.note_call_known(cx, span, f, recv_src, &arg_exprs);
         let ret = s.ret.as_ref().map(|r| self.vars.resolve(&r.subst(&map)));
         let ty = ret.as_ref().map(|r| self.ir_ty(r));
         (call(&s.full, out, ty), ret.unwrap_or(Ty::Err))
@@ -1046,7 +1109,9 @@ impl Checker {
                 let ty = self.resolve(file, &v.ty, &cx.generics.clone());
                 let ty_ir = self.ir_type(file, &v.ty, &cx.generics.clone());
                 let (x, _) = self.expr(cx, &v.value, Some(&ty));
+                self.want(cx, &v.value, &x, &ty_ir, format!("`{}`", v.name.name));
                 self.declare_local(cx, &v.name, ty, mutable, LocalKind::Plain);
+                crate::proof::set_known(cx, &v.name.name, Known::of(&ty_ir));
                 let l = ir::Local { name: v.name.name.clone(), ty: ty_ir, value: x };
                 ir::Stmt::Declare(if mutable { ir::StmtDeclare::Mut(l) } else { ir::StmtDeclare::Let(l) })
             }
@@ -1055,7 +1120,11 @@ impl Checker {
                 let value = match (e, &want) {
                     (Some(e), Some(w)) => {
                         let w = w.clone();
-                        Some(self.expr(cx, e, Some(&w)).0)
+                        let x = self.expr(cx, e, Some(&w)).0;
+                        if let Some(r) = cx.ret_ir.clone() {
+                            self.want(cx, e, &x, &r, "the return value");
+                        }
+                        Some(x)
                     }
                     (Some(e), None) => {
                         self.error(file, codes::RETURN, e.span, "this fn has no return type, so `return` gives back nothing: add a return type to return a value");
@@ -1077,7 +1146,9 @@ impl Checker {
                 };
                 let mut out = Vec::new();
                 for (p, a) in ev.params.iter().zip(args.iter()) {
-                    out.push(self.expr(cx, &a.value, Some(&p.ty)).0);
+                    let x = self.expr(cx, &a.value, Some(&p.ty)).0;
+                    self.want(cx, &a.value, &x, &p.ir, format!("`{}`'s `{}`", name.name, p.name));
+                    out.push(x);
                 }
                 ir::Stmt::Invoke(ir::StmtInvoke { event: name.name.clone(), args: out })
             }
@@ -1101,6 +1172,9 @@ impl Checker {
                 }
                 let var_ty = if f.mutable { Ty::opt(item.clone()) } else { item.clone() };
                 self.declare_local(cx, &f.name, var_ty, false, if f.mutable { LocalKind::MutFor } else { LocalKind::Plain });
+                if !f.mutable {
+                    self.loop_known(cx, &f.over, f.key.as_ref(), &f.name);
+                }
                 let body = self.block(cx, &f.body);
                 cx.pop();
                 ir::Stmt::For(ir::StmtFor { mutable: f.mutable, name: f.name.name.clone(), position: f.key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over, body })
@@ -1142,6 +1216,10 @@ impl Checker {
                     return Vec::new();
                 };
                 let (x, _) = self.expr(cx, value, Some(&t));
+                // every write needs the same proof: `level = (level + 1).clamp(0, 10);`
+                if let Some(w) = self.place_ir(cx, place) {
+                    self.want(cx, value, &x, &w, "this place");
+                }
                 ir::Stmt::Set(ir::StmtSet { place: p, value: x })
             }
         };
@@ -1151,7 +1229,11 @@ impl Checker {
     pub(crate) fn cond(&mut self, cx: &mut Cx, c: &ast::Cond) -> ir::Cond {
         let file = cx.file;
         match c {
-            ast::Cond::Expr(e) => ir::Cond::Cond(self.expr(cx, e, Some(&Ty::Bool)).0),
+            ast::Cond::Expr(e) => {
+                let x = self.expr(cx, e, Some(&Ty::Bool)).0;
+                self.narrow(cx, e);
+                ir::Cond::Cond(x)
+            }
             ast::Cond::Open { mutable, name, ty, value } => {
                 let t = self.resolve(file, ty, &cx.generics.clone());
                 let opt = if *mutable {
@@ -1166,6 +1248,8 @@ impl Checker {
                     self.expr(cx, value, Some(&Ty::opt(t.clone()))).0
                 };
                 self.declare_local(cx, name, t.clone(), *mutable, if *mutable { LocalKind::OpenMut } else { LocalKind::Plain });
+                let declared = self.ir_type(file, ty, &cx.generics.clone());
+                crate::proof::set_known(cx, &name.name, Known::of(&declared));
                 ir::Cond::Open(ir::CondOpen { mutable: *mutable, name: name.name.clone(), ty: self.ir_ty(&t), opt })
             }
         }
@@ -1209,6 +1293,8 @@ impl Checker {
         for p in pats {
             out.push(match p {
                 ast::Pattern::Case { ty, case, binds } => {
+                    // each bound value's declared type, for its contract
+                    let mut declared: Vec<ir::Type> = Vec::new();
                     let fields: Vec<Ty> = match self.lookup_type(file, &ty.name) {
                         Some(TypeSym::Builtin("opt")) => match self.vars.resolve(vt) {
                             Ty::Opt(inner) if case.name == "SOME" => vec![*inner],
@@ -1224,7 +1310,10 @@ impl Checker {
                                 _ => HashMap::new(),
                             };
                             match cases.iter().find(|c| c.name == case.name) {
-                                Some(c) => c.fields.iter().map(|f| f.ty.subst(&map)).collect(),
+                                Some(c) => {
+                                    declared = c.fields.iter().map(|f| f.ir.clone()).collect();
+                                    c.fields.iter().map(|f| f.ty.subst(&map)).collect()
+                                }
                                 None => {
                                     self.error(file, codes::UNKNOWN_CASE, case.span, format!("`{}` has no case `{}`", ty.name, case.name));
                                     Vec::new()
@@ -1240,6 +1329,9 @@ impl Checker {
                     for (k, b) in binds.iter().flatten().enumerate() {
                         let t = fields.get(k).cloned().unwrap_or(Ty::Err);
                         self.declare_local(cx, b, t, false, LocalKind::Plain);
+                        if let Some(d) = declared.get(k) {
+                            crate::proof::set_known(cx, &b.name, Known::of(d));
+                        }
                         names.push(b.name.clone());
                     }
                     let full = match self.lookup_type(file, &ty.name) {

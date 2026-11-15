@@ -22,6 +22,7 @@ impl Checker {
             events,
             cells: Vec::new(),
             fns: HashMap::new(),
+            declared: inputs.iter().map(|f| (f.name.clone(), f.ir.clone())).collect(),
         }
     }
 
@@ -110,7 +111,9 @@ impl Checker {
                 let ty = self.resolve(file, &v.ty, &cx.generics.clone());
                 let ty_ir = self.ir_type(file, &v.ty, &cx.generics.clone());
                 let (x, _) = self.expr(cx, &v.value, Some(&ty));
+                self.want(cx, &v.value, &x, &ty_ir, format!("`{}`", v.name.name));
                 self.declare_local(cx, &v.name, ty, false, LocalKind::Plain);
+                crate::proof::set_known(cx, &v.name.name, crate::proof::Known::of(&ty_ir));
                 vec![ir::Node::Declare(ir::NodeDeclare { let_: ir::Local { name: v.name.name.clone(), ty: ty_ir, value: x } })]
             }
             S::If(i) => {
@@ -136,6 +139,9 @@ impl Checker {
                 }
                 let var_ty = if f.mutable { Ty::opt(item.clone()) } else { item.clone() };
                 self.declare_local(cx, &f.name, var_ty, false, if f.mutable { LocalKind::MutFor } else { LocalKind::Plain });
+                if !f.mutable {
+                    self.loop_known(cx, &f.over, f.key.as_ref(), &f.name);
+                }
                 let body = self.view_nodes(cx, &f.body);
                 cx.pop();
                 vec![ir::Node::For(ir::NodeFor { mutable: f.mutable, name: f.name.name.clone(), position: f.key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over, key, site, body })]
@@ -272,6 +278,11 @@ impl Checker {
                                 let (a, b) = (self.show(&it), self.show(&pt));
                                 self.error(file, codes::MISMATCH, value.span, format!("`{}` is a `mut {}`, given a {}", n.name, a, b));
                             }
+                            // shared: the variable's own contract has to be inside the input's
+                            if let Some(k) = self.place_known(cx, value) {
+                                self.known_at.insert((file, value.span.start, value.span.end), k);
+                                self.want_shared(cx, value, &input.ir, format!("`{}`'s `mut {}`", wname, n.name));
+                            }
                             parts.places.insert(n.name.clone(), p);
                         }
                         None => {
@@ -281,6 +292,7 @@ impl Checker {
                     }
                 } else {
                     let (x, _) = self.expr(cx, value, Some(&it));
+                    self.want(cx, value, &x, &input.ir, format!("`{}`'s `{}`", wname, n.name));
                     parts.props.insert(n.name.clone(), x);
                 }
             } else if let Some(ev) = events.iter().find(|e| e.name == n.name) {
@@ -343,6 +355,7 @@ impl Checker {
             if let Some(def) = &i.default {
                 let mut c = cx.clone();
                 let (x, _) = self.expr(&mut c, def, Some(&i.ty));
+                self.want(&c, def, &x, &i.ir, format!("`{}`'s default", i.name));
                 self.out.defaults.insert((d, i.name.clone()), x);
             }
         }
@@ -358,7 +371,9 @@ impl Checker {
             match m {
                 ast::WidgetMember::Own(v) => {
                     let t = self.resolve(file, &v.ty, &cx.generics.clone());
+                    let ti = self.ir_type(file, &v.ty, &cx.generics.clone());
                     wcx.cells.push((v.name.name.clone(), t));
+                    wcx.declared.push((v.name.name.clone(), ti));
                 }
                 ast::WidgetMember::Fn(f) => {
                     let id = self.fns.len();
@@ -398,13 +413,16 @@ impl Checker {
                     let ti = self.ir_type(file, &v.ty, &cx.generics.clone());
                     let mut c = cx.clone();
                     let (x, _) = self.expr(&mut c, &v.value, Some(&t));
+                    self.want(&c, &v.value, &x, &ti, format!("`{}`", v.name.name));
                     cells.push(ir::Field { name: v.name.name.clone(), ty: ti, mutable: true, default: Some(x) });
                 }
                 ast::WidgetMember::Let(v) => {
                     let t = self.resolve(file, &v.ty, &cx.generics.clone());
                     let ti = self.ir_type(file, &v.ty, &cx.generics.clone());
                     let (x, _) = self.expr(&mut cx, &v.value, Some(&t));
+                    self.want(&cx, &v.value, &x, &ti, format!("`{}`", v.name.name));
                     self.declare_local(&mut cx, &v.name, t, false, LocalKind::Plain);
+                    crate::proof::set_known(&mut cx, &v.name.name, crate::proof::Known::of(&ti));
                     prefix.push(ir::Node::Declare(ir::NodeDeclare { let_: ir::Local { name: v.name.name.clone(), ty: ti, value: x } }));
                 }
                 ast::WidgetMember::Require(r) => {
@@ -420,9 +438,10 @@ impl Checker {
                     let mut c = cx.clone();
                     c.push();
                     for p in &s.params {
-                        c.scopes.last_mut().unwrap().push(body::Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain });
+                        c.scopes.last_mut().unwrap().push(body::Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
                     }
                     c.ret = Some(s.ret.clone());
+                    c.ret_ir = s.ret_ir.clone();
                     let b = self.block(&mut c, f.body.as_ref().unwrap());
                     fns.push(ir::FnDecl {
                         name: s.full.clone(),
@@ -572,6 +591,9 @@ impl Checker {
                             }
                             let vt = if *mutable { Ty::opt(item.clone()) } else { item.clone() };
                             self.declare_local(cx, name, vt, false, if *mutable { LocalKind::MutFor } else { LocalKind::Plain });
+                            if !*mutable {
+                                self.loop_known(cx, over, key.as_ref(), name);
+                            }
                             let b = self.prose_nodes(cx, body);
                             cx.pop();
                             out.push(ir::Node::For(ir::NodeFor { mutable: *mutable, name: name.name.clone(), position: key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over: o, key: ir::NodeForKey::Item, site, body: b }));

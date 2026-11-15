@@ -9,6 +9,7 @@ mod body;
 mod decl;
 mod fit;
 mod passes;
+pub mod proof;
 pub mod ty;
 mod view;
 
@@ -56,6 +57,10 @@ pub mod codes {
     pub const VIEW_NEEDS_AT: &str = "views.view-needs-at";
     pub const EMPTY_MARKDOWN: &str = "widget.markdown-empty";
     pub const OPT_HOLE: &str = "prose.opt-hole";
+    pub const NEEDS_PROOF: &str = "contracts.needs-proof";
+    pub const OUTSIDE: &str = "contracts.outside";
+    pub const LENGTH_CHANGE: &str = "contracts.length-change";
+    pub const BOUND_NOT_CONSTANT: &str = "contracts.bound-not-constant";
     pub const INLINE_REFUSED: &str = "prose.inline-refused";
 }
 
@@ -283,6 +288,12 @@ pub struct Checker {
     pub prose_links: Vec<(String, String)>,
     pub prose_span: Span,
     pub from: From,
+    /// Proofs wanted where values meet contracts, settled with the constants.
+    pub proofs: Vec<proof::Proof>,
+    /// What is known of each expression checked so far, by file and span.
+    pub known_at: HashMap<(usize, u32, u32), proof::Known>,
+    /// Contract bounds that name a constant or work one out, checked with the constants.
+    pub bound_checks: Vec<(usize, Span, ir::Expr)>,
 }
 
 impl Checker {
@@ -312,6 +323,9 @@ impl Checker {
             prose_links: Vec::new(),
             prose_span: Span::default(),
             from: From::default(),
+            proofs: Vec::new(),
+            known_at: HashMap::new(),
+            bound_checks: Vec::new(),
         }
     }
 
@@ -805,13 +819,21 @@ impl Checker {
                 }
             }
             ast::Bound::Name(n) => match self.lookup_value(file, &n.name) {
-                Some(ValueSym::Let(l)) => ir::Expr::Get(ir::Get::Let(self.lets[l].full.clone())),
+                Some(ValueSym::Let(l)) => {
+                    let x = ir::Expr::Get(ir::Get::Let(self.lets[l].full.clone()));
+                    self.bound_checks.push((file, n.span, x.clone()));
+                    x
+                }
                 _ => {
                     self.error(file, codes::UNKNOWN_NAME, n.span, format!("there is no constant `{}`", n.name));
                     ir::Expr::Num("0".into())
                 }
             },
-            ast::Bound::Expr(e) => self.constant_expr(file, e),
+            ast::Bound::Expr(e) => {
+                let x = self.constant_expr(file, e);
+                self.bound_checks.push((file, e.span, x.clone()));
+                x
+            }
         }
     }
 

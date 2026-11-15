@@ -19,9 +19,10 @@ impl Checker {
             cx.generics = s.generics.iter().map(|g| g.name.clone()).collect();
             cx.bounds = s.generics.clone();
             cx.ret = Some(s.ret.clone());
+            cx.ret_ir = s.ret_ir.clone();
             cx.push();
             for p in &s.params {
-                cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain });
+                cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
             }
             let b = self.block(&mut cx, body);
             self.out.fn_bodies.insert(f, b);
@@ -38,6 +39,7 @@ impl Checker {
                             cx.generics = generics.clone();
                             cx.bounds = self.defs[d].generics.clone();
                             let (x, _) = self.expr(&mut cx, def, Some(&fl.ty));
+                            self.want(&cx, def, &x, &fl.ir, format!("`{}`'s default", fl.name));
                             self.out.defaults.insert((d, fl.name.clone()), x);
                         }
                     }
@@ -51,7 +53,7 @@ impl Checker {
                             cx.ret = Some(Some(Ty::Bool));
                             cx.push();
                             for fl in &fields {
-                                cx.scopes.last_mut().unwrap().push(Local { name: fl.name.clone(), ty: fl.ty.clone(), mutable: false, kind: LocalKind::Plain });
+                                cx.scopes.last_mut().unwrap().push(Local { name: fl.name.clone(), ty: fl.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&fl.ir)) });
                             }
                             let b = self.block(&mut cx, &req.body);
                             rules.push(ir::Require { message: text_of(&req.message), reads: Vec::new(), body: b });
@@ -92,6 +94,7 @@ impl Checker {
             let mut cx = Cx::new(s.file);
             cx.state = self.state_fields();
             let (x, _) = self.expr(&mut cx, &s.value, Some(&s.ty));
+            self.want(&cx, &s.value, &x, &s.ir, format!("`{}`", s.name));
             self.out.let_values.insert(l, x);
         }
         self.state_and_expose();
@@ -143,7 +146,11 @@ impl Checker {
                         let t = self.resolve(file, &f.ty, &[]);
                         let ti = self.ir_type(file, &f.ty, &[]);
                         let mut cx = Cx::new(file);
-                        let d = f.default.as_ref().map(|e| self.expr(&mut cx, e, Some(&t)).0);
+                        let d = f.default.as_ref().map(|e| {
+                            let x = self.expr(&mut cx, e, Some(&t)).0;
+                            self.want(&cx, e, &x, &ti, format!("`$state.{}`", f.name.name));
+                            x
+                        });
                         irf.push(ir::Field { name: f.name.name.clone(), ty: ti, mutable: false, default: d });
                     }
                     ast::Member::Require(r) => {
@@ -171,7 +178,7 @@ impl Checker {
                 cx.push();
                 let ps = self.params(file, &f.sig.params, &[], &Ty::Err, &ir::Type::named("T"));
                 for p in &ps {
-                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: false, kind: LocalKind::Plain });
+                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
                 }
                 let body = f.body.as_ref().map(|b| self.block(&mut cx, b)).unwrap_or_default();
                 fns.push(ir::ExposeFns { name: f.sig.name.name.clone(), params: ps.iter().map(|p| ir::Param { name: p.name.clone(), ty: p.ir.clone(), mutable: false }).collect(), body });
@@ -228,7 +235,15 @@ impl Checker {
                     walk_stmt(s, &mut patch);
                 }
             }
+            for p in &mut self.proofs {
+                if let Some(v) = &mut p.value {
+                    walk_expr(v, &mut patch);
+                }
+            }
         }
+        // a literal in a proof's value is the same literal again
+        errors.sort_by(|a, b| (a.0, a.1.start, &a.2).cmp(&(b.0, b.1.start, &b.2)));
+        errors.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1 && a.2 == b.2);
         for (file, span, msg) in errors {
             self.error(file, codes::LITERAL, span, msg);
         }
@@ -351,6 +366,9 @@ impl Checker {
                 self.out.channel_defaults.insert(k, v.to_ir());
             }
         }
+        // contracts: every proof, now that the constants are known
+        self.settle_proofs(&prog);
+        self.known_at.clear();
     }
 
     fn field_span(&self, d: DefId, name: &str) -> (usize, Span) {
