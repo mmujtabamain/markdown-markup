@@ -1,0 +1,6 @@
+target/
+node_modules/
+dist/
+*.ir.json
+!targets/checks/**/*.ir.json
+.DS_Store

@@ -1,0 +1,14 @@
+{
+  "about": "The entry each MKP code block in docs/specs is read with, in the order the blocks appear on each page. java blocks are code; markdown blocks are documents.",
+  "pages": {
+    "01-overview.md": ["markdown doc", "markdown doc"],
+    "02-values-and-types.md": ["java file", "java decls", "java body", "java body", "java body", "java fields", "java decls", "java decls", "java decls", "java decls", "java decls"],
+    "03-widgets.md": ["java file", "java body", "java body", "java file", "java body", "java decls", "java file", "java body", "java body"],
+    "04-interfaces.md": ["java file", "java body", "java decls", "java decls", "java decls", "java body", "java decls", "java file"],
+    "05-standard-library.md": ["java file", "java file", "java sigs", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file"],
+    "06-apps-packs-implementers.md": ["java file", "markdown doc", "java file"],
+    "07-examples.md": ["java file", "java file", "java file", "java file", "markdown doc", "java file", "java file", "java file", "markdown doc"],
+    "08-open-questions.md": [],
+    "09-grammar.md": []
+  }
+}

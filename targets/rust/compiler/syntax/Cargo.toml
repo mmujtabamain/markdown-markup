@@ -1,0 +1,12 @@
+[package]
+name = "mkp-syntax"
+description = "MKP's reader: the lexer, the lossless syntax tree, the parser for code and prose, and mkp fmt's printer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
