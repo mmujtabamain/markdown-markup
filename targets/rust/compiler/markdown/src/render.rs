@@ -323,7 +323,15 @@ impl<'p> Writer<'p> {
         }
         let out = self.widget_inner(name, props, slots);
         self.depth -= 1;
-        out
+        // a widget that fails is a notice in its place, a quote in Markdown; the page carries on (page 6)
+        match out {
+            Err(f) if !name.starts_with("core/") || self.templates.contains_key(name) => {
+                let short = name.rsplit('/').next().unwrap_or(name);
+                let notice = Inline::Text { value: format!("{} failed: {}", short, f.0), bold: false, italic: false, strike: false, link: None };
+                Ok(vec![Piece::Block(Block::Quote(vec![Block::Paragraph(vec![notice])]))])
+            }
+            other => other,
+        }
     }
 
     fn slot_blocks(&mut self, slots: &HashMap<String, (Vec<Node>, Env)>, name: &str) -> R<Vec<Piece>> {
