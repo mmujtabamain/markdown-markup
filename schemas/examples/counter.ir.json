@@ -1,0 +1,428 @@
+{
+  "ir": {
+    "version": 3,
+    "mkp": "0.3.0",
+    "module": "doc",
+    "level": "core.live",
+    "needs": {
+      "core": [
+        "core/flex",
+        "core/label",
+        "core/paragraph",
+        "core/press"
+      ],
+      "packs": [],
+      "app": []
+    },
+    "declarations": [
+      {
+        "declare": {
+          "type": {
+            "name": "core/int",
+            "is": {
+              "name": "core/number",
+              "contract": {
+                "step": {
+                  "num": "1"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "enum": {
+            "name": "core/axis",
+            "cases": [
+              {
+                "name": "X"
+              },
+              {
+                "name": "Y"
+              }
+            ],
+            "ordered": true
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "widget": {
+              "name": "core/flex",
+              "inputs": [
+                {
+                  "name": "axis",
+                  "type": {
+                    "name": "core/axis"
+                  },
+                  "default": {
+                    "case": {
+                      "enum": "core/axis",
+                      "name": "Y"
+                    }
+                  }
+                }
+              ],
+              "slots": [
+                {
+                  "name": "children",
+                  "type": {
+                    "name": "core/view"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "name": "click",
+                  "params": []
+                }
+              ],
+              "level": "core.draw",
+              "supplier": "core",
+              "markdown": [
+                {
+                  "place": {
+                    "site": "m0",
+                    "view": {
+                      "get": {
+                        "slot": "children"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "widget": {
+              "name": "core/label",
+              "inputs": [
+                {
+                  "name": "value",
+                  "type": {
+                    "name": "core/text"
+                  }
+                }
+              ],
+              "slots": [],
+              "events": [],
+              "level": "core.draw",
+              "supplier": "core",
+              "markdown": [
+                {
+                  "extern": {
+                    "name": "core/paragraph",
+                    "site": "m0",
+                    "props": {
+                      "value": {
+                        "rich": {
+                          "segments": [
+                            {
+                              "segment": {
+                                "part": "TEXT",
+                                "value": {
+                                  "show": {
+                                    "value": {
+                                      "get": {
+                                        "input": "value"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "widget": {
+              "name": "core/press",
+              "inputs": [
+                {
+                  "name": "label",
+                  "type": {
+                    "name": "core/text"
+                  }
+                },
+                {
+                  "name": "selected",
+                  "type": {
+                    "name": "core/bool"
+                  },
+                  "default": {
+                    "bool": false
+                  }
+                }
+              ],
+              "slots": [
+                {
+                  "name": "content",
+                  "type": {
+                    "name": "core/opt",
+                    "args": [
+                      {
+                        "name": "core/view"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "name": "click",
+                  "params": []
+                }
+              ],
+              "level": "core.draw",
+              "supplier": "core",
+              "markdown": [
+                {
+                  "extern": {
+                    "name": "core/paragraph",
+                    "site": "m0",
+                    "props": {
+                      "value": {
+                        "rich": {
+                          "segments": [
+                            {
+                              "segment": {
+                                "part": "TEXT",
+                                "value": {
+                                  "show": {
+                                    "value": {
+                                      "get": {
+                                        "input": "label"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "widget": {
+              "name": "core/paragraph",
+              "inputs": [
+                {
+                  "name": "value",
+                  "type": {
+                    "name": "core/rich_text"
+                  }
+                }
+              ],
+              "slots": [],
+              "events": [],
+              "level": "core.draw",
+              "supplier": "core"
+            }
+          }
+        }
+      }
+    ],
+    "templates": [
+      {
+        "name": "doc/counter",
+        "inputs": [],
+        "slots": [],
+        "events": [],
+        "cells": [
+          {
+            "name": "n",
+            "type": {
+              "name": "core/int"
+            },
+            "default": {
+              "num": "0"
+            }
+          }
+        ],
+        "requires": [],
+        "fns": [],
+        "view": [
+          {
+            "extern": {
+              "name": "core/flex",
+              "site": "s0",
+              "props": {
+                "axis": {
+                  "case": {
+                    "enum": "core/axis",
+                    "name": "X"
+                  }
+                }
+              },
+              "slots": {
+                "children": [
+                  {
+                    "extern": {
+                      "name": "core/label",
+                      "site": "s1",
+                      "props": {
+                        "value": {
+                          "bind": "b1"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "extern": {
+                      "name": "core/press",
+                      "site": "s2",
+                      "props": {
+                        "label": {
+                          "text": "One more"
+                        }
+                      },
+                      "events": {
+                        "click": "h1"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "markdown": [
+          {
+            "extern": {
+              "name": "core/paragraph",
+              "site": "m0",
+              "props": {
+                "value": {
+                  "rich": {
+                    "segments": [
+                      {
+                        "segment": {
+                          "part": "TEXT",
+                          "value": {
+                            "show": {
+                              "value": {
+                                "get": {
+                                  "cell": "n"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "level": "core.live"
+      },
+      {
+        "name": "doc",
+        "inputs": [],
+        "slots": [],
+        "events": [],
+        "cells": [],
+        "requires": [],
+        "fns": [],
+        "view": [
+          {
+            "use": {
+              "name": "doc/counter",
+              "site": "s0",
+              "args": {}
+            }
+          }
+        ],
+        "markdown": [
+          {
+            "use": {
+              "name": "doc/counter",
+              "site": "s0",
+              "args": {}
+            }
+          }
+        ],
+        "level": "core.live"
+      }
+    ],
+    "bindings": [
+      {
+        "id": "b1",
+        "value": {
+          "show": {
+            "value": {
+              "get": {
+                "cell": "n"
+              }
+            }
+          }
+        },
+        "reads": [
+          "cell:n"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "h1",
+        "body": [
+          {
+            "set": {
+              "place": {
+                "root": {
+                  "cell": "n"
+                },
+                "path": []
+              },
+              "value": {
+                "op": {
+                  "name": "+",
+                  "args": [
+                    {
+                      "get": {
+                        "cell": "n"
+                      }
+                    },
+                    {
+                      "num": "1"
+                    }
+                  ],
+                  "type": {
+                    "name": "core/int"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

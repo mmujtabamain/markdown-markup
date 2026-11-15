@@ -1,0 +1,9 @@
+[package]
+name = "mkp-schemagen"
+description = "Writes the Rust and TypeScript types of schemas/: the IR and the check protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json.workspace = true

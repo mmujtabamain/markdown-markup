@@ -1,0 +1,1155 @@
+{
+  "ir": {
+    "version": 3,
+    "mkp": "0.3.0",
+    "module": "doc",
+    "level": "core.live",
+    "needs": {
+      "core": [
+        "core/flex",
+        "core/heading",
+        "core/label",
+        "core/paragraph",
+        "core/press",
+        "core/slider",
+        "core/table"
+      ],
+      "packs": [],
+      "app": [
+        "doc/tracker.saved"
+      ]
+    },
+    "declarations": [
+      {
+        "declare": {
+          "type": {
+            "name": "core/int",
+            "is": {
+              "name": "core/number",
+              "contract": {
+                "step": {
+                  "num": "1"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "record": {
+            "name": "doc/task",
+            "fields": [
+              {
+                "name": "title",
+                "type": {
+                  "name": "core/text",
+                  "contract": {
+                    "length": {
+                      "low": {
+                        "num": "1"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "name": "due",
+                "type": {
+                  "name": "core/date"
+                }
+              },
+              {
+                "name": "done",
+                "type": {
+                  "name": "core/bool"
+                },
+                "default": {
+                  "bool": false
+                }
+              }
+            ],
+            "requires": []
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "channel": {
+              "name": "doc/tracker",
+              "values": [],
+              "fns": [
+                {
+                  "name": "saved",
+                  "params": [
+                    {
+                      "name": "open",
+                      "type": {
+                        "name": "core/number"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "supplier": "app"
+            }
+          }
+        }
+      },
+      {
+        "declare": {
+          "$state": {
+            "fields": [
+              {
+                "name": "tasks",
+                "type": {
+                  "name": "core/list",
+                  "args": [
+                    {
+                      "name": "doc/task"
+                    }
+                  ]
+                },
+                "default": {
+                  "list": [
+                    {
+                      "record": {
+                        "type": "doc/task",
+                        "fields": {
+                          "title": {
+                            "text": "Write the spec"
+                          },
+                          "due": {
+                            "record": {
+                              "type": "core/date",
+                              "fields": {
+                                "year": {
+                                  "num": "2026"
+                                },
+                                "month": {
+                                  "num": "11"
+                                },
+                                "day": {
+                                  "num": "20"
+                                }
+                              }
+                            }
+                          },
+                          "done": {
+                            "bool": false
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "record": {
+                        "type": "doc/task",
+                        "fields": {
+                          "title": {
+                            "text": "Ship 0.3"
+                          },
+                          "due": {
+                            "record": {
+                              "type": "core/date",
+                              "fields": {
+                                "year": {
+                                  "num": "2026"
+                                },
+                                "month": {
+                                  "num": "12"
+                                },
+                                "day": {
+                                  "num": "1"
+                                }
+                              }
+                            }
+                          },
+                          "done": {
+                            "bool": false
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "budget",
+                "type": {
+                  "name": "core/int",
+                  "contract": {
+                    "range": {
+                      "low": {
+                        "num": "0"
+                      },
+                      "high": {
+                        "num": "100"
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "num": "40"
+                }
+              },
+              {
+                "name": "spent",
+                "type": {
+                  "name": "core/int",
+                  "contract": {
+                    "range": {
+                      "low": {
+                        "num": "0"
+                      },
+                      "high": {
+                        "num": "100"
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "num": "10"
+                }
+              }
+            ],
+            "requires": [
+              {
+                "message": "the spent part stays within the budget",
+                "reads": [
+                  "spent",
+                  "budget"
+                ],
+                "body": [
+                  {
+                    "return": {
+                      "value": {
+                        "op": {
+                          "name": "<=",
+                          "args": [
+                            {
+                              "get": {
+                                "$state": "spent"
+                              }
+                            },
+                            {
+                              "get": {
+                                "$state": "budget"
+                              }
+                            }
+                          ],
+                          "type": {
+                            "name": "core/bool"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "declare": {
+          "expose": {
+            "channel": "doc/tracker",
+            "fns": [
+              {
+                "name": "clear_done",
+                "params": [],
+                "body": [
+                  {
+                    "call": {
+                      "name": "core/list.remove_where",
+                      "args": [
+                        {
+                          "place": {
+                            "root": {
+                              "$state": "tasks"
+                            },
+                            "path": []
+                          }
+                        },
+                        {
+                          "fn": {
+                            "params": [
+                              {
+                                "name": "t",
+                                "type": {
+                                  "name": "doc/task"
+                                }
+                              }
+                            ],
+                            "returns": {
+                              "name": "core/bool"
+                            },
+                            "body": [
+                              {
+                                "return": {
+                                  "value": {
+                                    "field": {
+                                      "value": {
+                                        "get": {
+                                          "local": "t"
+                                        }
+                                      },
+                                      "name": "done"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "call": {
+                      "name": "doc/tracker.saved",
+                      "args": [
+                        {
+                          "call": {
+                            "name": "core/list.len",
+                            "args": [
+                              {
+                                "get": {
+                                  "$state": "tasks"
+                                }
+                              }
+                            ],
+                            "type": {
+                              "name": "core/int"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "declare": {
+          "let": {
+            "name": "doc/open",
+            "type": {
+              "name": "core/number"
+            },
+            "value": {
+              "call": {
+                "name": "core/list.count",
+                "args": [
+                  {
+                    "get": {
+                      "$state": "tasks"
+                    }
+                  },
+                  {
+                    "fn": {
+                      "params": [
+                        {
+                          "name": "t",
+                          "type": {
+                            "name": "doc/task"
+                          }
+                        }
+                      ],
+                      "returns": {
+                        "name": "core/bool"
+                      },
+                      "body": [
+                        {
+                          "return": {
+                            "value": {
+                              "op": {
+                                "name": "!",
+                                "args": [
+                                  {
+                                    "field": {
+                                      "value": {
+                                        "get": {
+                                          "local": "t"
+                                        }
+                                      },
+                                      "name": "done"
+                                    }
+                                  }
+                                ],
+                                "type": {
+                                  "name": "core/bool"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "type": {
+                  "name": "core/int"
+                }
+              }
+            },
+            "reads": [
+              "$state:tasks"
+            ]
+          }
+        }
+      },
+      {
+        "declare": {
+          "fn": {
+            "name": "core/list.count",
+            "generics": [
+              {
+                "name": "T"
+              }
+            ],
+            "params": [
+              {
+                "name": "self",
+                "type": {
+                  "name": "core/list",
+                  "args": [
+                    {
+                      "name": "T"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "test",
+                "type": {
+                  "name": "fn",
+                  "params": [
+                    {
+                      "name": "item",
+                      "type": {
+                        "name": "T"
+                      }
+                    }
+                  ],
+                  "returns": {
+                    "name": "core/bool"
+                  }
+                }
+              }
+            ],
+            "returns": {
+              "name": "core/int"
+            },
+            "body": [
+              {
+                "declare": {
+                  "mut": {
+                    "name": "n",
+                    "type": {
+                      "name": "core/int"
+                    },
+                    "value": {
+                      "num": "0"
+                    }
+                  }
+                }
+              },
+              {
+                "for": {
+                  "mut": false,
+                  "name": "x",
+                  "type": {
+                    "name": "T"
+                  },
+                  "over": {
+                    "get": {
+                      "local": "self"
+                    }
+                  },
+                  "body": [
+                    {
+                      "if": {
+                        "branches": [
+                          {
+                            "when": {
+                              "cond": {
+                                "apply": {
+                                  "fn": {
+                                    "get": {
+                                      "local": "test"
+                                    }
+                                  },
+                                  "args": [
+                                    {
+                                      "get": {
+                                        "local": "x"
+                                      }
+                                    }
+                                  ],
+                                  "type": {
+                                    "name": "core/bool"
+                                  }
+                                }
+                              }
+                            },
+                            "then": [
+                              {
+                                "set": {
+                                  "place": {
+                                    "root": {
+                                      "local": "n"
+                                    },
+                                    "path": []
+                                  },
+                                  "value": {
+                                    "op": {
+                                      "name": "+",
+                                      "args": [
+                                        {
+                                          "get": {
+                                            "local": "n"
+                                          }
+                                        },
+                                        {
+                                          "num": "1"
+                                        }
+                                      ],
+                                      "type": {
+                                        "name": "core/int"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "else": []
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "return": {
+                  "value": {
+                    "get": {
+                      "local": "n"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "declare": {
+          "extern": {
+            "widget": {
+              "name": "core/paragraph",
+              "inputs": [
+                {
+                  "name": "value",
+                  "type": {
+                    "name": "core/rich_text"
+                  }
+                }
+              ],
+              "slots": [],
+              "events": [],
+              "level": "core.draw",
+              "supplier": "core"
+            }
+          }
+        }
+      }
+    ],
+    "templates": [
+      {
+        "name": "doc/task_row",
+        "inputs": [
+          {
+            "name": "t",
+            "type": {
+              "name": "doc/task"
+            },
+            "mut": true
+          }
+        ],
+        "slots": [],
+        "events": [],
+        "cells": [],
+        "requires": [],
+        "fns": [],
+        "view": [
+          {
+            "extern": {
+              "name": "core/flex",
+              "site": "r0",
+              "props": {
+                "axis": {
+                  "case": {
+                    "enum": "core/axis",
+                    "name": "X"
+                  }
+                },
+                "gap": {
+                  "token": "core/space.S"
+                }
+              },
+              "slots": {
+                "children": [
+                  {
+                    "extern": {
+                      "name": "core/press",
+                      "site": "r1",
+                      "props": {
+                        "label": {
+                          "bind": "r_b1"
+                        },
+                        "kind": {
+                          "case": {
+                            "enum": "core/press_kind",
+                            "name": "CHECK"
+                          }
+                        },
+                        "selected": {
+                          "bind": "r_b2"
+                        }
+                      },
+                      "events": {
+                        "click": "r_h1"
+                      }
+                    }
+                  },
+                  {
+                    "extern": {
+                      "name": "core/label",
+                      "site": "r2",
+                      "props": {
+                        "value": {
+                          "bind": "r_b3"
+                        },
+                        "tone": {
+                          "token": "core/color.MUTED"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "markdown": [
+          {
+            "if": {
+              "site": "m0",
+              "branches": [
+                {
+                  "when": {
+                    "cond": {
+                      "field": {
+                        "value": {
+                          "get": {
+                            "input": "t"
+                          }
+                        },
+                        "name": "done"
+                      }
+                    }
+                  },
+                  "then": [
+                    {
+                      "extern": {
+                        "name": "core/bullets",
+                        "site": "m1",
+                        "props": {},
+                        "slots": {
+                          "items": [
+                            {
+                              "extern": {
+                                "name": "core/item",
+                                "site": "m2",
+                                "props": {
+                                  "done": {
+                                    "some": {
+                                      "bool": true
+                                    }
+                                  }
+                                },
+                                "slots": {
+                                  "body": [
+                                    {
+                                      "extern": {
+                                        "name": "core/paragraph",
+                                        "site": "m3",
+                                        "props": {
+                                          "value": {
+                                            "rich": {
+                                              "segments": [
+                                                {
+                                                  "segment": {
+                                                    "part": "TEXT",
+                                                    "value": {
+                                                      "show": {
+                                                        "value": {
+                                                          "field": {
+                                                            "value": {
+                                                              "get": {
+                                                                "input": "t"
+                                                              }
+                                                            },
+                                                            "name": "title"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "level": "core.live"
+      },
+      {
+        "name": "doc",
+        "inputs": [],
+        "slots": [],
+        "events": [],
+        "cells": [],
+        "requires": [],
+        "fns": [],
+        "view": [
+          {
+            "extern": {
+              "name": "core/heading",
+              "site": "s0",
+              "props": {
+                "level": {
+                  "num": "1"
+                },
+                "value": {
+                  "bind": "b1"
+                }
+              }
+            }
+          },
+          {
+            "extern": {
+              "name": "core/paragraph",
+              "site": "s1",
+              "props": {
+                "value": {
+                  "bind": "b2"
+                }
+              }
+            }
+          },
+          {
+            "for": {
+              "mut": true,
+              "name": "t",
+              "type": {
+                "name": "doc/task"
+              },
+              "over": {
+                "place": {
+                  "root": {
+                    "$state": "tasks"
+                  },
+                  "path": []
+                }
+              },
+              "key": "item",
+              "site": "s2",
+              "body": [
+                {
+                  "if": {
+                    "site": "s3",
+                    "branches": [
+                      {
+                        "when": {
+                          "open": {
+                            "mut": true,
+                            "name": "x",
+                            "type": {
+                              "name": "doc/task"
+                            },
+                            "opt": {
+                              "get": {
+                                "local": "t"
+                              }
+                            }
+                          }
+                        },
+                        "then": [
+                          {
+                            "use": {
+                              "name": "doc/task_row",
+                              "site": "s4",
+                              "args": {
+                                "t": {
+                                  "place": {
+                                    "root": {
+                                      "local": "x"
+                                    },
+                                    "path": []
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": []
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "extern": {
+              "name": "core/slider",
+              "site": "s5",
+              "props": {
+                "value": {
+                  "bind": "b3"
+                },
+                "label": {
+                  "text": "Spent"
+                },
+                "range": {
+                  "bind": "b4"
+                }
+              },
+              "writes": {
+                "value": {
+                  "root": {
+                    "$state": "spent"
+                  },
+                  "path": []
+                }
+              }
+            }
+          }
+        ],
+        "markdown": [
+          {
+            "extern": {
+              "name": "core/heading",
+              "site": "s0",
+              "props": {
+                "level": {
+                  "num": "1"
+                },
+                "value": {
+                  "bind": "b1"
+                }
+              }
+            }
+          }
+        ],
+        "level": "core.live"
+      }
+    ],
+    "bindings": [
+      {
+        "id": "b1",
+        "value": {
+          "rich": {
+            "segments": [
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": "Sprint: "
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "show": {
+                      "value": {
+                        "get": {
+                          "let": "doc/open"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": " open"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": [
+          "let:doc/open"
+        ]
+      },
+      {
+        "id": "b2",
+        "value": {
+          "rich": {
+            "segments": [
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": "Spent "
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "MATH",
+                  "value": {
+                    "record": {
+                      "type": "core/latex",
+                      "fields": {
+                        "tex": {
+                          "template": {
+                            "pieces": [
+                              "\\frac{",
+                              "}{",
+                              "}"
+                            ],
+                            "holes": [
+                              {
+                                "show": {
+                                  "value": {
+                                    "get": {
+                                      "$state": "spent"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "show": {
+                                  "value": {
+                                    "get": {
+                                      "$state": "budget"
+                                    }
+                                  }
+                                }
+                              }
+                            ],
+                            "type": {
+                              "name": "core/template"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": " of the budget, in "
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": "points"
+                  },
+                  "marks": {
+                    "bold": true
+                  }
+                }
+              },
+              {
+                "segment": {
+                  "part": "TEXT",
+                  "value": {
+                    "text": "."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": [
+          "$state:spent",
+          "$state:budget"
+        ]
+      },
+      {
+        "id": "b3",
+        "value": {
+          "get": {
+            "$state": "spent"
+          }
+        },
+        "reads": [
+          "$state:spent"
+        ]
+      },
+      {
+        "id": "b4",
+        "value": {
+          "range": {
+            "low": {
+              "num": "0"
+            },
+            "high": {
+              "get": {
+                "$state": "budget"
+              }
+            }
+          }
+        },
+        "reads": [
+          "$state:budget"
+        ]
+      },
+      {
+        "id": "r_b1",
+        "value": {
+          "field": {
+            "value": {
+              "get": {
+                "input": "t"
+              }
+            },
+            "name": "title"
+          }
+        },
+        "reads": [
+          "input:t.title"
+        ]
+      },
+      {
+        "id": "r_b2",
+        "value": {
+          "field": {
+            "value": {
+              "get": {
+                "input": "t"
+              }
+            },
+            "name": "done"
+          }
+        },
+        "reads": [
+          "input:t.done"
+        ]
+      },
+      {
+        "id": "r_b3",
+        "value": {
+          "template": {
+            "pieces": [
+              "due ",
+              ""
+            ],
+            "holes": [
+              {
+                "show": {
+                  "value": {
+                    "field": {
+                      "value": {
+                        "get": {
+                          "input": "t"
+                        }
+                      },
+                      "name": "due"
+                    }
+                  }
+                }
+              }
+            ],
+            "type": {
+              "name": "core/text"
+            }
+          }
+        },
+        "reads": [
+          "input:t.due"
+        ]
+      }
+    ],
+    "handlers": [
+      {
+        "id": "r_h1",
+        "body": [
+          {
+            "set": {
+              "place": {
+                "root": {
+                  "input": "t"
+                },
+                "path": [
+                  {
+                    "field": {
+                      "name": "done"
+                    }
+                  }
+                ]
+              },
+              "value": {
+                "op": {
+                  "name": "!",
+                  "args": [
+                    {
+                      "field": {
+                        "value": {
+                          "get": {
+                            "input": "t"
+                          }
+                        },
+                        "name": "done"
+                      }
+                    }
+                  ],
+                  "type": {
+                    "name": "core/bool"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

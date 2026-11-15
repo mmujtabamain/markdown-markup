@@ -1,0 +1,2850 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json",
+  "title": "MKP IR 3",
+  "description": "The one IR the mkp compiler writes and every target runs: MKP 0.3, checked and lowered. No Markdown is left in it. This schema is the source of the Rust and TypeScript types.",
+  "$ref": "#/$defs/file",
+  "$defs": {
+    "file": {
+      "type": "object",
+      "description": "An IR file: one build.",
+      "properties": {
+        "ir": {
+          "$ref": "#/$defs/module"
+        }
+      },
+      "required": [
+        "ir"
+      ],
+      "additionalProperties": false
+    },
+    "module": {
+      "type": "object",
+      "description": "One build: the document (or pack) with the parts of core and of the given packs it uses, checked and lowered, ready to run.",
+      "properties": {
+        "version": {
+          "const": 3,
+          "description": "The IR's version. 0.3 writes 3."
+        },
+        "mkp": {
+          "type": "string",
+          "description": "The version of the compiler that wrote it."
+        },
+        "module": {
+          "type": "string",
+          "description": "`doc` for a document, or the pack's name."
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "needs": {
+          "$ref": "#/$defs/needs"
+        },
+        "declarations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/declaration"
+          }
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/template"
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/binding"
+          }
+        },
+        "handlers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/handler"
+          }
+        }
+      },
+      "required": [
+        "version",
+        "mkp",
+        "module",
+        "level",
+        "needs",
+        "declarations",
+        "templates",
+        "bindings",
+        "handlers"
+      ],
+      "additionalProperties": false
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "markdown",
+        "core.draw",
+        "core.live",
+        "core.gfx"
+      ],
+      "description": "What a target has to do to run a call, a widget or a page (page 6)."
+    },
+    "needs": {
+      "type": "object",
+      "description": "Every extern the page uses, by who supplies it. A target checks the list when it mounts the page.",
+      "properties": {
+        "core": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "core's externs, supplied by the target: widgets, fns and channels."
+        },
+        "packs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "externs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "name",
+              "version",
+              "externs"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "app": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The document's own channels' fns and values, supplied by the app when it mounts the page."
+        }
+      },
+      "required": [
+        "core",
+        "packs",
+        "app"
+      ],
+      "additionalProperties": false
+    },
+    "declaration": {
+      "type": "object",
+      "description": "A declaration the page uses.",
+      "properties": {
+        "declare": {
+          "$ref": "#/$defs/decl"
+        }
+      },
+      "required": [
+        "declare"
+      ],
+      "additionalProperties": false
+    },
+    "decl": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "record": {
+              "$ref": "#/$defs/record"
+            }
+          },
+          "required": [
+            "record"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enum": {
+              "$ref": "#/$defs/enum"
+            }
+          },
+          "required": [
+            "enum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "token": {
+              "$ref": "#/$defs/token"
+            }
+          },
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "interface": {
+              "$ref": "#/$defs/interface"
+            }
+          },
+          "required": [
+            "interface"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fn": {
+              "$ref": "#/$defs/fn_decl"
+            }
+          },
+          "required": [
+            "fn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "extern": {
+              "$ref": "#/$defs/extern"
+            }
+          },
+          "required": [
+            "extern"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$state": {
+              "$ref": "#/$defs/state"
+            }
+          },
+          "required": [
+            "$state"
+          ],
+          "additionalProperties": false,
+          "description": "The document's one `$state` block."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "expose": {
+              "$ref": "#/$defs/expose"
+            }
+          },
+          "required": [
+            "expose"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "let": {
+              "$ref": "#/$defs/let_decl"
+            }
+          },
+          "required": [
+            "let"
+          ],
+          "additionalProperties": false,
+          "description": "A top-level `let`: a constant, or a value worked out again when what it reads changes."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/type_param"
+                  }
+                },
+                "is": {
+                  "$ref": "#/$defs/type"
+                }
+              },
+              "required": [
+                "name",
+                "is"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "description": "A type alias: another name for a type. A contract written after the alias's name adds to its own (`core/int` is `core/number` with step 1)."
+        }
+      ]
+    },
+    "record": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          },
+          "description": "Type parameters."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/require"
+          }
+        },
+        "same": {
+          "type": "string",
+          "description": "The fn `==` and `!=` call, when the record's pack writes one. Left out, records compare field by field."
+        }
+      },
+      "required": [
+        "name",
+        "fields",
+        "requires"
+      ],
+      "additionalProperties": false
+    },
+    "enum": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          }
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/case_decl"
+          }
+        },
+        "ordered": {
+          "type": "boolean",
+          "description": "Its cases carry nothing, so they are ordered as written."
+        }
+      },
+      "required": [
+        "name",
+        "cases",
+        "ordered"
+      ],
+      "additionalProperties": false
+    },
+    "case_decl": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "token": {
+      "type": "object",
+      "description": "A token type: an enum whose cases stand for values of one type.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "value": {
+          "$ref": "#/$defs/type",
+          "description": "The type of the value each case stands for."
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/case_decl"
+          }
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/expr"
+          },
+          "description": "Each named case's value, from the tokens blocks of the build. A target may give its own."
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "cases",
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "interface": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "widget": {
+          "type": "boolean"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "fns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of its fns. A call of one is sent to the fn of the value's own type."
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "widget",
+        "fields",
+        "fns",
+        "events"
+      ],
+      "additionalProperties": false
+    },
+    "fn_decl": {
+      "type": "object",
+      "description": "A fn written in MKP. One with no return type is an action.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "generics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          }
+        },
+        "returns": {
+          "$ref": "#/$defs/type"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "params",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "extern": {
+      "description": "Something supplied from outside MKP.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "fn": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/param"
+                  }
+                },
+                "returns": {
+                  "$ref": "#/$defs/type"
+                },
+                "default": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  },
+                  "description": "The default body, run when the supplier gives none."
+                },
+                "supplier": {
+                  "$ref": "#/$defs/supplier"
+                }
+              },
+              "required": [
+                "name",
+                "params",
+                "supplier"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "fn"
+          ],
+          "additionalProperties": false,
+          "description": "An extern fn: native to every target (core's), a pack's, or the app's."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "widget": {
+              "$ref": "#/$defs/extern_widget"
+            }
+          },
+          "required": [
+            "widget"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "fns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/param"
+                        }
+                      },
+                      "returns": {
+                        "$ref": "#/$defs/type"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "supplier": {
+                  "$ref": "#/$defs/supplier"
+                }
+              },
+              "required": [
+                "name",
+                "values",
+                "fns",
+                "supplier"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "channel"
+          ],
+          "additionalProperties": false,
+          "description": "An extern block: values the app gives and fns MKP calls."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/type_param"
+                  }
+                },
+                "supplier": {
+                  "$ref": "#/$defs/supplier"
+                }
+              },
+              "required": [
+                "name",
+                "supplier"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "supplier": {
+      "type": "string",
+      "enum": [
+        "core",
+        "pack",
+        "app"
+      ],
+      "description": "Who supplies an extern: the target (core's), the pack that declares it, or the app (a document's channels)."
+    },
+    "extern_widget": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "generics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "markdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "description": "What it writes as Markdown when nobody supplies it, or when the target only writes Markdown. Left out for Markdown's own blocks, which write themselves."
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "supplier": {
+          "$ref": "#/$defs/supplier"
+        }
+      },
+      "required": [
+        "name",
+        "inputs",
+        "slots",
+        "events",
+        "level",
+        "supplier"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "description": "What a document's widgets share.",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/require"
+          }
+        }
+      },
+      "required": [
+        "fields",
+        "requires"
+      ],
+      "additionalProperties": false
+    },
+    "expose": {
+      "type": "object",
+      "description": "Fns the app may call, answering the extern channel of the same name.",
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "fns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "params": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/param"
+                }
+              },
+              "body": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/stmt"
+                }
+              }
+            },
+            "required": [
+              "name",
+              "params",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "channel",
+        "fns"
+      ],
+      "additionalProperties": false
+    },
+    "let_decl": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "value": {
+          "$ref": "#/$defs/expr"
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What it reads, as in a binding; empty for a constant."
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "value",
+        "reads"
+      ],
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "description": "A record's field, a widget's input or own variable, or a `$state` field.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "mut": {
+          "type": "boolean"
+        },
+        "default": {
+          "$ref": "#/$defs/expr"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "param": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "mut": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "type_param": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Capitals: `T`."
+        },
+        "bounds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "slot": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    "require": {
+      "type": "object",
+      "description": "A rule, checked whenever a value it reads changes.",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        }
+      },
+      "required": [
+        "message",
+        "reads",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "type": {
+      "type": "object",
+      "description": "A type. `name` is a built-in type (`core/number`, `core/list`, …), a declared one (an alias among them), a type parameter (capitals), or `fn`, `record` or `any`, which use the parts that follow.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type"
+          }
+        },
+        "contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          },
+          "description": "For `fn`."
+        },
+        "returns": {
+          "$ref": "#/$defs/type",
+          "description": "For `fn`; left out when it returns nothing."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          },
+          "description": "For `record`: an inline record's fields."
+        },
+        "interface": {
+          "type": "string",
+          "description": "For `any`."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "contract": {
+      "type": "object",
+      "description": "What narrows a type. Every part that is given has to hold.",
+      "properties": {
+        "range": {
+          "$ref": "#/$defs/bounds"
+        },
+        "step": {
+          "$ref": "#/$defs/expr"
+        },
+        "length": {
+          "$ref": "#/$defs/bounds"
+        },
+        "only": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expr"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "bounds": {
+      "type": "object",
+      "description": "Both ends are included; a missing one is open.",
+      "properties": {
+        "low": {
+          "$ref": "#/$defs/expr"
+        },
+        "high": {
+          "$ref": "#/$defs/expr"
+        }
+      },
+      "additionalProperties": false
+    },
+    "expr": {
+      "description": "An expression. Values are expressions too.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "num": {
+              "type": "string",
+              "description": "An exact decimal, as text: `3.5`, `-7`."
+            }
+          },
+          "required": [
+            "num"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bool": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "bool"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "description": "Milliseconds, as an exact decimal."
+            }
+          },
+          "required": [
+            "duration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              }
+            }
+          },
+          "required": [
+            "list"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "record": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "record"
+          ],
+          "additionalProperties": false,
+          "description": "A record made; its rules run when it is made."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "case": {
+              "type": "object",
+              "properties": {
+                "enum": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "enum",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "case"
+          ],
+          "additionalProperties": false,
+          "description": "An enum's or a token's case, with its values."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "some": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "some"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "none": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "none"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "range": {
+              "type": "object",
+              "properties": {
+                "low": {
+                  "$ref": "#/$defs/expr"
+                },
+                "high": {
+                  "$ref": "#/$defs/expr"
+                },
+                "step": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "range"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "token": {
+              "type": "string",
+              "description": "A named token: `core/color.OK`."
+            }
+          },
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false,
+          "description": "A token, by its name. A target draws it with its own value."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "tokval": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "type",
+                "name",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "tokval"
+          ],
+          "additionalProperties": false,
+          "description": "A token made from a plain value, through its case that carries one: `stroke.PX(2.5)`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rich": {
+              "$ref": "#/$defs/rich"
+            }
+          },
+          "required": [
+            "rich"
+          ],
+          "additionalProperties": false,
+          "description": "Inline Markdown, already parsed: a `core/rich_text`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "template": {
+              "type": "object",
+              "properties": {
+                "pieces": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "holes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                }
+              },
+              "required": [
+                "pieces",
+                "holes",
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "template"
+          ],
+          "additionalProperties": false,
+          "description": "A literal with holes: a text when `type` is `core/text`, a `core/template` otherwise."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "view": {
+              "$ref": "#/$defs/view_value"
+            }
+          },
+          "required": [
+            "view"
+          ],
+          "additionalProperties": false,
+          "description": "A view as a value: a description of a call, drawn where it is placed."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "get": {
+              "$ref": "#/$defs/get"
+            }
+          },
+          "required": [
+            "get"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bind": {
+              "type": "string",
+              "description": "A binding's id."
+            }
+          },
+          "required": [
+            "bind"
+          ],
+          "additionalProperties": false,
+          "description": "A prop worked out by a binding."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "call": {
+              "$ref": "#/$defs/call"
+            }
+          },
+          "required": [
+            "call"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "apply": {
+              "type": "object",
+              "properties": {
+                "fn": {
+                  "$ref": "#/$defs/expr"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                }
+              },
+              "required": [
+                "fn",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "apply"
+          ],
+          "additionalProperties": false,
+          "description": "A call of a fn held in a value."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/op_name"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                }
+              },
+              "required": [
+                "name",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "show": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "show"
+          ],
+          "additionalProperties": false,
+          "description": "A value shown as text, as a hole shows it."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fn": {
+              "$ref": "#/$defs/lambda"
+            }
+          },
+          "required": [
+            "fn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "place": {
+              "$ref": "#/$defs/place"
+            }
+          },
+          "required": [
+            "place"
+          ],
+          "additionalProperties": false,
+          "description": "Where a `mut` argument writes."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "try": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "try"
+          ],
+          "additionalProperties": false,
+          "description": "The value, or `none` when one of its contracts or rules fails."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "with": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                },
+                "fields": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "value",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "with"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "op_name": {
+      "type": "string",
+      "enum": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "==",
+        "!=",
+        "<",
+        "<=",
+        ">",
+        ">=",
+        "&&",
+        "||",
+        "!",
+        "?"
+      ],
+      "description": "An operator, by its symbol. `-` with one argument negates; `?` takes a condition and two values."
+    },
+    "call": {
+      "type": "object",
+      "description": "A call of a fn by its full name: one written in MKP, an extern, or an interface's, which goes to the fn of the value's own type.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expr"
+          }
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        }
+      },
+      "required": [
+        "name",
+        "args"
+      ],
+      "additionalProperties": false
+    },
+    "lambda": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "returns": {
+          "$ref": "#/$defs/type"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        }
+      },
+      "required": [
+        "params",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "get": {
+      "description": "A read of something by name.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "local": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "local"
+          ],
+          "additionalProperties": false,
+          "description": "A local, a parameter or a loop variable."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "additionalProperties": false,
+          "description": "An input of the widget the code is in."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cell": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cell"
+          ],
+          "additionalProperties": false,
+          "description": "A widget's own variable."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "$state"
+          ],
+          "additionalProperties": false,
+          "description": "A field of the document's `$state`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "let": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "let"
+          ],
+          "additionalProperties": false,
+          "description": "A top-level `let`, by its full name."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false,
+          "description": "A named token: `core/space.S`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "slot"
+          ],
+          "additionalProperties": false,
+          "description": "A slot of the widget the code is in."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "extern": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "extern"
+          ],
+          "additionalProperties": false,
+          "description": "A value of an extern channel: `core/page.width`, `doc/scores.unit`."
+        }
+      ]
+    },
+    "place": {
+      "type": "object",
+      "description": "Where a write goes: a root and a path of fields and items.",
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/root"
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      },
+      "required": [
+        "root",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "root": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "local": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "local"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "input"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cell": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cell"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "$state"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "rich": {
+      "type": "object",
+      "properties": {
+        "segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
+        }
+      },
+      "required": [
+        "segments"
+      ],
+      "additionalProperties": false
+    },
+    "segment": {
+      "type": "object",
+      "properties": {
+        "segment": {
+          "type": "object",
+          "properties": {
+            "part": {
+              "type": "string",
+              "enum": [
+                "TEXT",
+                "CODE",
+                "MATH",
+                "IMAGE",
+                "NOTE",
+                "BREAK",
+                "VIEW"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/expr",
+              "description": "TEXT and CODE: the text; MATH: the `core/latex`; NOTE: the mark; VIEW: the view."
+            },
+            "src": {
+              "$ref": "#/$defs/expr"
+            },
+            "alt": {
+              "$ref": "#/$defs/expr"
+            },
+            "marks": {
+              "$ref": "#/$defs/marks"
+            }
+          },
+          "required": [
+            "part"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "segment"
+      ],
+      "additionalProperties": false
+    },
+    "marks": {
+      "type": "object",
+      "properties": {
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "strike": {
+          "type": "boolean"
+        },
+        "link": {
+          "$ref": "#/$defs/expr"
+        }
+      },
+      "additionalProperties": false
+    },
+    "view_value": {
+      "type": "object",
+      "properties": {
+        "widget": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/expr"
+          }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/node"
+            }
+          }
+        },
+        "events": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "widget",
+        "args"
+      ],
+      "additionalProperties": false
+    },
+    "stmt": {
+      "description": "A statement of a fn, a handler or a rule.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "declare": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "let": {
+                      "$ref": "#/$defs/local"
+                    }
+                  },
+                  "required": [
+                    "let"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "mut": {
+                      "$ref": "#/$defs/local"
+                    }
+                  },
+                  "required": [
+                    "mut"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "declare"
+          ],
+          "additionalProperties": false,
+          "description": "A local."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "set": {
+              "type": "object",
+              "properties": {
+                "place": {
+                  "$ref": "#/$defs/place"
+                },
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "place",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "set"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "return": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "return"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "type": "object",
+              "properties": {
+                "branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "when": {
+                        "$ref": "#/$defs/cond"
+                      },
+                      "then": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/stmt"
+                        }
+                      }
+                    },
+                    "required": [
+                      "when",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "else": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "branches",
+                "else"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "if"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "for": {
+              "type": "object",
+              "properties": {
+                "mut": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "string"
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                },
+                "over": {
+                  "$ref": "#/$defs/expr"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "mut",
+                "name",
+                "type",
+                "over",
+                "body"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "for"
+          ],
+          "additionalProperties": false,
+          "description": "`over` is a list, a range, or for `mut for` a place."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "match": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "when": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/pattern"
+                        }
+                      },
+                      "then": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/stmt"
+                        }
+                      }
+                    },
+                    "required": [
+                      "when",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "else": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "value",
+                "cases"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "match"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "invoke": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "event",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "invoke"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "call": {
+              "$ref": "#/$defs/call"
+            }
+          },
+          "required": [
+            "call"
+          ],
+          "additionalProperties": false,
+          "description": "An action."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "apply": {
+              "type": "object",
+              "properties": {
+                "fn": {
+                  "$ref": "#/$defs/expr"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "fn",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "apply"
+          ],
+          "additionalProperties": false,
+          "description": "An action held in a value."
+        }
+      ]
+    },
+    "local": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "value": {
+          "$ref": "#/$defs/expr"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "cond": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "cond": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "cond"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "object",
+              "description": "Opening an `opt`: `if (let …)` or `if (mut …)`.",
+              "properties": {
+                "mut": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                },
+                "opt": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "mut",
+                "name",
+                "type",
+                "opt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "open"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "pattern": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "case": {
+              "type": "object",
+              "properties": {
+                "enum": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "binds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "enum",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "case"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "num": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "num"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bool": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "bool"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "template": {
+      "type": "object",
+      "description": "A widget written in MKP, lowered: its view as nodes. The document's own view is the template `doc`.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`)."
+        },
+        "generics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/type_param"
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          },
+          "description": "Its own variables, each with its starting value."
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/require"
+          }
+        },
+        "fns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fn_decl"
+          }
+        },
+        "view": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "markdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "description": "Its markdown block, lowered onto core's extern Markdown blocks; built from the view for a document's widget that has none. Empty when it writes nothing."
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        }
+      },
+      "required": [
+        "name",
+        "inputs",
+        "slots",
+        "events",
+        "cells",
+        "requires",
+        "fns",
+        "view",
+        "markdown",
+        "level"
+      ],
+      "additionalProperties": false
+    },
+    "node": {
+      "description": "A node of a template's view.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "extern": {
+              "type": "object",
+              "description": "An extern widget, drawn by the target.",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "site": {
+                  "type": "string"
+                },
+                "props": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "slots": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/node"
+                    }
+                  }
+                },
+                "events": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "writes": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/place"
+                  },
+                  "description": "Where each `mut` input writes."
+                },
+                "level": {
+                  "$ref": "#/$defs/level"
+                },
+                "fallback": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  },
+                  "description": "Its Markdown, for a target without its level or without the widget."
+                }
+              },
+              "required": [
+                "name",
+                "site",
+                "props"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "extern"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "use": {
+              "type": "object",
+              "description": "A widget written in MKP.",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "site": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "slots": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/node"
+                    }
+                  }
+                },
+                "events": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "level": {
+                  "$ref": "#/$defs/level"
+                },
+                "fallback": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "site",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "use"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "for": {
+              "type": "object",
+              "properties": {
+                "mut": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "string"
+                },
+                "type": {
+                  "$ref": "#/$defs/type"
+                },
+                "over": {
+                  "$ref": "#/$defs/expr"
+                },
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "item",
+                    "number"
+                  ],
+                  "description": "Rows of a list follow their items; rows of a range are keyed by their number."
+                },
+                "site": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  }
+                }
+              },
+              "required": [
+                "mut",
+                "name",
+                "type",
+                "over",
+                "key",
+                "site",
+                "body"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "for"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "type": "object",
+              "properties": {
+                "site": {
+                  "type": "string"
+                },
+                "branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "when": {
+                        "$ref": "#/$defs/cond"
+                      },
+                      "then": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/node"
+                        }
+                      }
+                    },
+                    "required": [
+                      "when",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "else": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  }
+                }
+              },
+              "required": [
+                "site",
+                "branches",
+                "else"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "if"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "match": {
+              "type": "object",
+              "properties": {
+                "site": {
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "#/$defs/expr"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "when": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/pattern"
+                        }
+                      },
+                      "then": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/node"
+                        }
+                      }
+                    },
+                    "required": [
+                      "when",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "else": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  }
+                }
+              },
+              "required": [
+                "site",
+                "value",
+                "cases"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "match"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "place": {
+              "type": "object",
+              "description": "A view value or a slot, drawn here.",
+              "properties": {
+                "site": {
+                  "type": "string"
+                },
+                "view": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "site",
+                "view"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "place"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "declare": {
+              "type": "object",
+              "description": "A `let` in a view.",
+              "properties": {
+                "let": {
+                  "$ref": "#/$defs/local"
+                }
+              },
+              "required": [
+                "let"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "declare"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "binding": {
+      "type": "object",
+      "description": "A prop that isn't constant: its value, and everything it reads.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/expr"
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "`cell:n`, `input:t.title`, `$state:spent`, `let:doc/open`, `extern:core/page.width`. Never too few."
+        }
+      },
+      "required": [
+        "id",
+        "value",
+        "reads"
+      ],
+      "additionalProperties": false
+    },
+    "handler": {
+      "type": "object",
+      "description": "What runs when an event fires.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

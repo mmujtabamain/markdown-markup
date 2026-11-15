@@ -1,0 +1,1101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/check.schema.json",
+  "title": "MKP target checks, protocol 1",
+  "description": "A target check (a case), what a target observes after each step, and the JSON-RPC messages `mkp target check` sends a target's check adapter.",
+  "$ref": "#/$defs/case",
+  "$defs": {
+    "case": {
+      "type": "object",
+      "description": "A target check: a source, the diagnostics it gives, and what every target must show after each step.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "`group.name`, unique."
+        },
+        "about": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "description": "The .mkp.md or .mkp file, beside the case."
+        },
+        "packs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Packs to build with, beside the case."
+        },
+        "page": {
+          "$ref": "#/$defs/page"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "levels": {
+              "type": "array",
+              "items": {
+                "$ref": "ir.schema.json#/$defs/level"
+              }
+            }
+          },
+          "required": [
+            "levels"
+          ],
+          "additionalProperties": false
+        },
+        "expect": {
+          "type": "object",
+          "properties": {
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/diagnostic"
+              }
+            }
+          },
+          "required": [
+            "diagnostics"
+          ],
+          "additionalProperties": false
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "expect"
+      ],
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "description": "A diagnostic, by its code and where it starts. Messages are never compared.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer",
+          "description": "Counted in characters, from 1."
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "line",
+        "column"
+      ],
+      "additionalProperties": false
+    },
+    "page": {
+      "type": "object",
+      "description": "What the app tells the page about where it is read.",
+      "properties": {
+        "width": {
+          "type": "string",
+          "enum": [
+            "NARROW",
+            "MEDIUM",
+            "WIDE"
+          ]
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "LIGHT",
+            "DARK"
+          ]
+        },
+        "today": {
+          "type": "string"
+        },
+        "now": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "$ref": "#/$defs/action"
+        },
+        "expect": {
+          "$ref": "#/$defs/expected"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "description": "What a step does to the page.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "object",
+              "properties": {
+                "site": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "ir.schema.json#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "site",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "event"
+          ],
+          "additionalProperties": false,
+          "description": "A reader's event on a widget, by its site."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "write": {
+              "type": "object",
+              "properties": {
+                "site": {
+                  "type": "string"
+                },
+                "input": {
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "ir.schema.json#/$defs/expr",
+                  "description": "A value, in the IR's form."
+                }
+              },
+              "required": [
+                "site",
+                "input",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "write"
+          ],
+          "additionalProperties": false,
+          "description": "A widget writing one of its `mut` inputs, as a slider or a field does."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "set": {
+              "type": "object",
+              "properties": {
+                "$state": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "ir.schema.json#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "$state"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "set"
+          ],
+          "additionalProperties": false,
+          "description": "An app write to `$state`: one change, checked once."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "expose": {
+              "type": "object",
+              "properties": {
+                "channel": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "ir.schema.json#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "channel",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "expose"
+          ],
+          "additionalProperties": false,
+          "description": "The app calling an exposed fn."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "extern": {
+              "type": "object",
+              "properties": {
+                "channel": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "ir.schema.json#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "channel",
+                "values"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "extern"
+          ],
+          "additionalProperties": false,
+          "description": "The app changing a channel's values."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "page": {
+              "$ref": "#/$defs/page"
+            }
+          },
+          "required": [
+            "page"
+          ],
+          "additionalProperties": false,
+          "description": "The app changing what it says about the page."
+        }
+      ]
+    },
+    "expected": {
+      "type": "object",
+      "description": "Only what a step states is compared with the case; every target's whole observation is compared with every other's.",
+      "properties": {
+        "tree": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "widget": {
+                "type": "string"
+              },
+              "props": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "ir.schema.json#/$defs/expr"
+                }
+              },
+              "slots": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "ir.schema.json#/$defs/expr"
+          }
+        },
+        "calls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "markdown": {
+          "$ref": "#/$defs/markdown_expected"
+        },
+        "boxes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/box"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "markdown_expected": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "blocks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            }
+          },
+          "required": [
+            "blocks"
+          ],
+          "additionalProperties": false,
+          "description": "The whole page, as blocks."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "has": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            }
+          },
+          "required": [
+            "has"
+          ],
+          "additionalProperties": false,
+          "description": "Blocks somewhere on the page."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "additionalProperties": false,
+          "description": "The whole page, from a Markdown file beside the case, read as blocks."
+        }
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "description": "Everything MKP decides about the page, after a step.",
+      "properties": {
+        "tree": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/mounted"
+          },
+          "description": "The mounted extern widgets, by site."
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "ir.schema.json#/$defs/expr"
+          }
+        },
+        "calls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "markdown": {
+          "type": "string",
+          "description": "The page as Markdown, which the runner reads as blocks."
+        },
+        "boxes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/box"
+          }
+        },
+        "shaded": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "shader": {
+                "type": "string"
+              },
+              "args": {
+                "$ref": "ir.schema.json#/$defs/expr"
+              }
+            },
+            "required": [
+              "shader",
+              "args"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "tree",
+        "state",
+        "calls",
+        "outcome",
+        "markdown"
+      ],
+      "additionalProperties": false
+    },
+    "mounted": {
+      "type": "object",
+      "properties": {
+        "widget": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "ir.schema.json#/$defs/expr"
+          }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "Each slot's children, by site, in order."
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "additionalProperties": false
+    },
+    "call": {
+      "type": "object",
+      "description": "An extern fn the step called, with its arguments.",
+      "properties": {
+        "call": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "ir.schema.json#/$defs/expr"
+              }
+            }
+          },
+          "required": [
+            "name",
+            "args"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "properties": {
+        "refused": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/broken"
+          }
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/broken"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "broken": {
+      "type": "object",
+      "description": "A rule that failed: a `require`'s message, or a contract's code, and where.",
+      "properties": {
+        "rule": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "site": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "box": {
+      "type": "object",
+      "description": "Where a `spot` landed, in its plane's units.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/point"
+        },
+        "to": {
+          "$ref": "#/$defs/point"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "$ref": "ir.schema.json#/$defs/expr"
+        },
+        "y": {
+          "$ref": "ir.schema.json#/$defs/expr"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "block": {
+      "description": "A Markdown block, as the runner reads the page.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "paragraph": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/inline"
+              }
+            }
+          },
+          "required": [
+            "paragraph"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "heading": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer"
+                },
+                "inline": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/inline"
+                  }
+                }
+              },
+              "required": [
+                "level",
+                "inline"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "heading"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bullets": {
+              "type": "object",
+              "properties": {
+                "ordered": {
+                  "type": "boolean"
+                },
+                "start": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "done": {
+                        "type": "boolean"
+                      },
+                      "blocks": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/block"
+                        }
+                      }
+                    },
+                    "required": [
+                      "blocks"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "ordered",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "bullets"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "quote": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            }
+          },
+          "required": [
+            "quote"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "object",
+              "properties": {
+                "lang": {
+                  "type": "string"
+                },
+                "src": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "lang",
+                "src"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "math": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "math"
+          ],
+          "additionalProperties": false,
+          "description": "A maths block's TeX."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "object",
+              "properties": {
+                "align": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "START",
+                      "CENTER",
+                      "END"
+                    ]
+                  }
+                },
+                "head": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/inline"
+                    }
+                  }
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/inline"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "align",
+                "head",
+                "rows"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "table"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "footnote": {
+              "type": "object",
+              "properties": {
+                "mark": {
+                  "type": "string"
+                },
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/block"
+                  }
+                }
+              },
+              "required": [
+                "mark",
+                "blocks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "footnote"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "divider": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "divider"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "inline": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "bold": {
+                  "type": "boolean"
+                },
+                "italic": {
+                  "type": "boolean"
+                },
+                "strike": {
+                  "type": "boolean"
+                },
+                "link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "math": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "math"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "object",
+              "properties": {
+                "src": {
+                  "type": "string"
+                },
+                "alt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "src",
+                "alt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "image"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "note"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "break": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "break"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "description": "A JSON-RPC 2.0 request from `mkp target check` to a target's check adapter, one per line on its standard input.",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "advertise",
+            "load",
+            "event",
+            "write",
+            "set",
+            "expose",
+            "extern",
+            "page",
+            "observe",
+            "quit"
+          ]
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "description": "The adapter's reply, on its standard output only; logs go to standard error.",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "result": {},
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "advertised": {
+      "type": "object",
+      "description": "The result of `advertise`.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "ir.schema.json#/$defs/level"
+          }
+        },
+        "supplies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The extern widgets and fns it draws or runs."
+        }
+      },
+      "required": [
+        "name",
+        "protocol",
+        "levels",
+        "supplies"
+      ],
+      "additionalProperties": false
+    },
+    "load": {
+      "type": "object",
+      "description": "The params of `load`: the IR the mkp binary wrote for the case, and the page.",
+      "properties": {
+        "ir": {
+          "type": "string",
+          "description": "A path to the .ir.json file."
+        },
+        "page": {
+          "$ref": "#/$defs/page"
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "ir.schema.json#/$defs/expr"
+          }
+        },
+        "externs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "ir.schema.json#/$defs/expr"
+            }
+          }
+        }
+      },
+      "required": [
+        "ir"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
