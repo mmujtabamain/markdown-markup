@@ -170,6 +170,8 @@ impl<'p> Writer<'p> {
                     let values = match &over {
                         Value::List(l) => l.items.iter().map(|i| i.value.clone()).collect(),
                         Value::Range(r) => self.m.walk_range(r).map_err(fail)?,
+                        // a list slot: each widget its content places is one item
+                        Value::View(v) if &*v.widget == SLOT => self.slot_items(v)?,
                         _ => Vec::new(),
                     };
                     for (k, v) in values.into_iter().enumerate() {
@@ -234,6 +236,102 @@ impl<'p> Writer<'p> {
             }
         }
         Ok(out)
+    }
+
+    /// A slot's items, as `for` walks a list slot: each widget call its content makes, with the
+    /// loops and branches around it worked out, held as a view of its own.
+    fn slot_items(&mut self, slot: &ViewValue) -> R<Vec<Value>> {
+        let id = match slot.args.get("id") {
+            Some(Value::Num(n)) => n.to_i64().unwrap_or(-1),
+            _ => -1,
+        };
+        let Some((nodes, at)) = self.shared.borrow().held.get(id as usize).cloned() else { return Ok(Vec::new()) };
+        let mut calls = Vec::new();
+        self.calls_in(&nodes, &at, &mut calls)?;
+        let mut out = Vec::new();
+        for (node, env) in calls {
+            let mut sh = self.shared.borrow_mut();
+            sh.held.push((vec![node], env));
+            let mut args = BTreeMap::new();
+            args.insert("id".to_string(), Value::Num(mkp_eval::Num::int((sh.held.len() - 1) as i64)));
+            out.push(Value::View(Rc::new(ViewValue { widget: Rc::from(SLOT), args, slots: BTreeMap::new(), events: BTreeMap::new(), exprs: BTreeMap::new(), captured: Vec::new(), owner: None })));
+        }
+        Ok(out)
+    }
+
+    /// The widget calls some nodes make, each with the locals around it.
+    fn calls_in(&mut self, nodes: &[Node], env: &Env, out: &mut Vec<(Node, Env)>) -> R<()> {
+        let mut env = env.clone();
+        for n in nodes {
+            match n {
+                Node::Declare(d) => {
+                    let v = self.eval(&env, &d.let_.value)?;
+                    env.locals.push((Rc::from(d.let_.name.as_str()), v));
+                }
+                Node::For(f) => {
+                    let over = self.eval(&env, &f.over)?;
+                    let values = match &over {
+                        Value::List(l) => l.items.iter().map(|i| i.value.clone()).collect(),
+                        Value::Range(r) => self.m.walk_range(r).map_err(fail)?,
+                        _ => Vec::new(),
+                    };
+                    for (k, v) in values.into_iter().enumerate() {
+                        let mut inner = env.clone();
+                        if let Some(p) = &f.position {
+                            inner.locals.push((Rc::from(p.as_str()), Value::Num(mkp_eval::Num::int(k as i64))));
+                        }
+                        let v = if f.mutable { Value::some(v) } else { v };
+                        inner.locals.push((Rc::from(f.name.as_str()), v));
+                        self.calls_in(&f.body, &inner, out)?;
+                    }
+                }
+                Node::If(i) => {
+                    let mut done = false;
+                    for b in &i.branches {
+                        let mut inner = env.clone();
+                        let pass = match &b.when {
+                            ir::Cond::Cond(e) => matches!(self.eval(&env, e)?, Value::Bool(true)),
+                            ir::Cond::Open(o) => match self.eval(&env, &o.opt)? {
+                                Value::Opt(None) => false,
+                                Value::Opt(Some(x)) => {
+                                    inner.locals.push((Rc::from(o.name.as_str()), (*x).clone()));
+                                    true
+                                }
+                                plain => {
+                                    inner.locals.push((Rc::from(o.name.as_str()), plain));
+                                    true
+                                }
+                            },
+                        };
+                        if pass {
+                            self.calls_in(&b.then, &inner, out)?;
+                            done = true;
+                            break;
+                        }
+                    }
+                    if !done {
+                        self.calls_in(&i.else_, &env, out)?;
+                    }
+                }
+                Node::Match(mt) => {
+                    let v = self.eval(&env, &mt.value)?;
+                    let mut done = false;
+                    for c in &mt.cases {
+                        let mut inner = env.clone();
+                        if c.when.iter().any(|p| self.matches(&v, p, &mut inner)) {
+                            self.calls_in(&c.then, &inner, out)?;
+                            done = true;
+                            break;
+                        }
+                    }
+                    if !done {
+                        self.calls_in(&mt.else_, &env, out)?;
+                    }
+                }
+                Node::Place(_) | Node::Extern(_) | Node::Use(_) => out.push((n.clone(), env.clone())),
+            }
+        }
+        Ok(())
     }
 
     fn matches(&mut self, v: &Value, p: &ir::Pattern, env: &mut Env) -> bool {
