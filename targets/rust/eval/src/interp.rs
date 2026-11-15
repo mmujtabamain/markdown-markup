@@ -181,6 +181,13 @@ impl Program {
             ir::Decl::Extern(ir::Extern::Fn(f)) => {
                 self.externs.insert(f.name.clone(), Rc::new(f.clone()));
             }
+            // a channel's fns are the app's: `doc/scores.saved`
+            ir::Decl::Extern(ir::Extern::Channel(c)) => {
+                for f in &c.fns {
+                    let name = format!("{}.{}", c.name, f.name);
+                    self.externs.insert(name.clone(), Rc::new(ir::ExternFn { name, params: f.params.clone(), returns: f.returns.clone(), supplier: c.supplier.clone(), default: Vec::new() }));
+                }
+            }
             ir::Decl::Record(r) => {
                 self.records.insert(r.name.clone(), Rc::new(r.clone()));
             }
