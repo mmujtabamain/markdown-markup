@@ -5,3 +5,4 @@ dist/
 !targets/checks/**/*.ir.json
 .DS_Store
 !schemas/examples/*.ir.json
+core.[0-9]*
