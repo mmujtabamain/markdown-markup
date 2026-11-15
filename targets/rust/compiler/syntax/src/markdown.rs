@@ -386,6 +386,14 @@ impl Parser {
             if self.offset >= self.line.len() && !self.blank {
                 return;
             }
+            // another block's start ends the table
+            self.find_next_nonspace();
+            let rest = self.rest(self.next_nonspace);
+            if !self.blank && !self.indented && (rest.starts_with('>') || rest.starts_with('#') || rest.starts_with("```") || rest.starts_with("~~~") || is_thematic(&rest)) {
+                self.finalize(container);
+                self.incorporate_rest(container);
+                return;
+            }
             if self.all_closed || matches!(self.nodes[self.tip].kind, Kind::Table { .. }) {
                 if !self.blank {
                     let row = split_row(&self.rest(self.offset));
@@ -435,6 +443,13 @@ impl Parser {
                 self.add_line();
             }
         }
+    }
+
+    /// The line again, once the table it would have joined is closed.
+    fn incorporate_rest(&mut self, _table: usize) {
+        let line: String = self.line.iter().collect();
+        self.line_no -= 1;
+        self.incorporate(&line);
     }
 
     /// 0: no block starts here, 1: a container started, 2: a leaf started.
@@ -795,21 +810,71 @@ fn paragraph_text(content: &str) -> String {
 }
 
 fn unescape_info(s: &str) -> String {
+    unescape(s)
+}
+
+/// Backslash escapes and character references worked out in one pass, as CommonMark does in
+/// destinations, titles and info strings.
+pub fn unescape(s: &str) -> String {
+    let b: Vec<char> = s.chars().collect();
     let mut out = String::new();
-    let mut it = s.chars().peekable();
-    while let Some(c) = it.next() {
-        if c == '\\' {
-            if let Some(n) = it.peek() {
-                if n.is_ascii_punctuation() {
-                    out.push(*n);
-                    it.next();
-                    continue;
-                }
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c == '\\' && i + 1 < b.len() && b[i + 1].is_ascii_punctuation() {
+            out.push(b[i + 1]);
+            i += 2;
+            continue;
+        }
+        if c == '&' {
+            if let Some((text, used)) = entity_at(&b[i..]) {
+                out.push_str(&text);
+                i += used;
+                continue;
             }
         }
         out.push(c);
+        i += 1;
     }
     out
+}
+
+/// A character reference at the start of `b`: what it stands for and how many chars it takes.
+pub fn entity_at(b: &[char]) -> Option<(String, usize)> {
+    let semi = b.iter().take(40).position(|c| *c == ';')?;
+    let body: String = b[1..semi].iter().collect();
+    if let Some(num) = body.strip_prefix('#') {
+        let (digits, radix, max) = match num.strip_prefix('x').or_else(|| num.strip_prefix('X')) {
+            Some(h) => (h, 16, 6),
+            None => (num, 10, 7),
+        };
+        if digits.is_empty() || digits.len() > max || !digits.chars().all(|c| c.is_digit(radix)) {
+            return None;
+        }
+        let n = u32::from_str_radix(digits, radix).ok()?;
+        let ch = if n == 0 { '\u{FFFD}' } else { char::from_u32(n).unwrap_or('\u{FFFD}') };
+        return Some((ch.to_string(), semi + 1));
+    }
+    if body.is_empty() || !body.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return None;
+    }
+    entities().get(&body).map(|v| (v.clone(), semi + 1))
+}
+
+/// HTML5's named character references, read from core's own table.
+fn entities() -> &'static std::collections::HashMap<String, String> {
+    static TABLE: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for line in include_str!("../../../../../core/entities.mkp").lines() {
+            let line = line.trim();
+            let Some(rest) = line.strip_prefix("{ key = \"") else { continue };
+            let Some((key, rest)) = rest.split_once("\", value = \"") else { continue };
+            let Some(value) = rest.strip_suffix("\" },").or_else(|| rest.strip_suffix("\" }")) else { continue };
+            m.insert(key.to_string(), crate::lexer::decode_piece(value));
+        }
+        m
+    })
 }
 
 fn is_thematic(s: &str) -> bool {
@@ -1038,6 +1103,7 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
                 return None;
             }
             if b[i] == '\\' && i + 1 < b.len() && b[i + 1].is_ascii_punctuation() {
+                dest.push(b[i]);
                 dest.push(b[i + 1]);
                 i += 2;
                 continue;
@@ -1055,6 +1121,7 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
         while i < b.len() && !b[i].is_whitespace() && !b[i].is_control() {
             match b[i] {
                 '\\' if i + 1 < b.len() && b[i + 1].is_ascii_punctuation() => {
+                    dest.push(b[i]);
                     dest.push(b[i + 1]);
                     i += 2;
                     continue;
@@ -1075,6 +1142,7 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
             return None;
         }
     }
+    let dest = unescape(&dest);
     let before_title = i;
     let line_end_after_dest = {
         let mut j = i;
@@ -1096,6 +1164,7 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
         let mut ok = false;
         while j < b.len() {
             if b[j] == '\\' && j + 1 < b.len() && b[j + 1].is_ascii_punctuation() {
+                t.push(b[j]);
                 t.push(b[j + 1]);
                 j += 2;
                 continue;
@@ -1116,7 +1185,7 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
                 k += 1;
             }
             if k >= b.len() || b[k] == '\n' {
-                title = Some(t);
+                title = Some(unescape(&t));
                 let used = if k < b.len() { k + 1 } else { k };
                 let bytes: usize = b[..used].iter().map(|c| c.len_utf8()).sum();
                 return Some((LinkDef { label, dest, title }, bytes));
@@ -1126,7 +1195,6 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
     // no title: the destination ends its line
     let used = line_end_after_dest?;
     let bytes: usize = b[..used].iter().map(|c| c.len_utf8()).sum();
-    let _ = title;
     Some((LinkDef { label, dest, title: None }, bytes))
 }
 
@@ -1178,5 +1246,13 @@ mod tests {
         assert_eq!(d.blocks[0], MdBlock::Code { lang: "rust".into(), src: "fn x() {}\n".into() });
         assert_eq!(d.links, vec![LinkDef { label: "a".into(), dest: "/url".into(), title: Some("title".into()) }]);
         assert_eq!(d.blocks[1], MdBlock::Paragraph("text".into()));
+    }
+
+    #[test]
+    fn references_in_destinations_and_info() {
+        assert_eq!(unescape("f&ouml;&ouml; &#35; &#x41; \\&amp; &nope;"), "föö # A &amp; &nope;");
+        let d = parse("``` f&ouml;&ouml;\nx\n```\n\n[a]: /f&ouml;\\* \"t&amp;\"\n");
+        assert_eq!(d.blocks[0], MdBlock::Code { lang: "föö".into(), src: "x\n".into() });
+        assert_eq!(d.links, vec![LinkDef { label: "a".into(), dest: "/fö*".into(), title: Some("t&".into()) }]);
     }
 }
