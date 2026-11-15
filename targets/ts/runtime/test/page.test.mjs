@@ -1,0 +1,158 @@
+// A page running on @mkp/runtime: mounted, changed only through checked transactions, and
+// written back as Markdown (page 6, plan tab 11). Each page is built by the mkp binary.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { Page, Num, layout, place, keepInside, around } from "../dist/index.js";
+import { mkpBinary, workdir } from "./mkp.mjs";
+
+const dir = workdir();
+let n = 0;
+
+/** A document's IR, built by the mkp binary. */
+function page(source, opts = {}) {
+  const file = join(dir, `page${n++}.mkp.md`);
+  writeFileSync(file, source);
+  const out = file.replace(/\.mkp\.md$/, ".ir.json");
+  execFileSync(mkpBinary(), ["build", file, "-o", out], { stdio: ["ignore", "pipe", "pipe"] });
+  return new Page(JSON.parse(readFileSync(out, "utf8")), opts);
+}
+
+const num = (s) => ({ num: String(s) });
+
+test("a page mounts: its tree, its $state and its Markdown", () => {
+  const p = page('$state {\n    n: int 0..10 = 3;\n}\n@@@\n# Count\n\n@slider(value = $state.n, label = "N");\n');
+  const tree = p.observeTree();
+  assert.equal(tree.s1.widget, "core/slider");
+  assert.deepEqual(tree.s1.props.value, num(3));
+  assert.deepEqual(p.observeState(), { n: num(3) });
+  assert.equal(p.markdown(), "# Count\n\nN: 3\n");
+});
+
+test("a widget's write goes to the caller's variable, checked against its contract", () => {
+  const p = page('$state {\n    n: int 0..10 = 3;\n}\n@@@\n@slider(value = $state.n, label = "N");\n');
+  p.write("s0", "value", p.value(num(7)));
+  assert.deepEqual(p.observeState(), { n: num(7) });
+  p.write("s0", "value", p.value(num(12)));
+  assert.deepEqual(p.observeState(), { n: num(7) });
+  assert.deepEqual(p.takeOutcome().refused, [{ code: "contracts.outside", site: "s0" }]);
+  p.write("s0", "value", p.value(num("1.5")));
+  assert.deepEqual(p.observeState(), { n: num(7) });
+});
+
+test("an app's write to $state is one change, checked once against $state's rules", () => {
+  const p = page('$state {\n    low: number = 1;\n    high: number = 5;\n\n    require "low stays at or below high" {\n        return low <= high;\n    }\n}\n@@@\n\\{$state.low} to \\{$state.high}\n');
+  p.set({ low: p.value(num(9)) });
+  assert.deepEqual(p.takeOutcome().refused, [{ rule: "low stays at or below high" }]);
+  assert.deepEqual(p.observeState().low, num(1));
+  // both at once is one change, so the rule holds after it
+  p.set({ low: p.value(num(9)), high: p.value(num(10)) });
+  assert.deepEqual(p.takeOutcome().refused, []);
+  assert.equal(p.markdown(), "9 to 10\n");
+  // a field that doesn't exist, or a value its type refuses, changes nothing
+  p.set({ nope: p.value(num(1)) });
+  assert.deepEqual(p.takeOutcome().refused, [{ code: "contracts.outside", site: "$state.nope" }]);
+});
+
+test("a handler that fails is undone whole and reported; the page carries on", () => {
+  const p = page(
+    '$state {\n    tries: int = 0;\n    total: number = 10;\n}\n\nwidget go() {\n    view {\n        @press(label = "Go", click = fn() { $state.tries = $state.tries + 1; $state.total = $state.total / 0; });\n    }\n}\n@@@\n@go;\n',
+  );
+  p.event("s0/s0", "click");
+  assert.deepEqual(p.observeState(), { tries: num(0), total: num(10) });
+  assert.deepEqual(p.takeOutcome().failures, [{ code: "failure.number", site: "s0/s0" }]);
+});
+
+test("extern channels: the app's fns are reported as calls, its values redraw, and exposed fns run as one change", () => {
+  const p = page(
+    'extern scores {\n    unit: text = "K";\n    fn saved(total: int);\n}\n\n$state {\n    points: int 0... = 0;\n}\n\nexpose scores {\n    fn clear() {\n        $state.points = 0;\n    }\n}\n\nwidget tally(mut points: int) {\n    view {\n        @press(label = "Add", click = fn() { points = points + 1; scores.saved(points); });\n    }\n    markdown {\n        \\{points} \\{scores.unit}\n    }\n}\n@@@\n@tally(points = $state.points);\n',
+  );
+  p.event("s0/s0", "click");
+  assert.deepEqual(p.takeCalls(), [{ call: { name: "doc/scores.saved", args: [num(1)] } }]);
+  assert.equal(p.markdown(), "1 K\n");
+  p.setExtern("doc/scores", { unit: p.value({ text: "points" }) });
+  assert.equal(p.markdown(), "1 points\n");
+  p.expose("doc/scores", "clear");
+  assert.deepEqual(p.observeState(), { points: num(0) });
+});
+
+test("a loop's rows keep their widgets' variables by item, not by position", () => {
+  const p = page(
+    'record task {\n    title: text;\n}\n\n$state {\n    tasks: list<task> = [task { title = "a" }, task { title = "b" }];\n}\n\nwidget row(t: task) {\n    mut votes: int = 0;\n    view {\n        @press(label = "\\{t.title}: \\{votes}", click = fn() { votes = votes + 1; });\n    }\n}\n\nwidget board() {\n    view {\n        mut for (t in $state.tasks) {\n            if (mut x: task = t) {\n                @row(t = x);\n                @press(label = "Drop", click = fn() { $state.tasks.remove(x); });\n            }\n        }\n    }\n}\n@@@\n@board;\n',
+  );
+  p.event("s0/s0[1]/s2/s0", "click");
+  assert.deepEqual(p.observeTree()["s0/s0[1]/s2/s0"].props.label, { text: "b: 1" });
+  p.event("s0/s0[0]/s3", "click");
+  // "b" is now the first row, and keeps its vote
+  assert.deepEqual(p.observeTree()["s0/s0[0]/s2/s0"].props.label, { text: "b: 1" });
+});
+
+test("a widget that fails while drawing is a notice, and is tried again when what it reads changes", () => {
+  const p = page('$state {\n    parts: int 0... = 0;\n}\n\nwidget share() {\n    view {\n        @label(value = "Each: \\{100 / $state.parts}");\n    }\n}\n@@@\n@share;\n\nAfter.\n');
+  assert.deepEqual(p.takeOutcome().failures, [{ code: "failure.number", site: "s0" }]);
+  assert.equal(p.observeTree().s0.widget, "#notice");
+  p.set({ parts: p.value(num(4)) });
+  assert.deepEqual(p.observeTree()["s0/s0"].props.value, { text: "Each: 25" });
+});
+
+test("the page's values reach the document as core's page channel", () => {
+  const p = page('widget where() {\n    view {\n        @label(value = page.width == width.NARROW ? "Narrow" : "Wide");\n    }\n}\n@@@\n@where;\n', { page: { width: "NARROW" } });
+  assert.equal(p.markdown(), "Narrow\n");
+  p.setPage({ width: "WIDE" });
+  assert.equal(p.markdown(), "Wide\n");
+});
+
+test("onChange is told after every redraw", () => {
+  const p = page('$state {\n    n: int 0..10 = 0;\n}\n@@@\n@slider(value = $state.n, label = "N");\n');
+  let told = 0;
+  const off = p.onChange(() => told++);
+  p.write("s0", "value", p.value(num(1)));
+  off();
+  p.write("s0", "value", p.value(num(2)));
+  assert.equal(told, 1);
+});
+
+// ---- the plane's layout
+
+const N = (s) => Num.literal(String(s));
+const pt = (x, y) => ({ x: N(x), y: N(y) });
+const show = (r) => [r.from.x, r.from.y, r.to.x, r.to.y].map((x) => x.show());
+
+test("a spot's box: its anchor's part of it on the point, moved by its nudge", () => {
+  const size = { width: N(40), height: N(20) };
+  assert.deepEqual(show(place(pt(0, 0), "CENTER", pt(0, 0), size)), ["-20", "-10", "20", "10"]);
+  assert.deepEqual(show(place(pt(0, 0), "SW", pt(0, 0), size)), ["0", "0", "40", "20"]);
+  assert.deepEqual(show(place(pt(0, 0), "NE", pt(0, 0), size)), ["-40", "-20", "0", "0"]);
+  assert.deepEqual(show(place(pt(0, 0), "N", pt(5, 5), size)), ["-15", "-15", "25", "5"]);
+  assert.deepEqual(show(place(pt(10, 10), "E", pt(0, 0), size)), ["-30", "0", "10", "20"]);
+});
+
+test("bounds left out are the region around every box; the centre stays inside them", () => {
+  const r = around([
+    { from: pt(-4, -10), to: pt(4, 10) },
+    { from: pt(100, 50), to: pt(124, 70) },
+  ]);
+  assert.deepEqual(show(r), ["-4", "-10", "124", "70"]);
+  const b = { from: pt(-400, -300), to: pt(400, 300) };
+  // inside: kept; past an edge: moved back; bounds smaller than the view: their middle
+  assert.deepEqual([keepInside(pt(10, 10), pt(100, 50), b)].map((p) => [p.x.show(), p.y.show()]), [["10", "10"]]);
+  assert.deepEqual([keepInside(pt(390, -290), pt(100, 50), b)].map((p) => [p.x.show(), p.y.show()]), [["300", "-250"]]);
+  assert.deepEqual([keepInside(pt(390, 0), pt(500, 50), b)].map((p) => [p.x.show(), p.y.show()]), [["0", "0"]]);
+});
+
+test("a layout writes boxes once: a second pass with nothing changed writes nothing", () => {
+  const p = page(
+    '$state {\n    home: opt<region> = opt.NONE;\n}\n\nwidget map() {\n    view {\n        @plane(label = "Map", bounds = region { from = point { x = -100, y = -100 }, to = point { x = 100, y = 100 } }) {\n            items {\n                @spot(at = point { x = 0, y = 0 }, box = $state.home) {\n                    @label(value = "Home");\n                }\n            }\n        }\n    }\n}\n@@@\n@map;\n',
+  );
+  let redraws = 0;
+  p.onChange(() => redraws++);
+  const measure = { spot: () => ({ width: N(32), height: N(20) }), planeWidth: () => N(100) };
+  layout(p, measure);
+  assert.equal(redraws, 1);
+  assert.deepEqual(p.observeState().home, { some: { record: { type: "core/region", fields: { from: { record: { type: "core/point", fields: { x: num(-16), y: num(-10) } } }, to: { record: { type: "core/point", fields: { x: num(16), y: num(10) } } } } } } });
+  layout(p, measure);
+  assert.equal(redraws, 1);
+});
