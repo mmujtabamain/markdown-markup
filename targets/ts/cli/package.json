@@ -1,0 +1,54 @@
+{
+  "name": "@mkp/cli",
+  "version": "0.3.0",
+  "description": "The mkp compiler for build tools: the native binary for each platform, a JS API that runs it, and a Vite plugin",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mkp": "bin/mkp.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "binary": "node scripts/copy-binary.mjs",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "optionalDependencies": {
+    "@mkp/cli-linux-x64": "0.3.0",
+    "@mkp/cli-linux-arm64": "0.3.0",
+    "@mkp/cli-darwin-x64": "0.3.0",
+    "@mkp/cli-darwin-arm64": "0.3.0",
+    "@mkp/cli-win32-x64": "0.3.0"
+  },
+  "peerDependencies": {
+    "vite": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "5.9.3",
+    "vite": "6.4.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
