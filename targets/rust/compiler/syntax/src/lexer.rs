@@ -532,7 +532,18 @@ pub fn hole_end(src: &str, start: usize, limit: usize, one_line: bool) -> Result
     let mut lx = Lexer::new(src, start, limit);
     let mut depth = 0u32;
     loop {
-        let t = lx.next()?;
+        let t = match lx.next() {
+            Ok(t) => t,
+            // a text that runs past the line inside a hole is the hole running past it
+            Err(d) if one_line && d.code == codes::TEXT_LINE => {
+                return Err(Diagnostic::error(
+                    codes::HOLE_UNCLOSED,
+                    Span::new(start - 2, start),
+                    "this hole is not closed on its line: a hole is `\\{` and an expression, then `}`",
+                ))
+            }
+            Err(d) => return Err(d),
+        };
         if one_line && t.on_new_line() {
             return Err(Diagnostic::error(
                 codes::HOLE_UNCLOSED,

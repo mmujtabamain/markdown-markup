@@ -2,7 +2,7 @@
 //!
 //! targets/checks/spec-examples.json says which entry each block is read with.
 
-use mkp_syntax::{format, Entry, Lines};
+use mkp_syntax::{format, parse, Entry, Lines};
 use std::path::PathBuf;
 
 fn repo() -> PathBuf {
@@ -77,6 +77,14 @@ fn every_spec_example_reads_and_prints_back_unchanged() {
         for (ex, tag) in found.iter().zip(tags) {
             assert!(tag.starts_with(&ex.lang), "{}:{}: a {} block tagged {}", ex.page, ex.line, ex.lang, tag);
             count += 1;
+            let parsed = parse(&ex.text, entry(tag));
+            if parsed.file.is_some() && !parsed.diagnostics.is_empty() {
+                let lines = Lines::new(&ex.text);
+                for d in &parsed.diagnostics {
+                    let at = lines.place(d.span.start);
+                    failures.push(format!("{}:{} ({}) reads with a diagnostic at block line {}, column {}: [{}] {}", ex.page, ex.line, tag, at.line, at.column, d.code, d.message));
+                }
+            }
             match format(&ex.text, entry(tag)) {
                 Ok(out) if out == ex.text => {}
                 Ok(out) => failures.push(format!("{}:{} ({}) prints back differently, {}", ex.page, ex.line, tag, first_difference(&ex.text, &out))),

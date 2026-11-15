@@ -350,10 +350,19 @@ impl<'a> Parser<'a> {
     /// The members of a declaration, after its `{`, up to and including its `}`.
     pub(crate) fn body<T>(&mut self, open: Span, mut member: impl FnMut(&mut Self) -> R<T>) -> R<Body<T>> {
         let opened = self.take_trailing()?;
+        let one_line = opened.is_empty() && !self.on_new_line()?;
         let mut items = Vec::new();
         loop {
             if self.at(P::RBrace)? {
                 let dangling = self.take_leading()?;
+                if !items.is_empty() {
+                    if one_line {
+                        self.layout_warning(open, "an opening brace ends its line: put each member on a line of its own");
+                    } else if !self.on_new_line()? {
+                        let at = self.here()?;
+                        self.layout_warning(at, "a closing brace starts its own line");
+                    }
+                }
                 let end = self.bump()?.span;
                 return Ok(Body { items, open: opened, dangling, span: open.to(end) });
             }
@@ -366,6 +375,11 @@ impl<'a> Parser<'a> {
             let trailing = self.take_trailing()?;
             items.push(Node { leading, item: value, trailing, newline });
         }
+    }
+
+    /// Page 1's brace rule, in code: another layout is a warning and is read the same.
+    fn layout_warning(&mut self, at: Span, message: &str) {
+        self.diags.push(Diagnostic::warning(codes::LAYOUT, at, message.to_string()).with_fix("mkp fmt"));
     }
 
     // ---- files
@@ -1331,6 +1345,14 @@ impl<'a> Parser<'a> {
         loop {
             if self.at(P::RBrace)? {
                 let dangling = self.take_leading()?;
+                if !stmts.is_empty() {
+                    if one_line && matches!(kind, BlockKind::Code | BlockKind::View) {
+                        self.layout_warning(open, "an opening brace ends its line: put this block's statements on lines of their own");
+                    } else if !one_line && !self.on_new_line()? {
+                        let at = self.here()?;
+                        self.layout_warning(at, "a closing brace starts its own line");
+                    }
+                }
                 let end = self.bump()?.span;
                 return Ok(Block { stmts, kind, one_line, open: opened, dangling, span: open.to(end) });
             }

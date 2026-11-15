@@ -243,7 +243,8 @@ impl<'a> Parser<'a> {
         match stop {
             Stop::Close { next, .. } => {
                 let close_end = self.src[..next].trim_end_matches('\n').len();
-                self.seek(next.min(limit), limit);
+                // from the end of the `}` line, so the next token knows it starts a line
+                self.seek(close_end.min(limit), limit);
                 Ok(MarkdownBlock { empty: false, prose, span: start.to(Span::at(close_end)) })
             }
             _ => Err(Diagnostic::error(codes::BLOCK_UNCLOSED, start, "this markdown block is not closed by a line that holds only `}`")),
@@ -291,14 +292,9 @@ impl<'a> Parser<'a> {
                 if let Some((c, n)) = fence_open(&line.text[line.lead..]) {
                     let mut lines = vec![TextLine { span: Span::new(line.content, line.end), holes: Vec::new() }];
                     let mut at = next;
-                    loop {
-                        if at >= region.end {
-                            return Err(Diagnostic::error(
-                                codes::FENCE_UNCLOSED,
-                                Span::new(line.content + line.lead, line.end),
-                                "this code fence is not closed",
-                            ));
-                        }
+                    // a fence that is never closed runs to the end, as in CommonMark; in a
+                    // block, that swallows the block's `}`, so the block is the one reported
+                    while at < region.end {
                         let l = self.line(at, region);
                         lines.push(TextLine { span: Span::new(l.content, l.end), holes: Vec::new() });
                         at = self.next_line(&l, region);

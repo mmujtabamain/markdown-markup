@@ -130,7 +130,6 @@ pub mod codes {
     pub const SLOT_OUTSIDE: &str = "prose.slot-outside-a-call";
     pub const IN_QUOTE_OR_ITEM: &str = "prose.call-in-quote-or-item";
     pub const MATHS_UNCLOSED: &str = "prose.maths-block-not-closed";
-    pub const FENCE_UNCLOSED: &str = "prose.code-fence-not-closed";
     pub const HOLE_LINE: &str = "prose.hole-runs-over-a-line";
     pub const BRACE_LINE: &str = "prose.brace-ends-its-line";
     pub const MATCH_CASE: &str = "prose.match-holds-cases";
