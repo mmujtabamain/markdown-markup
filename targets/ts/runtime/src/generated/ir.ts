@@ -227,7 +227,8 @@ export interface ExternWidget {
   events: Event[];
   generics?: TypeParam[];
   inputs: Field[];
-  level: Level;
+  /** The levels drawing this widget needs: core.draw, or core.gfx for the canvas widgets. */
+  levels: Level[];
   /** What it writes as Markdown when nobody supplies it, or when the target only writes Markdown. Left out for Markdown's own blocks, which write themselves. */
   markdown?: Node[];
   /** A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`). */
@@ -303,8 +304,8 @@ export interface LetDecl {
   value: Expr;
 }
 
-/** What a target has to do to run a call, a widget or a page (page 6). */
-export type Level = "markdown" | "core.draw" | "core.live" | "core.gfx";
+/** A level a target has (page 6): core.draw draws the extern widgets, core.live holds variables and runs events, core.gfx draws the canvas widgets. A target lists the ones it has, and a call, a widget or a page lists the ones it needs: none means its Markdown is enough. */
+export type Level = "core.draw" | "core.live" | "core.gfx";
 
 export interface Local {
   name: string;
@@ -324,7 +325,8 @@ export interface Module {
   bindings: Binding[];
   declarations: Declaration[];
   handlers: Handler[];
-  level: Level;
+  /** Every level the page needs: the union of its calls'. */
+  levels: Level[];
   /** The version of the compiler that wrote it. */
   mkp: string;
   /** `doc` for a document, or the pack's name. */
@@ -355,7 +357,8 @@ export interface NodeExtern {
   events?: { [key: string]: string };
   /** Its Markdown, for a target without its level or without the widget. */
   fallback?: Node[];
-  level?: Level;
+  /** The levels this call needs (page 6), its slots' included. */
+  levels?: Level[];
   name: string;
   props: { [key: string]: Expr };
   site: string;
@@ -369,7 +372,8 @@ export interface NodeUse {
   args: { [key: string]: Expr };
   events?: { [key: string]: string };
   fallback?: Node[];
-  level?: Level;
+  /** The levels this call needs (page 6), its slots' included. */
+  levels?: Level[];
   name: string;
   site: string;
   slots?: { [key: string]: Node[] };
@@ -603,7 +607,8 @@ export interface Template {
   fns: FnDecl[];
   generics?: TypeParam[];
   inputs: Field[];
-  level: Level;
+  /** The levels this widget needs wherever it is called: its own variables need core.live, and it needs every level its view's calls need. */
+  levels: Level[];
   /** Its markdown block, lowered onto core's extern Markdown blocks; built from the view for a document's widget that has none. Empty when it writes nothing. */
   markdown: Node[];
   /** A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`). */

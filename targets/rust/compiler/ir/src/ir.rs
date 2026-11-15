@@ -392,7 +392,8 @@ pub struct ExternWidget {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generics: Vec<TypeParam>,
     pub inputs: Vec<Field>,
-    pub level: Level,
+    /// The levels drawing this widget needs: core.draw, or core.gfx for the canvas widgets.
+    pub levels: Vec<Level>,
     /// What it writes as Markdown when nobody supplies it, or when the target only writes Markdown. Left out for Markdown's own blocks, which write themselves.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markdown: Vec<Node>,
@@ -510,11 +511,9 @@ pub struct LetDecl {
     pub value: Expr,
 }
 
-/// What a target has to do to run a call, a widget or a page (page 6).
+/// A level a target has (page 6): core.draw draws the extern widgets, core.live holds variables and runs events, core.gfx draws the canvas widgets. A target lists the ones it has, and a call, a widget or a page lists the ones it needs: none means its Markdown is enough.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Level {
-    #[serde(rename = "markdown")]
-    Markdown,
     #[serde(rename = "core.draw")]
     CoreDraw,
     #[serde(rename = "core.live")]
@@ -552,7 +551,8 @@ pub struct Module {
     pub bindings: Vec<Binding>,
     pub declarations: Vec<Declaration>,
     pub handlers: Vec<Handler>,
-    pub level: Level,
+    /// Every level the page needs: the union of its calls'.
+    pub levels: Vec<Level>,
     /// The version of the compiler that wrote it.
     pub mkp: String,
     /// `doc` for a document, or the pack's name.
@@ -591,8 +591,9 @@ pub struct NodeExtern {
     /// Its Markdown, for a target without its level or without the widget.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fallback: Vec<Node>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<Level>,
+    /// The levels this call needs (page 6), its slots' included.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub levels: Vec<Level>,
     pub name: String,
     pub props: BTreeMap<String, Expr>,
     pub site: String,
@@ -612,8 +613,9 @@ pub struct NodeUse {
     pub events: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fallback: Vec<Node>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<Level>,
+    /// The levels this call needs (page 6), its slots' included.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub levels: Vec<Level>,
     pub name: String,
     pub site: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -1037,7 +1039,8 @@ pub struct Template {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generics: Vec<TypeParam>,
     pub inputs: Vec<Field>,
-    pub level: Level,
+    /// The levels this widget needs wherever it is called: its own variables need core.live, and it needs every level its view's calls need.
+    pub levels: Vec<Level>,
     /// Its markdown block, lowered onto core's extern Markdown blocks; built from the view for a document's widget that has none. Empty when it writes nothing.
     pub markdown: Vec<Node>,
     /// A declaration's full name: its pack, a slash, its name (`core/date`, `doc/task`). A fn on a type adds a dot and the fn's name (`core/list.some`).

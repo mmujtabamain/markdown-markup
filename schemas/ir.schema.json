@@ -34,8 +34,13 @@
           "type": "string",
           "description": "`doc` for a document, or the pack's name."
         },
-        "level": {
-          "$ref": "#/$defs/level"
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/level"
+          },
+          "uniqueItems": true,
+          "description": "Every level the page needs: the union of its calls'."
         },
         "needs": {
           "$ref": "#/$defs/needs"
@@ -69,7 +74,7 @@
         "version",
         "mkp",
         "module",
-        "level",
+        "levels",
         "needs",
         "declarations",
         "templates",
@@ -81,12 +86,11 @@
     "level": {
       "type": "string",
       "enum": [
-        "markdown",
         "core.draw",
         "core.live",
         "core.gfx"
       ],
-      "description": "What a target has to do to run a call, a widget or a page (page 6)."
+      "description": "A level a target has (page 6): core.draw draws the extern widgets, core.live holds variables and runs events, core.gfx draws the canvas widgets. A target lists the ones it has, and a call, a widget or a page lists the ones it needs: none means its Markdown is enough."
     },
     "needs": {
       "type": "object",
@@ -703,8 +707,13 @@
           },
           "description": "What it writes as Markdown when nobody supplies it, or when the target only writes Markdown. Left out for Markdown's own blocks, which write themselves."
         },
-        "level": {
-          "$ref": "#/$defs/level"
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/level"
+          },
+          "uniqueItems": true,
+          "description": "The levels drawing this widget needs: core.draw, or core.gfx for the canvas widgets."
         },
         "supplier": {
           "$ref": "#/$defs/supplier"
@@ -715,7 +724,7 @@
         "inputs",
         "slots",
         "events",
-        "level",
+        "levels",
         "supplier"
       ],
       "additionalProperties": false
@@ -2438,8 +2447,13 @@
           },
           "description": "Its markdown block, lowered onto core's extern Markdown blocks; built from the view for a document's widget that has none. Empty when it writes nothing."
         },
-        "level": {
-          "$ref": "#/$defs/level"
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/level"
+          },
+          "uniqueItems": true,
+          "description": "The levels this widget needs wherever it is called: its own variables need core.live, and it needs every level its view's calls need."
         }
       },
       "required": [
@@ -2452,7 +2466,7 @@
         "fns",
         "view",
         "markdown",
-        "level"
+        "levels"
       ],
       "additionalProperties": false
     },
@@ -2500,8 +2514,13 @@
                   },
                   "description": "Where each `mut` input writes."
                 },
-                "level": {
-                  "$ref": "#/$defs/level"
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/level"
+                  },
+                  "uniqueItems": true,
+                  "description": "The levels this call needs (page 6), its slots' included."
                 },
                 "fallback": {
                   "type": "array",
@@ -2558,8 +2577,13 @@
                     "type": "string"
                   }
                 },
-                "level": {
-                  "$ref": "#/$defs/level"
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/level"
+                  },
+                  "uniqueItems": true,
+                  "description": "The levels this call needs (page 6), its slots' included."
                 },
                 "fallback": {
                   "type": "array",

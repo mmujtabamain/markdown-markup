@@ -3,7 +3,6 @@
     "version": 3,
     "mkp": "0.3.0",
     "module": "doc",
-    "level": "core.live",
     "needs": {
       "core": [
         "core/flex",
@@ -563,8 +562,10 @@
               ],
               "slots": [],
               "events": [],
-              "level": "core.draw",
-              "supplier": "core"
+              "supplier": "core",
+              "levels": [
+                "core.draw"
+              ]
             }
           }
         }
@@ -734,7 +735,10 @@
             }
           }
         ],
-        "level": "core.live"
+        "levels": [
+          "core.draw",
+          "core.live"
+        ]
       },
       {
         "name": "doc",
@@ -875,7 +879,10 @@
             }
           }
         ],
-        "level": "core.live"
+        "levels": [
+          "core.draw",
+          "core.live"
+        ]
       }
     ],
     "bindings": [
@@ -1150,6 +1157,10 @@
           }
         ]
       }
+    ],
+    "levels": [
+      "core.draw",
+      "core.live"
     ]
   }
 }
