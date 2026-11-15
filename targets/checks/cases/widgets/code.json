@@ -1,0 +1,39 @@
+{
+  "id": "widgets.code",
+  "about": "claims are checked: a fenced code block keeps its language",
+  "source": "code.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "code": {
+            "lang": "js",
+            "src": "let x = 1;\n"
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/code"
+          }
+        }
+      }
+    }
+  ]
+}

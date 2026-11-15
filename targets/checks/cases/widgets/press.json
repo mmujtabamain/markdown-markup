@@ -1,0 +1,106 @@
+{
+  "id": "widgets.press",
+  "about": "claims are checked: a button, a toggle that is on, and one that is disabled",
+  "source": "press.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Pressed 0 times"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Bold"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Off"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/press"
+          },
+          "s0/s1": {
+            "widget": "core/press"
+          },
+          "s0/s2": {
+            "widget": "core/press"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "presses": {
+            "num": "1"
+          }
+        },
+        "tree": {
+          "s0/s0": {
+            "props": {
+              "label": {
+                "text": "Pressed 1 times"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s0/s2",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "presses": {
+            "num": "1"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "id": "widgets.slider",
+  "about": "claims are checked: a slider with its range writing to $state",
+  "source": "slider.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Level: 3"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/slider"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "value",
+          "value": {
+            "num": "7"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "level": {
+            "num": "7"
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Level: 7"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

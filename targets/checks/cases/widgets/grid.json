@@ -1,0 +1,75 @@
+{
+  "id": "widgets.grid",
+  "about": "claims are checked: a grid with a cell spanning both columns and a sizing",
+  "source": "grid.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "wide"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "left"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "right"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/grid"
+          },
+          "s0/s1": {
+            "widget": "core/cell"
+          },
+          "s0/s2": {
+            "widget": "core/label"
+          },
+          "s0/s3": {
+            "widget": "core/label"
+          },
+          "s0/s4": {
+            "widget": "core/sizing"
+          },
+          "s0/s5": {
+            "widget": "core/label"
+          }
+        }
+      }
+    }
+  ]
+}

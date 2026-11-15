@@ -1,0 +1,122 @@
+{
+  "id": "widgets.canvas",
+  "about": "claims are checked: a canvas with layers, a circle, a path, a handle and a place",
+  "source": "canvas.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live",
+      "core.gfx"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "A dot and a line"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/canvas"
+          },
+          "s0/s1": {
+            "widget": "core/layer"
+          },
+          "s0/s2": {
+            "widget": "core/circle"
+          },
+          "s0/s3": {
+            "widget": "core/path"
+          },
+          "s0/s4": {
+            "widget": "core/layer"
+          },
+          "s0/s5": {
+            "widget": "core/handle"
+          },
+          "s0/s6": {
+            "widget": "core/place"
+          },
+          "s0/s7": {
+            "widget": "core/label"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s5",
+          "input": "at",
+          "value": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "-0.5"
+                },
+                "y": {
+                  "num": "0.25"
+                }
+              },
+              "type": "core/point"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "p": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "-0.5"
+                },
+                "y": {
+                  "num": "0.25"
+                }
+              },
+              "type": "core/point"
+            }
+          }
+        },
+        "tree": {
+          "s0/s6": {
+            "props": {
+              "at": {
+                "record": {
+                  "fields": {
+                    "x": {
+                      "num": "-0.5"
+                    },
+                    "y": {
+                      "num": "0.25"
+                    }
+                  },
+                  "type": "core/point"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

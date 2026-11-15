@@ -1,0 +1,42 @@
+{
+  "id": "widgets.label",
+  "about": "claims are checked: a label",
+  "source": "label.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Hello"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/label"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "widgets.quote",
+  "about": "claims are checked: a quote holds its blocks",
+  "source": "quote.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "quote": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Quoted, with "
+                  }
+                },
+                {
+                  "text": {
+                    "bold": true,
+                    "value": "weight"
+                  }
+                },
+                {
+                  "text": {
+                    "value": "."
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/quote"
+          },
+          "m1": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

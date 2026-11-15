@@ -1,0 +1,42 @@
+{
+  "id": "widgets.image",
+  "about": "claims are checked: an image with its alt text",
+  "source": "image.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "![A cup of tea](https://example.com/tea.png)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/image"
+          }
+        }
+      }
+    }
+  ]
+}

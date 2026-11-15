@@ -1,0 +1,91 @@
+{
+  "id": "widgets.table",
+  "about": "claims are checked: a table keeps its head, rows and alignment",
+  "source": "table.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "table": {
+            "align": [
+              "START",
+              "END"
+            ],
+            "head": [
+              [
+                {
+                  "text": {
+                    "value": "Item"
+                  }
+                }
+              ],
+              [
+                {
+                  "text": {
+                    "value": "Price"
+                  }
+                }
+              ]
+            ],
+            "rows": [
+              [
+                [
+                  {
+                    "text": {
+                      "value": "Tea"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "text": {
+                      "value": "3"
+                    }
+                  }
+                ]
+              ],
+              [
+                [
+                  {
+                    "text": {
+                      "value": "Cake"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "text": {
+                      "value": "4.50"
+                    }
+                  }
+                ]
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/table"
+          }
+        }
+      }
+    }
+  ]
+}

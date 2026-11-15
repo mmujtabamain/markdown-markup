@@ -1,0 +1,83 @@
+{
+  "id": "widgets.paragraph",
+  "about": "claims are checked: a paragraph with its marks is drawn, and written back as Markdown",
+  "source": "paragraph.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "A paragraph with "
+              }
+            },
+            {
+              "text": {
+                "bold": true,
+                "value": "bold"
+              }
+            },
+            {
+              "text": {
+                "value": ", "
+              }
+            },
+            {
+              "text": {
+                "italic": true,
+                "value": "italics"
+              }
+            },
+            {
+              "text": {
+                "value": ", "
+              }
+            },
+            {
+              "code": "code"
+            },
+            {
+              "text": {
+                "value": " and a "
+              }
+            },
+            {
+              "text": {
+                "link": "https://example.com",
+                "value": "link"
+              }
+            },
+            {
+              "text": {
+                "value": "."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

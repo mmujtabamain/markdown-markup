@@ -1,0 +1,76 @@
+{
+  "id": "widgets.overlay",
+  "about": "claims are checked: an overlay's anchor and its closed body",
+  "source": "overlay.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "More"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "The rest"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/overlay"
+          },
+          "s0/s1": {
+            "widget": "core/label"
+          },
+          "s0/s2": {
+            "widget": "core/label"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "open",
+          "value": {
+            "bool": true
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "open": {
+            "bool": true
+          }
+        }
+      }
+    }
+  ]
+}

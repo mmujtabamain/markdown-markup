@@ -1,0 +1,55 @@
+{
+  "id": "widgets.shade",
+  "about": "claims are checked: a shader painting a region of a canvas",
+  "source": "shade.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.gfx"
+    ]
+  },
+  "expect": {
+    "diagnostics": [
+      {
+        "code": "views.shade-given-an-mkp-fn",
+        "line": 9,
+        "column": 111
+      }
+    ],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "A gradient"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/canvas"
+          },
+          "s0/s1": {
+            "widget": "core/layer"
+          },
+          "s0/s2": {
+            "widget": "core/shade"
+          }
+        }
+      }
+    }
+  ]
+}

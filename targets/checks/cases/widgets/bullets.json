@@ -1,0 +1,177 @@
+{
+  "id": "widgets.bullets",
+  "about": "claims are checked: bullet, numbered and task lists",
+  "source": "bullets.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "bullets": {
+            "items": [
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "one"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "two"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "ordered": false
+          }
+        },
+        {
+          "bullets": {
+            "items": [
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "first"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "second"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "ordered": true,
+            "start": 1
+          }
+        },
+        {
+          "bullets": {
+            "items": [
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "done"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "done": true
+              },
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "not yet"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "done": false
+              }
+            ],
+            "ordered": false
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/bullets"
+          },
+          "m1": {
+            "widget": "core/item"
+          },
+          "m2": {
+            "widget": "core/paragraph"
+          },
+          "m3": {
+            "widget": "core/item"
+          },
+          "m4": {
+            "widget": "core/paragraph"
+          },
+          "m5": {
+            "widget": "core/bullets"
+          },
+          "m6": {
+            "widget": "core/item"
+          },
+          "m7": {
+            "widget": "core/paragraph"
+          },
+          "m8": {
+            "widget": "core/item"
+          },
+          "m9": {
+            "widget": "core/paragraph"
+          },
+          "m10": {
+            "widget": "core/bullets"
+          },
+          "m11": {
+            "widget": "core/item"
+          },
+          "m12": {
+            "widget": "core/paragraph"
+          },
+          "m13": {
+            "widget": "core/item"
+          },
+          "m14": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

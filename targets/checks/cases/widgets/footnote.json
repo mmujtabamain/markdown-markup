@@ -1,0 +1,72 @@
+{
+  "id": "widgets.footnote",
+  "about": "claims are checked: a footnote and its mark",
+  "source": "footnote.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "A claim"
+              }
+            },
+            {
+              "note": "1"
+            },
+            {
+              "text": {
+                "value": "."
+              }
+            }
+          ]
+        },
+        {
+          "footnote": {
+            "blocks": [
+              {
+                "paragraph": [
+                  {
+                    "text": {
+                      "value": "Its source."
+                    }
+                  }
+                ]
+              }
+            ],
+            "mark": "1"
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/paragraph"
+          },
+          "m1": {
+            "widget": "core/footnote"
+          },
+          "m2": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "widgets.divider",
+  "about": "claims are checked: a divider between two paragraphs",
+  "source": "divider.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Above."
+              }
+            }
+          ]
+        },
+        {
+          "divider": {}
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Below."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/paragraph"
+          },
+          "m1": {
+            "widget": "core/divider"
+          },
+          "m2": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

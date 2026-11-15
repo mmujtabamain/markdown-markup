@@ -1,0 +1,57 @@
+{
+  "id": "widgets.flex",
+  "about": "claims are checked: a row with a gap and padding",
+  "source": "flex.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "one"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "two"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/flex"
+          },
+          "s0/s1": {
+            "widget": "core/label"
+          },
+          "s0/s2": {
+            "widget": "core/label"
+          }
+        }
+      }
+    }
+  ]
+}

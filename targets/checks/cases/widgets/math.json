@@ -1,0 +1,36 @@
+{
+  "id": "widgets.math",
+  "about": "claims are checked: a display formula keeps its TeX",
+  "source": "math.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "math": "x^2 + y^2 = r^2"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/math"
+          }
+        }
+      }
+    }
+  ]
+}

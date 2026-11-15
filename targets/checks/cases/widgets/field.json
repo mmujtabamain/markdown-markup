@@ -1,0 +1,82 @@
+{
+  "id": "widgets.field",
+  "about": "claims are checked: a text field writing to $state",
+  "source": "field.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Name: Ada"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Hello, Ada"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0": {
+            "widget": "core/field"
+          },
+          "s0/s1": {
+            "widget": "core/label"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "value",
+          "value": {
+            "text": "Grace"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "name": {
+            "text": "Grace"
+          }
+        },
+        "tree": {
+          "s0/s1": {
+            "props": {
+              "value": {
+                "text": "Hello, Grace"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

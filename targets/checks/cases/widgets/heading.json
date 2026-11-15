@@ -1,0 +1,60 @@
+{
+  "id": "widgets.heading",
+  "about": "claims are checked: headings keep their level",
+  "source": "heading.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "A title"
+                }
+              }
+            ],
+            "level": 1
+          }
+        },
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "A part of it"
+                }
+              }
+            ],
+            "level": 2
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "m0": {
+            "widget": "core/heading"
+          },
+          "m1": {
+            "widget": "core/heading"
+          }
+        }
+      }
+    }
+  ]
+}
