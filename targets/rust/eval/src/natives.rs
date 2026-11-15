@@ -22,6 +22,7 @@ pub const NATIVES: &[&str] = &[
     "core/list.len", "core/list.at", "core/list.add", "core/list.insert", "core/list.remove_at", "core/list.move", "core/list.remove", "core/list.sort",
     "core/text.len", "core/text.slice", "core/text.chars", "core/text.lower", "core/text.upper", "core/text.trim", "core/text.has", "core/text.split", "core/text.number",
     "core/ordered.clamp",
+    "core/text.of_code",
 ];
 
 pub fn exists(name: &str) -> bool {
@@ -284,6 +285,13 @@ fn run(m: &mut Machine, name: &str, a: &[Binding]) -> R<Value> {
                 some_num(Num::parse(&t))
             } else {
                 Value::none()
+            }
+        }
+        "text.of_code" => {
+            let n = num(m, a, 0)?;
+            match n.to_i64().and_then(|k| u32::try_from(k).ok()).and_then(char::from_u32) {
+                Some(c) => Value::some(Value::text(&c.to_string())),
+                None => Value::none(),
             }
         }
         "ordered.clamp" => {

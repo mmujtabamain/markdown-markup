@@ -462,7 +462,20 @@ impl<'p> Machine<'p> {
             Cond::Cond(e) => self.eval(e)?.as_bool().ok_or_else(|| Failure::ir("a condition that isn't a bool")),
             Cond::Open(o) => {
                 if o.mutable {
-                    let target = self.place_of(&o.opt)?;
+                    let mut target = self.place_of(&o.opt)?;
+                    // `xs[i]` is an opt: none past the end, and otherwise the item itself, by its identity
+                    if let Some(Step::Index(i)) = target.path.last() {
+                        let i = *i;
+                        let mut list = target.clone();
+                        list.path.pop();
+                        let id = match self.read_place(&list)? {
+                            Value::List(l) => usize::try_from(i).ok().and_then(|i| l.items.get(i)).map(|item| item.id),
+                            _ => None,
+                        };
+                        let Some(id) = id else { return Ok(false) };
+                        target.path.pop();
+                        target.path.push(Step::Item(id));
+                    }
                     let (inside, now) = match target.path.last() {
                         Some(Step::ItemOpt(id)) => {
                             let mut p = target.clone();
