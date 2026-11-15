@@ -33,51 +33,52 @@ fn every_ir_the_compiler_writes_validates() {
     let schema: Value = serde_json::from_str(&std::fs::read_to_string(repo().join("schemas/ir.schema.json")).unwrap()).unwrap();
     let registry = jsonschema::Registry::new().add(id, schema.clone()).unwrap().prepare().unwrap();
     let validator = jsonschema::options().with_registry(&registry).build(&schema).unwrap();
+    let trace = std::env::var("MKP_SCHEMA_TRACE").is_ok();
     let base = compile_core(&core_sources());
+    // (name, what it compiled to, whether it must compile)
+    let mut compiled: Vec<(String, mkp_check::Compiled, bool)> = vec![("core".into(), compile_on(&base, &[], &[], "core"), true)];
+    // each check's source, with core: an error case doesn't compile, as its check expects
     let mut sources = Vec::new();
     walk(&repo().join("targets/checks"), &mut sources);
-    let (mut checked, mut bad, mut skipped) = (0, Vec::new(), Vec::new());
-    // core on its own, then each source that compiles, with core
-    let mut docs: Vec<(String, Option<Source>)> = vec![("core".into(), None)];
     for p in sources {
         let path = p.strip_prefix(repo()).unwrap().to_str().unwrap().to_string();
-        docs.push((path.clone(), Some(Source { path, text: std::fs::read_to_string(&p).unwrap() })));
+        let src = Source { path: path.clone(), text: std::fs::read_to_string(&p).unwrap() };
+        let module = if path.ends_with(".mkp.md") { "doc" } else { "t" };
+        compiled.push((path, compile_on(&base, &[], &[src], module), false));
     }
-    // the spec's own files and documents, page 5's being core itself
-    for (page, text, doc) in spec_files() {
-        let path = format!("{}{}", page, if doc { ".mkp.md" } else { ".mkp" });
-        docs.push((page, Some(Source { path, text })));
+    // the spec's packs, each compiled whole from its files across the pages (page 5's being core
+    // itself), and its documents, each with every pack: all of them must compile
+    let (packs, documents) = spec_packs();
+    for (name, files) in &packs {
+        compiled.push((format!("the spec's pack {}", name), compile_on(&base, &[], files, name), true));
     }
-    for (name, src) in docs {
-        if std::env::var("MKP_SCHEMA_TRACE").is_ok() {
-            eprintln!("compile {}", name);
-        }
-        let c = match &src {
-            None => compile_on(&base, &[], &[], "core"),
-            Some(s) => compile_on(&base, &[], &[s.clone()], if s.path.ends_with(".mkp.md") { "doc" } else { "t" }),
-        };
+    let all: Vec<Source> = packs.iter().flat_map(|(_, f)| f.clone()).collect();
+    for d in documents {
+        let c = compile_on(&base, &[all.clone()], &[d.clone()], "doc");
+        compiled.push((d.path.clone(), c, true));
+    }
+    let (mut checked, mut bad, mut skipped) = (0, Vec::new(), 0);
+    for (name, c, must) in compiled {
         let Some(m) = c.module else {
-            if name.starts_with("docs/") && std::env::var("MKP_SCHEMA_TRACE").is_ok() {
-                for d in c.errors().take(2) {
-                    eprintln!("{}: {}: [{}] {}", name, d.file, d.diagnostic.code, d.diagnostic.message);
-                }
+            if must {
+                let errs: Vec<String> = c.errors().take(3).map(|d| format!("{}: [{}] {}", d.file, d.diagnostic.code, d.diagnostic.message)).collect();
+                bad.push(format!("{} doesn't compile: {:?}", name, errs));
             }
-            skipped.push(name);
+            skipped += 1;
             continue;
         };
         let json = serde_json::to_value(&mkp_ir::ir::File { ir: m }).unwrap();
-        if std::env::var("MKP_SCHEMA_TRACE").is_ok() {
+        if trace {
             eprintln!("validate {} ({} bytes)", name, json.to_string().len());
         }
         // errors only for an IR that doesn't validate: a oneOf's errors are costly to collect
-        let errors: Vec<String> = if validator.is_valid(&json) { Vec::new() } else { vec![first_error(&validator, &json)] };
-        checked += 1;
-        if !errors.is_empty() {
-            bad.push(format!("{}: {:?}", name, errors));
+        if !validator.is_valid(&json) {
+            bad.push(format!("{}: {}", name, first_error(&validator, &json)));
         }
+        checked += 1;
     }
-    println!("{} IR files validated; {} sources don't compile, as their checks expect: {:?}", checked, skipped.len(), skipped.iter().filter(|s| !s.contains("/cases/")).collect::<Vec<_>>());
-    assert!(checked >= 20);
+    println!("{} IR files validated; {} error cases don't compile, as their checks expect", checked, skipped);
+    assert!(checked >= 15);
     assert!(bad.is_empty(), "{}", bad.join("\n"));
 }
 
@@ -89,10 +90,12 @@ fn first_error(validator: &jsonschema::Validator, json: &Value) -> String {
     }
 }
 
-/// The spec's whole files and documents, with where each is: `docs/specs/07-examples.md:12`.
-fn spec_files() -> Vec<(String, String, bool)> {
+/// The spec's packs, from its whole files grouped by their `package` line, and its documents,
+/// with where each is: `docs/specs/07-examples.md:12`. Fragments are left out.
+fn spec_packs() -> (Vec<(String, Vec<Source>)>, Vec<Source>) {
     let kinds: Value = serde_json::from_str(&std::fs::read_to_string(repo().join("targets/checks/spec-examples.json")).unwrap()).unwrap();
-    let mut out = Vec::new();
+    let mut packs: Vec<(String, Vec<Source>)> = Vec::new();
+    let mut documents = Vec::new();
     for (page, tags) in kinds["pages"].as_object().unwrap() {
         if page.starts_with("05") {
             continue;
@@ -112,9 +115,19 @@ fn spec_files() -> Vec<(String, String, bool)> {
                 while lines[end] != fence {
                     end += 1;
                 }
-                let tag = tags[n].as_str().unwrap();
-                if tag == "java file" || tag == "markdown doc" {
-                    out.push((format!("docs/specs/{}:{}", page, start + 1), lines[start..end].join("\n") + "\n", tag == "markdown doc"));
+                let text = lines[start..end].join("\n") + "\n";
+                let at = format!("docs/specs/{}:{}", page, start + 1);
+                match tags[n].as_str().unwrap() {
+                    "java file" => {
+                        let name = text.lines().find_map(|l| l.strip_prefix("package ")).map(|l| l.trim_end_matches(';').trim().to_string()).unwrap_or_default();
+                        let src = Source { path: format!("{}.mkp", at), text };
+                        match packs.iter_mut().find(|(p, _)| *p == name) {
+                            Some((_, files)) => files.push(src),
+                            None => packs.push((name, vec![src])),
+                        }
+                    }
+                    "markdown doc" => documents.push(Source { path: format!("{}.mkp.md", at), text }),
+                    _ => {}
                 }
                 n += 1;
                 k = end + 1;
@@ -123,5 +136,5 @@ fn spec_files() -> Vec<(String, String, bool)> {
             }
         }
     }
-    out
+    (packs, documents)
 }

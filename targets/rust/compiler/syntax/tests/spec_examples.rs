@@ -50,7 +50,7 @@ fn entry(tag: &str) -> Entry {
         "java body" => Entry::Body,
         "java fields" => Entry::Fields,
         "java sigs" => Entry::Sigs,
-        "markdown doc" => Entry::Document,
+        "markdown doc" | "markdown fragment" => Entry::Document,
         other => panic!("unknown entry {}", other),
     }
 }
