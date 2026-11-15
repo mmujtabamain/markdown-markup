@@ -1,0 +1,117 @@
+package graphs;
+
+pack graphs@1 {
+    uses core@1;
+    provides node, link, graph;
+}
+
+//@about One thing in a graph: where it goes, what it says, and where it landed.
+record node {
+    id: text[1...];
+    at: point;                                      // in the plane's units
+    label: text;
+    box: opt<region> = opt.NONE;                    // written by its spot after layout
+}
+
+//@about A relation between two nodes, by their ids. Core's edge names a side, so this is link.
+record link {
+    from: text[1...];
+    to: text[1...];
+    label: text = "";
+    head: head = head.ARROW;
+    dash: bool = false;
+}
+
+record link_line {
+    from: point;
+    to: point;
+}
+
+fn link_line.middle(self): point {
+    return self.from.add(self.to).scale(0.5);
+}
+
+fn box_of(nodes: list<node>, id: text): opt<region> {
+    if (let n: node = nodes.find(fn(n) { return n.id == id; })) {
+        return n.box;
+    }
+    return opt.NONE;
+}
+
+//@about Where a line from the middle of box toward a point leaves the box's outline.
+fn exit(box: region, toward: point): point {
+    let m: point = box.middle();
+    let d: point = toward.sub(m);
+    let w: number = box.width() / 2;
+    let h: number = box.height() / 2;
+    if (d.x.abs() * h >= d.y.abs() * w) {
+        if (d.x == 0) {
+            return m;
+        }
+        return m.add(d.scale(w / d.x.abs()));
+    }
+    return m.add(d.scale(h / d.y.abs()));
+}
+
+//@about The line of an edge, from outline to outline, once both of its nodes have landed.
+fn line(nodes: list<node>, e: link): opt<link_line> {
+    if (let a: region = box_of(nodes, e.from)) {
+        if (let b: region = box_of(nodes, e.to)) {
+            return link_line { from = exit(a, b.middle()), to = exit(b, a.middle()) };
+        }
+    }
+    return opt.NONE;
+}
+
+//@about Nodes on a plane, joined by a line for each edge. Drag to move around it.
+widget graph(label: text, mut nodes: list<node>[1...], edges: list<link>, bounds: opt<region> = opt.NONE) {
+    require "every edge names two nodes" {
+        return edges.all(fn(e) { return nodes.some(fn(n) { return n.id == e.from; }) && nodes.some(fn(n) { return n.id == e.to; }); });
+    }
+
+    view {
+        @plane(label = label, bounds = bounds) {
+            background {
+                @layer {
+                    for (e in edges) {
+                        if (let s: link_line = line(nodes, e)) {
+                            @path(points = [s.from, s.to], head = e.head, dash = e.dash, label = "\{e.from} to \{e.to}");
+                        }
+                    }
+                }
+            }
+            items {
+                mut for (n in nodes) {
+                    if (mut x: node = n) {
+                        @spot(at = x.at, box = x.box) {
+                            @column(pad = space.S, stroke = color.LINE, radius = radius.CARD) {
+                                @label(value = x.label);
+                            }
+                        }
+                    }
+                }
+                for (e in edges) {
+                    if (let s: link_line = line(nodes, e)) {
+                        @spot(at = s.middle()) {
+                            @label(value = e.label, size = text_size.SMALL, halo = true);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    markdown {
+        \{label}
+
+        @for (n in nodes) {
+        - \{n.label}
+        }
+
+        Links:
+
+        @for (e in edges) {
+        - \{e.from} to \{e.to}: \{e.label}
+        }
+    }
+}

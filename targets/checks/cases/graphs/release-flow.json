@@ -1,0 +1,11 @@
+{
+  "id": "graphs.release-flow",
+  "about": "examples/graphs: a graph on core's plane, in MKP alone; its Markdown is its label, the nodes, then the links",
+  "source": "release-flow.mkp.md",
+  "packs": ["../../../../examples/graphs"],
+  "target": {"levels": ["core.draw", "core.live", "core.gfx"]},
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "release-flow.expected.md"}
+  }
+}
