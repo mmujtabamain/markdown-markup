@@ -1,0 +1,82 @@
+{
+  "id": "runtime.an-event-runs-its-handler",
+  "about": "a reader's event runs its handler, which changes $state, and the page is redrawn once",
+  "source": "an-event-runs-its-handler.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Count: 0"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "count": {
+            "num": "1"
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Count: 1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "count": {
+            "num": "2"
+          }
+        },
+        "tree": {
+          "s0/s0": {
+            "widget": "core/press",
+            "props": {
+              "label": {
+                "text": "Add one"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

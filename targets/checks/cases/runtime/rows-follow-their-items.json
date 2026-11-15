@@ -1,0 +1,152 @@
+{
+  "id": "runtime.rows-follow-their-items",
+  "about": "a widget in a loop keeps its own variables with its item: rows follow their items",
+  "source": "rows-follow-their-items.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "bullets": {
+            "ordered": false,
+            "items": [
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "write"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "test"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "blocks": [
+                  {
+                    "paragraph": [
+                      {
+                        "text": {
+                          "value": "ship"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0[1]/s2/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s0[1]/s2/s0": {
+            "widget": "core/press",
+            "props": {
+              "label": {
+                "text": "test: 1"
+              }
+            }
+          },
+          "s0/s0[0]/s2/s0": {
+            "props": {
+              "label": {
+                "text": "write: 0"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0[0]/s3",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "tasks": {
+            "list": [
+              {
+                "record": {
+                  "type": "doc/task",
+                  "fields": {
+                    "title": {
+                      "text": "test"
+                    }
+                  }
+                }
+              },
+              {
+                "record": {
+                  "type": "doc/task",
+                  "fields": {
+                    "title": {
+                      "text": "ship"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "tree": {
+          "s0/s0[0]/s2/s0": {
+            "props": {
+              "label": {
+                "text": "test: 1"
+              }
+            }
+          },
+          "s0/s0[1]/s2/s0": {
+            "props": {
+              "label": {
+                "text": "ship: 0"
+              }
+            }
+          },
+          "s0/s0[1]/s3": {
+            "props": {
+              "label": {
+                "text": "Drop ship"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "runtime.an-app-write-is-checked",
+  "about": "an app's write to $state is one change, checked once against every rule that reads it; a refused write changes nothing",
+  "source": "an-app-write-is-checked.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "From 20 to 80."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "set": {
+          "$state": {
+            "low": {
+              "num": "90"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "low": {
+            "num": "20"
+          },
+          "high": {
+            "num": "80"
+          }
+        },
+        "outcome": {
+          "refused": [
+            {
+              "rule": "the low end stays at or below the high end"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "set": {
+          "$state": {
+            "low": {
+              "num": "30"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "low": {
+            "num": "30"
+          }
+        },
+        "outcome": {
+          "refused": []
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "From 30 to 80."
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "set": {
+          "$state": {
+            "low": {
+              "num": "100"
+            },
+            "high": {
+              "num": "120"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "low": {
+            "num": "100"
+          },
+          "high": {
+            "num": "120"
+          }
+        },
+        "outcome": {
+          "refused": []
+        }
+      }
+    }
+  ]
+}

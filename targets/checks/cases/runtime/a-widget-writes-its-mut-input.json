@@ -1,0 +1,122 @@
+{
+  "id": "runtime.a-widget-writes-its-mut-input",
+  "about": "a widget writing its mut input writes the caller's variable, checked against the variable's own contract",
+  "source": "a-widget-writes-its-mut-input.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Level: 5"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "write": {
+          "site": "s0",
+          "input": "value",
+          "value": {
+            "num": "7"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "level": {
+            "num": "7"
+          }
+        },
+        "tree": {
+          "s0": {
+            "widget": "core/slider",
+            "props": {
+              "value": {
+                "num": "7"
+              }
+            }
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Level: 7"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0",
+          "input": "value",
+          "value": {
+            "num": "11"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "level": {
+            "num": "7"
+          }
+        },
+        "outcome": {
+          "refused": [
+            {
+              "code": "contracts.outside",
+              "site": "s0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0",
+          "input": "value",
+          "value": {
+            "num": "2.5"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "level": {
+            "num": "7"
+          }
+        },
+        "outcome": {
+          "refused": [
+            {
+              "code": "contracts.outside",
+              "site": "s0"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

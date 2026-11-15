@@ -1,0 +1,55 @@
+{
+  "id": "runtime.a-failed-handler-is-undone",
+  "about": "a failure in an event handler undoes everything the handler changed, and is reported",
+  "source": "a-failed-handler-is-undone.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": []
+  },
+  "steps": [
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "tries": {
+            "num": "0"
+          },
+          "total": {
+            "num": "10"
+          }
+        },
+        "outcome": {
+          "failures": [
+            {
+              "code": "failure.number",
+              "site": "s0/s0"
+            }
+          ]
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Tries: 0, total: 10"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

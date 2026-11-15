@@ -1,0 +1,126 @@
+{
+  "id": "runtime.extern-calls-and-expose",
+  "about": "an app channel's fn is a call the app receives; an exposed fn is one the app calls; channel values come from the app",
+  "source": "extern-calls-and-expose.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "0 K"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "points": {
+            "num": "1"
+          }
+        },
+        "calls": [
+          {
+            "call": {
+              "name": "doc/scores.saved",
+              "args": [
+                {
+                  "num": "1"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s0/s0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "points": {
+            "num": "2"
+          }
+        },
+        "calls": [
+          {
+            "call": {
+              "name": "doc/scores.saved",
+              "args": [
+                {
+                  "num": "2"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "do": {
+        "expose": {
+          "channel": "doc/scores",
+          "name": "clear"
+        }
+      },
+      "expect": {
+        "state": {
+          "points": {
+            "num": "0"
+          }
+        },
+        "calls": []
+      }
+    },
+    {
+      "do": {
+        "extern": {
+          "channel": "doc/scores",
+          "values": {
+            "unit": {
+              "text": "points"
+            }
+          }
+        }
+      },
+      "expect": {
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "0 points"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

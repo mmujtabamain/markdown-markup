@@ -1,0 +1,146 @@
+{
+  "id": "runtime.a-widget-that-fails-shows-a-notice",
+  "about": "a failure while drawing a widget replaces it with a notice, a quote in Markdown; the rest of the page is drawn, and it is tried again when what it reads changes",
+  "source": "a-widget-that-fails-shows-a-notice.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "has": [
+        {
+          "heading": {
+            "level": 1,
+            "inline": [
+              {
+                "text": {
+                  "value": "Shares"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "After the shares."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "set": {
+          "$state": {
+            "parts": {
+              "num": "4"
+            }
+          }
+        }
+      },
+      "expect": {
+        "tree": {
+          "s1/s0": {
+            "widget": "core/label",
+            "props": {
+              "value": {
+                "text": "Each: 25"
+              }
+            }
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "heading": {
+                "level": 1,
+                "inline": [
+                  {
+                    "text": {
+                      "value": "Shares"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Each: 25"
+                  }
+                }
+              ]
+            },
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "After the shares."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "outcome": {
+          "failures": []
+        }
+      }
+    },
+    {
+      "do": {
+        "set": {
+          "$state": {
+            "parts": {
+              "num": "0"
+            }
+          }
+        }
+      },
+      "expect": {
+        "outcome": {
+          "failures": [
+            {
+              "code": "failure.number",
+              "site": "s1"
+            }
+          ]
+        },
+        "markdown": {
+          "has": [
+            {
+              "heading": {
+                "level": 1,
+                "inline": [
+                  {
+                    "text": {
+                      "value": "Shares"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "After the shares."
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

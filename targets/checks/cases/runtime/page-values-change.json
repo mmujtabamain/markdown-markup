@@ -1,0 +1,79 @@
+{
+  "id": "runtime.page-values-change",
+  "about": "the page's values come from the app: a new width redraws what reads it",
+  "source": "page-values-change.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "On a screen"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "NARROW"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s1": {
+            "widget": "core/label",
+            "props": {
+              "value": {
+                "text": "On a phone"
+              }
+            }
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "On a phone"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "do": {
+        "page": {
+          "width": "MEDIUM"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s0/s2": {
+            "widget": "core/label",
+            "props": {
+              "value": {
+                "text": "On a screen"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
