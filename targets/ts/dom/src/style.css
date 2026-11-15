@@ -584,8 +584,10 @@ dialog.mkp-overlay-body::backdrop {
 
 /* ---- plane */
 
+/* its width is its view's, the drawn area the layout works out from `width`: the border is outside */
 .mkp-plane {
-  max-width: 100%;
+  box-sizing: content-box;
+  max-width: calc(100% - 2px);
   border: 1px solid var(--mkp-color-line);
   border-radius: var(--mkp-radius-card);
   overflow: hidden;
