@@ -1,0 +1,26 @@
+{
+  "name": "@mkp/playground",
+  "version": "0.3.0",
+  "private": true,
+  "description": "The MKP playground: edit a page and see it drawn, with its Markdown, its diagnostics and its $state, live",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.mjs",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/dom": "file:../../targets/ts/dom",
+    "@mkp/runtime": "file:../../targets/ts/runtime"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
+    "typescript": "5.9.3"
+  }
+}

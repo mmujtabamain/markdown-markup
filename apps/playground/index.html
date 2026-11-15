@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MKP Playground</title>
+    <meta name="description" content="Edit an MKP page and see it drawn, with its Markdown, its diagnostics and its $state, live." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234257d6'/%3E%3Cpath d='M8 22V10l5 6 5-6v12M22 13v9m-3-3 3 3 3-3' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/app.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="MKP Playground, start again">
+          <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" />
+            <path d="M8 22V10l5 6 5-6v12M22 13v9m-3-3 3 3 3-3" />
+          </svg>
+          <span class="brand-name">MKP <span class="brand-sub">Playground</span></span>
+        </a>
+        <div class="picker">
+          <label for="example-picker" class="picker-label">Example</label>
+          <div class="select-wrap">
+            <select id="example-picker" data-testid="example-picker"></select>
+          </div>
+        </div>
+        <span id="example-note" class="example-note"></span>
+        <button id="status" data-testid="status" class="status" type="button" data-state="loading" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Loading…</span></button>
+      </header>
+
+      <main class="workspace">
+        <section class="pane editor-pane" aria-labelledby="editor-title">
+          <div class="pane-head">
+            <h2 id="editor-title">Source</h2>
+            <span class="pane-sub">page.mkp.md</span>
+            <span class="pane-hint"><kbd>Tab</kbd> indents · <kbd>Ctrl</kbd>+<kbd>S</kbd> compiles now</span>
+          </div>
+          <div class="editor" id="editor-frame">
+            <div class="gutter" aria-hidden="true"><div class="gutter-lines"></div></div>
+            <div class="code-area">
+              <div class="layers" aria-hidden="true">
+                <div class="active-line" hidden></div>
+                <pre class="hl"><code></code></pre>
+                <pre class="marks"></pre>
+              </div>
+              <textarea
+                id="editor"
+                data-testid="editor"
+                wrap="off"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                aria-label="The page's MKP source"
+              ></textarea>
+            </div>
+          </div>
+        </section>
+
+        <div class="side">
+          <section class="pane preview-pane" id="preview-pane" data-stale="false" aria-labelledby="preview-title">
+            <div class="pane-head">
+              <h2 id="preview-title">Page</h2>
+              <span class="stale-pill" aria-hidden="true">Stale</span>
+              <span id="view-badge" class="view-badge" title="The width and theme the page is told it is read at">wide · light</span>
+            </div>
+            <div id="stale-banner" class="stale-banner" data-testid="stale-banner" role="status" hidden>
+              <span class="stale-text"></span>
+              <button type="button" class="link">See the errors</button>
+            </div>
+            <div id="notice" class="notice" data-testid="notice" role="status" hidden>
+              <span class="notice-text"></span>
+              <button type="button" class="notice-close" aria-label="Dismiss">×</button>
+            </div>
+            <div class="preview-scroll" id="preview-scroll">
+              <div id="preview" class="preview" data-testid="preview">
+                <div class="empty loading"><div class="spinner"></div><div class="empty-text">Loading the playground…</div></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane inspect-pane" aria-label="Inspect the page">
+            <div class="tabs" role="tablist" aria-label="Inspect">
+              <button type="button" role="tab" id="tab-markdown" data-testid="tab-markdown" aria-controls="panel-markdown" aria-selected="true">Markdown</button>
+              <button type="button" role="tab" id="tab-diagnostics" data-testid="tab-diagnostics" aria-controls="panel-diagnostics" aria-selected="false" tabindex="-1">
+                Diagnostics <span id="diagnostics-count" class="count" data-kind=""></span>
+              </button>
+              <button type="button" role="tab" id="tab-state" data-testid="tab-state" aria-controls="panel-state" aria-selected="false" tabindex="-1">$state</button>
+            </div>
+
+            <div role="tabpanel" id="panel-markdown" class="panel" data-testid="panel-markdown" aria-labelledby="tab-markdown">
+              <div class="panel-bar">
+                <div class="segmented" id="markdown-mode" role="group" aria-label="Which Markdown">
+                  <button type="button" data-mode="live" aria-pressed="true" title="page.markdown(): the page as it is now">Live</button>
+                  <button type="button" data-mode="compiled" aria-pressed="false" title="mkp md: the page with its starting values">As compiled</button>
+                </div>
+                <button type="button" class="btn small" id="markdown-copy">Copy</button>
+              </div>
+              <pre id="markdown-output" class="markdown-output" data-testid="markdown-output"></pre>
+            </div>
+
+            <div role="tabpanel" id="panel-diagnostics" class="panel" data-testid="panel-diagnostics" aria-labelledby="tab-diagnostics" hidden>
+              <div id="diagnostics-list" class="diagnostics"></div>
+            </div>
+
+            <div role="tabpanel" id="panel-state" class="panel" data-testid="panel-state" aria-labelledby="tab-state" hidden>
+              <div class="panel-bar">
+                <span class="panel-note">Change a value to write it, as an app would. A write that breaks a rule is refused.</span>
+                <button type="button" class="btn small" id="state-reset" data-testid="state-reset">Reset</button>
+              </div>
+              <div id="state-body" class="state-body" data-testid="state-body"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

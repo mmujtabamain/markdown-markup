@@ -1,0 +1,8 @@
+# The repository root is the build context (docker build -f apps/playground/Dockerfile .):
+# builds, installs and history stay out of it; each image builds its own.
+.git
+**/node_modules
+**/target
+**/dist
+**/*.ir.json
+**/.DS_Store
