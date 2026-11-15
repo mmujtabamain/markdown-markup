@@ -68,6 +68,7 @@ impl Cx {
 }
 
 /// A literal whose type's `from` runs when the page is compiled.
+#[derive(Clone)]
 pub struct Pending {
     pub file: usize,
     pub span: Span,
@@ -349,11 +350,30 @@ impl Checker {
         (ir::Expr::Fn(Box::new(ir::Lambda { params, returns: s.ret_ir.clone(), body })), self.fn_type(f))
     }
 
+    /// The type a literal is wanted as, when it fits `literal<template>`: its `from` takes a template.
+    fn template_literal(&mut self, expect: Option<&Ty>) -> Option<Ty> {
+        let w = self.vars.resolve(expect?);
+        let target = match &w {
+            Ty::Opt(inner) => (**inner).clone(),
+            other => other.clone(),
+        };
+        let Ty::Def(d, _) = &target else { return None };
+        if !matches!(self.defs[*d].kind, DefKind::Record { .. } | DefKind::ExternType) {
+            return None;
+        }
+        let from = self.own_fn(&target, "from")?;
+        match &self.fns[from].params.first()?.ty {
+            Ty::Def(p, _) if self.defs[*p].full == "core/template" => Some(target),
+            _ => None,
+        }
+    }
+
     fn text(&mut self, cx: &mut Cx, t: &ast::TextLit, expect: Option<&Ty>, span: Span) -> (ir::Expr, Ty) {
         let mut pieces = Vec::new();
         let mut holes = Vec::new();
         let mut piece = String::new();
-        let mut opt_hole = false;
+        let mut opt_hole = None;
+        let as_template = self.template_literal(expect);
         for part in &t.parts {
             match part {
                 ast::TextPart::Piece { raw, .. } => piece.push_str(&decode_piece(raw)),
@@ -362,13 +382,26 @@ impl Checker {
                     let (x, ht) = self.expr(cx, h, None);
                     let ht = self.vars.resolve(&ht);
                     if matches!(ht, Ty::Opt(_)) {
-                        opt_hole = true;
+                        opt_hole = opt_hole.or(Some(h.span));
                     }
-                    holes.push(if ht == Ty::Text { x } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x })) });
+                    let as_is = ht == Ty::Text || (as_template.is_some() && self.is_view_type(&ht));
+                    holes.push(if as_is { x } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x })) });
                 }
             }
         }
         pieces.push(piece);
+        // a literal where a type that fits literal<template> is wanted reaches its `from` as a template, at compile time
+        if let Some(target) = as_template {
+            if let Some(at) = opt_hole {
+                self.error(cx.file, codes::OPT_HOLE, at, "this literal is read by its type's `from`, which places each hole as a value: give this hole a fallback, `\\{x.or(…)}`, or open it first with `if (let …)`");
+            }
+            let name = self.defs[match &target { Ty::Def(d, _) => *d, _ => unreachable!() }].full.clone();
+            let x = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named(&name) }));
+            let id = self.pending.len();
+            self.pending.push(Pending { file: cx.file, span, ty: format!("literal:{}", name.rsplit('/').next().unwrap_or(&name)) });
+            return (ir::Expr::Call(Box::new(ir::Call { name: format!("{}#{}", crate::view::PROSE_MARK, id), args: vec![x], ty: None })), target);
+        }
+        let opt_hole = opt_hole.is_some();
         if holes.is_empty() {
             let x = ir::Expr::Text(pieces.pop().unwrap());
             if let Some(want) = expect {

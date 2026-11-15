@@ -81,13 +81,13 @@ impl Checker {
     }
 
     pub(crate) fn signatures(&mut self) {
-        for d in 0..self.defs.len() {
+        for d in self.from.defs..self.defs.len() {
             self.def_signature(d);
         }
-        for f in 0..self.fns.len() {
+        for f in self.from.fns..self.fns.len() {
             self.fn_signature(f);
         }
-        for l in 0..self.lets.len() {
+        for l in self.from.lets..self.lets.len() {
             let file = self.lets[l].file;
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
@@ -99,7 +99,7 @@ impl Checker {
                 }
             }
         }
-        for c in 0..self.channels.len() {
+        for c in self.from.channels..self.channels.len() {
             let file = self.channels[c].file;
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
@@ -333,7 +333,7 @@ impl Checker {
     }
 
     fn collect_token_values(&mut self) {
-        for file in 0..self.files.len() {
+        for file in self.from.files..self.files.len() {
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
                 let Item::Decl(ast::Decl { kind: ast::DeclKind::Tokens(t), .. }) = &node.item else { continue };

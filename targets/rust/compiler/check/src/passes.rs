@@ -8,7 +8,8 @@ use mkp_eval::{interp::Constants, FailKind, Machine, Program};
 impl Checker {
     pub(crate) fn bodies(&mut self) {
         // fns, written in MKP or extern with a default
-        for f in 0..self.fns.len() {
+        let fns_end = self.fns.len();
+        for f in self.from.fns..fns_end {
             let s = self.fns[f].clone();
             if s.widget.is_some() {
                 continue;
@@ -26,7 +27,7 @@ impl Checker {
             self.out.fn_bodies.insert(f, b);
         }
         // records: defaults and rules; enums have neither
-        for d in 0..self.defs.len() {
+        for d in self.from.defs..self.defs.len() {
             let file = self.defs[d].file;
             let generics: Vec<String> = self.defs[d].generics.iter().map(|g| g.name.clone()).collect();
             match self.defs[d].kind.clone() {
@@ -63,7 +64,7 @@ impl Checker {
             }
         }
         // tokens blocks
-        for (d, case, file, value) in self.token_values.clone() {
+        for (d, case, file, value) in self.token_values.clone().into_iter().skip(self.from.tokens) {
             let DefKind::Token { value: vt, cases, .. } = self.defs[d].kind.clone() else { continue };
             let mut cx = Cx::new(file);
             let carrying = cases.iter().find(|c| c.name == case).map_or(false, |c| !c.fields.is_empty());
@@ -75,7 +76,7 @@ impl Checker {
             self.out.token_values.insert((d, case), x);
         }
         // extern channels: their values' defaults
-        for c in 0..self.channels.len() {
+        for c in self.from.channels..self.channels.len() {
             let file = self.channels[c].file;
             for v in self.channels[c].values.clone() {
                 if let Some(def) = &v.default {
@@ -86,7 +87,7 @@ impl Checker {
             }
         }
         // lets
-        for l in 0..self.lets.len() {
+        for l in self.from.lets..self.lets.len() {
             let s = self.lets[l].clone();
             let mut cx = Cx::new(s.file);
             cx.state = self.state_fields();
@@ -180,7 +181,7 @@ impl Checker {
     }
 
     /// The program so far, for the evaluator.
-    fn program(&mut self) -> Program {
+    pub fn program(&mut self) -> Program {
         let saved_out = self.out.clone();
         let saved_handlers = self.handlers.clone();
         let m = self.module_ir();
@@ -231,9 +232,60 @@ impl Checker {
         for (file, span, msg) in errors {
             self.error(file, codes::LITERAL, span, msg);
         }
+        // prose: each paragraph read by core's rich_text.read, each maths block by latex.from
+        let links = links_value(&self.prose_links);
+        let mut errors: Vec<(usize, Span, String)> = Vec::new();
+        let mut literal_errors: Vec<(usize, Span, String)> = Vec::new();
+        {
+            let mut patch = |e: &mut ir::Expr| {
+                let ir::Expr::Call(c) = e else { return };
+                let Some(id) = c.name.strip_prefix(crate::view::PROSE_MARK).and_then(|s| s.strip_prefix('#')).and_then(|s| s.parse::<usize>().ok()) else { return };
+                let ir::Expr::Template(t) = c.args[0].clone() else { return };
+                let holes = t.holes.clone();
+                let placeholders: Vec<mkp_eval::Value> = (0..holes.len()).map(|k| placeholder_hole(k)).collect();
+                let mut m = Machine::new(&prog, Box::new(Constants));
+                let tpl = match template_value(&mut m, &t.pieces, placeholders) {
+                    Ok(v) => v,
+                    Err(_) => return,
+                };
+                let p = &pending[id];
+                // in code, a literal is its type's `from`; a document's prose also sees its link definitions
+                let literal = p.ty.strip_prefix("literal:");
+                let out = if t.ty.name == "core/rich_text" && literal.is_none() {
+                    m.call("core/rich_text.read", vec![mkp_eval::Binding::Value(tpl), mkp_eval::Binding::Value(links.clone())])
+                } else {
+                    m.call(&format!("{}.from", t.ty.name), vec![mkp_eval::Binding::Value(tpl)])
+                };
+                match out {
+                    Ok(Some(mkp_eval::Value::Opt(Some(v)))) => {
+                        *e = if t.ty.name == "core/rich_text" { rich_ir(&v, &holes) } else { put_holes(v.to_ir(), &holes) };
+                    }
+                    Ok(_) => {
+                        let why = m.last_rule.clone().map(|r| format!(": {}", r)).unwrap_or_default();
+                        match literal {
+                            Some(ty) => literal_errors.push((p.file, p.span, format!("this literal is not a {}{}", ty, why))),
+                            None => errors.push((p.file, p.span, format!("this {} is refused{}", if p.ty == "latex" { "maths" } else { "text" }, why))),
+                        }
+                    }
+                    Err(f) => errors.push((p.file, p.span, format!("reading this Markdown failed: {}", f.message))),
+                }
+            };
+            walk_out(&mut self.out, &mut patch);
+            for h in &mut self.handlers {
+                for s in &mut h.body {
+                    walk_stmt(s, &mut patch);
+                }
+            }
+        }
+        for (file, span, msg) in errors {
+            self.error(file, codes::INLINE_REFUSED, span, msg);
+        }
+        for (file, span, msg) in literal_errors {
+            self.error(file, codes::LITERAL, span, msg);
+        }
         // constant lets, each once the ones it reads are known
         let mut prog = self.program();
-        let mut left: Vec<usize> = (0..self.lets.len()).collect();
+        let mut left: Vec<usize> = (self.from.lets..self.lets.len()).collect();
         loop {
             let mut progress = false;
             let mut still = Vec::new();
@@ -264,7 +316,7 @@ impl Checker {
             }
         }
         // token values: constants, with their records' rules checked now
-        for (d, case, file, src) in self.token_values.clone() {
+        for (d, case, file, src) in self.token_values.clone().into_iter().skip(self.from.tokens) {
             let Some(x) = self.out.token_values.get(&(d, case.clone())).cloned() else { continue };
             let mut m = Machine::new(&prog, Box::new(Constants));
             match m.eval(&x) {
@@ -310,6 +362,103 @@ impl Checker {
         };
         (file, span.unwrap_or(self.defs[d].span))
     }
+}
+
+/// The document's link definitions as core's `map<text>`.
+fn links_value(links: &[(String, String)]) -> mkp_eval::Value {
+    use mkp_eval::Value;
+    use std::rc::Rc;
+    let entries: Vec<Value> = links
+        .iter()
+        .map(|(k, v)| Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("record"), fields: vec![(Rc::from("key"), Value::text(k)), (Rc::from("value"), Value::text(v))] })))
+        .collect();
+    let mut ids = 0;
+    let list = Value::list(entries, &mut ids);
+    Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("core/map"), fields: vec![(Rc::from("entries"), list)] }))
+}
+
+fn placeholder(k: usize) -> String {
+    char::from_u32(0xE000 + k as u32).unwrap_or('\u{E000}').to_string()
+}
+
+fn placeholder_hole(k: usize) -> mkp_eval::Value {
+    use std::rc::Rc;
+    mkp_eval::Value::Case(Rc::new(mkp_eval::value::Case { ty: Rc::from("core/hole"), name: Rc::from("TEXT"), values: vec![(Rc::from("value"), mkp_eval::Value::text(&placeholder(k)))] }))
+}
+
+fn template_value(m: &mut Machine, pieces: &[String], holes: Vec<mkp_eval::Value>) -> Result<mkp_eval::Value, mkp_eval::Failure> {
+    use std::rc::Rc;
+    let pieces = m.make_list(pieces.iter().map(|p| mkp_eval::Value::text(p)).collect())?;
+    let holes = m.make_list(holes)?;
+    Ok(mkp_eval::Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("core/template"), fields: vec![(Rc::from("pieces"), pieces), (Rc::from("holes"), holes)] })))
+}
+
+/// Which hole a placeholder text stands for.
+fn hole_of(s: &str) -> Option<usize> {
+    let mut it = s.chars();
+    let c = it.next()?;
+    if it.next().is_none() && ('\u{E000}'..='\u{F8FF}').contains(&c) {
+        Some(c as usize - 0xE000)
+    } else {
+        None
+    }
+}
+
+/// The IR with each placeholder text replaced by its hole's expression.
+fn put_holes(mut x: ir::Expr, holes: &[ir::Expr]) -> ir::Expr {
+    walk_expr(&mut x, &mut |e| {
+        if let ir::Expr::Text(s) = e {
+            if let Some(k) = hole_of(s) {
+                if let Some(h) = holes.get(k) {
+                    *e = h.clone();
+                }
+            }
+        }
+    });
+    x
+}
+
+/// A rich_text value as the IR's `rich` form, its holes put back as expressions.
+fn rich_ir(v: &mkp_eval::Value, holes: &[ir::Expr]) -> ir::Expr {
+    use mkp_eval::Value;
+    use ir::SegmentSegmentPart as P;
+    let mut segments = Vec::new();
+    let Value::Record(r) = v else { return v.to_ir() };
+    let Some(Value::List(list)) = r.get("segments") else { return v.to_ir() };
+    for item in &list.items {
+        let Value::Record(seg) = &item.value else { continue };
+        let (Some(Value::Case(part)), Some(Value::Record(marks))) = (seg.get("part"), seg.get("marks")) else { continue };
+        let get = |n: &str| part.values.iter().find(|(k, _)| &**k == n).map(|(_, x)| x.clone());
+        let text = |n: &str| get(n).map(|x| x.to_ir());
+        let (kind, value, src, alt) = match &*part.name {
+            "TEXT" => match get("value") {
+                Some(Value::Text(t)) => match hole_of(&t) {
+                    Some(k) => {
+                        let h = holes.get(k).cloned().unwrap_or(ir::Expr::Text(String::new()));
+                        let is_view = !matches!(h, ir::Expr::Show(_) | ir::Expr::Text(_)) && !matches!(&h, ir::Expr::Get(_) | ir::Expr::Field(_) | ir::Expr::Call(_) | ir::Expr::Template(_) | ir::Expr::Op(_));
+                        (if is_view { P::View } else { P::Text }, Some(h), None, None)
+                    }
+                    None => (P::Text, Some(ir::Expr::Text(t.to_string())), None, None),
+                },
+                _ => (P::Text, text("value"), None, None),
+            },
+            "CODE" => (P::Code, text("value"), None, None),
+            "MATH" => (P::Math, get("tex").map(|x| put_holes(x.to_ir(), holes)), None, None),
+            "IMAGE" => (P::Image, None, text("src"), text("alt")),
+            "NOTE" => (P::Note, text("mark"), None, None),
+            "VIEW" => (P::View, text("child"), None, None),
+            _ => (P::Break, None, None, None),
+        };
+        let flag = |n: &str| matches!(marks.get(n), Some(Value::Bool(true)));
+        let link = match marks.get("link") {
+            Some(Value::Opt(Some(l))) => Some(l.to_ir()),
+            _ => None,
+        };
+        let any = flag("bold") || flag("italic") || flag("strike") || link.is_some();
+        let m = any.then(|| ir::Marks { bold: flag("bold"), italic: flag("italic"), strike: flag("strike"), link });
+        segments.push(ir::Segment { segment: ir::SegmentSegment { part: kind, value, src, alt, marks: m } });
+    }
+    ir::Expr::Rich(ir::Rich { segments })
 }
 
 pub(crate) fn text_of(t: &ast::TextLit) -> String {

@@ -55,6 +55,8 @@ pub mod codes {
     pub const NOT_A_VIEW: &str = "views.not-a-view";
     pub const VIEW_NEEDS_AT: &str = "views.view-needs-at";
     pub const EMPTY_MARKDOWN: &str = "widget.markdown-empty";
+    pub const OPT_HOLE: &str = "prose.opt-hole";
+    pub const INLINE_REFUSED: &str = "prose.inline-refused";
 }
 
 /// A source file: its path and its text.
@@ -215,12 +217,13 @@ pub enum ValueSym {
     Channel(usize),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Scope {
     pub types: HashMap<String, TypeSym>,
     pub values: HashMap<String, ValueSym>,
 }
 
+#[derive(Clone)]
 pub struct FileRec {
     pub path: String,
     pub src: Rc<str>,
@@ -229,7 +232,7 @@ pub struct FileRec {
     pub scope: Scope,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PackRec {
     pub files: Vec<usize>,
     pub types: HashMap<String, TypeSym>,
@@ -239,6 +242,18 @@ pub struct PackRec {
 
 pub const BUILTINS: &[&str] = &["number", "bool", "text", "duration", "list", "opt", "range", "view"];
 
+/// Where the files, declarations and fns a compile adds start, after the ones it was given.
+#[derive(Clone, Copy, Default)]
+pub struct From {
+    pub files: usize,
+    pub defs: usize,
+    pub fns: usize,
+    pub lets: usize,
+    pub channels: usize,
+    pub tokens: usize,
+}
+
+#[derive(Clone)]
 pub struct Checker {
     pub files: Vec<FileRec>,
     pub packs: BTreeMap<String, PackRec>,
@@ -264,6 +279,10 @@ pub struct Checker {
     pub out: decl::Out,
     pub pending: Vec<body::Pending>,
     pub next_site: usize,
+    /// The document's link reference definitions, by their normalized labels.
+    pub prose_links: Vec<(String, String)>,
+    pub prose_span: Span,
+    pub from: From,
 }
 
 impl Checker {
@@ -290,6 +309,9 @@ impl Checker {
             out: decl::Out::default(),
             pending: Vec::new(),
             next_site: 0,
+            prose_links: Vec::new(),
+            prose_span: Span::default(),
+            from: From::default(),
         }
     }
 
@@ -391,7 +413,7 @@ impl Checker {
     // ---- pass 1: names
 
     fn collect(&mut self) {
-        for file in 0..self.files.len() {
+        for file in self.from.files..self.files.len() {
             let ast = self.files[file].ast.clone();
             let pack = self.files[file].pack.clone();
             for (k, node) in ast.items.iter().enumerate() {
@@ -531,7 +553,7 @@ impl Checker {
 
     /// Each file's names: built-in types, core's, its own pack's, and what it imports.
     fn scopes(&mut self) {
-        for file in 0..self.files.len() {
+        for file in self.from.files..self.files.len() {
             let mut scope = Scope::default();
             for b in BUILTINS {
                 scope.types.insert(b.to_string(), TypeSym::Builtin(b));
@@ -873,15 +895,31 @@ pub fn duration_ms(t: &str) -> String {
     }
 }
 
-/// Compiles core, the packs and the document (or a pack) into one IR module.
-pub fn compile(core: &[Source], packs: &[Vec<Source>], main: &[Source], module: &str) -> Compiled {
+/// Compiles core alone, to build other compiles on.
+pub fn compile_core(core: &[Source]) -> Checker {
     let mut c = Checker::new();
-    c.module = module.to_string();
-    for s in core.iter().chain(packs.iter().flatten()).chain(main.iter()) {
+    c.module = "core".into();
+    for s in core {
         c.add_file(s);
     }
-    let texts: HashMap<String, String> = core.iter().chain(packs.iter().flatten()).chain(main.iter()).map(|s| (s.path.clone(), s.text.clone())).collect();
-    if c.diags.iter().any(|d| d.diagnostic.is_error()) {
+    c.collect();
+    c.scopes();
+    c.signatures();
+    c.bodies();
+    c
+}
+
+/// Compiles packs and a document (or a pack) on top of a compiled core, into one IR module.
+pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> Compiled {
+    let mut c = base.clone();
+    c.module = module.to_string();
+    c.from = From { files: c.files.len(), defs: c.defs.len(), fns: c.fns.len(), lets: c.lets.len(), channels: c.channels.len(), tokens: c.token_values.len() };
+    let before = c.diags.len();
+    for s in packs.iter().flatten().chain(main.iter()) {
+        c.add_file(s);
+    }
+    let texts: HashMap<String, String> = c.files.iter().map(|f| (f.path.clone(), f.src.to_string())).collect();
+    if c.diags[before..].iter().any(|d| d.diagnostic.is_error()) {
         return Compiled { module: None, diagnostics: c.diags, texts, constants: HashMap::new() };
     }
     c.collect();
@@ -891,4 +929,10 @@ pub fn compile(core: &[Source], packs: &[Vec<Source>], main: &[Source], module: 
     let failed = c.diags.iter().any(|d| d.diagnostic.is_error());
     let module = if failed { None } else { Some(c.module_ir()) };
     Compiled { module, diagnostics: c.diags, texts, constants: c.constants }
+}
+
+/// Compiles core, the packs and the document (or a pack) into one IR module.
+pub fn compile(core: &[Source], packs: &[Vec<Source>], main: &[Source], module: &str) -> Compiled {
+    let base = compile_core(core);
+    compile_on(&base, packs, main, module)
 }

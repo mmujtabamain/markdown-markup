@@ -2,6 +2,7 @@
 //! MKP as templates; and markdown blocks, lowered onto core's Markdown blocks.
 
 use crate::body::{Cx, LocalKind, WidgetCx};
+pub const PROSE_MARK: &str = "@prose";
 use crate::ty::Ty;
 use crate::*;
 use mkp_syntax::ast::{ExprKind as E, ProseNode};
@@ -471,71 +472,65 @@ impl Checker {
         self.out.templates.push((d, t));
     }
 
-    /// Prose as nodes. Each run of text lines is a paragraph; core's Markdown parser turns its
-    /// text into `rich_text` (phase 3), so here a paragraph keeps its pieces and its holes.
+    /// Prose as nodes. Each run of Markdown between MKP's own lines is split into blocks, and
+    /// each block becomes the extern widget of its kind. A paragraph's text is read by core's
+    /// `rich_text.read` when the constants are worked out (passes.rs).
     pub(crate) fn prose_nodes(&mut self, cx: &mut Cx, prose: &ast::Prose) -> Vec<ir::Node> {
         let file = cx.file;
         let src = self.files[file].src.clone();
         let mut out = Vec::new();
-        let mut para: Vec<&ast::TextLine> = Vec::new();
-        let flush = |me: &mut Checker, cx: &mut Cx, para: &mut Vec<&ast::TextLine>, out: &mut Vec<ir::Node>| {
-            if para.is_empty() {
-                return;
-            }
-            let lines = std::mem::take(para);
-            // a line that is only a hole holding a view places that view
-            if lines.len() == 1 && lines[0].holes.len() == 1 {
-                let l = lines[0];
-                let h = &l.holes[0];
-                if src[l.span.range()].trim() == &src[h.span.range()] {
-                    let (x, t) = me.expr(cx, &h.expr, None);
-                    let t = me.vars.resolve(&t);
-                    let is_view = matches!(t, Ty::View | Ty::Any(..) | Ty::List(_) | Ty::Opt(_)) || matches!(&t, Ty::Def(d, _) if matches!(me.defs[*d].kind, DefKind::Widget { .. })) || matches!(&t, Ty::Param(_));
-                    if is_view {
-                        let site = me.site("m");
-                        out.push(ir::Node::Place(ir::NodePlace { site, view: x }));
-                        return;
-                    }
-                }
-            }
-            let mut pieces = Vec::new();
-            let mut holes = Vec::new();
-            let mut piece = String::new();
-            for (k, l) in lines.iter().enumerate() {
-                if k > 0 {
-                    piece.push('\n');
-                }
-                let mut at = l.span.start as usize;
-                for h in &l.holes {
-                    piece.push_str(&src[at..h.span.start as usize]);
-                    pieces.push(std::mem::take(&mut piece));
-                    let (x, t) = me.expr(cx, &h.expr, None);
-                    let t = me.vars.resolve(&t);
-                    holes.push(if t == Ty::Text || matches!(t, Ty::View | Ty::Def(..)) && me.is_widget(&t) { x } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x })) });
-                    at = h.span.end as usize;
-                }
-                piece.push_str(&src[at..l.span.end as usize]);
-            }
-            pieces.push(piece);
-            let site = me.site("m");
-            let value = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named("core/rich_text") }));
-            let mut props = BTreeMap::new();
-            props.insert("value".to_string(), value);
-            out.push(ir::Node::Extern(ir::NodeExtern { name: "core/paragraph".into(), site, props, slots: BTreeMap::new(), events: BTreeMap::new(), writes: BTreeMap::new(), level: None, fallback: Vec::new() }));
-        };
+        let mut run = String::new();
+        let mut holes: Vec<(ir::Expr, Ty, Span)> = Vec::new();
         for node in &prose.nodes {
             match node {
                 ProseNode::Text(line) => {
-                    if src[line.span.range()].trim().is_empty() {
-                        flush(self, cx, &mut para, &mut out);
-                    } else {
-                        para.push(line);
+                    if run.is_empty() {
+                        self.prose_span = Span::new(line.span.start as usize, line.span.end as usize);
+                    }
+                    let mut at = line.span.start as usize;
+                    for h in &line.holes {
+                        run.push_str(&src[at..h.span.start as usize]);
+                        let (x, t) = self.expr(cx, &h.expr, None);
+                        run.push(char::from_u32(0xE000 + holes.len() as u32).unwrap_or('\u{E000}'));
+                        holes.push((x, t, h.span));
+                        at = h.span.end as usize;
+                    }
+                    run.push_str(&src[at..line.span.end as usize]);
+                    run.push('\n');
+                }
+                ProseNode::Fence(lines) => {
+                    for l in lines {
+                        run.push_str(&src[l.span.range()]);
+                        run.push('\n');
                     }
                 }
                 other => {
-                    flush(self, cx, &mut para, &mut out);
+                    self.flush_markdown(cx, &mut run, &mut holes, &mut out);
                     match other {
-                        ProseNode::Fence(_) | ProseNode::Maths(_) => {}
+                        ProseNode::Maths(lines) => {
+                            let mut pieces = vec![String::new()];
+                            let mut hs = Vec::new();
+                            let inner = &lines[1..lines.len().saturating_sub(1)];
+                            for (k, l) in inner.iter().enumerate() {
+                                if k > 0 {
+                                    pieces.last_mut().unwrap().push('\n');
+                                }
+                                let mut at = l.span.start as usize;
+                                for h in &l.holes {
+                                    pieces.last_mut().unwrap().push_str(&src[at..h.span.start as usize]);
+                                    let (x, _) = self.expr(cx, &h.expr, None);
+                                    hs.push(ir::Expr::Show(Box::new(ir::ExprShow { value: x })));
+                                    pieces.push(String::new());
+                                    at = h.span.end as usize;
+                                }
+                                pieces.last_mut().unwrap().push_str(&src[at..l.span.end as usize]);
+                            }
+                            let site = self.site("m");
+                            self.prose_span = Span::new(lines[0].span.start as usize, lines[0].span.end as usize);
+                            let tex = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes: hs, ty: ir::Type::named("core/latex") }));
+                            let tex = self.prose_mark(cx, tex, "latex");
+                            out.push(extern_node("core/math", site, vec![("tex", tex)], BTreeMap::new()));
+                        }
                         ProseNode::Call(c) => {
                             let mut call = c.call.clone();
                             if let Some((body, _)) = &c.block {
@@ -600,13 +595,154 @@ impl Checker {
                             self.check_match(file, &vt, &cases.iter().map(|c| c.patterns.clone()).collect::<Vec<_>>(), has_else, *span);
                             out.push(ir::Node::Match(ir::NodeMatch { site, value: v, cases: cs, else_ }));
                         }
-                        ProseNode::Slot { .. } | ProseNode::Text(_) => {}
+                        ProseNode::Slot { .. } | ProseNode::Text(_) | ProseNode::Fence(_) => {}
                     }
                 }
             }
         }
-        flush(self, cx, &mut para, &mut out);
+        self.flush_markdown(cx, &mut run, &mut holes, &mut out);
         out
+    }
+
+    /// A run of Markdown, as blocks.
+    fn flush_markdown(&mut self, cx: &mut Cx, run: &mut String, holes: &mut Vec<(ir::Expr, Ty, Span)>, out: &mut Vec<ir::Node>) {
+        if run.trim().is_empty() {
+            run.clear();
+            holes.clear();
+            return;
+        }
+        let doc = mkp_syntax::markdown::parse(run);
+        for l in &doc.links {
+            let key = mkp_syntax::markdown::normalize_label(&l.label);
+            if !self.prose_links.iter().any(|(k, _)| *k == key) {
+                self.prose_links.push((key, l.dest.clone()));
+            }
+        }
+        let hs = std::mem::take(holes);
+        for b in &doc.blocks {
+            let n = self.md_block(cx, b, &hs);
+            out.extend(n);
+        }
+        run.clear();
+    }
+
+    fn md_blocks(&mut self, cx: &mut Cx, blocks: &[mkp_syntax::markdown::MdBlock], holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
+        let mut out = Vec::new();
+        for b in blocks {
+            out.extend(self.md_block(cx, b, holes));
+        }
+        out
+    }
+
+    fn md_block(&mut self, cx: &mut Cx, b: &mkp_syntax::markdown::MdBlock, holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
+        use mkp_syntax::markdown::{Align, MdBlock};
+        let site = self.site("m");
+        let node = match b {
+            MdBlock::Paragraph(text) => {
+                // a paragraph that is only a hole holding a view places that view
+                let t: Vec<char> = text.chars().collect();
+                if t.len() == 1 && ('\u{E000}'..='\u{F8FF}').contains(&t[0]) {
+                    let k = t[0] as usize - 0xE000;
+                    if let Some((x, ty, _)) = holes.get(k) {
+                        if self.is_view_type(ty) {
+                            return vec![ir::Node::Place(ir::NodePlace { site, view: x.clone() })];
+                        }
+                    }
+                }
+                let value = self.rich_template(cx, text, holes);
+                extern_node("core/paragraph", site, vec![("value", value)], BTreeMap::new())
+            }
+            MdBlock::Heading { level, text } => {
+                let value = self.rich_template(cx, text, holes);
+                extern_node("core/heading", site, vec![("level", ir::Expr::Num(level.to_string())), ("value", value)], BTreeMap::new())
+            }
+            MdBlock::Bullets { ordered, start, items, .. } => {
+                let mut nodes = Vec::new();
+                for it in items {
+                    let isite = self.site("m");
+                    let body = self.md_blocks(cx, &it.blocks, holes);
+                    let done = match it.done {
+                        Some(d) => ir::Expr::Some(Box::new(ir::Expr::Bool(d))),
+                        None => ir::Expr::None(ir::Empty {}),
+                    };
+                    let mut slots = BTreeMap::new();
+                    slots.insert("body".to_string(), body);
+                    nodes.push(extern_node("core/item", isite, vec![("done", done)], slots));
+                }
+                let mut slots = BTreeMap::new();
+                slots.insert("items".to_string(), nodes);
+                extern_node("core/bullets", site, vec![("ordered", ir::Expr::Bool(*ordered)), ("start", ir::Expr::Num(start.to_string()))], slots)
+            }
+            MdBlock::Quote(blocks) => {
+                let mut slots = BTreeMap::new();
+                slots.insert("body".to_string(), self.md_blocks(cx, blocks, holes));
+                extern_node("core/quote", site, vec![], slots)
+            }
+            MdBlock::Code { lang, src } => extern_node("core/code", site, vec![("src", ir::Expr::Text(unsentinel(src, holes))), ("lang", ir::Expr::Text(lang.clone()))], BTreeMap::new()),
+            MdBlock::Html(text) => {
+                // raw HTML is shown as text, never run
+                let rich = ir::Expr::Rich(ir::Rich { segments: vec![ir::Segment { segment: ir::SegmentSegment { part: ir::SegmentSegmentPart::Text, value: Some(ir::Expr::Text(unsentinel(text, holes))), src: None, alt: None, marks: None } }] });
+                extern_node("core/paragraph", site, vec![("value", rich)], BTreeMap::new())
+            }
+            MdBlock::Table { align, head, rows } => {
+                let head: Vec<ir::Expr> = head.iter().map(|c| self.rich_template(cx, c, holes)).collect();
+                let rows: Vec<ir::Expr> = rows.iter().map(|r| ir::Expr::List(r.iter().map(|c| self.rich_template(cx, c, holes)).collect())).collect();
+                let align: Vec<ir::Expr> = align
+                    .iter()
+                    .map(|a| {
+                        let name = match a {
+                            Align::Center => "CENTER",
+                            Align::End => "END",
+                            _ => "START",
+                        };
+                        ir::Expr::Case(ir::ExprCase { enum_: "core/cell_align".into(), name: name.into(), values: BTreeMap::new() })
+                    })
+                    .collect();
+                extern_node("core/table", site, vec![("head", ir::Expr::List(head)), ("rows", ir::Expr::List(rows)), ("align", ir::Expr::List(align))], BTreeMap::new())
+            }
+            MdBlock::Footnote { mark, blocks } => {
+                let mut slots = BTreeMap::new();
+                slots.insert("body".to_string(), self.md_blocks(cx, blocks, holes));
+                extern_node("core/footnote", site, vec![("mark", ir::Expr::Text(mark.clone()))], slots)
+            }
+            MdBlock::Divider => extern_node("core/divider", site, vec![], BTreeMap::new()),
+        };
+        vec![node]
+    }
+
+    /// Inline Markdown with holes, as a template core reads when the constants are worked out.
+    fn rich_template(&mut self, cx: &mut Cx, text: &str, holes: &[(ir::Expr, Ty, Span)]) -> ir::Expr {
+        let mut pieces = vec![String::new()];
+        let mut hs = Vec::new();
+        for c in text.chars() {
+            if ('\u{E000}'..='\u{F8FF}').contains(&c) {
+                let k = c as usize - 0xE000;
+                if let Some((x, ty, span)) = holes.get(k) {
+                    let ty = self.vars.resolve(ty);
+                    if let Ty::Opt(_) = ty {
+                        self.error(cx.file, codes::OPT_HOLE, *span, "a paragraph takes rich_text, not an opt: give this hole a fallback, `\\{x.or(…)}`, or open it first with `@if (let …)`");
+                    }
+                    hs.push(if ty == Ty::Text || self.is_view_type(&ty) { x.clone() } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x.clone() })) });
+                    pieces.push(String::new());
+                    continue;
+                }
+            }
+            pieces.last_mut().unwrap().push(c);
+        }
+        let t = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes: hs, ty: ir::Type::named("core/rich_text") }));
+        self.prose_mark(cx, t, "rich_text")
+    }
+
+    /// A template core reads when the constants are worked out, marked with where it is.
+    pub(crate) fn prose_mark(&mut self, cx: &Cx, t: ir::Expr, ty: &str) -> ir::Expr {
+        let id = self.pending.len();
+        self.pending.push(body::Pending { file: cx.file, span: self.prose_span, ty: ty.to_string() });
+        ir::Expr::Call(Box::new(ir::Call { name: format!("{}#{}", PROSE_MARK, id), args: vec![t], ty: None }))
+    }
+
+    pub(crate) fn is_view_type(&self, t: &Ty) -> bool {
+        let t = self.vars.resolve(t);
+        matches!(t, Ty::View | Ty::Any(..)) || matches!(&t, Ty::Def(d, _) if matches!(self.defs[*d].kind, DefKind::Widget { .. })) || matches!(t, Ty::List(_)) && false
     }
 
     fn is_widget(&self, t: &Ty) -> bool {
@@ -623,6 +759,24 @@ impl Checker {
             }
         }
     }
+}
+
+fn extern_node(name: &str, site: String, props: Vec<(&str, ir::Expr)>, slots: BTreeMap<String, Vec<ir::Node>>) -> ir::Node {
+    ir::Node::Extern(ir::NodeExtern {
+        name: name.to_string(),
+        site,
+        props: props.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        slots,
+        events: BTreeMap::new(),
+        writes: BTreeMap::new(),
+        level: None,
+        fallback: Vec::new(),
+    })
+}
+
+/// Text with any hole sentinels written back as holes would read.
+fn unsentinel(s: &str, _holes: &[(ir::Expr, Ty, Span)]) -> String {
+    s.chars().map(|c| if ('\u{E000}'..='\u{F8FF}').contains(&c) { '\u{FFFD}' } else { c }).collect()
 }
 
 #[derive(Default)]

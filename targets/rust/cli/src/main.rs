@@ -4,10 +4,63 @@ use std::process::ExitCode;
 
 use mkp_syntax::{entry_for, format, parse, Diagnostic};
 
+include!(concat!(env!("OUT_DIR"), "/core.rs"));
+
+fn core_sources() -> Vec<mkp_check::Source> {
+    CORE.iter().map(|(p, t)| mkp_check::Source { path: p.to_string(), text: t.to_string() }).collect()
+}
+
+/// `mkp build doc.mkp.md [-o out.ir.json]`: the IR, with core and nothing else for now.
+fn build(args: &[String]) -> ExitCode {
+    let mut out = None;
+    let mut files = Vec::new();
+    let mut k = 0;
+    while k < args.len() {
+        if args[k] == "-o" {
+            out = args.get(k + 1).cloned();
+            k += 2;
+            continue;
+        }
+        files.push(args[k].clone());
+        k += 1;
+    }
+    let Some(path) = files.first() else {
+        eprintln!("{}", USAGE);
+        return ExitCode::from(2);
+    };
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{}: {}", path, e);
+            return ExitCode::from(1);
+        }
+    };
+    let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
+    let c = mkp_check::compile(&core_sources(), &[], &[mkp_check::Source { path: path.clone(), text }], module);
+    for d in &c.diagnostics {
+        if d.file == *path || d.diagnostic.is_error() {
+            eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
+        }
+    }
+    let Some(m) = c.module else { return ExitCode::from(1) };
+    let json = serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap();
+    match out {
+        Some(o) => {
+            if let Err(e) = std::fs::write(&o, json) {
+                eprintln!("{}: {}", o, e);
+                return ExitCode::from(1);
+            }
+        }
+        None => println!("{}", json),
+    }
+    ExitCode::SUCCESS
+}
+
 const USAGE: &str = "usage:
   mkp fmt [--check] <file>...      print each file back in the canonical layout (in place, or check only)
   mkp check [--json] <file>...      report every error and warning in each file
-  mkp parse <file>                  print a file's syntax tree as JSON";
+  mkp parse <file>                  print a file's syntax tree as JSON
+  mkp build <file> [-o out.ir.json] write a document's IR";
 
 fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
     let entry = entry_for(path).ok_or_else(|| format!("{}: not an MKP file (.mkp or .mkp.md)", path))?;
@@ -140,6 +193,7 @@ fn main() -> ExitCode {
         Some("fmt") => fmt(&args[1..]),
         Some("parse") => parse_cmd(&args[1..]),
         Some("check") => check(&args[1..]),
+        Some("build") => build(&args[1..]),
         _ => {
             eprintln!("{}", USAGE);
             ExitCode::from(2)

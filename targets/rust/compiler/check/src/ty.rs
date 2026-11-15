@@ -96,7 +96,7 @@ impl Ty {
 }
 
 /// Inference variables and what they stand for.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Vars {
     pub slots: Vec<Option<Ty>>,
 }
