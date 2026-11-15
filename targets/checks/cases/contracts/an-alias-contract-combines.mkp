@@ -1,0 +1,9 @@
+package t;
+
+fn month(m: int 1..12): text {
+    return "\{m}";
+}
+
+let may: text = month(5);
+let half: text = month(5.5);
+let late: text = month(13);

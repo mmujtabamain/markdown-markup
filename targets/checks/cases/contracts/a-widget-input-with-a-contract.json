@@ -1,0 +1,10 @@
+{
+  "id": "contracts.a-widget-input-with-a-contract",
+  "about": "a widget's input with a contract needs its proof where the widget is called",
+  "source": "a-widget-input-with-a-contract.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 16, "column": 27}
+    ]
+  }
+}

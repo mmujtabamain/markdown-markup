@@ -1,0 +1,13 @@
+package t;
+
+fn bump(n: number 0..10): number 0..10 {
+    return (n + 1).clamp(0, 10);
+}
+
+fn step_up(n: int 0..10): int 0..10 {
+    return (n + 1).clamp(0, 10);
+}
+
+fn half(n: number): int 0..10 {
+    return (n / 2).clamp(0, 10);
+}

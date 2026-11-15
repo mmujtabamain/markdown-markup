@@ -1,0 +1,10 @@
+{
+  "id": "contracts.len-in-proves-a-length",
+  "about": "if (x.len() in low..high) proves a length",
+  "source": "len-in-proves-a-length.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 11, "column": 18}
+    ]
+  }
+}

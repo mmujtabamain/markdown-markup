@@ -1,0 +1,13 @@
+package t;
+
+fn count(n: int 1...): text {
+    return "\{n}";
+}
+
+fn of_some(xs: list<number>[1...]): text {
+    return count(xs.len());
+}
+
+fn of_any(xs: list<number>): text {
+    return count(xs.len());
+}

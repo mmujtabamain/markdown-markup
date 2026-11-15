@@ -1,0 +1,9 @@
+package t;
+
+fn grow(): list<number> {
+    mut free: list<number> = [1];
+    free.add(2);
+    mut pair: list<number>[2] = [1, 2];
+    pair.add(3);
+    return free;
+}

@@ -1,0 +1,10 @@
+{
+  "id": "contracts.a-return-value-needs-its-proof",
+  "about": "a fn's return value meets its return type's contract",
+  "source": "a-return-value-needs-its-proof.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 4, "column": 12}
+    ]
+  }
+}

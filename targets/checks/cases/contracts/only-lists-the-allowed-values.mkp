@@ -1,0 +1,12 @@
+package t;
+
+fn place(side: text only ("left", "right")): text {
+    return side;
+}
+
+let left: text = place("left");
+let up: text = place("up");
+
+fn pick(side: text): text {
+    return place(side);
+}

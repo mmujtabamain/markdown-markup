@@ -1,0 +1,9 @@
+package t;
+
+fn first_level(xs: list<int 0..10>): int 0..10 {
+    return xs[0].or(0);
+}
+
+fn first_any(xs: list<number>): int 0..10 {
+    return xs[0].or(0);
+}

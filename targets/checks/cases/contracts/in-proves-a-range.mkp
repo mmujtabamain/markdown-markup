@@ -1,0 +1,12 @@
+package t;
+
+fn rank(score: number 0..100): text {
+    return score > 50 ? "pass" : "fail";
+}
+
+fn grade(n: number): text {
+    if (n in 0..100) {
+        return rank(n);
+    }
+    return "out of range";
+}

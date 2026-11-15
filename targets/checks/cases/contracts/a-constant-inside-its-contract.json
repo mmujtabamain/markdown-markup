@@ -1,0 +1,8 @@
+{
+  "id": "contracts.a-constant-inside-its-contract",
+  "about": "a constant inside the contract is checked on the spot",
+  "source": "a-constant-inside-its-contract.mkp",
+  "expect": {
+    "diagnostics": []
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "contracts.a-named-constant-as-a-value",
+  "about": "a top-level constant, and arithmetic over constants, are constants",
+  "source": "a-named-constant-as-a-value.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.outside", "line": 11, "column": 32}
+    ]
+  }
+}

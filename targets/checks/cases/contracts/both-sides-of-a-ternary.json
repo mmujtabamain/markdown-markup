@@ -1,0 +1,10 @@
+{
+  "id": "contracts.both-sides-of-a-ternary",
+  "about": "the result of ? : covers both sides",
+  "source": "both-sides-of-a-ternary.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 8, "column": 12}
+    ]
+  }
+}

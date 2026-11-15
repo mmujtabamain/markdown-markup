@@ -1,0 +1,7 @@
+package t;
+
+fn rank(score: number 0..100): text {
+    return score > 50 ? "pass" : "fail";
+}
+
+let bad: text = rank(101);

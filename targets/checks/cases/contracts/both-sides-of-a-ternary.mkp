@@ -1,0 +1,9 @@
+package t;
+
+fn columns(wide: bool, n: number): number 1..4 {
+    return wide ? n.clamp(1, 4) : n.clamp(1, 2);
+}
+
+fn too_many(wide: bool, n: number): number 1..3 {
+    return wide ? n.clamp(1, 4) : n.clamp(1, 2);
+}

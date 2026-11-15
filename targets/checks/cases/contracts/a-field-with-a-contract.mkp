@@ -1,0 +1,14 @@
+package t;
+
+record stat {
+    label: text[1...];
+    value: number 0..100;
+}
+
+fn made(v: number): stat {
+    return stat { label = "Load", value = v };
+}
+
+fn proved(v: number): stat {
+    return stat { label = "Load", value = v.clamp(0, 100) };
+}

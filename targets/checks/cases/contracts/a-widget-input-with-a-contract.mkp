@@ -1,0 +1,21 @@
+package t;
+
+widget meter_of(level: number 0..10) {
+    view {
+        @label(value = "\{level}");
+    }
+    markdown {
+        \{level}
+    }
+}
+
+widget page(n: number) {
+    view {
+        @meter_of(level = n.clamp(0, 10));
+        @meter_of(level = 3);
+        @meter_of(level = n);
+    }
+    markdown {
+        Levels
+    }
+}

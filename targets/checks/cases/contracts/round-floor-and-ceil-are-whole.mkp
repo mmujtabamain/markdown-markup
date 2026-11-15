@@ -1,0 +1,13 @@
+package t;
+
+fn whole(share: number): int {
+    return share.round();
+}
+
+fn down(share: number): int {
+    return share.floor();
+}
+
+fn not_whole(share: number): int {
+    return share * 2;
+}

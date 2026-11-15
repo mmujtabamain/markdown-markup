@@ -1,0 +1,11 @@
+{
+  "id": "contracts.only-lists-the-allowed-values",
+  "about": "only (…) takes the listed constants",
+  "source": "only-lists-the-allowed-values.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.outside", "line": 8, "column": 22},
+      {"code": "contracts.needs-proof", "line": 11, "column": 18}
+    ]
+  }
+}

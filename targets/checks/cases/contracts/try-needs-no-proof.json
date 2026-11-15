@@ -1,0 +1,11 @@
+{
+  "id": "contracts.try-needs-no-proof",
+  "about": "a record made under try needs no proof for its fields",
+  "source": "try-needs-no-proof.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 13, "column": 27},
+      {"code": "contracts.needs-proof", "line": 13, "column": 36}
+    ]
+  }
+}

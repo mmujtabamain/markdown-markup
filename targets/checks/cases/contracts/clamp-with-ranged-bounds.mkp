@@ -1,0 +1,13 @@
+package t;
+
+fn fit(value: number, max: number 0...): number 0... {
+    return value.clamp(0, max);
+}
+
+fn fit_ten(value: number, max: number 0..10): number 0..10 {
+    return value.clamp(0, max);
+}
+
+fn too_wide(value: number, max: number 0..20): number 0..10 {
+    return value.clamp(0, max);
+}

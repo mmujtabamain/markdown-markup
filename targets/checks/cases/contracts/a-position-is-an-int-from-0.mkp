@@ -1,0 +1,13 @@
+package t;
+
+fn at(k: int 0...): text {
+    return "\{k}";
+}
+
+fn all(xs: list<text>): list<text> {
+    mut out: list<text> = [];
+    for (k, x in xs) {
+        out.add(at(k));
+    }
+    return out;
+}

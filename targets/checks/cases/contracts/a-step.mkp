@@ -1,0 +1,8 @@
+package t;
+
+fn volume(v: number 0..1 step 0.05): number {
+    return v;
+}
+
+let ok: number = volume(0.35);
+let off: number = volume(0.07);

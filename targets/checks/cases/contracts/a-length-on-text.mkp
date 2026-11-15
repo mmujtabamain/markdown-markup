@@ -1,0 +1,8 @@
+package t;
+
+fn code(c: text[3]): text {
+    return c;
+}
+
+let ok: text = code("abc");
+let long: text = code("abcd");

@@ -1,0 +1,11 @@
+package t;
+
+let limit: number = 10;
+
+fn level(n: number 0..10): number 0..10 {
+    return n;
+}
+
+let top: number 0..10 = level(limit);
+let below: number 0..10 = level(limit - 1);
+let over: number 0..10 = level(limit + 1);

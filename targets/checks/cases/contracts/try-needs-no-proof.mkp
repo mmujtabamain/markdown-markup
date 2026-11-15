@@ -1,0 +1,14 @@
+package t;
+
+record span {
+    start: number 0...;
+    end: number 0...;
+}
+
+fn entered(a: number, b: number): opt<span> {
+    return try span { start = a, end = b };
+}
+
+fn made(a: number, b: number): span {
+    return span { start = a, end = b };
+}

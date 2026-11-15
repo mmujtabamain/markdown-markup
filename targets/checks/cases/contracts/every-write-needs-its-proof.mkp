@@ -1,0 +1,8 @@
+package t;
+
+fn climb(): number 0..10 {
+    mut level: number 0..10 = 0;
+    level = (level + 1).clamp(0, 10);
+    level = level + 1;
+    return level;
+}

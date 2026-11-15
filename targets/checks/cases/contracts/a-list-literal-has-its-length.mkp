@@ -1,0 +1,13 @@
+package t;
+
+fn pair(xs: list<number>[2]): number {
+    return xs.sum().or(0);
+}
+
+fn ok(a: number, b: number): number {
+    return pair([a, b]);
+}
+
+fn short(a: number): number {
+    return pair([a]);
+}

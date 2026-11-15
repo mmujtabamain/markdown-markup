@@ -1,0 +1,21 @@
+package t;
+
+fn tick(i: int 0..100): text {
+    return "\{i}";
+}
+
+fn ticks(): list<text> {
+    mut out: list<text> = [];
+    for (i in 0..100 step 5) {
+        out.add(tick(i));
+    }
+    return out;
+}
+
+fn more(n: number): list<text> {
+    mut out: list<text> = [];
+    for (i in 0..n) {
+        out.add(tick(i));
+    }
+    return out;
+}

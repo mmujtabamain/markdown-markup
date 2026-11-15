@@ -1,0 +1,10 @@
+{
+  "id": "contracts.a-shared-variable-fits-the-mut-input",
+  "about": "a variable given to a mut input has to fit inside the input's contract",
+  "source": "a-shared-variable-fits-the-mut-input.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 17, "column": 23}
+    ]
+  }
+}

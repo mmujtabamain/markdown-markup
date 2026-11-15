@@ -1,0 +1,13 @@
+package t;
+
+fn sum(a: int, b: int): int {
+    return a + b - a * b % 3;
+}
+
+fn negated(a: int): int {
+    return -a;
+}
+
+fn added(a: number 0..10, b: number 0..10): number 0..20 {
+    return a + b;
+}

@@ -1,0 +1,22 @@
+package t;
+
+widget dial(mut value: number 1..20) {
+    view {
+        @label(value = "\{value}");
+    }
+    markdown {
+        \{value}
+    }
+}
+
+widget panel() {
+    mut narrow: number 4..10 = 5;
+    mut wide: number 0..30 = 5;
+    view {
+        @dial(value = narrow);
+        @dial(value = wide);
+    }
+    markdown {
+        Dials
+    }
+}

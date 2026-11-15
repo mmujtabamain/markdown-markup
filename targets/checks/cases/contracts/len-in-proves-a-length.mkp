@@ -1,0 +1,12 @@
+package t;
+
+fn greet(name: text[1...]): text {
+    return "Hello, \{name}";
+}
+
+fn hello(name: text): text {
+    if (name.len() in 1...) {
+        return greet(name);
+    }
+    return greet(name);
+}
