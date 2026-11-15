@@ -20,4 +20,4 @@ This repository holds only the syntax for now. The implementation starts again f
 | [8 Open questions](docs/specs/08-open-questions.md) | What this version decided, and what was left for later |
 | [9 Grammar](docs/specs/09-grammar.md) | The grammar of files, documents and prose |
 
-These pages are the syntax as of its ninth review round. The decisions of the tenth round are applied on top of them, one commit at a time.
+These pages are the syntax as of its tenth review round: the review of the whole syntax, the state design, and the language decisions of the implementation plan, one commit per page.
