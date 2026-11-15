@@ -334,6 +334,8 @@ impl Checker {
         let mut cx = Cx::new(file);
         cx.generics = self.defs[d].generics.iter().map(|g| g.name.clone()).collect();
         cx.bounds = self.defs[d].generics.clone();
+        // a widget reads $state, and its handlers write it
+        cx.state = self.state_fields();
         let mut wcx = self.widget_cx(d);
         let DefKind::Widget { inputs, slots, events, .. } = self.defs[d].kind.clone() else { unreachable!() };
         // input defaults
@@ -742,11 +744,7 @@ impl Checker {
 
     pub(crate) fn is_view_type(&self, t: &Ty) -> bool {
         let t = self.vars.resolve(t);
-        matches!(t, Ty::View | Ty::Any(..)) || matches!(&t, Ty::Def(d, _) if matches!(self.defs[*d].kind, DefKind::Widget { .. })) || matches!(t, Ty::List(_)) && false
-    }
-
-    fn is_widget(&self, t: &Ty) -> bool {
-        matches!(t, Ty::View) || matches!(t, Ty::Def(d, _) if matches!(self.defs[*d].kind, DefKind::Widget { .. }))
+        matches!(t, Ty::View | Ty::Any(..)) || matches!(&t, Ty::Def(d, _) if matches!(self.defs[*d].kind, DefKind::Widget { .. }))
     }
 
     fn fill_one_slot(&mut self, widget: &str, slots: &mut BTreeMap<String, Vec<ir::Node>>, nodes: Vec<ir::Node>) {

@@ -218,7 +218,7 @@ impl Checker {
             E::Call { callee, args } => self.call_expr(cx, callee, args, expect, e.span),
             E::With { target, inits } => {
                 let (base, bt) = self.expr(cx, target, expect);
-                let fields = self.record_fields(&bt);
+                let fields = self.fields_in(cx, &bt);
                 let mut out = BTreeMap::new();
                 for i in inits.iter() {
                     match fields.iter().find(|(n, _)| *n == i.name.name) {
@@ -417,6 +417,25 @@ impl Checker {
         (ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named("core/text") })), ty)
     }
 
+    /// The fields a value has where it is read: a type parameter's, `self` in an interface fn
+    /// included, are its bounds' interface fields.
+    pub(crate) fn fields_in(&mut self, cx: &Cx, t: &Ty) -> Vec<(String, Ty)> {
+        let Ty::Param(p) = self.vars.resolve(t) else { return self.record_fields(t) };
+        let Some(tp) = cx.bounds.iter().find(|b| b.name == p) else { return Vec::new() };
+        let mut out: Vec<(String, Ty)> = Vec::new();
+        for (d, args) in &tp.bounds {
+            let map = self.generic_map(*d, args);
+            if let DefKind::Interface { fields, .. } = &self.defs[*d].kind {
+                for f in fields {
+                    if !out.iter().any(|(n, _)| *n == f.name) {
+                        out.push((f.name.clone(), f.ty.subst(&map).subst_self(&Ty::Param(p.clone()))));
+                    }
+                }
+            }
+        }
+        out
+    }
+
     /// The fields a record-like type has: a record's, an inline record's, a widget's inputs.
     pub(crate) fn record_fields(&mut self, t: &Ty) -> Vec<(String, Ty)> {
         match self.vars.resolve(t) {
@@ -519,7 +538,7 @@ impl Checker {
             }
         }
         let (x, t) = self.expr(cx, target, None);
-        let fields = self.record_fields(&t);
+        let fields = self.fields_in(cx, &t);
         match fields.into_iter().find(|(n, _)| *n == name.name) {
             Some((_, ft)) => (ir::Expr::Field(Box::new(ir::ExprField { value: x, name: name.name.clone() })), ft),
             None => {
@@ -810,7 +829,7 @@ impl Checker {
                     return self.call_fn(cx, f, Some((recv, rt, target)), args, expect, span);
                 }
                 // a field that holds a fn
-                let fields = self.record_fields(&rt);
+                let fields = self.fields_in(cx, &rt);
                 if let Some((_, ft)) = fields.into_iter().find(|(n, _)| *n == name.name) {
                     let fx = ir::Expr::Field(Box::new(ir::ExprField { value: recv, name: name.name.clone() }));
                     return self.apply_value(cx, fx, ft, args, span);
@@ -986,7 +1005,7 @@ impl Checker {
                     return Some((ir::Place { root: ir::Root::State(name.name.clone()), path: Vec::new() }, t));
                 }
                 let (mut p, t) = self.place(cx, target)?;
-                let fields = self.record_fields(&t);
+                let fields = self.fields_in(cx, &t);
                 let (_, ft) = fields.into_iter().find(|(n, _)| *n == name.name)?;
                 p.path.push(ir::Step::Field(ir::StepField { name: name.name.clone() }));
                 Some((p, ft))

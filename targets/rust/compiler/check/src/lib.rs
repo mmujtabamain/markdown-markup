@@ -918,7 +918,11 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
     for s in packs.iter().flatten().chain(main.iter()) {
         c.add_file(s);
     }
-    let texts: HashMap<String, String> = c.files.iter().map(|f| (f.path.clone(), f.src.to_string())).collect();
+    let mut texts: HashMap<String, String> = c.files.iter().map(|f| (f.path.clone(), f.src.to_string())).collect();
+    // a file that didn't read has its text too, for its diagnostics
+    for s in packs.iter().flatten().chain(main.iter()) {
+        texts.entry(s.path.clone()).or_insert_with(|| s.text.clone());
+    }
     if c.diags[before..].iter().any(|d| d.diagnostic.is_error()) {
         return Compiled { module: None, diagnostics: c.diags, texts, constants: HashMap::new() };
     }

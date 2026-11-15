@@ -1156,7 +1156,6 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
         }
     };
     skip_ws(&mut i, true);
-    let mut title = None;
     if i > before_title && matches!(b.get(i), Some('"') | Some('\'') | Some('(')) {
         let close = if b[i] == '(' { ')' } else { b[i] };
         let mut t = String::new();
@@ -1185,10 +1184,9 @@ fn link_def(s: &str) -> Option<(LinkDef, usize)> {
                 k += 1;
             }
             if k >= b.len() || b[k] == '\n' {
-                title = Some(unescape(&t));
                 let used = if k < b.len() { k + 1 } else { k };
                 let bytes: usize = b[..used].iter().map(|c| c.len_utf8()).sum();
-                return Some((LinkDef { label, dest, title }, bytes));
+                return Some((LinkDef { label, dest, title: Some(unescape(&t)) }, bytes));
             }
         }
     }
