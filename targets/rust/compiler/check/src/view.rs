@@ -8,9 +8,12 @@ use crate::*;
 use mkp_syntax::ast::{ExprKind as E, ProseNode};
 
 impl Checker {
+    /// A node's site, counted within its template, so a widget's path doesn't move when
+    /// another template changes.
     fn site(&mut self, prefix: &str) -> String {
+        let n = self.next_site;
         self.next_site += 1;
-        format!("{}{}", prefix, self.next_site)
+        format!("{}{}", prefix, n)
     }
 
     pub(crate) fn widget_cx(&mut self, d: DefId) -> WidgetCx {
@@ -379,6 +382,8 @@ impl Checker {
 
     /// A widget written in MKP, as a template; an extern widget's markdown block, as nodes.
     pub(crate) fn widget(&mut self, d: DefId) {
+        // each template counts its own sites
+        self.next_site = 0;
         let file = self.defs[d].file;
         let (ast::DeclKind::Widget(w) | ast::DeclKind::ExternWidget(w)) = self.decl_of(d) else { return };
         let external = matches!(self.defs[d].kind, DefKind::Widget { external: true, .. });
