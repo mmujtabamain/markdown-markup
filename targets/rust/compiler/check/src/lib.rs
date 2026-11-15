@@ -43,7 +43,6 @@ pub mod codes {
     pub const ARGUMENTS: &str = "types.arguments";
     pub const NOT_MUT: &str = "types.not-mut";
     pub const LITERAL: &str = "types.literal-refused";
-    pub const NO_LITERAL: &str = "types.no-literal";
     pub const MATCH_ELSE: &str = "types.match-on-token-needs-else";
     pub const MATCH_CASES: &str = "types.match-misses-cases";
     pub const RETURN: &str = "types.return";
@@ -347,6 +346,8 @@ pub struct Checker {
     /// Calls of widgets that have `require` blocks, with their arguments: run at compile time
     /// when the inputs are constants.
     pub require_checks: Vec<(usize, Span, DefId, BTreeMap<String, ir::Expr>)>,
+    /// Lets whose checking reported an error: not reported again when worked out.
+    pub failed_lets: std::collections::HashSet<usize>,
 }
 
 impl Checker {
@@ -386,6 +387,7 @@ impl Checker {
             spot_checks: Vec::new(),
             sizing_reported: Default::default(),
             require_checks: Vec::new(),
+            failed_lets: Default::default(),
         }
     }
 

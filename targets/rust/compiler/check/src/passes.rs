@@ -103,8 +103,13 @@ impl Checker {
             let s = self.lets[l].clone();
             let mut cx = Cx::new(s.file);
             cx.state = self.state_fields();
+            let before = self.diags.len();
             let (x, _) = self.expr(&mut cx, &s.value, Some(&s.ty));
             self.want(&cx, &s.value, &x, &s.ir, format!("`{}`", s.name));
+            // a let already reported isn't worked out again, to fail a second time
+            if self.diags[before..].iter().any(|d| d.diagnostic.is_error()) {
+                self.failed_lets.insert(l);
+            }
             self.out.let_values.insert(l, x);
         }
         self.state_and_expose();
@@ -335,6 +340,7 @@ impl Checker {
                         progress = true;
                     }
                     Err(f) if f.kind == FailKind::NotConstant => still.push(l),
+                    Err(_) if self.failed_lets.contains(&l) => {}
                     Err(f) => {
                         let (file, span) = (self.lets[l].file, self.lets[l].span);
                         self.error(file, codes::CONSTANT, span, format!("working out `{}` failed: {}", self.lets[l].name, f.message));

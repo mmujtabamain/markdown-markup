@@ -29,6 +29,11 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 
 #[test]
 fn every_ir_the_compiler_writes_validates() {
+    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    std::thread::Builder::new().stack_size(64 << 20).spawn(validate_all).unwrap().join().unwrap();
+}
+
+fn validate_all() {
     let id = "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json";
     let schema: Value = serde_json::from_str(&std::fs::read_to_string(repo().join("schemas/ir.schema.json")).unwrap()).unwrap();
     let registry = jsonschema::Registry::new().add(id, schema.clone()).unwrap().prepare().unwrap();

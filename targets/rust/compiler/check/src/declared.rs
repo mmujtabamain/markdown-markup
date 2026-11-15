@@ -384,7 +384,14 @@ impl Checker {
             Ty::Param(p) => cx.bounds.iter().filter(|b| &b.name == p).any(|b| b.bounds.iter().any(|(d, _)| matches!(self.defs[*d].kind, DefKind::Interface { widget: true, .. }))),
             _ => false,
         };
-        if self.is_view_type(&t) || widget_param {
+        // a view: `view`, a widget, `any` of a widget interface, or a parameter bounded by one
+        let view = match &t {
+            Ty::View => true,
+            Ty::Def(d, _) => matches!(self.defs[*d].kind, DefKind::Widget { .. }),
+            Ty::Any(d, _) => matches!(self.defs[*d].kind, DefKind::Interface { widget: true, .. }),
+            _ => false,
+        };
+        if view || widget_param {
             if !views_go {
                 self.error(cx.file, codes::VIEW_IN_TEXT, span, "a `text` can't hold a view: place it with `@`, or put it in prose or a `rich_text`, where a view goes in a sentence");
             }

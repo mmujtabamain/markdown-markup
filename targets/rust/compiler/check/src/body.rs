@@ -1019,6 +1019,7 @@ impl Checker {
                 }
                 _ => {
                     self.error(file, codes::ARGUMENTS, span, format!("`{}` is called on its type, not on a value", s.name));
+                    return (ir::Expr::Num("0".into()), Ty::Err);
                 }
             }
         }
@@ -1033,6 +1034,14 @@ impl Checker {
         for (p, a) in rest.iter().zip(args.iter()) {
             let pt = p.ty.subst(&map);
             if p.mutable {
+                // a mut value has exactly the type wanted: no widening (page 4)
+                if let Some((_, given)) = { let before = self.diags.len(); let r = self.place(cx, &a.value); self.diags.truncate(before); r } {
+                    let (w, g) = (self.vars.resolve(&pt), self.vars.resolve(&given));
+                    if !self.vars.unify(&w, &g) {
+                        let (ws, gs) = (self.show(&w), self.show(&g));
+                        self.error(file, codes::MISMATCH, a.value.span, format!("`mut {}` is a {}, and a `mut` value has exactly the type wanted: this is a {}", p.name, ws, gs));
+                    }
+                }
                 let place = self.place_arg(cx, &a.value);
                 if let Some(k) = self.place_known(cx, &a.value) {
                     self.known_at.insert((cx.file, a.value.span.start, a.value.span.end), k);
@@ -1276,10 +1285,13 @@ impl Checker {
                 ir::Stmt::Match(ir::StmtMatch { value: v, cases, else_ })
             }
             S::Expr(e) => {
+                let before = self.diags.len();
                 let (x, _) = self.expr(cx, e, None);
                 match x {
                     ir::Expr::Call(c) => ir::Stmt::Call(*c),
                     ir::Expr::Apply(a) => ir::Stmt::Apply(ir::StmtApply { fn_: a.fn_, args: a.args }),
+                    // already reported where it went wrong
+                    _ if self.diags[before..].iter().any(|d| d.diagnostic.is_error()) => return Vec::new(),
                     _ => {
                         self.error(file, codes::MISMATCH, e.span, "a statement on its own is a call of an action");
                         return Vec::new();
@@ -1287,6 +1299,16 @@ impl Checker {
                 }
             }
             S::Assign { place, value } => {
+                // a widget value's inputs are read, never assigned, whatever holds it
+                if let E::Field { target, .. } = &place.kind {
+                    let before = self.diags.len();
+                    let (_, tt) = self.expr(cx, target, None);
+                    self.diags.truncate(before);
+                    if matches!(self.vars.resolve(&tt), Ty::Def(d, _) if matches!(self.defs[d].kind, DefKind::Widget { .. })) {
+                        self.error(file, codes::WIDGET_VALUE_ASSIGN, place.span, "a widget value's inputs can be read but not assigned: make a new value with the input you want");
+                        return Vec::new();
+                    }
+                }
                 let before = self.diags.len();
                 let Some((p, t)) = self.place(cx, place) else {
                     if self.diags.len() == before {

@@ -36,8 +36,28 @@ fn core() -> Vec<mkp_check::Source> {
     files.into_iter().map(|p| mkp_check::Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
 
-/// The case's source, compiled with core; only the source's own diagnostics.
-fn compile(path: &Path, core: &[mkp_check::Source]) -> Vec<Found> {
+/// The `.mkp` files of a case's packs: files or folders beside it.
+fn packs(case_dir: &Path, case: &Value) -> Vec<mkp_check::Source> {
+    fn add(p: &Path, out: &mut Vec<mkp_check::Source>) {
+        if p.is_dir() {
+            let mut files: Vec<PathBuf> = std::fs::read_dir(p).unwrap().map(|e| e.unwrap().path()).collect();
+            files.sort();
+            for f in files {
+                add(&f, out);
+            }
+        } else if p.extension().map_or(false, |x| x == "mkp") {
+            out.push(mkp_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
+        }
+    }
+    let mut out = Vec::new();
+    for p in case["packs"].as_array().into_iter().flatten() {
+        add(&case_dir.join(p.as_str().unwrap()), &mut out);
+    }
+    out
+}
+
+/// The case's source, compiled with core and its packs; only the source's own diagnostics.
+fn compile(path: &Path, core: &[mkp_check::Source], packs: &[mkp_check::Source]) -> Vec<Found> {
     let name = path.to_str().unwrap().to_string();
     let src = std::fs::read_to_string(path).unwrap();
     entry_for(&name).unwrap_or_else(|| panic!("{}: not an MKP file", name));
@@ -52,12 +72,17 @@ fn compile(path: &Path, core: &[mkp_check::Source]) -> Vec<Found> {
     }
     let main = mkp_check::Source { path: name.clone(), text: src.clone() };
     let module = if name.ends_with(".mkp.md") { "doc" } else { "t" };
-    let c = mkp_check::compile(core, &[], &[main], module);
+    let c = mkp_check::compile(core, &[packs.to_vec()], &[main], module);
     c.diagnostics.iter().filter(|d| d.file == name).map(|d| place(&d.diagnostic)).collect()
 }
 
 #[test]
 fn every_case_reports_its_diagnostics() {
+    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    std::thread::Builder::new().stack_size(64 << 20).spawn(run_cases).unwrap().join().unwrap();
+}
+
+fn run_cases() {
     let mut files = Vec::new();
     walk(&cases_dir(), &mut files);
     assert!(!files.is_empty(), "no cases in {:?}", cases_dir());
@@ -78,7 +103,7 @@ fn every_case_reports_its_diagnostics() {
             waiting.push(id);
             continue;
         }
-        let mut found = compile(&source, &core);
+        let mut found = compile(&source, &core, &packs(file.parent().unwrap(), &case));
         let mut want = expected.clone();
         found.sort_by(|a, b| (a.1, a.2, &a.0).cmp(&(b.1, b.2, &b.0)));
         want.sort_by(|a, b| (a.1, a.2, &a.0).cmp(&(b.1, b.2, &b.0)));
