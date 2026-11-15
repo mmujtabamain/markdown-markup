@@ -219,6 +219,10 @@ function tokenNum(page: Page, v: V): V | undefined {
 /** Lays the page's planes out until nothing changes: each pass's writes are one change. A page
  * still changing after MAX_LAYOUT_PASSES passes is stopped, and is a failure of its planes. */
 export function layout(page: Page, measure: Measure): void {
+  // stopped once, it stays stopped until something outside the layout changes the page: a
+  // target that lays out again on every resize would otherwise run it for ever
+  if (held.get(page) === page.changes) return;
+  held.delete(page);
   for (let pass = 0; pass < MAX_LAYOUT_PASSES; pass++) {
     const all = planes(page.tree());
     if (!all.length) return;
@@ -226,4 +230,7 @@ export function layout(page: Page, measure: Measure): void {
     if (!page.layoutWrite(writes)) return;
   }
   for (const p of planes(page.tree())) page.layoutFailed(p.path);
+  held.set(page, page.changes);
 }
+
+const held = new WeakMap<Page, number>();

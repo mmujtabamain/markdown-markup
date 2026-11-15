@@ -92,6 +92,10 @@ function blocksOf(pieces: Piece[]): Block[] {
   return out;
 }
 
+function join(path: string, part: string): string {
+  return path ? `${path}/${part}` : part;
+}
+
 class Writer {
   depth = 0;
   constructor(private readonly page: Page) {}
@@ -104,7 +108,10 @@ class Writer {
         const l = n.declare.let;
         env = { ...env, bindings: [...env.bindings, [l.name, { value: this.page.evalIn(env, l.value) }]] };
       } else if ("for" in n) {
-        this.page.rows(n.for, env).forEach((row, k) => out.push(...this.nodes(n.for.body, { owner: env.owner, bindings: [...env.bindings, ...row], path: `${env.path ? env.path + "/" : ""}${n.for.site}[${k}]` })));
+        // rows by position for paths, and by item for identity, as drawing walks them
+        this.page.keyedRows(n.for, env).forEach((row, k) =>
+          out.push(...this.nodes(n.for.body, { owner: env.owner, bindings: [...env.bindings, ...row.bindings], path: join(env.path, `${n.for.site}[${k}]`), key: join(env.key ?? env.path, `${n.for.site}[${row.key}]`) })),
+        );
       } else if ("if" in n) {
         const b = this.page.pickBranch(n.if, env);
         if (b) out.push(...this.nodes(b.nodes, b.env));
@@ -128,7 +135,7 @@ class Writer {
         for (const [k, p] of Object.entries(n.extern.writes ?? {})) props.set(k, this.page.machine.evalWith(env.bindings, env.owner, { place: p } as ir.Expr));
         out.push(...this.widget(n.extern.name, `${env.path ? env.path + "/" : ""}${n.extern.site}`, props, {}, n.extern.slots ?? {}, env));
       } else if ("use" in n) {
-        out.push(...this.widget(n.use.name, `${env.path ? env.path + "/" : ""}${n.use.site}`, new Map(), n.use.args, n.use.slots ?? {}, env));
+        out.push(...this.widget(n.use.name, join(env.path, n.use.site), new Map(), n.use.args, n.use.slots ?? {}, env, join(env.key ?? env.path, n.use.site), n.use.events ?? {}));
       }
     }
     return out;
@@ -144,7 +151,7 @@ class Writer {
       return held ? this.nodes(held.nodes, held.env) : [];
     }
     const made: Env = { owner: v.owner, bindings: [...v.captured] as [string, Binding][], path: env.path };
-    return this.widget(v.widget, path, new Map(v.args), {}, v.slots as Record<string, ir.Node[]>, made);
+    return this.widget(v.widget, path, new Map(v.args), {}, v.slots as Record<string, ir.Node[]>, made, path, v.events as Record<string, string>);
   }
 
   slot(slots: Record<string, ir.Node[]>, name: string, env: Env): Piece[] {
@@ -152,13 +159,15 @@ class Writer {
   }
 
   /** A widget: Markdown's own blocks are written directly; any other widget writes its markdown. */
-  widget(name: string, path: string, props: Map<string, V>, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, env: Env): Piece[] {
+  /** `key` and `events` are the call's, as drawing gives them: entering a widget to write its
+   * Markdown must find the instance the page drew and leave it as it was. */
+  widget(name: string, path: string, props: Map<string, V>, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, env: Env, key: string = path, events: Record<string, string> = {}): Piece[] {
     if (++this.depth > 64) {
       this.depth--;
       throw new Failure("Limit", `${name} places itself more than 64 deep`);
     }
     try {
-      return this.widgetInner(name, path, props, args, slots, env);
+      return this.widgetInner(name, path, props, args, slots, env, key, events);
     } catch (f) {
       if (name.startsWith("core/") && !this.page.templateOf(name)) throw f;
       if (this.page.defect("no-notice")) return [];
@@ -170,7 +179,7 @@ class Writer {
     }
   }
 
-  private widgetInner(name: string, path: string, props: Map<string, V>, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, env: Env): Piece[] {
+  private widgetInner(name: string, path: string, props: Map<string, V>, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, env: Env, key: string, events: Record<string, string>): Piece[] {
     const p = (k: string) => props.get(k);
     switch (name) {
       case "core/paragraph": {
@@ -218,7 +227,7 @@ class Writer {
     const t = this.page.templateOf(name);
     if (t) {
       // a widget written in MKP: its markdown, in its instance
-      const own = this.page.enterUse(t, path, args, slots, {}, env);
+      const own = this.page.enterUse(t, path, args, slots, events, env, key);
       return this.nodes(t.markdown, own);
     }
     const w = this.page.externWidget(name);

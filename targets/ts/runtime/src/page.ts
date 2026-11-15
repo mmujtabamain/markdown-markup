@@ -120,6 +120,9 @@ export class Page {
   private outcome: Outcome = { refused: [], failures: [] };
   private drawn: Drawn[] = [];
   private readonly listeners = new Set<() => void>();
+  /** How many changes came from outside the layout: the reader's, the app's, the page's
+   * values. A layout that didn't settle is held until the next one. */
+  changes = 0;
   /** Every failure caught, with its message and stack, for a host's log. */
   readonly errors: unknown[] = [];
   /** Defects switched on, for the test target: each must be caught by a check. */
@@ -244,6 +247,8 @@ export class Page {
 
   /** A drawn widget writing one of its `mut` inputs, as a slider does. */
   write(path: string, input: string, value: V): void {
+    this.changes++;
+    this.machine.resetSteps();
     const node = this.find(path);
     if (!node) return;
     const w = node.writes.get(input);
@@ -283,11 +288,15 @@ export class Page {
   }
 
   /** A layout pass's writes, as one change: a value equal to the one there is no change, and a
-   * refused write undoes the pass. Whether anything changed. */
+   * refused write undoes the pass. Whether the layout has to run again: only when a variable
+   * changed, since a widget's own values are read by no MKP code. A spot in a loop over a list
+   * made anew at each redraw gets a new identity each time, so its own box never stays. */
   layoutWrite(writes: { path: string; input: string; value: V }[]): boolean {
+    this.machine.resetSteps();
     const snap = this.snapshot();
     const ownBefore = new Map([...this.own].map(([k, m]) => [k, new Map(m)]));
     let changed = false;
+    let shared = false;
     for (const { path, input, value } of writes) {
       const node = this.find(path);
       if (!node) continue;
@@ -298,6 +307,7 @@ export class Page {
         if (w) {
           this.writePlace(w.place, w.env, value);
           if (this.contractBroken(w.place, w.env)) throw new Failure("Rule", "contracts.outside");
+          shared = true;
         } else {
           if (!this.own.has(node.key)) this.own.set(node.key, new Map());
           this.own.get(node.key)!.set(input, value);
@@ -319,7 +329,7 @@ export class Page {
       return false;
     }
     this.redraw();
-    return true;
+    return shared;
   }
 
   /** A plane whose layout didn't settle (page 6, failures). */
@@ -329,11 +339,13 @@ export class Page {
 
   /** An app's write to `$state`: one change, checked once. */
   set(changes: Record<string, V>): void {
+    this.changes++;
+    this.machine.resetSteps();
     const snap = this.snapshot();
     const fields = new Map((this.stateDecl?.fields ?? []).map((f) => [f.name, f]));
     for (const [k, v] of Object.entries(changes)) {
       const f = fields.get(k);
-      if (!f || !this.machine.fits(v, f.type)) {
+      if (!f || !this.ofType(v, f.type) || !this.machine.fits(v, f.type)) {
         this.restore(snap);
         this.outcome.refused.push({ code: "contracts.outside", site: `$state.${k}` });
         return;
@@ -365,12 +377,14 @@ export class Page {
 
   /** The app giving a channel's values. */
   setExtern(channel: string, values: Record<string, V>): void {
+    this.changes++;
     for (const [k, v] of Object.entries(values)) this.externs.set(`${channel}.${k}`, v);
     this.redraw();
   }
 
   /** The page's own values: its width and theme. */
   setPage(page: PageValues): void {
+    this.changes++;
     this.applyPage(page);
     this.redraw();
   }
@@ -380,6 +394,7 @@ export class Page {
   /** The page as Markdown, with the values it has now. */
   markdown(): string {
     // set by markdown.ts, which reads the live page
+    this.machine.resetSteps();
     return pageMarkdown(this);
   }
 
@@ -393,6 +408,43 @@ export class Page {
   private applyPage(page: PageValues): void {
     if (page.width) this.externs.set("core/page.width", caseOf("core/width", page.width));
     if (page.theme) this.externs.set("core/page.theme", caseOf("core/theme", page.theme));
+  }
+
+  /** Whether a value has a type's shape. The app's values come from outside, so their type is
+   * checked before their contract: the compiler has proved only the page's own. */
+  ofType(v: V, t: ir.Type, depth = 0): boolean {
+    let ty = t;
+    for (let guard = 0; this.program.aliases.has(ty.name) && guard < 16; guard++) ty = this.program.aliases.get(ty.name)!;
+    const arg = ty.args?.[0];
+    if (depth > 64) return false;
+    switch (ty.name) {
+      case "core/number":
+      case "core/int":
+        return v.kind === "num";
+      case "core/text":
+        return v.kind === "text";
+      case "core/bool":
+        return v.kind === "bool";
+      case "core/duration":
+        return v.kind === "duration";
+      case "core/list":
+        return v.kind === "list" && (!arg || v.items.every((i) => this.ofType(i.value, arg, depth + 1)));
+      case "core/opt":
+        return v.kind === "opt" && (v.value === null || !arg || this.ofType(v.value, arg, depth + 1));
+      case "core/range":
+        return v.kind === "range";
+    }
+    const rec = this.program.records.get(ty.name);
+    if (rec) {
+      if (v.kind !== "record" || v.ty !== ty.name) return false;
+      return rec.fields.every((f) => {
+        const x = v.fields.find(([k]) => k === f.name);
+        return x ? this.ofType(x[1], f.type, depth + 1) : false;
+      });
+    }
+    if (this.program.enums.has(ty.name) || this.program.tokens.has(ty.name)) return v.kind === "case" && v.ty === ty.name;
+    // a type parameter, or a fn or view, which the app doesn't write
+    return true;
   }
 
   /** A value in the IR's form, as the app and the checks give them. */
@@ -588,6 +640,7 @@ export class Page {
 
   /** A change from outside: done whole, with `$state`'s rules after it, or undone. */
   private transaction(site: string, run: () => void): void {
+    this.changes++;
     const snap = this.snapshot();
     try {
       this.machine.resetSteps();
@@ -623,6 +676,8 @@ export class Page {
   redraw(): void {
     // a target that doesn't redraw after a change keeps showing the old page
     if (this.defect("no-redraw") && this.drawn.length) return;
+    // each redraw has the step limit to itself, as each event does: steps never pile up across changes
+    this.machine.resetSteps();
     for (const i of this.instances.values()) i.seen = false;
     this.held = [];
     this.atPath = new Map();
@@ -820,6 +875,45 @@ export class Page {
     return this.externWidgets.get(name);
   }
 
+  /** Whether a drawn widget's event runs anything. A handler that only passes the event on, as
+   * `column` gives its `flex` `click = fn() { invoke click(); }`, counts only when the caller of
+   * the widget it passes it to set that event in turn: so a target makes only what does something
+   * clickable. */
+  listens(d: Drawn, event: string): boolean {
+    let ev = d.events.get(event);
+    for (let depth = 0; ev && depth < 64; depth++) {
+      const h = this.handlers.get(ev.handler);
+      const only = h && h.body.length === 1 ? ((h.body[0] as Record<string, unknown>).invoke as { event: string } | undefined) : undefined;
+      if (!only) return !!h;
+      const inst = ev.env.owner === undefined ? undefined : this.instances.get(ev.env.owner);
+      ev = inst?.events.get(only.event);
+    }
+    return false;
+  }
+
+  /** The type of the variable a drawn widget's `mut` input writes, its contract included: where a
+   * slider's ends and step come from (page 5). The input's own type when the caller gave no
+   * variable; undefined for a local, whose type the IR doesn't keep. */
+  writeType(d: Drawn, input: string): ir.Type | undefined {
+    const w = d.writes.get(input);
+    if (!w) return this.externWidgets.get(d.widget)?.inputs.find((f) => f.name === input)?.type;
+    const root = w.place.root as Record<string, string>;
+    const inst = w.env.owner === undefined ? undefined : this.instances.get(w.env.owner);
+    let t: ir.Type | undefined;
+    if ("$state" in root) t = this.stateDecl?.fields.find((f) => f.name === root["$state"])?.type;
+    else if ("cell" in root) t = inst?.template.cells.find((c) => c.name === root.cell)?.type;
+    else if ("input" in root) t = inst?.template.inputs.find((f) => f.name === root.input)?.type;
+    for (const s of w.place.path) {
+      let base = t;
+      for (let k = 0; base && k < 16 && this.program.aliases.has(base.name); k++) base = this.program.aliases.get(base.name);
+      if (!base) return undefined;
+      // a record's field, or a list's item
+      if ("field" in s) t = (base.fields ?? this.program.records.get(base.name)?.fields)?.find((f) => f.name === s.field.name)?.type;
+      else t = base.args?.[0];
+    }
+    return t;
+  }
+
   heldSlot(id: number): { nodes: ir.Node[]; env: Env } | undefined {
     return this.held[id];
   }
@@ -827,6 +921,11 @@ export class Page {
   /** Each row of a loop with the locals it binds, as drawing walks it. */
   rows(n: ir.NodeFor, env: Env): [string, Binding][][] {
     return this.machine.loopRows(env.bindings, env.owner, n).map((r) => r.bindings);
+  }
+
+  /** The same rows with their keys: a `mut for` row's is its item's identity. */
+  keyedRows(n: ir.NodeFor, env: Env): { key: string; bindings: [string, Binding][] }[] {
+    return this.machine.loopRows(env.bindings, env.owner, n).map((r, k) => ({ key: this.defect("rows-by-position") ? String(k) : String(r.key), bindings: r.bindings }));
   }
 
   /** A view held in a value: a slot's content, or a call made as a value. */

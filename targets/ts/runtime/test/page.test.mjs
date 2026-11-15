@@ -156,3 +156,33 @@ test("a layout writes boxes once: a second pass with nothing changed writes noth
   layout(p, measure);
   assert.equal(redraws, 1);
 });
+
+test("writing the Markdown leaves the page as it was: a row's events still run afterwards", () => {
+  const p = page(
+    'record task {\n    title: text;\n}\n\n$state {\n    tasks: list<task> = [task { title = "a" }, task { title = "b" }];\n}\n\nwidget row(t: task) {\n    event drop();\n    view {\n        @press(label = "Drop \\{t.title}", click = fn() { invoke drop(); });\n    }\n    markdown {\n        - \\{t.title}\n    }\n}\n\nwidget board() {\n    view {\n        mut for (t in $state.tasks) {\n            if (mut x: task = t) {\n                @row(t = x, drop = fn() { $state.tasks.remove(x); });\n            }\n        }\n    }\n    markdown {\n        @for (t in $state.tasks) {\n        - \\{t.title}\n        }\n    }\n}\n@@@\n@board;\n',
+  );
+  assert.equal(p.markdown(), "- a\n- b\n");
+  p.event("s0/s0[0]/s2/s0", "click");
+  assert.deepEqual(p.takeOutcome().failures, []);
+  assert.equal(p.markdown(), "- b\n");
+  p.event("s0/s0[0]/s2/s0", "click");
+  assert.equal(p.markdown(), "");
+});
+
+test("writing the Markdown leaves a widget's events in place: one that passes its event on still does", () => {
+  const p = page('$state {\n    n: int = 0;\n}\n\nwidget go() {\n    event pressed();\n    view {\n        @press(label = "Go", click = fn() { invoke pressed(); });\n    }\n    markdown {\n        Go\n    }\n}\n@@@\n@go(pressed = fn() { $state.n = $state.n + 1; });\n\nPressed \\{$state.n} times.\n');
+  assert.equal(p.markdown(), "Go\n\nPressed 0 times.\n");
+  p.event("s0/s0", "click");
+  assert.deepEqual(p.observeState(), { n: num(1) });
+});
+
+test("an app's write of the wrong type is refused, whatever its contract", () => {
+  const p = page('record task {\n    title: text;\n}\n\n$state {\n    tasks: list<task> = [task { title = "a" }];\n    n: int = 1;\n    note: opt<text> = opt.NONE;\n}\n@@@\n\\{$state.n}\n');
+  for (const [k, x] of [["tasks", num(3)], ["n", { text: "3" }], ["tasks", { list: [{ record: { type: "doc/task", fields: { title: num(1) } } }] }], ["note", { some: num(2) }]]) {
+    p.set({ [k]: p.value(x) });
+    assert.deepEqual(p.takeOutcome().refused, [{ code: "contracts.outside", site: `$state.${k}` }], k);
+  }
+  p.set({ tasks: p.value({ list: [{ record: { type: "doc/task", fields: { title: { text: "b" } } } }] }), note: p.value({ some: { text: "hi" } }) });
+  assert.deepEqual(p.takeOutcome().refused, []);
+  assert.equal(p.observeState().tasks.list[0].record.fields.title.text, "b");
+});
