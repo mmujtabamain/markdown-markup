@@ -291,3 +291,67 @@ fn mentions_root(e: &ast::Expr) -> bool {
         _ => false,
     }
 }
+
+/// The item a statement removes from its list: `xs.remove(x);`.
+pub(crate) fn removes(s: &ast::Stmt) -> Option<String> {
+    let ast::Stmt::Expr(ast::Expr { kind: E::Call { callee, args }, .. }) = s else { return None };
+    let E::Field { name, .. } = &callee.kind else { return None };
+    if name.name != "remove" || args.len() != 1 {
+        return None;
+    }
+    match &args.iter().next()?.value.kind {
+        E::Name(n) => Some(n.name.clone()),
+        _ => None,
+    }
+}
+
+/// Where a statement first mentions a name, if it does.
+pub(crate) fn first_mention(s: &ast::Stmt, name: &str) -> Option<Span> {
+    use ast::Stmt as S;
+    let block = |b: &ast::Block| b.stmts.iter().find_map(|x| first_mention(&x.item, name));
+    match s {
+        S::Let(v) | S::Mut(v) => mention(&v.value, name),
+        S::Return(e) => e.as_ref().and_then(|e| mention(e, name)),
+        S::Invoke { args, .. } => args.iter().find_map(|a| mention(&a.value, name)),
+        S::If(i) => i
+            .branches
+            .iter()
+            .find_map(|(c, b)| {
+                let in_cond = match c {
+                    ast::Cond::Expr(e) => mention(e, name),
+                    ast::Cond::Open { value, .. } => mention(value, name),
+                };
+                in_cond.or_else(|| block(b))
+            })
+            .or_else(|| i.otherwise.as_ref().and_then(block)),
+        S::For(f) => mention(&f.over, name).or_else(|| block(&f.body)),
+        S::Match(m) => mention(&m.subject, name).or_else(|| m.cases.iter().find_map(|c| block(&c.body))),
+        S::Expr(e) => mention(e, name),
+        S::Assign { place, value } => mention(place, name).or_else(|| mention(value, name)),
+    }
+}
+
+fn mention(e: &ast::Expr, name: &str) -> Option<Span> {
+    let m = |x: &ast::Expr| mention(x, name);
+    match &e.kind {
+        E::Name(n) if n.name == name => Some(e.span),
+        E::Paren(x) | E::Try(x) => m(x),
+        E::Field { target, .. } => m(target),
+        E::Index { target, index } => m(target).or_else(|| m(index)),
+        E::Call { callee, args } => m(callee).or_else(|| args.iter().find_map(|a| m(&a.value))),
+        E::Case { target, args, .. } => m(target).or_else(|| args.as_ref().and_then(|a| a.iter().find_map(|x| m(&x.value)))),
+        E::With { target, inits } => m(target).or_else(|| inits.iter().find_map(|i| m(&i.value))),
+        E::Record { inits, .. } => inits.iter().find_map(|i| m(&i.value)),
+        E::List(items) => items.iter().find_map(m),
+        E::Unary { operand, .. } => m(operand),
+        E::Binary { left, right, .. } => m(left).or_else(|| m(right)),
+        E::Ternary { cond, then, otherwise } => m(cond).or_else(|| m(then)).or_else(|| m(otherwise)),
+        E::Range { low, high, step } => [low, high, step].iter().find_map(|x| x.as_ref().and_then(|x| m(x))),
+        E::Text(t) => t.parts.iter().find_map(|p| match p {
+            ast::TextPart::Hole(h) => m(h),
+            _ => None,
+        }),
+        E::Lambda(l) => l.body.stmts.iter().find_map(|s| first_mention(&s.item, name)),
+        _ => None,
+    }
+}

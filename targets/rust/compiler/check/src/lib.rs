@@ -7,6 +7,7 @@
 
 mod body;
 mod decl;
+mod declared;
 mod effects;
 mod fit;
 pub mod levels;
@@ -56,7 +57,6 @@ pub mod codes {
     pub const NAMED_TO_FN: &str = "views.named-arguments-to-fn";
     pub const SLOT_EQUALS: &str = "views.slot-given-with-equals";
     pub const NOT_A_VIEW: &str = "views.not-a-view";
-    pub const VIEW_NEEDS_AT: &str = "views.view-needs-at";
     pub const EMPTY_MARKDOWN: &str = "widget.markdown-empty";
     pub const OPT_HOLE: &str = "prose.opt-hole";
     pub const MD_HOLE: &str = "prose.md-in-hole";
@@ -73,6 +73,32 @@ pub mod codes {
     pub const LAMBDA_OUTER: &str = "effects.lambda-writes-outer-local";
     pub const FOR_CHANGES: &str = "effects.for-changes-its-list";
     pub const ONE_MUT: &str = "effects.one-value-one-mut";
+    pub const INTERFACE_MUT: &str = "types.interface-mut-field";
+    pub const IMPLEMENTS: &str = "types.implements-unkept";
+    pub const RECURSIVE: &str = "types.recursive-type";
+    pub const UNUSED_PARAM: &str = "types.type-parameter-unused";
+    pub const ANY_SELF: &str = "types.any-of-a-self-interface";
+    pub const RANGE_UNORDERED: &str = "contracts.range-on-unordered";
+    pub const CANNOT_BOTH: &str = "contracts.cannot-both-hold";
+    pub const ONLY_NOT_SAME: &str = "contracts.only-needs-same";
+    pub const NOT_COMPARABLE: &str = "types.not-comparable";
+    pub const MATCH_SUBJECT: &str = "types.match-subject";
+    pub const HOLE_NOT_SHOWN: &str = "types.hole-not-shown";
+    pub const VIEW_IN_TEXT: &str = "types.view-in-text";
+    pub const VIEW_IN_MUT: &str = "views.view-in-mut";
+    pub const WIDGET_VALUE_ASSIGN: &str = "views.widget-value-input-assigned";
+    pub const RESTYLE_CORE: &str = "names.core-token-restyled";
+    pub const TOKEN_CASE_TWICE: &str = "names.token-case-twice";
+    pub const TOKEN_NO_VALUE: &str = "names.token-case-without-value";
+    pub const VIEW_NAMED_LIKE_WIDGET: &str = "names.view-named-like-a-widget";
+    pub const DEPRECATED: &str = "names.deprecated";
+    pub const BARE_STATE: &str = "prose.bare-state";
+    pub const SHADE_MKP_FN: &str = "views.shade-given-an-mkp-fn";
+    pub const SPOT_OUTSIDE: &str = "views.spot-outside-bounds";
+    pub const REMOVED_USED: &str = "effects.removed-item-used";
+    pub const SIZING_TWICE: &str = "views.sizing-set-twice";
+    pub const FN_CLASH: &str = "names.fn-clash";
+    pub const WIDGET_REQUIRE: &str = "views.widget-require-false";
     pub const INLINE_REFUSED: &str = "prose.inline-refused";
 }
 
@@ -308,6 +334,19 @@ pub struct Checker {
     pub bound_checks: Vec<(usize, Span, ir::Expr)>,
     /// What each action changes, for calls from where nothing may change.
     pub effects: effects::Effects,
+    /// Rules on types as written, checked once every signature is known.
+    pub type_rules: Vec<declared::TypeRule>,
+    /// `//@deprecated` declarations, by their file and where their name starts: the message.
+    pub deprecated: HashMap<(usize, u32), String>,
+    /// The bounds of each plane being checked, innermost last, for its spots.
+    pub planes: Vec<Option<ir::Expr>>,
+    /// A spot's point and its plane's bounds, compared once the constants are known.
+    pub spot_checks: Vec<(usize, Span, ir::Expr, ir::Expr)>,
+    /// Sizing properties already reported as set twice, by file and where.
+    pub sizing_reported: std::collections::HashSet<(usize, u32)>,
+    /// Calls of widgets that have `require` blocks, with their arguments: run at compile time
+    /// when the inputs are constants.
+    pub require_checks: Vec<(usize, Span, DefId, BTreeMap<String, ir::Expr>)>,
 }
 
 impl Checker {
@@ -341,6 +380,12 @@ impl Checker {
             known_at: HashMap::new(),
             bound_checks: Vec::new(),
             effects: effects::Effects::default(),
+            type_rules: Vec::new(),
+            deprecated: HashMap::new(),
+            planes: Vec::new(),
+            spot_checks: Vec::new(),
+            sizing_reported: Default::default(),
+            require_checks: Vec::new(),
         }
     }
 
@@ -686,6 +731,7 @@ impl Checker {
                         }
                     }
                     Some(TypeSym::Def(d)) => {
+                        self.warn_deprecated(file, self.defs[d].file, self.defs[d].span, name.span);
                         if let DefKind::Alias { .. } = self.defs[d].kind {
                             return self.alias_target(d).0;
                         }
@@ -776,7 +822,12 @@ impl Checker {
             }
             B::Any(i) => {
                 let full = match self.lookup_type(file, &i.name.name) {
-                    Some(TypeSym::Def(d)) => self.defs[d].full.clone(),
+                    Some(TypeSym::Def(d)) => {
+                        if matches!(self.defs[d].kind, DefKind::Interface { .. }) {
+                            self.type_rules.push(declared::TypeRule::Any { file, span: t.span, iface: d });
+                        }
+                        self.defs[d].full.clone()
+                    }
                     _ => i.name.name.clone(),
                 };
                 ir::Type { interface: Some(full), ..ir::Type::named("any") }
@@ -803,8 +854,28 @@ impl Checker {
                 ..ir::Type::named("record")
             },
         };
+        if let Some(written) = &t.contract {
+            // rules that need every signature: checked once they are known
+            if let B::Named { name, .. } = &t.base {
+                match (self.lookup_type(file, &name.name), written) {
+                    (Some(TypeSym::Builtin(b @ ("bool" | "list" | "opt" | "view" | "range"))), ast::Contract::Range(r)) => {
+                        self.error(file, codes::RANGE_UNORDERED, r.span, format!("a range is for numbers, durations, dates and other types that fit `ordered`; `{}` doesn't", b));
+                    }
+                    (Some(TypeSym::Def(d)), ast::Contract::Range(r)) => self.type_rules.push(declared::TypeRule::Range { file, span: r.span, def: d }),
+                    (Some(TypeSym::Def(d)), ast::Contract::Only(_)) => self.type_rules.push(declared::TypeRule::Only { file, span: t.span, def: d }),
+                    _ => {}
+                }
+            }
+        }
         if let Some(c) = &t.contract {
             let c = self.contract(file, c);
+            if let B::Named { name, .. } = &t.base {
+                if let Some(TypeSym::Def(d)) = self.lookup_type(file, &name.name) {
+                    if matches!(self.defs[d].kind, DefKind::Alias { .. }) {
+                        self.type_rules.push(declared::TypeRule::Both { file, span: t.span, alias: d, written: c.clone() });
+                    }
+                }
+            }
             let slot = out.contract.get_or_insert_with(empty_contract);
             slot.range = c.range.or(slot.range.take());
             slot.step = c.step.or(slot.step.take());
@@ -877,6 +948,8 @@ impl Checker {
             ast::Contract::Only(values) => {
                 for v in values.iter() {
                     let e = self.constant_expr(file, v);
+                    // only's values are constants, as bounds are
+                    self.bound_checks.push((file, v.span, e.clone()));
                     out.only.push(e);
                 }
             }
@@ -941,7 +1014,9 @@ pub fn compile_core(core: &[Source]) -> Checker {
     }
     c.collect();
     c.scopes();
+    c.collect_deprecated();
     c.signatures();
+    c.check_declarations();
     c.bodies();
     c
 }
@@ -965,7 +1040,9 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
     }
     c.collect();
     c.scopes();
+    c.collect_deprecated();
     c.signatures();
+    c.check_declarations();
     c.bodies();
     let failed = c.diags.iter().any(|d| d.diagnostic.is_error());
     let module = if failed { None } else { Some(c.module_ir()) };

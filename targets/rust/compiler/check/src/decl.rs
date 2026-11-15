@@ -333,6 +333,19 @@ impl Checker {
     }
 
     fn collect_token_values(&mut self) {
+        // the cases each token declaration lists, before packs add theirs
+        let declared: Vec<(DefId, Vec<String>)> = (0..self.defs.len())
+            .filter_map(|d| match &self.defs[d].kind {
+                DefKind::Token { cases, .. } => Some((d, cases.iter().filter(|c| c.fields.is_empty()).map(|c| c.name.clone()).collect())),
+                _ => None,
+            })
+            .collect();
+        // packs that implement core: an `implements` line in their pack declaration
+        let implementers: HashSet<String> = (0..self.files.len())
+            .filter(|f| self.files[*f].ast.items.iter().any(|n| matches!(&n.item, Item::Decl(ast::Decl { kind: ast::DeclKind::Pack(p), .. }) if p.lines.iter().any(|l| matches!(l, ast::PackLine::Implements(_))))))
+            .map(|f| self.files[f].pack.clone())
+            .collect();
+        let mut added: HashMap<(DefId, String), String> = HashMap::new();
         for file in self.from.files..self.files.len() {
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
@@ -340,6 +353,23 @@ impl Checker {
                 for line in t.lines.iter() {
                     match self.lookup_type(file, &line.ty.name) {
                         Some(TypeSym::Def(d)) => {
+                            let pack = self.files[file].pack.clone();
+                            let listed = declared.iter().any(|(e, cs)| *e == d && cs.contains(&line.case.name));
+                            // only an implementer restyles a case core declares
+                            if listed && self.defs[d].pack == "core" && pack != "core" && !implementers.contains(&pack) {
+                                self.error(file, codes::RESTYLE_CORE, line.case.span, format!("`{}.{}` is core's: only an implementer's pack, one with an `implements` line, gives it a new value. Add a case of your own instead, `{}.{}_{}`", line.ty.name, line.case.name, line.ty.name, pack.to_uppercase(), line.case.name));
+                            }
+                            if !listed {
+                                // two visible cases with one name on one type
+                                match added.get(&(d, line.case.name.clone())) {
+                                    Some(other) if *other != pack => {
+                                        self.error(file, codes::TOKEN_CASE_TWICE, line.case.span, format!("`{}.{}` is a case `{}` adds too: two visible cases with one name on one type can't be told apart", line.ty.name, line.case.name, other));
+                                    }
+                                    _ => {
+                                        added.insert((d, line.case.name.clone()), pack.clone());
+                                    }
+                                }
+                            }
                             if let DefKind::Token { cases, .. } = &mut self.defs[d].kind {
                                 if !cases.iter().any(|c| c.name == line.case.name) {
                                     // a pack adds a case by giving it a value
@@ -352,6 +382,18 @@ impl Checker {
                         }
                         _ => self.error(file, codes::UNKNOWN_TYPE, line.ty.span, format!("there is no token type `{}`", line.ty.name)),
                     }
+                }
+            }
+        }
+        // every named case a token declaration lists has a value from the pack that declares it
+        let first = self.from.defs;
+        for (d, cases) in declared.into_iter().filter(|(d, _)| *d >= first) {
+            let pack = self.defs[d].pack.clone();
+            for c in cases {
+                let given = self.token_values.iter().any(|(e, case, f, _)| *e == d && *case == c && self.files[*f].pack == pack);
+                if !given {
+                    let (file, span, name) = (self.defs[d].file, self.defs[d].span, self.defs[d].name.clone());
+                    self.error(file, codes::TOKEN_NO_VALUE, span, format!("`{}.{}` has no value: every case a token lists needs one in a `tokens` block of `{}`", name, c, pack));
                 }
             }
         }

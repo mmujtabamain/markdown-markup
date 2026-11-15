@@ -159,7 +159,7 @@ enum Flow {
 }
 
 /// The declarations a program's code needs, by their full names.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Program {
     pub fns: HashMap<String, Rc<ir::FnDecl>>,
     pub externs: HashMap<String, Rc<ir::ExternFn>>,

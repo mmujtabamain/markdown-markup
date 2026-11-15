@@ -110,6 +110,8 @@ impl Checker {
         self.state_and_expose();
         self.document();
         self.settle_effects();
+        // types written in bodies
+        self.check_type_rules();
         self.constants();
     }
 
@@ -382,6 +384,8 @@ impl Checker {
         }
         // contracts: every proof, now that the constants are known
         self.settle_proofs(&prog);
+        self.settle_spots(&prog);
+        self.settle_widget_requires(&prog);
         self.known_at.clear();
     }
 

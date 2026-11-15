@@ -524,6 +524,95 @@ impl Checker {
         self.defs.iter().any(|d| d.full == t.name && matches!(&d.kind, crate::DefKind::Alias { target: Some((_, ir)) } if self.has_length(ir)))
     }
 
+    /// A widget's `require` blocks, run by the compiler for a call whose inputs are all
+    /// constants: a `false` is a compile error on the call (page 2).
+    pub(crate) fn settle_widget_requires(&mut self, prog: &Program) {
+        struct Inputs(HashMap<String, Value>);
+        impl mkp_eval::Host for Inputs {
+            fn read(&mut self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
+                match what {
+                    mkp_eval::interp::Outer::Input(n) => self.0.get(&**n).cloned().ok_or_else(|| mkp_eval::Failure::new(mkp_eval::FailKind::NotConstant, "an input with no value")),
+                    _ => Constants.read(m, what, owner),
+                }
+            }
+            fn write(&mut self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>, v: Value) -> Result<(), mkp_eval::Failure> {
+                Constants.write(m, what, owner, v)
+            }
+        }
+        for (file, span, d, args) in std::mem::take(&mut self.require_checks) {
+            let full = self.defs[d].full.clone();
+            let Some((_, t)) = self.out.templates.iter().find(|(e, _)| *e == d).cloned() else { continue };
+            if t.requires.is_empty() {
+                continue;
+            }
+            // every input a constant: given, or its default
+            let mut inputs = HashMap::new();
+            let mut constant = true;
+            for f in &t.inputs {
+                let x = args.get(&f.name).cloned().or_else(|| f.default.clone());
+                let Some(x) = x else { continue };
+                let mut m = Machine::new(prog, Box::new(Constants));
+                match m.eval(&x) {
+                    Ok(v) => {
+                        inputs.insert(f.name.clone(), v);
+                    }
+                    Err(_) => {
+                        constant = false;
+                        break;
+                    }
+                }
+            }
+            if !constant {
+                continue;
+            }
+            for (k, r) in t.requires.iter().enumerate() {
+                let mut p = prog.clone();
+                let name = format!("{}@require#{}", full, k);
+                p.fns.insert(name.clone(), std::rc::Rc::new(ir::FnDecl { name: name.clone(), generics: Vec::new(), params: Vec::new(), returns: Some(ir::Type::named("core/bool")), body: r.body.clone() }));
+                let mut m = Machine::new(&p, Box::new(Inputs(inputs.clone())));
+                if let Ok(Some(Value::Bool(false))) = m.call(&name, Vec::new()) {
+                    let short = full.rsplit('/').next().unwrap_or(&full).to_string();
+                    self.error(file, codes::WIDGET_REQUIRE, span, format!("`{}`'s rule is broken by these inputs: {}", short, r.message));
+                }
+            }
+        }
+    }
+
+    /// A spot outside its plane's bounds warns, when both are constants (page 5).
+    pub(crate) fn settle_spots(&mut self, prog: &Program) {
+        for (file, span, at, bounds) in std::mem::take(&mut self.spot_checks) {
+            let mut m = Machine::new(prog, Box::new(Constants));
+            let (Ok(p), Ok(b)) = (m.eval(&at), m.eval(&bounds)) else { continue };
+            let b = match b {
+                Value::Opt(Some(x)) => (*x).clone(),
+                Value::Opt(None) => continue,
+                other => other,
+            };
+            let num = |v: Option<&Value>, f: &str| -> Option<Num> {
+                match v? {
+                    Value::Record(r) => r.get(f).and_then(|x| x.as_num()),
+                    _ => None,
+                }
+            };
+            let field = |v: &Value, f: &str| -> Option<Value> {
+                match v {
+                    Value::Record(r) => r.get(f).cloned(),
+                    _ => None,
+                }
+            };
+            let (from, to) = (field(&b, "from"), field(&b, "to"));
+            let coords = [num(Some(&p), "x"), num(Some(&p), "y"), num(from.as_ref(), "x"), num(from.as_ref(), "y"), num(to.as_ref(), "x"), num(to.as_ref(), "y")];
+            let [Some(x), Some(y), Some(x0), Some(y0), Some(x1), Some(y1)] = coords else { continue };
+            let inside = |v: Num, a: Num, c: Num| {
+                let (lo, hi) = if a.sub(c).map_or(false, |d| d.is_negative()) { (a, c) } else { (c, a) };
+                !v.sub(lo).map_or(true, |d| d.is_negative()) && !hi.sub(v).map_or(true, |d| d.is_negative())
+            };
+            if !(inside(x, x0, x1) && inside(y, y0, y1)) {
+                self.warning(file, codes::SPOT_OUTSIDE, span, format!("this spot, at ({}, {}), is outside its plane's bounds: it is clipped and the reader can't pan to it", x.show(), y.show()));
+            }
+        }
+    }
+
     /// Settles every proof once the constants are known.
     pub(crate) fn settle_proofs(&mut self, prog: &Program) {
         // bounds are constants: one that can't be worked out now never can be

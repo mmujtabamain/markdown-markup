@@ -118,6 +118,8 @@ impl Checker {
     pub(crate) fn declare_local(&mut self, cx: &mut Cx, name: &ast::Ident, ty: Ty, mutable: bool, kind: LocalKind) {
         if cx.local(&name.name).is_some() || self.visible_value(cx, &name.name) {
             self.error(cx.file, codes::SHADOWING, name.span, format!("`{}` is already a visible name: a declaration can't reuse it", name.name));
+        } else if self.is_view_type(&ty) {
+            self.check_view_name(cx.file, &name.name, name.span);
         }
         cx.scopes.last_mut().unwrap().push(Local { name: name.name.clone(), ty, mutable, kind, known: None, own_origin: false });
     }
@@ -365,7 +367,10 @@ impl Checker {
             }
         }
         match self.lookup_value(cx.file, &n.name) {
-            Some(ValueSym::Let(l)) => (ir::Expr::Get(ir::Get::Let(self.lets[l].full.clone())), self.lets[l].ty.clone()),
+            Some(ValueSym::Let(l)) => {
+                self.warn_deprecated(cx.file, self.lets[l].file, self.lets[l].span, n.span);
+                (ir::Expr::Get(ir::Get::Let(self.lets[l].full.clone())), self.lets[l].ty.clone())
+            }
             Some(ValueSym::Fn(f)) => self.fn_value(f),
             Some(ValueSym::Channel(_)) => {
                 self.error(cx.file, codes::UNKNOWN_NAME, n.span, format!("`{}` is an extern channel: read one of its values, `{}.name`", n.name, n.name));
@@ -422,8 +427,12 @@ impl Checker {
                     if matches!(ht, Ty::Opt(_)) {
                         opt_hole = opt_hole.or(Some(h.span));
                     }
+                    // a text holds no view; a literal of a type that places its holes may
+                    self.check_hole(cx, &ht, h.span, as_template.is_some());
                     let as_is = ht == Ty::Text || (as_template.is_some() && self.is_view_type(&ht));
-                    holes.push(if as_is { x } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x })) });
+                    // a view in a text is reported once: the hole holds nothing
+                    let x = if as_template.is_none() && self.is_view_type(&ht) { ir::Expr::Text(String::new()) } else { x };
+                    holes.push(if as_is || matches!(x, ir::Expr::Text(_)) { x } else { ir::Expr::Show(Box::new(ir::ExprShow { value: x })) });
                 }
             }
         }
@@ -702,6 +711,7 @@ impl Checker {
             BinOp::Eq | BinOp::Ne => {
                 let (a, at) = self.expr(cx, left, None);
                 let (b, _) = self.expr(cx, right, Some(&at));
+                self.check_comparable(cx, &at, "same", o, span);
                 let name = if o == BinOp::Eq { ir::OpName::Eq } else { ir::OpName::Ne };
                 (op(name, vec![a, b], self.ir_ty(&Ty::Bool)), Ty::Bool)
             }
@@ -711,12 +721,14 @@ impl Checker {
                     Ty::Range(t) => *t,
                     _ => Ty::Err,
                 };
-                let (x, _) = self.expr(cx, left, Some(&elem));
+                let (x, xt) = self.expr(cx, left, Some(&elem));
+                self.check_comparable(cx, &xt, "ordered", o, span);
                 (call("core/range.has", vec![r, x], Some(self.ir_ty(&Ty::Bool))), Ty::Bool)
             }
             BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => {
                 let (a, at) = self.expr(cx, left, None);
                 let (b, _) = self.expr(cx, right, Some(&at));
+                self.check_comparable(cx, &at, "ordered", o, span);
                 let name = match o {
                     BinOp::Lt => ir::OpName::Lt,
                     BinOp::Le => ir::OpName::Le,
@@ -985,6 +997,7 @@ impl Checker {
     pub(crate) fn call_fn(&mut self, cx: &mut Cx, f: usize, recv: Option<(ir::Expr, Ty, &ast::Expr)>, args: &ast::Group<ast::Arg>, _expect: Option<&Ty>, span: Span) -> (ir::Expr, Ty) {
         let file = cx.file;
         let s = self.fns[f].clone();
+        self.warn_deprecated(file, s.file, s.span, span);
         let map: HashMap<String, Ty> = s.generics.iter().map(|g| (g.name.clone(), self.vars.fresh())).collect();
         let mut out = Vec::new();
         let mut params = s.params.iter();
@@ -1111,6 +1124,11 @@ impl Checker {
                     return Some((ir::Place { root: ir::Root::State(name.name.clone()), path: Vec::new() }, t));
                 }
                 let (mut p, t) = self.place(cx, target)?;
+                // a widget value's inputs are read, never assigned
+                if matches!(self.vars.resolve(&t), Ty::Def(d, _) if matches!(self.defs[d].kind, DefKind::Widget { .. })) {
+                    self.error(cx.file, codes::WIDGET_VALUE_ASSIGN, e.span, "a widget value's inputs can be read but not assigned: make a new value with the input you want");
+                    return None;
+                }
                 let fields = self.fields_in(cx, &t);
                 let (_, ft) = fields.into_iter().find(|(n, _)| *n == name.name)?;
                 p.path.push(ir::Step::Field(ir::StepField { name: name.name.clone() }));
@@ -1136,8 +1154,18 @@ impl Checker {
     pub fn block(&mut self, cx: &mut Cx, b: &ast::Block) -> Vec<ir::Stmt> {
         cx.push();
         let mut out = Vec::new();
+        // once the block removes an item from its list, the item isn't used again in it (page 2)
+        let mut removed: Vec<String> = Vec::new();
         for s in &b.stmts {
+            for name in &removed {
+                if let Some(at) = crate::effects::first_mention(&s.item, name) {
+                    self.error(cx.file, codes::REMOVED_USED, at, format!("`{}` was removed from its list above, so it can't be used in the rest of this block", name));
+                }
+            }
             out.extend(self.stmt(cx, &s.item));
+            if let Some(x) = crate::effects::removes(&s.item) {
+                removed.push(x);
+            }
         }
         cx.pop();
         out
@@ -1150,6 +1178,9 @@ impl Checker {
             S::Let(v) | S::Mut(v) => {
                 let mutable = matches!(s, S::Mut(_));
                 let ty = self.resolve(file, &v.ty, &cx.generics.clone());
+                if mutable && self.is_view_type(&ty) {
+                    self.error(file, codes::VIEW_IN_MUT, v.name.span, "a view is a description, not a variable: hold it in a `let`, or keep the data it is drawn from in the variable instead");
+                }
                 let ty_ir = self.ir_type(file, &v.ty, &cx.generics.clone());
                 let (x, _) = self.expr(cx, &v.value, Some(&ty));
                 self.want(cx, &v.value, &x, &ty_ir, format!("`{}`", v.name.name));
@@ -1256,8 +1287,11 @@ impl Checker {
                 }
             }
             S::Assign { place, value } => {
+                let before = self.diags.len();
                 let Some((p, t)) = self.place(cx, place) else {
-                    self.error(file, codes::NOT_MUT, place.span, "only a `mut` variable, a field of one, or a `mut` input can be assigned");
+                    if self.diags.len() == before {
+                        self.error(file, codes::NOT_MUT, place.span, "only a `mut` variable, a field of one, or a `mut` input can be assigned");
+                    }
                     return Vec::new();
                 };
                 let (x, _) = self.expr(cx, value, Some(&t));
@@ -1400,7 +1434,35 @@ impl Checker {
 
     /// A match covers every case of an enum or a bool; a token, a number or a text needs `case else`.
     pub(crate) fn check_match(&mut self, file: usize, vt: &Ty, cases: &[Vec<ast::Pattern>], has_else: bool, at: Span) {
+        // match takes an enum, a bool, a number or a text (page 2)
+        let t = self.vars.resolve(vt);
+        let takes = match &t {
+            Ty::Def(d, _) => matches!(self.defs[*d].kind, DefKind::Enum { .. } | DefKind::Token { .. }),
+            Ty::Opt(_) | Ty::Bool | Ty::Num | Ty::Text | Ty::Err | Ty::Var(_) => true,
+            _ => false,
+        };
+        if !takes {
+            let s = self.show(&t);
+            self.error(file, codes::MATCH_SUBJECT, at, format!("`match` takes an enum, a bool, a number or a text, not a {}: compare it with `if` instead", s));
+            return;
+        }
         if has_else {
+            return;
+        }
+        // a bool's two values, and an opt's two cases, are listed or `case else` takes the rest
+        let listed = |name: &str| cases.iter().flatten().any(|p| match p {
+            ast::Pattern::Case { case, .. } => case.name == name,
+            ast::Pattern::Bool(b, _) => (name == "true") == *b,
+            _ => false,
+        });
+        let need: &[&str] = match &t {
+            Ty::Bool => &["true", "false"],
+            Ty::Opt(_) => &["SOME", "NONE"],
+            _ => &[],
+        };
+        let missing: Vec<&str> = need.iter().copied().filter(|n| !listed(n)).collect();
+        if !missing.is_empty() {
+            self.error(file, codes::MATCH_CASES, at, format!("this match misses {}: list every case, or add `case else`", missing.join(", ")));
             return;
         }
         match self.vars.resolve(vt) {

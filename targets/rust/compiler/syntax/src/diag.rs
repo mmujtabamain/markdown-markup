@@ -117,6 +117,8 @@ pub mod codes {
     pub const WIDGET_ORDER: &str = "widget.body-order";
     pub const WIDGET_MARKDOWN: &str = "widget.markdown-required";
     pub const WIDGET_VIEW: &str = "widget.view-required";
+    /// The rule belongs to views (page 3), and the reader is where it is seen.
+    pub const VIEW_NEEDS_AT: &str = "views.view-needs-at";
     pub const DOC_PARAM: &str = "doc.param-names-nothing";
 
     // prose

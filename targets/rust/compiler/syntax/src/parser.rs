@@ -1452,6 +1452,10 @@ impl<'a> Parser<'a> {
                     return Ok(Stmt::Assign { place: e, value });
                 }
                 if view {
+                    // a call drawn in a view is written with `@`, so every view on the page is visible
+                    if matches!(e.kind, ExprKind::Call { .. }) {
+                        return Err(Diagnostic::error(codes::VIEW_NEEDS_AT, e.span, "a call that returns a view is drawn with `@`: `@tile(s);`. A view holds let, if, for, match and views"));
+                    }
                     return Err(Diagnostic::error(
                         codes::EXPECTED,
                         e.span,
