@@ -29,9 +29,9 @@ fn mb_lines(value: template): list<text> {
     }
     mut lines: list<text> = whole.split("\n");
     if (whole.ends("\n")) {
-        let last: int = lines.len() - 1;
+        let last: number = lines.len() - 1;
         if (last in 0...) {
-            lines.remove_at(last);
+            lines.remove_at(md_pos(last));
         }
     }
     return lines;
@@ -40,29 +40,29 @@ fn mb_lines(value: template): list<text> {
 //@about One block while it is read, of any kind; the parts that don't apply to its kind stay as they start. Private to core
 record mb_node {
     kind: text;
-    parent: int;
-    mut children: list<int> = [];
+    parent: number;
+    mut children: list<number> = [];
     mut open: bool = true;
     mut content: text = "";
     mut last_blank: bool = false;
-    start_line: int = 0;
+    start_line: number = 0;
     mut ordered: bool = false;
-    mut start: int 0... = 1;
+    mut start: number = 1;
     mut bullet: text = "";
     mut delim: text = "";
     mut tight: bool = true;
-    mut marker_offset: int = 0;
-    mut padding: int = 0;
+    mut marker_offset: number = 0;
+    mut padding: number = 0;
     mut done: opt<bool> = opt.NONE;
     mut label: text = "";
-    mut level: int 1..6 = 1;
+    mut level: number 1..6 = 1;
     mut setext: bool = false;
     mut fenced: bool = false;
     mut fence_char: text = "";
-    mut fence_len: int = 0;
-    mut fence_offset: int = 0;
+    mut fence_len: number = 0;
+    mut fence_offset: number = 0;
     mut info: text = "";
-    mut html: int = 0;
+    mut html: number = 0;
     mut align: list<cell_align> = [];
     mut head: list<text> = [];
     mut rows: list<list<text>> = [];
@@ -71,45 +71,45 @@ record mb_node {
 //@about The block reader's state: CommonMark's parsing strategy, a line at a time. Private to core
 record mb_parser {
     mut nodes: list<mb_node> = [];
-    mut tip: int = 0;
-    mut old_tip: int = 0;
+    mut tip: number = 0;
+    mut old_tip: number = 0;
     mut line: list<text> = [];
-    mut line_no: int = 0;
-    mut offset: int = 0;
-    mut column: int = 0;
-    mut next_nonspace: int = 0;
-    mut next_nonspace_column: int = 0;
-    mut indent: int = 0;
+    mut line_no: number = 0;
+    mut offset: number = 0;
+    mut column: number = 0;
+    mut next_nonspace: number = 0;
+    mut next_nonspace_column: number = 0;
+    mut indent: number = 0;
     mut indented: bool = false;
     mut blank: bool = false;
     mut partial_tab: bool = false;
     mut all_closed: bool = true;
-    mut last_matched: int = 0;
+    mut last_matched: number = 0;
     mut links: list<{ key: text, value: text }> = [];
 }
 
 // What turning blocks into md's blocks gave: the blocks, the next hole, and whether every inline read worked. Private to core
 record mb_out {
     blocks: list<block> = [];
-    next: int = 0;
+    next: number = 0;
     ok: bool = true;
 }
 
-fn mb_open(nodes: list<mb_node>, k: int): bool {
+fn mb_open(nodes: list<mb_node>, k: number): bool {
     if (let n: mb_node = nodes[k]) {
         return n.open;
     }
     return false;
 }
 
-fn mb_kind(nodes: list<mb_node>, k: int): text {
+fn mb_kind(nodes: list<mb_node>, k: number): text {
     if (let n: mb_node = nodes[k]) {
         return n.kind;
     }
     return "";
 }
 
-fn mb_last_child(nodes: list<mb_node>, k: int): int {
+fn mb_last_child(nodes: list<mb_node>, k: number): number {
     if (let n: mb_node = nodes[k]) {
         return n.children.last().or(-1);
     }
@@ -120,17 +120,17 @@ fn mb_is_space_or_tab(c: text): bool {
     return c == " " || c == "\t";
 }
 
-fn mb_parser.peek(self, at: int): text {
+fn mb_parser.peek(self, at: number): text {
     return self.line[at].or("");
 }
 
-fn mb_parser.rest(self, from: int): text {
+fn mb_parser.rest(self, from: number): text {
     return md_join(self.line, from, self.line.len());
 }
 
 fn mb_parser.find_next_nonspace(mut self) {
-    mut i: int = self.offset;
-    mut cols: int = self.column;
+    mut i: number = self.offset;
+    mut cols: number = self.column;
     mut going: bool = true;
     for (k in (self.offset)..(self.line.len() - 1)) {
         let c: text = self.line[k].or("");
@@ -158,16 +158,16 @@ fn mb_parser.advance_next_nonspace(mut self) {
     self.partial_tab = false;
 }
 
-fn mb_parser.advance_offset(mut self, count: int, columns: bool) {
-    mut left: int = count;
+fn mb_parser.advance_offset(mut self, count: number, columns: bool) {
+    mut left: number = count;
     for (k in 1..(count + 1)) {
         let c: text = self.line[self.offset].or("");
         if (left > 0 && c != "") {
             if (c == "\t") {
-                let to_tab: int = 4 - self.column % 4;
+                let to_tab: number = 4 - self.column % 4;
                 if (columns) {
                     self.partial_tab = to_tab > left;
-                    let moved: int = to_tab.min(left);
+                    let moved: number = to_tab.min(left);
                     self.column = self.column + moved;
                     if (!self.partial_tab) {
                         self.offset = self.offset + 1;
@@ -193,7 +193,7 @@ fn mb_parser.add_line(mut self) {
     mut s: text = "";
     if (self.partial_tab) {
         self.offset = self.offset + 1;
-        let to_tab: int = 4 - self.column % 4;
+        let to_tab: number = 4 - self.column % 4;
         for (k in 1..to_tab) {
             s = "\{s} ";
         }
@@ -217,7 +217,7 @@ fn mb_parser.child(mut self, node: mb_node) {
             self.finalize(self.tip);
         }
     }
-    let id: int = self.nodes.len();
+    let id: number = self.nodes.len();
     self.nodes.add(node with { parent = self.tip, start_line = self.line_no });
     if (mut n: mb_node = self.nodes[self.tip]) {
         n.children.add(id);
@@ -234,7 +234,7 @@ fn mb_parser.close_unmatched(mut self) {
         for (round in 0..64) {
             if (self.old_tip != self.last_matched) {
                 if (let n: mb_node = self.nodes[self.old_tip]) {
-                    let parent: int = n.parent;
+                    let parent: number = n.parent;
                     self.finalize(self.old_tip);
                     self.old_tip = parent;
                 }
@@ -245,7 +245,7 @@ fn mb_parser.close_unmatched(mut self) {
 }
 
 // 0: the open block goes on, 1: it doesn't, 2: the line is used up (a closing fence). Private to core
-fn mb_parser.continues(mut self, k: int): int {
+fn mb_parser.continues(mut self, k: number): number {
     let n: mb_node = self.nodes[k].or(mb_node { kind = "", parent = -1 });
     if (n.kind == "document" || n.kind == "list") {
         return 0;
@@ -291,12 +291,12 @@ fn mb_parser.continues(mut self, k: int): int {
     }
     if (n.kind == "code" && n.fenced) {
         let rest: text = self.rest(self.next_nonspace);
-        let run: int = md_run(self.line, self.next_nonspace, n.fence_char);
-        if (self.indent <= 3 && run >= n.fence_len && run > 0 && rest.slice(run, rest.len()).trim() == "") {
+        let run: number = md_run(self.line, self.next_nonspace, n.fence_char);
+        if (self.indent <= 3 && run >= n.fence_len && run > 0 && rest.slice(md_pos(run), rest.len()).trim() == "") {
             self.finalize(k);
             return 2;
         }
-        mut i: int = n.fence_offset;
+        mut i: number = n.fence_offset;
         for (round in 1..(n.fence_offset)) {
             if (i > 0 && mb_is_space_or_tab(self.peek(self.offset))) {
                 self.advance_offset(1, true);
@@ -333,14 +333,14 @@ fn mb_parser.incorporate(mut self, ln: text) {
     self.blank = false;
     self.partial_tab = false;
     self.old_tip = self.tip;
-    mut container: int = 0;
+    mut container: number = 0;
     mut matching: bool = true;
     for (round in 0..64) {
-        let last: int = mb_last_child(self.nodes, container);
+        let last: number = mb_last_child(self.nodes, container);
         if (matching && last >= 0 && mb_open(self.nodes, last)) {
             container = last;
             self.find_next_nonspace();
-            let r: int = self.continues(container);
+            let r: number = self.continues(container);
             if (r == 1) {
                 if (let n: mb_node = self.nodes[container]) {
                     container = n.parent;
@@ -365,7 +365,7 @@ fn mb_parser.incorporate(mut self, ln: text) {
                 self.advance_next_nonspace();
                 matched_leaf = true;
             } else {
-                let r: int = self.block_start(container);
+                let r: number = self.block_start(container);
                 if (r == 0) {
                     self.advance_next_nonspace();
                     matched_leaf = true;
@@ -415,7 +415,7 @@ fn mb_parser.incorporate(mut self, ln: text) {
     }
     self.close_unmatched();
     if (self.blank) {
-        let last: int = mb_last_child(self.nodes, container);
+        let last: number = mb_last_child(self.nodes, container);
         if (mut n: mb_node = self.nodes[last]) {
             n.last_blank = true;
         }
@@ -432,7 +432,7 @@ fn mb_parser.incorporate(mut self, ln: text) {
     if (mb_accepts_lines(t)) {
         self.add_line();
         if (t == "html") {
-            let html_kind: int = self.nodes[container].or(mb_node { kind = "", parent = -1 }).html;
+            let html_kind: number = self.nodes[container].or(mb_node { kind = "", parent = -1 }).html;
             if (html_kind >= 1 && html_kind <= 5 && mb_html_end(html_kind, self.rest(self.offset))) {
                 self.finalize(container);
             }
@@ -444,7 +444,7 @@ fn mb_parser.incorporate(mut self, ln: text) {
     }
 }
 
-fn mb_fenced(nodes: list<mb_node>, k: int): bool {
+fn mb_fenced(nodes: list<mb_node>, k: number): bool {
     if (let n: mb_node = nodes[k]) {
         return n.fenced;
     }
@@ -452,7 +452,7 @@ fn mb_fenced(nodes: list<mb_node>, k: int): bool {
 }
 
 // 0: no block starts here, 1: a container started, 2: a leaf started. Private to core
-fn mb_parser.block_start(mut self, container: int): int {
+fn mb_parser.block_start(mut self, container: number): number {
     let c: text = self.peek(self.next_nonspace);
     let rest: text = self.rest(self.next_nonspace);
     let ckind: text = mb_kind(self.nodes, container);
@@ -469,7 +469,7 @@ fn mb_parser.block_start(mut self, container: int): int {
     }
     // ATX heading
     if (!self.indented && c == "#") {
-        let hashes: int = md_run(self.line, self.next_nonspace, "#");
+        let hashes: number = md_run(self.line, self.next_nonspace, "#");
         let after: text = self.peek(self.next_nonspace + hashes);
         if (hashes >= 1 && hashes <= 6 && (after == "" || after == " " || after == "\t")) {
             self.advance_next_nonspace();
@@ -491,8 +491,8 @@ fn mb_parser.block_start(mut self, container: int): int {
     }
     // fenced code
     if (!self.indented && (c == "`" || c == "~")) {
-        let run: int = md_run(self.line, self.next_nonspace, c);
-        let info: text = rest.slice(run, rest.len());
+        let run: number = md_run(self.line, self.next_nonspace, c);
+        let info: text = rest.slice(md_pos(run), rest.len());
         if (run >= 3 && !(c == "`" && info.has("`"))) {
             self.close_unmatched();
             self.child(mb_node { kind = "code", parent = 0, fenced = true, fence_char = c, fence_len = run, fence_offset = self.indent, info = md_unescape(info.trim()) });
@@ -561,9 +561,9 @@ fn mb_parser.block_start(mut self, container: int): int {
     }
     // footnote definition
     if (!self.indented && rest.starts("[^")) {
-        let close: int = mb_find(rest, "]:");
+        let close: number = mb_find(rest, "]:");
         if (close > 2) {
-            let label: text = rest.slice(2, close - 2);
+            let label: text = rest.slice(2, md_pos(close - 2));
             if (!label.has(" ") && !label.has("\t") && !label.has("]")) {
                 self.close_unmatched();
                 self.child(mb_node { kind = "footnote", parent = 0, label = label });
@@ -580,10 +580,10 @@ fn mb_parser.block_start(mut self, container: int): int {
     let marker: mb_marker = self.list_marker(container);
     if (marker.len > 0) {
         self.advance_next_nonspace();
-        let marker_offset: int = self.indent;
+        let marker_offset: number = self.indent;
         self.advance_offset(marker.len, true);
-        let spaces_start_col: int = self.column;
-        let spaces_start_offset: int = self.offset;
+        let spaces_start_col: number = self.column;
+        let spaces_start_offset: number = self.offset;
         mut going: bool = true;
         for (round in 0..8) {
             if (going) {
@@ -595,8 +595,8 @@ fn mb_parser.block_start(mut self, container: int): int {
             }
         }
         let blank_item: bool = self.peek(self.offset) == "";
-        let spaces_after: int = self.column - spaces_start_col;
-        mut padding: int = marker.len + spaces_after;
+        let spaces_after: number = self.column - spaces_start_col;
+        mut padding: number = marker.len + spaces_after;
         if (spaces_after >= 5 || spaces_after < 1 || blank_item) {
             padding = marker.len + 1;
             self.column = spaces_start_col;
@@ -634,14 +634,14 @@ fn mb_parser.block_start(mut self, container: int): int {
 
 //@about A list marker: its length (0 for none), and the list it starts. Private to core
 record mb_marker {
-    len: int = 0;
+    len: number = 0;
     ordered: bool = false;
-    start: int 0... = 1;
+    start: number = 1;
     bullet: text = "";
     delim: text = "";
 }
 
-fn mb_parser.list_marker(self, container: int): mb_marker {
+fn mb_parser.list_marker(self, container: number): mb_marker {
     if (self.indent >= 4) {
         return mb_marker { };
     }
@@ -652,7 +652,7 @@ fn mb_parser.list_marker(self, container: int): mb_marker {
     if (["*", "+", "-"].has(first)) {
         m = mb_marker { len = 1, bullet = first };
     } else {
-        mut digits: int = 0;
+        mut digits: number = 0;
         mut going: bool = true;
         for (c in rest.chars()) {
             if (going && "0123456789".has(c)) {
@@ -664,21 +664,21 @@ fn mb_parser.list_marker(self, container: int): mb_marker {
         if (digits == 0 || digits > 9) {
             return mb_marker { };
         }
-        let d: text = rest.slice(digits, 1);
+        let d: text = rest.slice(md_pos(digits), 1);
         if (d != "." && d != ")") {
             return mb_marker { };
         }
-        let number: number = rest.slice(0, digits).number().or(1);
+        let number: number = rest.slice(0, md_pos(digits)).number().or(1);
         if (in_para && number != 1) {
             return mb_marker { };
         }
         m = mb_marker { len = digits + 1, ordered = true, start = number.round().clamp(0, 999999999), delim = d };
     }
-    let after: text = rest.slice(m.len, 1);
+    let after: text = rest.slice(md_pos(m.len), 1);
     if (after != "" && after != " " && after != "\t") {
         return mb_marker { };
     }
-    if (in_para && rest.slice(m.len, rest.len()).trim() == "") {
+    if (in_para && rest.slice(md_pos(m.len), rest.len()).trim() == "") {
         return mb_marker { };
     }
     if (!m.ordered && (first == "*" || first == "-") && mb_thematic(rest)) {
@@ -687,7 +687,7 @@ fn mb_parser.list_marker(self, container: int): mb_marker {
     return m;
 }
 
-fn mb_parser.finalize(mut self, k: int) {
+fn mb_parser.finalize(mut self, k: number) {
     let n: mb_node = self.nodes[k].or(mb_node { kind = "", parent = -1 });
     if (mut x: mb_node = self.nodes[k]) {
         x.open = false;
@@ -698,16 +698,16 @@ fn mb_parser.finalize(mut self, k: int) {
             x.content = left;
         }
     } else if (n.kind == "code" && n.fenced) {
-        let at: int = mb_find(n.content, "\n");
+        let at: number = mb_find(n.content, "\n");
         if (mut x: mb_node = self.nodes[k]) {
-            x.content = at >= 0 ? n.content.slice(at + 1, n.content.len()) : "";
+            x.content = at >= 0 ? n.content.slice(md_pos(at + 1), n.content.len()) : "";
         }
     } else if (n.kind == "code") {
         mut lines: list<text> = n.content.split("\n");
         for (round in 0..(lines.len())) {
-            let last: int = lines.len() - 1;
+            let last: number = lines.len() - 1;
             if (last in 0... && lines.last().or("x").trim() == "") {
-                lines.remove_at(last);
+                lines.remove_at(md_pos(last));
             }
         }
         if (mut x: mb_node = self.nodes[k]) {
@@ -722,8 +722,8 @@ fn mb_parser.finalize(mut self, k: int) {
     self.tip = n.parent < 0 ? 0 : n.parent;
 }
 
-fn mb_ends_blank(nodes: list<mb_node>, k: int): bool {
-    mut b: int = k;
+fn mb_ends_blank(nodes: list<mb_node>, k: number): bool {
+    mut b: number = k;
     for (round in 0..64) {
         if (let n: mb_node = nodes[b]) {
             if (n.last_blank) {
@@ -741,13 +741,13 @@ fn mb_ends_blank(nodes: list<mb_node>, k: int): bool {
     return false;
 }
 
-fn mb_tight(nodes: list<mb_node>, list: int): bool {
-    let items: list<int> = nodes[list].or(mb_node { kind = "", parent = -1 }).children;
+fn mb_tight(nodes: list<mb_node>, list: number): bool {
+    let items: list<number> = nodes[list].or(mb_node { kind = "", parent = -1 }).children;
     for (k, item in items) {
         if (mb_ends_blank(nodes, item) && k + 1 < items.len()) {
             return false;
         }
-        let kids: list<int> = nodes[item].or(mb_node { kind = "", parent = -1 }).children;
+        let kids: list<number> = nodes[item].or(mb_node { kind = "", parent = -1 }).children;
         for (j, sub in kids) {
             if (mb_ends_blank(nodes, sub) && (k + 1 < items.len() || j + 1 < kids.len())) {
                 return false;
@@ -760,7 +760,7 @@ fn mb_tight(nodes: list<mb_node>, list: int): bool {
 // Takes the link reference definitions off the start of a paragraph's text. Private to core
 fn mb_parser.take_link_defs(mut self, content: text): text {
     let cs: list<text> = content.chars();
-    mut at: int = 0;
+    mut at: number = 0;
     mut going: bool = true;
     for (round in 0..64) {
         if (going && cs[at].or("") == "[") {
@@ -783,15 +783,15 @@ fn mb_parser.take_link_defs(mut self, content: text): text {
 
 //@about A link reference definition read from a paragraph: where it ends (at its start for none), its label and its destination. Private to core
 record mb_def {
-    end: int = 0;
+    end: number = 0;
     label: text = "";
     dest: text = "";
 }
 
 // One link reference definition at at: [label]: destination "title". Private to core
-fn mb_link_def(cs: list<text>, at: int): mb_def {
+fn mb_link_def(cs: list<text>, at: number): mb_def {
     // the label: no unescaped brackets, not only spaces
-    mut close: int = -1;
+    mut close: number = -1;
     mut stop: bool = false;
     mut escaped: bool = false;
     for (k in (at + 1)..(cs.len() - 1)) {
@@ -815,10 +815,10 @@ fn mb_link_def(cs: list<text>, at: int): mb_def {
     if (label.trim() == "" || label.len() > 999) {
         return mb_def { end = at };
     }
-    mut k: int = md_after_blank(cs, close + 2);
+    mut k: number = md_after_blank(cs, close + 2);
     mut dest: text = "";
     if (cs[k].or("") == "<") {
-        mut end: int = -1;
+        mut end: number = -1;
         mut bad: bool = false;
         mut esc: bool = false;
         for (j in (k + 1)..(cs.len() - 1)) {
@@ -841,8 +841,8 @@ fn mb_link_def(cs: list<text>, at: int): mb_def {
         dest = md_unescape(md_join(cs, k + 1, end));
         k = end + 1;
     } else {
-        mut depth: int = 0;
-        mut end: int = k;
+        mut depth: number = 0;
+        mut end: number = k;
         mut stop2: bool = false;
         mut esc: bool = false;
         for (j in k..(cs.len() - 1)) {
@@ -878,13 +878,13 @@ fn mb_link_def(cs: list<text>, at: int): mb_def {
         k = end;
     }
     // with no title, the destination ends its line
-    let line_end: int = mb_line_end(cs, k);
-    let before: int = k;
-    let t: int = md_after_blank(cs, k);
+    let line_end: number = mb_line_end(cs, k);
+    let before: number = k;
+    let t: number = md_after_blank(cs, k);
     let q: text = cs[t].or("");
     if (t > before && (q == "\"" || q == "'" || q == "(")) {
         let closer: text = q == "(" ? ")" : q;
-        mut end: int = -1;
+        mut end: number = -1;
         mut esc: bool = false;
         mut bad: bool = false;
         for (j in (t + 1)..(cs.len() - 1)) {
@@ -902,7 +902,7 @@ fn mb_link_def(cs: list<text>, at: int): mb_def {
             }
         }
         if (end >= 0) {
-            let after: int = mb_line_end(cs, end + 1);
+            let after: number = mb_line_end(cs, end + 1);
             if (after >= 0) {
                 return mb_def { end = after, label = label, dest = dest };
             }
@@ -915,8 +915,8 @@ fn mb_link_def(cs: list<text>, at: int): mb_def {
 }
 
 // After spaces and tabs from k: where the next line starts, at a line break or the end; -1 when other text comes first. Private to core
-fn mb_line_end(cs: list<text>, k: int): int {
-    mut found: int = -1;
+fn mb_line_end(cs: list<text>, k: number): number {
+    mut found: number = -1;
     mut going: bool = true;
     for (j in k..(cs.len() - 1)) {
         let c: text = cs[j].or("");
@@ -936,7 +936,7 @@ fn mb_line_end(cs: list<text>, k: int): int {
 
 fn mb_trim_end_char(s: text, c: text): text {
     let cs: list<text[1]> = s.chars();
-    mut end: int = cs.len();
+    mut end: number = cs.len();
     mut going: bool = true;
     for (k in (cs.len() - 1)..0 step -1) {
         if (going && cs[k].or("") == c) {
@@ -945,14 +945,14 @@ fn mb_trim_end_char(s: text, c: text): text {
             going = false;
         }
     }
-    return s.slice(0, end.clamp(0, s.len()));
+    return s.slice(0, md_pos(end));
 }
 
 // Where part first appears in s, or -1. Private to core
-fn mb_find(s: text, part: text): int {
-    let n: int = part.len();
+fn mb_find(s: text, part: text): number {
+    let n: number = part.len();
     for (k in 0..(s.len() - n)) {
-        if (k in 0... && s.slice(k, n) == part) {
+        if (k in 0... && s.slice(md_pos(k), md_pos(n)) == part) {
             return k;
         }
     }
@@ -1011,7 +1011,7 @@ fn mb_split_row(s: text): list<text> {
     mut out: list<text> = [];
     mut cell: text = "";
     let cs: list<text[1]> = t.chars();
-    mut skip: int = 0;
+    mut skip: number = 0;
     for (k, c in cs) {
         if (k >= skip) {
             if (c == "\\" && cs[k + 1].or("") == "|") {
@@ -1029,7 +1029,7 @@ fn mb_split_row(s: text): list<text> {
     return out;
 }
 
-fn mb_html_start(kind: int, s: text): bool {
+fn mb_html_start(kind: number, s: text): bool {
     let lower: text = s.lower();
     if (kind == 1) {
         for (tag in ["<pre", "<script", "<style", "<textarea"]) {
@@ -1069,11 +1069,11 @@ fn mb_html_start(kind: int, s: text): bool {
     }
     // kind 7: a whole open or closing tag, alone on its line
     let line: text = s.trim();
-    let end: int = md_html(line.chars(), 0);
+    let end: number = md_html(line.chars(), 0);
     return end > 0 && end == line.len() && !lower.starts("<script") && !lower.starts("<style") && !lower.starts("<pre") && !lower.starts("<textarea") && !s.starts("<!") && !s.starts("<?");
 }
 
-fn mb_html_end(kind: int, s: text): bool {
+fn mb_html_end(kind: number, s: text): bool {
     let lower: text = s.lower();
     if (kind == 1) {
         return lower.has("</pre>") || lower.has("</script>") || lower.has("</style>") || lower.has("</textarea>");
@@ -1091,10 +1091,10 @@ fn mb_html_end(kind: int, s: text): bool {
 }
 
 // The nodes under k as md's blocks, reading each inline text with its holes in order from next. Private to core
-fn mb_blocks(nodes: list<mb_node>, k: int, value: template, links: map<text>, next: int): mb_out {
+fn mb_blocks(nodes: list<mb_node>, k: number, value: template, links: map<text>, next: number): mb_out {
     mut blocks: list<block> = [];
-    mut at: int = next;
-    let kids: list<int> = nodes[k].or(mb_node { kind = "", parent = -1 }).children;
+    mut at: number = next;
+    let kids: list<number> = nodes[k].or(mb_node { kind = "", parent = -1 }).children;
     for (child in kids) {
         if (let n: mb_node = nodes[child]) {
             if (n.kind == "paragraph" || n.kind == "heading") {
@@ -1106,13 +1106,13 @@ fn mb_blocks(nodes: list<mb_node>, k: int, value: template, links: map<text>, ne
                         if (n.kind == "paragraph") {
                             blocks.add(block.PARAGRAPH(words));
                         } else {
-                            blocks.add(block.HEADING(n.level, words));
+                            blocks.add(block.HEADING(n.level.round().clamp(1, 6), words));
                         }
                     } else {
                         return mb_out { ok = false };
                     }
                 } else if (n.kind == "heading") {
-                    blocks.add(block.HEADING(n.level, rich_text { segments = [] }));
+                    blocks.add(block.HEADING(n.level.round().clamp(1, 6), rich_text { segments = [] }));
                 }
             } else if (n.kind == "thematic") {
                 blocks.add(block.DIVIDER);
@@ -1145,7 +1145,7 @@ fn mb_blocks(nodes: list<mb_node>, k: int, value: template, links: map<text>, ne
                     items.add(list_item { done = nodes[item].or(mb_node { kind = "", parent = -1 }).done, body = inner.blocks });
                 }
                 if (items.len() in 1...) {
-                    blocks.add(block.BULLETS(n.ordered, n.start, items));
+                    blocks.add(block.BULLETS(n.ordered, md_pos(n.start), items));
                 }
             } else if (n.kind == "table") {
                 mut head: list<rich_text> = [];
@@ -1176,14 +1176,14 @@ fn mb_blocks(nodes: list<mb_node>, k: int, value: template, links: map<text>, ne
 //@about One inline text read, and the hole after its own. Private to core
 record mb_rich {
     value: opt<rich_text> = opt.NONE;
-    next: int = 0;
+    next: number = 0;
 }
 
 // Inline Markdown that may hold holes, read with the holes from at on. Private to core
-fn mb_read(source: text, value: template, links: map<text>, at: int): mb_rich {
+fn mb_read(source: text, value: template, links: map<text>, at: number): mb_rich {
     mut pieces: list<text> = [];
     mut holes: list<hole> = [];
-    mut next: int = at;
+    mut next: number = at;
     for (k, piece in source.split("\u{fffc}")) {
         pieces.add(piece);
         if (k > 0) {
@@ -1193,7 +1193,7 @@ fn mb_read(source: text, value: template, links: map<text>, at: int): mb_rich {
             next = next + 1;
         }
     }
-    return mb_rich { value = rich_text.read(template { pieces = pieces, holes = holes }, links), next = next };
+    return mb_rich { value = rich_text.read((try template { pieces = pieces, holes = holes }).or(template.of("")), links), next = next };
 }
 
 // A paragraph's text: each line without its leading spaces, and the last without its trailing ones. Private to core
@@ -1201,7 +1201,7 @@ fn mb_paragraph_text(content: text): text {
     let lines: list<text> = mb_trim_end_char(content, "\n").split("\n");
     mut out: list<text> = [];
     for (l in lines) {
-        mut start: int = 0;
+        mut start: number = 0;
         mut going: bool = true;
         for (c in l.chars()) {
             if (going && (c == " " || c == "\t")) {
@@ -1210,7 +1210,7 @@ fn mb_paragraph_text(content: text): text {
                 going = false;
             }
         }
-        out.add(l.slice(start, l.len()));
+        out.add(l.slice(md_pos(start), l.len()));
     }
     return mb_trim_end_char(mb_trim_end_char(out.join("\n"), " "), "\t");
 }

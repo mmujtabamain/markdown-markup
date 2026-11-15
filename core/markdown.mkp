@@ -11,12 +11,12 @@ extern fn text.of_code(code: number): opt<text>;
 //@about Inline Markdown as segments, with the link reference definitions of the page or the md value around it, by their labels as CommonMark matches them.
 fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
     let cs: list<text> = md_chars(value);
-    let n: int = cs.len();
+    let n: number = cs.len();
     mut pieces: list<md_piece> = [];
     mut brackets: list<md_bracket> = [];
     mut buf: text = "";
-    mut holes: int = 0;
-    mut skip: int = 0;
+    mut holes: number = 0;
+    mut skip: number = 0;
     for (i in 0..(n - 1)) {
         if (i >= skip) {
             let c: text = cs[i].or("");
@@ -48,8 +48,8 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     buf = "\{buf}\\";
                 }
             } else if (c == "`") {
-                let run: int = md_run(cs, i, "`");
-                let close: int = md_find_ticks(cs, i + run, run);
+                let run: number = md_run(cs, i, "`");
+                let close: number = md_find_ticks(cs, i + run, run);
                 if (close >= 0) {
                     md_flush(pieces, buf);
                     buf = "";
@@ -60,7 +60,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     skip = i + run;
                 }
             } else if (c == "$" && md_maths_opens(cs, i)) {
-                let close: int = md_maths_close(cs, i + 1);
+                let close: number = md_maths_close(cs, i + 1);
                 if (close > 0) {
                     let tex: template = md_template(cs, value, i + 1, close, holes);
                     if (let m: latex = latex.from(tex)) {
@@ -76,7 +76,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     buf = "\{buf}$";
                 }
             } else if (c == "*" || c == "_" || c == "~") {
-                let run: int = md_run(cs, i, c);
+                let run: number = md_run(cs, i, c);
                 let before: text = cs[i - 1].or(" ");
                 let after: text = cs[i + run].or(" ");
                 let left: bool = !md_is_space(after) && (!md_is_punct(after) || md_is_space(before) || md_is_punct(before));
@@ -102,7 +102,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     skip = i + run;
                 }
             } else if (c == "[" && next == "^" && md_note_end(cs, i) > 0) {
-                let end: int = md_note_end(cs, i);
+                let end: number = md_note_end(cs, i);
                 md_flush(pieces, buf);
                 buf = "";
                 pieces.add(md_piece { part = part.NOTE(md_join(cs, i + 2, end)) });
@@ -130,7 +130,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                 }
             } else if (c == "<") {
                 let auto: md_link = md_autolink(cs, i);
-                let html: int = md_html(cs, i);
+                let html: number = md_html(cs, i);
                 if (auto.end > 0) {
                     md_flush(pieces, buf);
                     buf = "";
@@ -171,11 +171,11 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     buf = "\{buf}\{c}";
                 }
             } else if (c == "@" && md_email_end(cs, i) > 0) {
-                let local: int = md_local_part(buf);
+                let local: number = md_local_part(buf);
                 if (local > 0) {
-                    let end: int = md_email_end(cs, i);
-                    let address: text = "\{buf.slice(buf.len() - local, local)}@\{md_join(cs, i + 1, end)}";
-                    md_flush(pieces, buf.slice(0, (buf.len() - local).clamp(0, buf.len())));
+                    let end: number = md_email_end(cs, i);
+                    let address: text = "\{buf.slice(md_pos(buf.len() - local), md_pos(local))}@\{md_join(cs, i + 1, end)}";
+                    md_flush(pieces, buf.slice(0, md_pos(buf.len() - local)));
                     buf = "";
                     pieces.add(md_piece { part = part.TEXT(address), marks = marks { link = "mailto:\{address}" } });
                     skip = end;
@@ -197,8 +197,8 @@ record md_piece {
     mut part: part;
     mut marks: marks = marks { };
     mut run: text = "";
-    mut left: int 0... = 0;
-    mut size: int 0... = 0;
+    mut left: number = 0;
+    mut size: number = 0;
     mut opens: bool = false;
     mut closes: bool = false;
     mut live: bool = false;
@@ -208,15 +208,15 @@ record md_piece {
 
 //@about An open bracket while links are read. Private to core
 record md_bracket {
-    at: int 0...;
+    at: number;
     image: bool;
-    start: int 0...;
+    start: number;
     mut active: bool = true;
 }
 
 //@about What reading a link, an autolink or an entity found: where it ends (0 for nothing), its destination and its text. Private to core
 record md_link {
-    end: int 0... = 0;
+    end: number = 0;
     dest: text = "";
     label: text = "";
 }
@@ -236,7 +236,16 @@ fn md_chars(value: template): list<text> {
 }
 
 // The characters from start up to end, not including it. Private to core
-fn md_join(cs: list<text>, start: int, end: int): text {
+// A position as core's text and list fns take it: a whole number, not below 0. Private to core
+fn md_pos(n: number): int 0... {
+    let r: int = n.round();
+    if (r in 0...) {
+        return r;
+    }
+    return 0;
+}
+
+fn md_join(cs: list<text>, start: number, end: number): text {
     mut out: text = "";
     for (k in start..(end - 1)) {
         out = "\{out}\{cs[k].or("")}";
@@ -245,8 +254,8 @@ fn md_join(cs: list<text>, start: int, end: int): text {
 }
 
 // How many times c repeats from at. Private to core
-fn md_run(cs: list<text>, at: int, c: text): int {
-    mut n: int = 0;
+fn md_run(cs: list<text>, at: number, c: text): number {
+    mut n: number = 0;
     mut going: bool = true;
     for (k in at..(cs.len() - 1)) {
         if (going && cs[k].or("") == c) {
@@ -259,8 +268,8 @@ fn md_run(cs: list<text>, at: int, c: text): int {
 }
 
 // The first character that isn't a space or a tab, from at. Private to core
-fn md_after_spaces(cs: list<text>, at: int): int {
-    mut k: int = at;
+fn md_after_spaces(cs: list<text>, at: number): number {
+    mut k: number = at;
     mut going: bool = true;
     for (j in at..(cs.len() - 1)) {
         if (going && (cs[j].or("") == " " || cs[j].or("") == "\t")) {
@@ -274,7 +283,7 @@ fn md_after_spaces(cs: list<text>, at: int): int {
 
 // The text without the spaces and tabs at its end. Private to core
 fn md_trim_end(s: text): text {
-    mut end: int = s.len();
+    mut end: number = s.len();
     let cs: list<text[1]> = s.chars();
     mut going: bool = true;
     for (k in (s.len() - 1)..0 step -1) {
@@ -284,7 +293,7 @@ fn md_trim_end(s: text): text {
             going = false;
         }
     }
-    return s.slice(0, end.clamp(0, s.len()));
+    return s.slice(0, md_pos(end));
 }
 
 // Unicode whitespace, as CommonMark's flanking rules read it; the ends count as space. Private to core
@@ -303,12 +312,12 @@ fn md_is_punct(c: text): bool {
 }
 
 // Where a closing run of exactly count backticks starts, after at; -1 for none. Private to core
-fn md_find_ticks(cs: list<text>, at: int, count: int): int {
-    mut found: int = -1;
-    mut k: int = at;
+fn md_find_ticks(cs: list<text>, at: number, count: number): number {
+    mut found: number = -1;
+    mut k: number = at;
     for (j in at..(cs.len() - 1)) {
         if (found < 0 && j >= k && cs[j].or("") == "`") {
-            let run: int = md_run(cs, j, "`");
+            let run: number = md_run(cs, j, "`");
             if (run == count) {
                 found = j;
             }
@@ -319,7 +328,7 @@ fn md_find_ticks(cs: list<text>, at: int, count: int): int {
 }
 
 // A code span's text: line breaks as spaces, and one space off each end when both have one. Private to core
-fn md_code_text(cs: list<text>, start: int, end: int): text {
+fn md_code_text(cs: list<text>, start: number, end: number): text {
     let raw: text = md_join(cs, start, end).replace("\n", " ");
     if (raw.len() >= 2 && raw.starts(" ") && raw.ends(" ") && raw.trim() != "") {
         return raw.slice(1, (raw.len() - 2).clamp(0, raw.len()));
@@ -328,14 +337,14 @@ fn md_code_text(cs: list<text>, start: int, end: int): text {
 }
 
 // An opening $ is followed by a character that is not a space. Private to core
-fn md_maths_opens(cs: list<text>, at: int): bool {
+fn md_maths_opens(cs: list<text>, at: number): bool {
     let next: text = cs[at + 1].or(" ");
     return next != " " && next != "\t" && next != "\n" && next != "$";
 }
 
 // The $ that closes maths opened before at, on the same line, or 0 for none. Private to core
-fn md_maths_close(cs: list<text>, at: int): int {
-    mut found: int = 0;
+fn md_maths_close(cs: list<text>, at: number): number {
+    mut found: number = 0;
     mut stop: bool = false;
     for (k in at..(cs.len() - 1)) {
         let c: text = cs[k].or("");
@@ -357,12 +366,12 @@ fn md_maths_close(cs: list<text>, at: int): int {
 }
 
 // The characters from start to end as a template, its holes taken in order from first. Private to core
-fn md_template(cs: list<text>, value: template, start: int, end: int, first: int): template {
+fn md_template(cs: list<text>, value: template, start: number, end: number, first: number): template {
     mut pieces: list<text> = [];
     mut holes: list<hole> = [];
     mut piece: text = "";
-    mut at: int = first;
-    mut skip: int = start;
+    mut at: number = first;
+    mut skip: number = start;
     for (k in start..(end - 1)) {
         let c: text = cs[k].or("");
         if (k >= skip) {
@@ -383,12 +392,13 @@ fn md_template(cs: list<text>, value: template, start: int, end: int, first: int
         }
     }
     pieces.add(piece);
-    return template { pieces = pieces, holes = holes };
+    // pieces starts as [""] and only grows
+    return (try template { pieces = pieces, holes = holes }).or(template.of(""));
 }
 
 // The ] that ends a footnote mark [^label] opened at at, or 0. Private to core
-fn md_note_end(cs: list<text>, at: int): int {
-    mut found: int = 0;
+fn md_note_end(cs: list<text>, at: number): number {
+    mut found: number = 0;
     mut stop: bool = false;
     for (k in (at + 2)..(cs.len() - 1)) {
         let c: text = cs[k].or("");
@@ -405,13 +415,13 @@ fn md_note_end(cs: list<text>, at: int): int {
 }
 
 // Whether a bare link may start here: at the start, or after a space or ( * _ ~. Private to core
-fn md_word_start(cs: list<text>, at: int): bool {
+fn md_word_start(cs: list<text>, at: number): bool {
     let before: text = cs[at - 1].or(" ");
     return md_is_space(before) || ["(", "*", "_", "~"].has(before);
 }
 
 // A bare link: www., http://, https:// or ftp://, up to a space or a <, without trailing punctuation. Private to core
-fn md_bare_link(cs: list<text>, at: int): md_link {
+fn md_bare_link(cs: list<text>, at: number): md_link {
     let head: text = md_join(cs, at, at + 8).lower();
     mut scheme: text = "";
     if (head.starts("www.")) {
@@ -419,7 +429,7 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
     } else if (!head.starts("http://") && !head.starts("https://") && !head.starts("ftp://")) {
         return md_link { };
     }
-    mut end: int = at;
+    mut end: number = at;
     mut stop: bool = false;
     for (k in at..(cs.len() - 1)) {
         let c: text = cs[k].or("");
@@ -432,7 +442,7 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
         }
     }
     // trailing punctuation is not part of the link, nor an unmatched )
-    mut cut: int = end;
+    mut cut: number = end;
     mut trimming: bool = true;
     for (k in (end - 1)..at step -1) {
         let c: text = cs[k].or("");
@@ -446,7 +456,7 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
     }
     // a trailing &name; looks like an entity, so it is not part of the link
     if (cs[cut - 1].or("") == ";") {
-        mut amp: int = -1;
+        mut amp: number = -1;
         mut ok: bool = true;
         for (k in (cut - 2)..at step -1) {
             let c: text = cs[k].or("");
@@ -463,7 +473,7 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
         }
     }
     let label: text = md_join(cs, at, cut);
-    let host: text = label.slice(scheme == "" ? label.split("://").first().or("").len() + 3 : 0, label.len());
+    let host: text = label.slice(md_pos(scheme == "" ? label.split("://").first().or("").len() + 3 : 0), label.len());
     let domain: text = host.split("/").first().or("");
     if (!domain.has(".") || domain.starts(".") || domain.ends(".") || domain.has("_")) {
         return md_link { };
@@ -472,9 +482,9 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
 }
 
 // How many characters at the end of the text could be an email address's local part. Private to core
-fn md_local_part(buf: text): int {
+fn md_local_part(buf: text): number {
     let cs: list<text[1]> = buf.chars();
-    mut n: int = 0;
+    mut n: number = 0;
     mut going: bool = true;
     for (k in (cs.len() - 1)..0 step -1) {
         if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.+-_".has(cs[k].or(" "))) {
@@ -487,8 +497,8 @@ fn md_local_part(buf: text): int {
 }
 
 // Where a bare email address's domain ends, after the @ at at: letters, digits, - and _, with a dot, and not ending in - or _; 0 for none. Private to core
-fn md_email_end(cs: list<text>, at: int): int {
-    mut end: int = at + 1;
+fn md_email_end(cs: list<text>, at: number): number {
+    mut end: number = at + 1;
     mut going: bool = true;
     for (k in (at + 1)..(cs.len() - 1)) {
         if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_".has(cs[k].or(" "))) {
@@ -509,8 +519,8 @@ fn md_email_end(cs: list<text>, at: int): int {
 }
 
 // How many times c appears from start up to end. Private to core
-fn md_count(cs: list<text>, start: int, end: int, c: text): int {
-    mut n: int = 0;
+fn md_count(cs: list<text>, start: number, end: number, c: text): number {
+    mut n: number = 0;
     for (k in start..(end - 1)) {
         if (cs[k].or("") == c) {
             n = n + 1;
@@ -520,8 +530,8 @@ fn md_count(cs: list<text>, start: int, end: int, c: text): int {
 }
 
 // An autolink <scheme:…> or <address@host>. Private to core
-fn md_autolink(cs: list<text>, at: int): md_link {
-    mut end: int = 0;
+fn md_autolink(cs: list<text>, at: number): md_link {
+    mut end: number = 0;
     mut stop: bool = false;
     for (k in (at + 1)..(cs.len() - 1)) {
         let c: text = cs[k].or("");
@@ -586,7 +596,7 @@ fn md_email(local: text, host: text): bool {
 }
 
 // Where raw HTML that starts at at ends: a tag, a comment, a processing instruction, a declaration or CDATA; 0 for none. Private to core
-fn md_html(cs: list<text>, at: int): int {
+fn md_html(cs: list<text>, at: number): number {
     let rest: text = md_join(cs, at, (at + 4).clamp(0, cs.len()));
     if (rest.starts("<!--")) {
         return md_html_until(cs, at + 4, "-->", at);
@@ -602,12 +612,12 @@ fn md_html(cs: list<text>, at: int): int {
     }
     let letters: text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let closing: bool = rest.starts("</");
-    let name_at: int = closing ? at + 2 : at + 1;
+    let name_at: number = closing ? at + 2 : at + 1;
     if (!letters.has(cs[name_at].or(" "))) {
         return 0;
     }
     // the tag's name, then attributes, then > or />, with no hole in it
-    mut name_end: int = name_at;
+    mut name_end: number = name_at;
     mut naming: bool = true;
     for (k in name_at..(cs.len() - 1)) {
         if (naming && ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-".has(cs[k].or(" ")))) {
@@ -621,7 +631,7 @@ fn md_html(cs: list<text>, at: int): int {
         return 0;
     }
     mut quote: text = "";
-    mut end: int = 0;
+    mut end: number = 0;
     mut bad: bool = false;
     for (k in name_at..(cs.len() - 1)) {
         let c: text = cs[k].or("");
@@ -651,8 +661,8 @@ fn md_html(cs: list<text>, at: int): int {
 }
 
 // Where text that started at start ends once close is found after from; 0 when it never is. Private to core
-fn md_html_until(cs: list<text>, from: int, close: text, start: int): int {
-    let n: int = close.len();
+fn md_html_until(cs: list<text>, from: number, close: text, start: number): number {
+    let n: number = close.len();
     for (k in from..(cs.len() - n)) {
         if (md_join(cs, k, k + n) == close) {
             return k + n > start ? k + n : 0;
@@ -662,8 +672,8 @@ fn md_html_until(cs: list<text>, from: int, close: text, start: int): int {
 }
 
 // An entity: &name; from HTML5's list, or a numeric one, which stays as written. Private to core
-fn md_entity(cs: list<text>, at: int): md_link {
-    mut end: int = 0;
+fn md_entity(cs: list<text>, at: number): md_link {
+    mut end: number = 0;
     mut stop: bool = false;
     for (k in (at + 1)..((at + 40).clamp(0, cs.len() - 1))) {
         let c: text = cs[k].or("");
@@ -714,9 +724,9 @@ fn md_flush(mut pieces: list<md_piece>, buf: text) {
 
 // Takes the last bracket off; for a link, every bracket before it can no longer make one. Private to core
 fn md_drop_bracket(mut brackets: list<md_bracket>, link: bool) {
-    let last: int = brackets.len() - 1;
+    let last: number = brackets.len() - 1;
     if (last in 0...) {
-        brackets.remove_at(last);
+        brackets.remove_at(md_pos(last));
     }
     if (link) {
         mut for (b in brackets) {
@@ -730,7 +740,7 @@ fn md_drop_bracket(mut brackets: list<md_bracket>, link: bool) {
 }
 
 // What a ] at at closes: an inline link, a reference, or nothing (end 0). Private to core
-fn md_close_bracket(cs: list<text>, at: int, brackets: list<md_bracket>, links: map<text>): md_link {
+fn md_close_bracket(cs: list<text>, at: number, brackets: list<md_bracket>, links: map<text>): md_link {
     if (let b: md_bracket = brackets.last()) {
         if (!b.active) {
             return md_link { };
@@ -744,7 +754,7 @@ fn md_close_bracket(cs: list<text>, at: int, brackets: list<md_bracket>, links: 
         }
         // a full reference [text][label], a collapsed one [text][], or a shortcut [text]
         if (cs[at + 1].or("") == "[") {
-            mut close: int = 0;
+            mut close: number = 0;
             mut stop: bool = false;
             for (k in (at + 2)..(cs.len() - 1)) {
                 let c: text = cs[k].or("");
@@ -782,11 +792,11 @@ fn md_label(s: text): text {
 }
 
 // An inline link's (destination "title"), from just after its (. Private to core
-fn md_inline_link(cs: list<text>, from: int): md_link {
-    mut k: int = md_after_blank(cs, from);
+fn md_inline_link(cs: list<text>, from: number): md_link {
+    mut k: number = md_after_blank(cs, from);
     mut dest: text = "";
     if (cs[k].or("") == "<") {
-        mut close: int = 0;
+        mut close: number = 0;
         mut stop: bool = false;
         mut escaped: bool = false;
         for (j in (k + 1)..(cs.len() - 1)) {
@@ -809,8 +819,8 @@ fn md_inline_link(cs: list<text>, from: int): md_link {
         dest = md_unescape(md_join(cs, k + 1, close));
         k = close + 1;
     } else {
-        mut depth: int = 0;
-        mut end: int = k;
+        mut depth: number = 0;
+        mut end: number = k;
         mut stop: bool = false;
         mut escaped: bool = false;
         for (j in k..(cs.len() - 1)) {
@@ -845,12 +855,12 @@ fn md_inline_link(cs: list<text>, from: int): md_link {
         dest = md_unescape(md_join(cs, k, end));
         k = end;
     }
-    let before_title: int = k;
+    let before_title: number = k;
     k = md_after_blank(cs, k);
     let q: text = cs[k].or("");
     if (k > before_title && (q == "\"" || q == "'" || q == "(")) {
         let close: text = q == "(" ? ")" : q;
-        mut end: int = 0;
+        mut end: number = 0;
         mut stop: bool = false;
         for (j in (k + 1)..(cs.len() - 1)) {
             let c: text = cs[j].or("");
@@ -874,10 +884,10 @@ fn md_inline_link(cs: list<text>, from: int): md_link {
 }
 
 // After spaces, tabs and at most one line break. Private to core
-fn md_after_blank(cs: list<text>, at: int): int {
-    mut k: int = at;
+fn md_after_blank(cs: list<text>, at: number): number {
+    mut k: number = at;
     mut going: bool = true;
-    mut lines: int = 0;
+    mut lines: number = 0;
     for (j in at..(cs.len() - 1)) {
         let c: text = cs[j].or("");
         if (going && (c == " " || c == "\t" || (c == "\n" && lines == 0))) {
@@ -896,7 +906,7 @@ fn md_after_blank(cs: list<text>, at: int): int {
 fn md_unescape(s: text): text {
     let cs: list<text> = s.chars();
     mut out: text = "";
-    mut skip: int = 0;
+    mut skip: number = 0;
     for (k, c in cs) {
         if (k >= skip) {
             if (c == "\\" && md_is_ascii_punct(cs[k + 1].or(""))) {
@@ -960,17 +970,17 @@ fn md_make_link(mut pieces: list<md_piece>, b: md_bracket, found: md_link) {
 }
 
 // CommonMark's emphasis: each closing run, in order, finds the nearest run that can open it. Private to core
-fn md_emphasis(mut pieces: list<md_piece>, bottom: int) {
-    let n: int = pieces.len();
+fn md_emphasis(mut pieces: list<md_piece>, bottom: number) {
+    let n: number = pieces.len();
     for (c in bottom..(n - 1)) {
         // a closer may close several openers, two characters at a time
         for (round in 0..32) {
             let closer: md_piece = pieces[c].or(md_piece { part = part.BREAK });
             if (closer.live && closer.closes && closer.left > 0) {
-                let o: int = md_opener(pieces, bottom, c);
+                let o: number = md_opener(pieces, bottom, c);
                 if (o >= 0) {
                     let opener: md_piece = pieces[o].or(md_piece { part = part.BREAK });
-                    mut used: int = closer.left >= 2 && opener.left >= 2 ? 2 : 1;
+                    mut used: number = closer.left >= 2 && opener.left >= 2 ? 2 : 1;
                     if (closer.run == "~") {
                         used = closer.left;
                     }
@@ -1019,7 +1029,7 @@ fn md_emphasis(mut pieces: list<md_piece>, bottom: int) {
 }
 
 // The nearest run before c that can open it, or -1. Private to core
-fn md_opener(pieces: list<md_piece>, bottom: int, c: int): int {
+fn md_opener(pieces: list<md_piece>, bottom: number, c: number): number {
     if (let closer: md_piece = pieces[c]) {
         for (k in (c - 1)..bottom step -1) {
             if (let x: md_piece = pieces[k]) {
