@@ -1,0 +1,14 @@
+{
+  "name": "@mkp/test-target",
+  "version": "0.3.0",
+  "private": true,
+  "description": "MKP's test target: @mkp/runtime with no screen, fixed-size layout and switchable defects, for the target checks",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/runtime": "file:../runtime"
+  }
+}
