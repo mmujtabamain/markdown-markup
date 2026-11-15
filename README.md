@@ -10,14 +10,14 @@ This repository holds only the syntax for now. The implementation starts again f
 
 | Page | What it covers |
 |---|---|
-| [1 Overview](spec/01-overview.md) | The rules, the words, the two kinds of file, and how a document is read |
-| [2 Values and types](spec/02-values-and-types.md) | Records, enums, constants and `mut`, optional values, numbers, contracts and proofs, and what a fn may change |
-| [3 Widgets](spec/03-widgets.md) | Declaring and calling widgets, slots, events, views, loops and where variables live |
-| [4 Interfaces](spec/04-interfaces.md) | Structural interfaces, the standard ones, literals for your own types, and generics |
-| [5 Standard library](spec/05-standard-library.md) | What is built in, and all of `core`: types, text, dates, maths, Markdown, tokens and widgets |
-| [6 Apps, packs and implementers](spec/06-apps-packs-implementers.md) | Packs and imports, tokens, talking to the app, levels, failures and limits |
-| [7 Examples](spec/07-examples.md) | Whole widgets and a whole document |
-| [8 Open questions](spec/08-open-questions.md) | What this version decided, and what was left for later |
-| [9 Grammar](spec/09-grammar.md) | The grammar of files, documents and prose |
+| [1 Overview](docs/specs/01-overview.md) | The rules, the words, the two kinds of file, and how a document is read |
+| [2 Values and types](docs/specs/02-values-and-types.md) | Records, enums, constants and `mut`, optional values, numbers, contracts and proofs, and what a fn may change |
+| [3 Widgets](docs/specs/03-widgets.md) | Declaring and calling widgets, slots, events, views, loops and where variables live |
+| [4 Interfaces](docs/specs/04-interfaces.md) | Structural interfaces, the standard ones, literals for your own types, and generics |
+| [5 Standard library](docs/specs/05-standard-library.md) | What is built in, and all of `core`: types, text, dates, maths, Markdown, tokens and widgets |
+| [6 Apps, packs and implementers](docs/specs/06-apps-packs-implementers.md) | Packs and imports, tokens, talking to the app, levels, failures and limits |
+| [7 Examples](docs/specs/07-examples.md) | Whole widgets and a whole document |
+| [8 Open questions](docs/specs/08-open-questions.md) | What this version decided, and what was left for later |
+| [9 Grammar](docs/specs/09-grammar.md) | The grammar of files, documents and prose |
 
 These pages are the syntax as of its ninth review round. The decisions of the tenth round are applied on top of them, one commit at a time.
