@@ -1,0 +1,44 @@
+package t;
+
+widget tab(title: text) {
+    slot body: view;
+    view {
+        @label(value = title);
+    }
+    markdown {
+        \\{title}
+    }
+}
+
+widget tabs() {
+    slot panels: list<tab>[1..2];
+    view {
+        for (p in panels) {
+            @p;
+        }
+    }
+    markdown {
+        Tabs
+    }
+}
+
+widget page(more: bool) {
+    view {
+        @tabs {
+            @tab(title = "A") {
+                @label(value = "a");
+            }
+            if (more) {
+                @tab(title = "B") {
+                    @label(value = "b");
+                }
+            }
+        }
+        @tabs {
+            @label(value = "not a tab");
+        }
+    }
+    markdown {
+        Page
+    }
+}

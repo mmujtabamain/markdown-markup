@@ -1,0 +1,44 @@
+package t;
+
+widget tab(title: text) {
+    slot body: view;
+    view {
+        @label(value = title);
+    }
+    markdown {
+        \\{title}
+    }
+}
+
+widget tabs() {
+    slot panels: list<tab>[1..2];
+    view {
+        for (p in panels) {
+            @p;
+        }
+    }
+    markdown {
+        Tabs
+    }
+}
+
+widget page() {
+    view {
+        @tabs {
+            @tab(title = "A") {
+                @label(value = "a");
+            }
+            @tab(title = "B") {
+                @label(value = "b");
+            }
+            @tab(title = "C") {
+                @label(value = "c");
+            }
+        }
+        @tabs {
+        }
+    }
+    markdown {
+        Page
+    }
+}
