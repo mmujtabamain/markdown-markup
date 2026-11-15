@@ -7,6 +7,7 @@
 
 mod body;
 mod decl;
+mod effects;
 mod fit;
 mod passes;
 pub mod proof;
@@ -61,6 +62,12 @@ pub mod codes {
     pub const OUTSIDE: &str = "contracts.outside";
     pub const LENGTH_CHANGE: &str = "contracts.length-change";
     pub const BOUND_NOT_CONSTANT: &str = "contracts.bound-not-constant";
+    pub const WRITE_IN_VALUE: &str = "effects.write-where-nothing-changes";
+    pub const ACTION_CALL: &str = "effects.action-where-nothing-changes";
+    pub const MUT_PARAM: &str = "effects.mut-parameter-on-value-fn";
+    pub const LAMBDA_OUTER: &str = "effects.lambda-writes-outer-local";
+    pub const FOR_CHANGES: &str = "effects.for-changes-its-list";
+    pub const ONE_MUT: &str = "effects.one-value-one-mut";
     pub const INLINE_REFUSED: &str = "prose.inline-refused";
 }
 
@@ -294,6 +301,8 @@ pub struct Checker {
     pub known_at: HashMap<(usize, u32, u32), proof::Known>,
     /// Contract bounds that name a constant or work one out, checked with the constants.
     pub bound_checks: Vec<(usize, Span, ir::Expr)>,
+    /// What each action changes, for calls from where nothing may change.
+    pub effects: effects::Effects,
 }
 
 impl Checker {
@@ -326,6 +335,7 @@ impl Checker {
             proofs: Vec::new(),
             known_at: HashMap::new(),
             bound_checks: Vec::new(),
+            effects: effects::Effects::default(),
         }
     }
 

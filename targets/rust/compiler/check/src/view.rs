@@ -142,6 +142,7 @@ impl Checker {
                 if !f.mutable {
                     self.loop_known(cx, &f.over, f.key.as_ref(), &f.name);
                 }
+                self.begin_walk(cx, f.mutable, &f.over, &f.name);
                 let body = self.view_nodes(cx, &f.body);
                 cx.pop();
                 vec![ir::Node::For(ir::NodeFor { mutable: f.mutable, name: f.name.name.clone(), position: f.key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over, key, site, body })]
@@ -438,10 +439,14 @@ impl Checker {
                     let mut c = cx.clone();
                     c.push();
                     for p in &s.params {
-                        c.scopes.last_mut().unwrap().push(body::Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
+                        c.scopes.last_mut().unwrap().push(body::Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)), own_origin: false });
                     }
                     c.ret = Some(s.ret.clone());
                     c.ret_ir = s.ret_ir.clone();
+                    c.action = s.ret.is_none();
+                    c.fn_id = Some(id);
+                    c.fn_depth = c.scopes.len() - 1;
+                    self.check_value_fn_params(file, &f.sig);
                     let b = self.block(&mut c, f.body.as_ref().unwrap());
                     fns.push(ir::FnDecl {
                         name: s.full.clone(),
@@ -594,6 +599,7 @@ impl Checker {
                             if !*mutable {
                                 self.loop_known(cx, over, key.as_ref(), name);
                             }
+                            self.begin_walk(cx, *mutable, over, name);
                             let b = self.prose_nodes(cx, body);
                             cx.pop();
                             out.push(ir::Node::For(ir::NodeFor { mutable: *mutable, name: name.name.clone(), position: key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over: o, key: ir::NodeForKey::Item, site, body: b }));

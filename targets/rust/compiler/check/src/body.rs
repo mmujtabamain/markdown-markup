@@ -23,6 +23,8 @@ pub struct Local {
     pub kind: LocalKind,
     /// What is known of its value: its declared type, and proofs that hold where it is read.
     pub known: Option<Known>,
+    /// A `mut for` or `if (mut …)` variable opened from the fn's own locals or `mut` parameters.
+    pub own_origin: bool,
 }
 
 /// The widget whose code is being checked.
@@ -58,11 +60,19 @@ pub struct Cx {
     pub trying: bool,
     /// Proofs that hold from a scope down: `if (n in 0..100)`, at the depth of its block.
     pub facts: Vec<(usize, String, Known)>,
+    /// In an action (a fn or lambda with no return type, an exposed fn): it may change things.
+    pub action: bool,
+    /// The first scope of the fn or lambda being checked: locals from here on are its own.
+    pub fn_depth: usize,
+    /// The fn being checked, for what its body changes.
+    pub fn_id: Option<usize>,
+    /// The plain `for` loops around: their depth, variable, and the list they walk.
+    pub walking: Vec<(usize, String, Option<String>)>,
 }
 
 impl Cx {
     pub fn new(file: usize) -> Cx {
-        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false, ret_ir: None, trying: false, facts: Vec::new() }
+        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false, ret_ir: None, trying: false, facts: Vec::new(), action: false, fn_depth: 0, fn_id: None, walking: Vec::new() }
     }
 
     pub fn push(&mut self) {
@@ -73,6 +83,12 @@ impl Cx {
         self.scopes.pop();
         let depth = self.scopes.len();
         self.facts.retain(|f| f.0 <= depth);
+        self.walking.retain(|w| w.0 <= depth);
+    }
+
+    /// A local with the index of the scope it is in.
+    pub fn local_at(&self, name: &str) -> Option<(usize, &Local)> {
+        self.scopes.iter().enumerate().rev().find_map(|(k, s)| s.iter().rev().find(|l| l.name == name).map(|l| (k, l)))
     }
 
     pub fn local(&self, name: &str) -> Option<&Local> {
@@ -103,7 +119,7 @@ impl Checker {
         if cx.local(&name.name).is_some() || self.visible_value(cx, &name.name) {
             self.error(cx.file, codes::SHADOWING, name.span, format!("`{}` is already a visible name: a declaration can't reuse it", name.name));
         }
-        cx.scopes.last_mut().unwrap().push(Local { name: name.name.clone(), ty, mutable, kind, known: None });
+        cx.scopes.last_mut().unwrap().push(Local { name: name.name.clone(), ty, mutable, kind, known: None, own_origin: false });
     }
 
     /// Whether a name is a value outside the locals: an input, a cell, a slot or a file's name.
@@ -787,6 +803,8 @@ impl Checker {
         inner.push();
         // a lambda's own return; its parameters' contracts are read where it is called
         inner.ret_ir = None;
+        inner.fn_depth = inner.scopes.len() - 1;
+        inner.fn_id = None;
         let mut params = Vec::new();
         let mut ptys = Vec::new();
         for (k, p) in l.params.iter().enumerate() {
@@ -820,6 +838,8 @@ impl Checker {
             },
         };
         inner.ret = Some(ret.clone());
+        // a lambda with no return type is an action, as a fn with none is
+        inner.action = ret.is_none();
         let body = self.block(&mut inner, &l.body);
         let ret_ir = ret.as_ref().map(|r| self.ir_ty(r));
         (ir::Expr::Fn(Box::new(ir::Lambda { params, returns: ret_ir, body })), Ty::Fn(ptys, ret.map(Box::new)))
@@ -927,6 +947,9 @@ impl Checker {
             }
             return (ir::Expr::Num("0".into()), Ty::Err);
         };
+        if ret.is_none() {
+            self.check_apply_action(cx, span);
+        }
         if ps.len() != args.len() {
             self.error(file, codes::ARGUMENTS, span, format!("this fn takes {} argument(s), and {} are given", ps.len(), args.len()));
         }
@@ -1008,6 +1031,26 @@ impl Checker {
                 self.want(cx, &a.value, &x, &p.ir, format!("`{}`'s `{}`", s.name, p.name));
                 out.push(x);
             }
+        }
+        // an action: where it may be called, and what it writes
+        if s.ret.is_none() {
+            let mut targets: Vec<&ast::Expr> = Vec::new();
+            if let (Some(r), Some(p)) = (recv_src, s.params.first()) {
+                if p.is_self && p.mutable {
+                    targets.push(r);
+                }
+            }
+            for (p, a) in rest.iter().zip(args.iter()) {
+                if p.mutable {
+                    targets.push(&a.value);
+                }
+            }
+            self.check_action_call(cx, f, &targets, span);
+            let mut all: Vec<&ast::Expr> = args.iter().map(|a| &a.value).collect();
+            if let Some(r) = recv_src {
+                all.push(r);
+            }
+            self.check_one_mut(cx, &targets, &all);
         }
         // add, insert and the removes change a list's length: not for a list with a length contract
         if matches!(s.full.as_str(), "core/list.add" | "core/list.insert" | "core/list.remove" | "core/list.remove_at" | "core/list.remove_where") {
@@ -1139,6 +1182,7 @@ impl Checker {
                 ir::Stmt::Return(ir::StmtReturn { value })
             }
             S::Invoke { name, args } => {
+                self.check_invoke(cx, name.span);
                 let ev = cx.widget.as_ref().and_then(|w| w.events.iter().find(|e| e.name == name.name).cloned());
                 let Some(ev) = ev else {
                     self.error(file, codes::UNKNOWN_NAME, name.span, format!("there is no event `{}` here", name.name));
@@ -1175,6 +1219,7 @@ impl Checker {
                 if !f.mutable {
                     self.loop_known(cx, &f.over, f.key.as_ref(), &f.name);
                 }
+                self.begin_walk(cx, f.mutable, &f.over, &f.name);
                 let body = self.block(cx, &f.body);
                 cx.pop();
                 ir::Stmt::For(ir::StmtFor { mutable: f.mutable, name: f.name.name.clone(), position: f.key.as_ref().map(|k| k.name.clone()), ty: self.ir_ty(&item), over, body })
@@ -1216,6 +1261,7 @@ impl Checker {
                     return Vec::new();
                 };
                 let (x, _) = self.expr(cx, value, Some(&t));
+                self.check_write(cx, place);
                 // every write needs the same proof: `level = (level + 1).clamp(0, 10);`
                 if let Some(w) = self.place_ir(cx, place) {
                     self.want(cx, value, &x, &w, "this place");
@@ -1250,6 +1296,10 @@ impl Checker {
                 self.declare_local(cx, name, t.clone(), *mutable, if *mutable { LocalKind::OpenMut } else { LocalKind::Plain });
                 let declared = self.ir_type(file, ty, &cx.generics.clone());
                 crate::proof::set_known(cx, &name.name, Known::of(&declared));
+                if *mutable {
+                    let own = self.root_of(cx, value).is_own();
+                    crate::effects::set_own_origin(cx, &name.name, own);
+                }
                 ir::Cond::Open(ir::CondOpen { mutable: *mutable, name: name.name.clone(), ty: self.ir_ty(&t), opt })
             }
         }

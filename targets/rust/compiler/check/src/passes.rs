@@ -20,9 +20,19 @@ impl Checker {
             cx.bounds = s.generics.clone();
             cx.ret = Some(s.ret.clone());
             cx.ret_ir = s.ret_ir.clone();
+            cx.action = s.ret.is_none();
+            cx.fn_id = Some(f);
+            // a document's own fns read and (as actions) write its $state
+            if self.state.as_ref().map_or(false, |(file, _)| *file == s.file) {
+                cx.state = self.state_fields();
+            }
+            cx.fn_depth = cx.scopes.len();
+            if let Some(sig) = &s.sig {
+                self.check_value_fn_params(s.file, sig);
+            }
             cx.push();
             for p in &s.params {
-                cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
+                cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)), own_origin: false });
             }
             let b = self.block(&mut cx, body);
             self.out.fn_bodies.insert(f, b);
@@ -53,7 +63,7 @@ impl Checker {
                             cx.ret = Some(Some(Ty::Bool));
                             cx.push();
                             for fl in &fields {
-                                cx.scopes.last_mut().unwrap().push(Local { name: fl.name.clone(), ty: fl.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&fl.ir)) });
+                                cx.scopes.last_mut().unwrap().push(Local { name: fl.name.clone(), ty: fl.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&fl.ir)), own_origin: false });
                             }
                             let b = self.block(&mut cx, &req.body);
                             rules.push(ir::Require { message: text_of(&req.message), reads: Vec::new(), body: b });
@@ -99,6 +109,7 @@ impl Checker {
         }
         self.state_and_expose();
         self.document();
+        self.settle_effects();
         self.constants();
     }
 
@@ -175,10 +186,13 @@ impl Checker {
                 let mut cx = Cx::new(file);
                 cx.state = fields.clone();
                 cx.ret = Some(None);
+                // the app calls an exposed fn: an action
+                cx.action = true;
+                cx.fn_depth = cx.scopes.len();
                 cx.push();
                 let ps = self.params(file, &f.sig.params, &[], &Ty::Err, &ir::Type::named("T"));
                 for p in &ps {
-                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)) });
+                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)), own_origin: false });
                 }
                 let body = f.body.as_ref().map(|b| self.block(&mut cx, b)).unwrap_or_default();
                 fns.push(ir::ExposeFns { name: f.sig.name.name.clone(), params: ps.iter().map(|p| ir::Param { name: p.name.clone(), ty: p.ir.clone(), mutable: false }).collect(), body });
