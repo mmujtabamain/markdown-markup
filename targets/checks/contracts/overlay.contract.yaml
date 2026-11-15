@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/overlay (core/controls.mkp): content shown over the page, opened from its anchor. open is
+# `mut`: the adapter binds it to $state, and each write is reported as writeOpen. The anchor slot
+# holds a label here, so the anchor itself is the trigger (role=button, focusable). @mkp/dom
+# draws the body as a popover <div> (POPOVER, MENU, TOOLTIP) or a <dialog> (DIALOG).
+id: core.overlay
+
+props:
+  label:  { type: string, default: "More" }
+  mode:   { type: string, enum: [POPOVER, TOOLTIP, DIALOG, MENU], default: POPOVER }
+  open:   { type: boolean, default: false }
+  anchor: { type: string, default: "More" }       # its anchor slot: a label with this text
+  body:   { type: string, default: "The rest" }   # its body slot: a label with this text
+
+events:
+  openChanged: {}
+  writeOpen:                        # a write to the mut input open
+    value: { type: boolean }
+
+parts:
+  overlay: { role: generic }
+  anchor:  { role: button }         # overlay.anchor: the trigger
+  # overlay.body: role dialog (tooltip for TOOLTIP), named by label. Neither role is in omnicui's
+  # role table: declared status, so its name is checked
+  body:    { role: status }
+
+tests:
+  - name: closed, its anchor is a button and its body is hidden
+    expect:
+      - { part: anchor, role: button, name: "More", text: "More", visible: true }
+      - { part: overlay, text: "More" }
+      - { part: body, visible: false }
+
+  - name: a press on the anchor opens it, named by its label
+    steps:
+      - { action: press, part: anchor }
+    expect:
+      - { part: body, visible: true, name: "More", text: "The rest" }
+      - { event: writeOpen, times: 1, last: { value: true } }
+      - { event: openChanged, times: 1 }
+
+  - name: a second press closes it
+    steps:
+      - { action: press, part: anchor, times: 2 }
+    expect:
+      - { part: body, visible: false }
+      - { event: writeOpen, times: 2, last: { value: false } }
+      - { event: openChanged, times: 2 }
+
+  - name: Enter opens it from the keyboard
+    steps:
+      - { action: focus, part: anchor }
+      - { action: key, part: anchor, key: Enter }
+    expect:
+      - { part: body, visible: true, name: "More" }
+      - { event: writeOpen, times: 1, last: { value: true } }
+
+  - name: Escape closes it, and the focus stays on its anchor
+    steps:
+      - { action: focus, part: anchor }
+      - { action: key, part: anchor, key: Space }
+      - { action: key, part: anchor, key: Escape }
+    expect:
+      - { part: body, visible: false }
+      - { part: anchor, focused: true }
+      - { event: writeOpen, times: 2, last: { value: false } }
+      - { event: openChanged, times: 2 }
+
+  - name: open when the caller says so
+    props: { open: true, label: "Details", body: "All of them" }
+    expect:
+      - { part: body, visible: true, name: "Details", text: "All of them" }
+      - { event: writeOpen, times: 0 }
+
+  - name: a dialog opens from its anchor, and Escape closes it
+    props: { mode: DIALOG, label: "Settings" }
+    steps:
+      - { action: press, part: anchor }
+    expect:
+      - { part: body, visible: true, name: "Settings", text: "The rest" }
+      - { event: writeOpen, times: 1, last: { value: true } }
+
+  - name: Escape closes a dialog, and the focus goes back to its anchor
+    props: { mode: DIALOG }
+    steps:
+      - { action: focus, part: anchor }
+      - { action: key, part: anchor, key: Enter }
+      - { action: key, part: anchor, key: Escape }
+    expect:
+      - { part: body, visible: false }
+      - { part: anchor, focused: true }
+      - { event: writeOpen, times: 2, last: { value: false } }
+
+  - name: a menu opens from its anchor, named by its label
+    props: { mode: MENU, label: "Actions" }
+    steps:
+      - { action: press, part: anchor }
+    expect:
+      - { part: body, visible: true, name: "Actions", text: "The rest" }
+      - { event: writeOpen, times: 1, last: { value: true } }
+
+  - name: a tooltip shows while the pointer is on its anchor
+    props: { mode: TOOLTIP, label: "Help", anchor: "?", body: "What this does" }
+    steps:
+      - { action: hover, part: anchor }
+    expect:
+      - { part: body, visible: true, name: "Help", text: "What this does" }
+      - { event: writeOpen, times: 1, last: { value: true } }
+
+keyboard:  true                     # Enter and Space on the anchor do what a press does
+viewports: [{ width: 480, height: 320 }]

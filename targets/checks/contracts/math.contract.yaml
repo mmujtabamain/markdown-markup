@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/math (core/blocks.mkp): maths on a line of its own, drawn from TeX. @mkp/dom draws a
+# div[role=math] holding MathML, with the TeX as its accessible name.
+id: core.math
+
+props:
+  tex: { type: string, default: "x^2 + y^2 = r^2" }
+
+parts:
+  # role math, which omnicui's role table doesn't have: declared status, a role whose name a
+  # test can read, so its name is checked and its role isn't
+  math: { role: status }
+
+tests:
+  - name: named by its TeX
+    expect:
+      - { part: math, name: "x^2 + y^2 = r^2", visible: true }
+
+  - name: a fraction is drawn, and named by its TeX
+    props: { tex: "\\frac{a}{b}" }
+    expect:
+      - { part: math, name: "\\frac{a}{b}", text: { matches: "[a𝑎][\\s\\S]*[b𝑏]" } }
+
+viewports: [{ width: 480, height: 240 }]

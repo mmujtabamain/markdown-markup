@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/place (core/gfx.mkp): ordinary widgets placed at a point of the canvas. Mounted in a
+# core/canvas (x and y -1..1) and a layer; its child slot holds a label. @mkp/dom draws an SVG
+# <foreignObject> at the point, holding a box moved by its anchor and nudge.
+id: core.place
+
+props:
+  at:      { type: string, default: '{"x": 0, "y": 0}' }      # a point, as JSON
+  anchor:  { type: string, enum: [CENTER, N, S, E, W, NE, NW, SE, SW], default: CENTER }
+  nudge:   { type: string, default: '{"x": 0, "y": 0}' }      # a point, in pixels, y up
+  opacity: { type: number, default: 1 }
+  label:   { type: string, default: "" }
+  child:   { type: string, default: "Here" }                  # its child slot: a label with this text
+
+parts:
+  place: { role: generic }
+  # place.box: role group named by label when it has one, which omnicui's role table doesn't
+  # have: declared status so its name is checked
+  box:   { role: status }
+
+tests:
+  - name: it shows its child at its point
+    expect:
+      - { part: box, text: "Here", visible: true }
+      - { part: place, visible: true }
+
+  - name: with a label, a group named by it
+    props: { label: "the middle", anchor: SW, child: "Middle" }
+    expect:
+      - { part: box, name: "the middle", text: "Middle", visible: true }
+
+viewports: [{ width: 480, height: 400 }]

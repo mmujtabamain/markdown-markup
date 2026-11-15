@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/bullets (core/blocks.mkp): a list, bulleted, or numbered from start. @mkp/dom draws a <ul>,
+# or an <ol> with start, holding its items (core/item, each an <li>).
+id: core.bullets
+
+props:
+  ordered: { type: boolean, default: false }
+  start:   { type: integer, default: 1 }
+  # the items slot, as JSON: a list of texts, each an item holding a paragraph
+  items:   { type: string, default: '["Tea", "Cake"]' }
+
+parts:
+  # Chromium's roles here are list and listitem, which omnicui's role table doesn't have
+  bullets:   { role: generic }
+  ordered:   { role: generic }      # the list, only while it is an <ol>
+  unordered: { role: generic }      # the list, only while it is a <ul>
+  item1:     { role: generic }      # the first item
+  item2:     { role: generic }
+  item3:     { role: generic }
+
+tests:
+  - name: an item for each, in order, bulleted
+    expect:
+      - { part: bullets, visible: true }
+      - { part: unordered, visible: true }
+      - { part: ordered, visible: false }
+      - { part: item1, text: "Tea" }
+      - { part: item2, text: "Cake" }
+      - { part: item3, visible: false }
+
+  - name: numbered when ordered
+    props: { ordered: true, start: 3, items: '["First", "Second", "Third"]' }
+    expect:
+      - { part: ordered, visible: true }
+      - { part: unordered, visible: false }
+      - { part: item1, text: "First" }
+      - { part: item3, text: "Third" }
+
+viewports: [{ width: 480, height: 240 }]

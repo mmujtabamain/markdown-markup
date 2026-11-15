@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/spot (core/layout.mkp): any widget at a point of a plane; anchor says which part of it sits
+# on the point. box is `mut`: the adapter binds it to $state, and the box it lands in, written
+# after each layout (the first, while mounting, included), is reported as writeBox. Mounted in a
+# core/plane 320 by 160; its child slot holds a label. @mkp/dom draws a <div> at its point.
+id: core.spot
+
+props:
+  at:     { type: string, default: '{"x": 0, "y": 0}' }    # a point, as JSON
+  anchor: { type: string, enum: [CENTER, N, S, E, W, NE, NW, SE, SW], default: CENTER }
+  nudge:  { type: string, default: '{"x": 0, "y": 0}' }    # a point, in the page's lengths, y up
+  child:  { type: string, default: "Home" }                # its child slot: a label with this text
+
+events:
+  writeBox:                         # where it landed, from its bottom-left corner to its top-right one
+    valueFromX: { type: number }
+    valueFromY: { type: number }
+    valueToX:   { type: number }
+    valueToY:   { type: number }
+
+parts:
+  spot:  { role: generic }
+  label: { role: generic }          # its child
+
+tests:
+  - name: it shows its child on the plane
+    expect:
+      - { part: spot, text: "Home", visible: true }
+      - { part: label, text: "Home" }
+
+  - name: anchored south-west, its box starts at its point
+    props: { at: '{"x": 20, "y": 10}', anchor: SW }
+    expect:
+      - { event: writeBox, times: 1, last: { valueFromX: 20, valueFromY: 10 } }
+
+  - name: anchored north-east, its box ends at its point, nudged
+    props: { at: '{"x": 20, "y": 10}', anchor: NE, nudge: '{"x": 5, "y": -5}' }
+    expect:
+      - { event: writeBox, times: 1, last: { valueToX: 25, valueToY: 5 } }
+
+viewports: [{ width: 480, height: 320 }]

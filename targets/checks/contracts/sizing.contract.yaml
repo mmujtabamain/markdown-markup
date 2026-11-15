@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/sizing (core/layout.mkp): how big a child is, for implementers. Mounted in a core/flex row;
+# its child slot holds a label. @mkp/dom draws the flex item <div> its sizes are set on.
+id: core.sizing
+
+props:
+  grow:      { type: number }
+  shrink:    { type: number }
+  basis:     { type: string, enum: [XS, S, M, L] }
+  minWidth:  { type: string, enum: [XS, S, M, L] }
+  minHeight: { type: string, enum: [XS, S, M, L] }
+  maxWidth:  { type: string, enum: [XS, S, M, L] }
+  maxHeight: { type: string, enum: [XS, S, M, L] }
+  aspect:    { type: number }
+  child:     { type: string, default: "Sized" }   # its child slot: a label with this text
+
+parts:
+  sizing: { role: generic }
+  label:  { role: generic }         # its child
+
+tests:
+  - name: it shows its child
+    expect:
+      - { part: sizing, text: "Sized", visible: true }
+      - { part: label, text: "Sized" }
+
+  - name: grown, with limits, it still shows its child
+    props: { grow: 1, shrink: 0, basis: XS, minWidth: XS, maxWidth: S, child: "Grown" }
+    expect:
+      - { part: sizing, text: "Grown", visible: true }
+
+viewports: [{ width: 320, height: 240 }]

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/cell (core/layout.mkp): where a child sits in a grid. Mounted in a core/grid of two equal
+# columns; its child slot holds a label. @mkp/dom draws a grid item <div>.
+id: core.cell
+
+props:
+  span:  { type: integer, default: 1 }
+  row:   { type: integer }
+  col:   { type: integer }
+  place: { type: string, enum: [START, CENTER, END, STRETCH, BASELINE] }
+  child: { type: string, default: "In a cell" }   # its child slot: a label with this text
+
+parts:
+  cell:  { role: generic }
+  label: { role: generic }          # its child
+
+tests:
+  - name: it shows its child
+    expect:
+      - { part: cell, text: "In a cell", visible: true }
+      - { part: label, text: "In a cell" }
+
+  - name: spanning both columns, in the second row
+    props: { span: 2, row: 2, col: 1, place: CENTER, child: "Wide" }
+    expect:
+      - { part: cell, text: "Wide", visible: true }
+
+viewports: [{ width: 320, height: 240 }]

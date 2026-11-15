@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/paragraph (core/blocks.mkp): a paragraph of inline Markdown, parsed by core. @mkp/dom draws a <p>.
+id: core.paragraph
+
+props:
+  value: { type: string, default: "A paragraph with **bold**, *italics*, `code` and a [link](https://example.com)." }
+  tone:  { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  align: { type: string, enum: [START, CENTER, END, STRETCH, BASELINE], default: START }
+
+parts:
+  # a <p>: Chromium's role is paragraph, which omnicui's role table doesn't have, so it is
+  # declared generic and its role isn't checked
+  paragraph: { role: generic }
+
+tests:
+  - name: its inline Markdown shows as words
+    expect:
+      - { part: paragraph, text: "A paragraph with bold, italics, code and a link.", visible: true }
+
+  - name: a tone and an alignment change how it looks, not what it says
+    props: { value: "Centred, in the accent colour.", tone: ACCENT, align: CENTER }
+    expect:
+      - { part: paragraph, text: "Centred, in the accent colour." }
+
+viewports: [{ width: 480, height: 240 }]

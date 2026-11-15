@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/path (core/gfx.mkp): a line through points; closed, a polygon that can be filled. Mounted in
+# a core/canvas (x and y -1..1) and a layer. The adapter sets each of its events, so it is
+# interactive: role=button, focusable, named by its label. @mkp/dom draws an SVG <g> holding the
+# line and its head.
+id: core.path
+
+props:
+  # a filled triangle around the canvas's middle, as JSON
+  points:  { type: string, default: '[{"x": -0.5, "y": -0.5}, {"x": 0.5, "y": -0.5}, {"x": 0, "y": 0.5}]' }
+  closed:  { type: boolean, default: true }
+  fill:    { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW], default: ACCENT }
+  stroke:  { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW], default: INK }
+  width:   { type: string, enum: [HAIRLINE, THIN, BOLD] }
+  dash:    { type: boolean, default: false }
+  head:    { type: string, enum: [NONE, ARROW, DOT], default: NONE }
+  opacity: { type: number, default: 1 }
+  label:   { type: string, default: "a triangle" }
+
+events:
+  click: {}
+  enter: {}
+  leave: {}
+
+parts:
+  path: { role: button }
+  line: { role: generic }           # path.line
+  head: { role: generic }           # path.head: the arrow or dot at the last point
+
+tests:
+  - name: with a click, a button named by its label
+    expect:
+      - { part: path, role: button, name: "a triangle", visible: true }
+      - { part: line, visible: true }
+      - { part: head, visible: false }
+
+  - name: a press clicks it
+    steps:
+      - { action: press, part: path }
+    expect:
+      - { event: click, times: 1 }
+      - { event: enter, times: 1 }
+
+  - name: Enter and Space click it from the keyboard
+    steps:
+      - { action: focus, part: path }
+      - { action: key, part: path, key: Enter }
+      - { action: key, part: path, key: Space }
+    expect:
+      - { event: click, times: 2 }
+
+  - name: an arrow at its last point
+    props: { points: '[{"x": -0.8, "y": -0.8}, {"x": 0.8, "y": 0.8}]', closed: false, head: ARROW, label: "an arrow" }
+    expect:
+      - { part: path, name: "an arrow" }
+      - { part: head, visible: true }
+
+viewports: [{ width: 480, height: 400 }]

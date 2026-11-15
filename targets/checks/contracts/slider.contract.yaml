@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/slider (core/controls.mkp): a number picked by dragging. value is `mut`: the adapter binds
+# it to $state (a plain number, so its ends and step come from range), and each write is
+# reported as writeValue. With no step anywhere it moves by a hundredth of its range. @mkp/dom
+# draws a <label> and an <input type=range>, with the value shown beside it.
+id: core.slider
+
+props:
+  value:    { type: number, default: 3 }
+  label:    { type: string, default: "Level" }
+  range:    { type: string, default: "0..10" }   # a range, as MKP writes it: "0..10", "0..10 step 0.5"
+  disabled: { type: boolean, default: false }
+
+events:
+  writeValue:
+    value: { type: number }
+
+parts:
+  slider: { role: generic }         # its <div>
+  input:  { role: slider }          # slider.input
+  label:  { role: generic }         # slider.label
+  value:  { role: generic }         # slider.value: the value shown (hidden from assistive technology: the input says it)
+
+tests:
+  - name: a slider named by its label, at its value
+    expect:
+      - { part: input, role: slider, name: "Level", value: 3, disabled: false, visible: true }
+      - { part: label, text: "Level" }
+      - { part: value, text: "3" }
+      - { part: slider, text: { contains: "Level" }, visible: true }
+
+  - name: the arrow keys move it by its step, a hundredth of its range when it has none
+    steps:
+      - { action: focus, part: input }
+      - { action: key, part: input, key: ArrowRight, times: 2 }
+      - { action: key, part: input, key: ArrowLeft }
+    expect:
+      - { part: input, value: 3.1, focused: true }
+      - { part: value, text: "3.1" }
+      - { event: writeValue, times: 3, last: { value: 3.1 } }
+
+  - name: with a step, the keys move by it, and Home and End go to its ends
+    props: { range: "0..10 step 0.5" }
+    steps:
+      - { action: focus, part: input }
+      - { action: key, part: input, key: ArrowUp }
+      - { action: key, part: input, key: End }
+    expect:
+      - { part: input, value: 10 }
+      - { event: writeValue, times: 2, last: { value: 10 } }
+
+  - name: a drag picks a value on its grid
+    props: { range: "0..10 step 5" }
+    steps:
+      - { action: drag, part: input, dx: 400, dy: 0 }
+    expect:
+      - { part: input, value: 10 }
+      - { part: value, text: "10" }
+      - { event: writeValue, last: { value: 10 } }
+
+  - name: a disabled slider says so and doesn't move
+    props: { disabled: true }
+    steps:
+      - { action: focus, part: input }
+      - { action: key, part: input, key: ArrowRight }
+      - { action: drag, part: input, dx: 100, dy: 0 }
+    expect:
+      - { part: input, disabled: true, value: 3 }
+      - { event: writeValue, times: 0 }
+
+viewports: [{ width: 320, height: 240 }]

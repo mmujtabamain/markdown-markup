@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/canvas (core/gfx.mkp): a drawing surface with coordinates of its own, x from left to right,
+# y from bottom to top. Its layers slot holds one layer with a labelled dot up and to the right of
+# its middle (the adapter's filler), so its middle is empty space. @mkp/dom draws a
+# figure[role=group] named by its label around an <svg>.
+id: core.canvas
+
+props:
+  label:  { type: string, default: "A drawing" }
+  x:      { type: string, default: "-1..1" }       # ranges, as MKP writes them
+  y:      { type: string, default: "-1..1" }
+  width:  { type: string, enum: [XS, S, M, L], default: M }
+  aspect: { type: number }
+
+events:
+  click:                            # a click on empty space, in the canvas's units
+    atX: { type: number }
+    atY: { type: number }
+
+parts:
+  # role group, which omnicui's role table doesn't have: declared status so its name is checked
+  canvas:  { role: status }
+  # canvas.surface, the <svg>: declared button, the role omnicui lets a test press; it has no
+  # role of its own (its clicks are the pointer's only)
+  surface: { role: button }
+  circle:  { role: status }         # the filler dot: role img, named by its label
+
+tests:
+  - name: a group named by its label, drawing its layers
+    expect:
+      - { part: canvas, name: "A drawing", visible: true }
+      - { part: circle, name: "a dot", visible: true }
+
+  - name: a click on empty space says where, in its own units
+    steps:
+      - { action: press, part: surface }
+    expect:
+      - { event: click, times: 1, last: { atX: 0, atY: 0 } }
+
+  - name: its units are its ranges, y up
+    props: { x: "0..10", y: "0..100", aspect: 1 }
+    steps:
+      - { action: press, part: surface }
+    expect:
+      - { event: click, times: 1, last: { atX: 5, atY: 50 } }
+
+viewports: [{ width: 480, height: 400 }]

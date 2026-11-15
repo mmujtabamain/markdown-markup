@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/flex (core/layout.mkp): children along one axis. The adapter sets its click, so it is
+# clickable: focusable, and Enter and Space click it. Its children slot holds labels. @mkp/dom
+# draws a <div>, role=group when it has a label.
+id: core.flex
+
+props:
+  axis:     { type: string, enum: [X, Y], default: Y }
+  wrap:     { type: boolean, default: false }
+  align:    { type: string, enum: [START, CENTER, END, STRETCH, BASELINE], default: STRETCH }
+  justify:  { type: string, enum: [START, CENTER, END, BETWEEN, AROUND], default: START }
+  gap:      { type: string, enum: [XS, S, M, L, XL] }
+  pad:      { type: string, enum: [XS, S, M, L, XL] }
+  fill:     { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  stroke:   { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  edge:     { type: string, enum: [ALL, TOP, RIGHT, BOTTOM, LEFT, X, Y], default: ALL }
+  radius:   { type: string, enum: [CARD, PILL] }
+  shadow:   { type: string, enum: [RAISED] }
+  label:    { type: string, default: "" }
+  children: { type: string, default: '["One", "Two"]' }    # its children slot, as JSON: a label for each text
+
+events:
+  click: {}
+
+parts:
+  # declared button, the role omnicui lets a test press and give keys to; its own role is group
+  # with a label (not in omnicui's role table) and none without one
+  flex:   { role: button }
+  label1: { role: generic }         # its first child
+  label2: { role: generic }
+
+tests:
+  - name: its children, in order
+    expect:
+      - { part: label1, text: "One", visible: true }
+      - { part: label2, text: "Two", visible: true }
+
+  - name: a row with a gap, padding and a frame shows the same children
+    props: { axis: X, gap: M, pad: S, stroke: LINE, radius: CARD, fill: SURFACE, children: '["Left", "Right"]' }
+    expect:
+      - { part: label1, text: "Left" }
+      - { part: label2, text: "Right" }
+
+  - name: a press on it clicks it
+    steps:
+      - { action: press, part: flex, times: 2 }
+    expect:
+      - { event: click, times: 2 }
+
+  - name: Enter and Space click it from the keyboard
+    steps:
+      - { action: focus, part: flex }
+      - { action: key, part: flex, key: Enter }
+      - { action: key, part: flex, key: Space }
+    expect:
+      - { part: flex, focused: true }
+      - { event: click, times: 2 }
+
+  - name: with a label, it is named by it
+    props: { label: "A row of two", axis: X }
+    expect:
+      - { part: flex, name: "A row of two" }
+
+keyboard:  true                     # Enter and Space on it do what a press does
+viewports: [{ width: 320, height: 240 }]

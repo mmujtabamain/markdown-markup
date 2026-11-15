@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/footnote (core/blocks.mkp): a note at the foot of the page, with its mark. @mkp/dom draws a
+# div[role=note] named "Footnote <mark>", with a link back to where it is used, and its blocks.
+id: core.footnote
+
+props:
+  mark: { type: string, default: "1" }
+  body: { type: string, default: "Its *source*." }  # its body slot: a paragraph with this text
+
+parts:
+  # role note, which omnicui's role table doesn't have: declared status so its name is checked
+  footnote: { role: status }
+  mark:     { role: generic }       # footnote.mark: a link back to where it is used
+  body:     { role: generic }       # footnote.body: its blocks
+
+tests:
+  - name: a note named by its mark, with the mark and its body
+    expect:
+      - { part: footnote, name: "Footnote 1", visible: true }
+      - { part: mark, text: "1" }
+      - { part: body, text: "Its source." }
+
+  - name: a named mark
+    props: { mark: "source" }
+    expect:
+      - { part: footnote, name: "Footnote source" }
+      - { part: mark, text: "source" }
+
+viewports: [{ width: 480, height: 240 }]

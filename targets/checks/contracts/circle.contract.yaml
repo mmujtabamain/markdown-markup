@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/circle (core/gfx.mkp): a circle around a point, r in the units of its canvas. Mounted in a
+# core/canvas (x and y -1..1) and a layer. The adapter sets each of its events, so it is
+# interactive: role=button, focusable, named by its label. @mkp/dom draws an SVG <circle>.
+id: core.circle
+
+props:
+  at:      { type: string, default: '{"x": 0.5, "y": 0.5}' }   # a point, as JSON
+  r:       { type: number, default: 0.2 }
+  fill:    { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW], default: ACCENT }
+  stroke:  { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  width:   { type: string, enum: [HAIRLINE, THIN, BOLD] }
+  opacity: { type: number, default: 1 }
+  label:   { type: string, default: "a dot" }
+
+events:
+  click: {}
+  enter: {}
+  leave: {}
+
+parts:
+  circle: { role: button }
+  canvas: { role: generic }         # the canvas around it
+
+tests:
+  - name: with a click, a button named by its label
+    expect:
+      - { part: circle, role: button, name: "a dot", visible: true }
+
+  - name: a press clicks it, and the pointer enters it on the way
+    steps:
+      - { action: press, part: circle }
+    expect:
+      - { event: click, times: 1 }
+      - { event: enter, times: 1 }
+      - { event: leave, times: 0 }
+
+  - name: the pointer entering and leaving it
+    steps:
+      - { action: hover, part: circle }
+      - { action: hover, part: canvas }
+    expect:
+      - { event: enter, times: 1 }
+      - { event: leave, times: 1 }
+      - { event: click, times: 0 }
+
+  - name: Enter and Space click it from the keyboard
+    steps:
+      - { action: focus, part: circle }
+      - { action: key, part: circle, key: Enter }
+      - { action: key, part: circle, key: Space }
+    expect:
+      - { part: circle, focused: true }
+      - { event: click, times: 2 }
+
+viewports: [{ width: 480, height: 400 }]

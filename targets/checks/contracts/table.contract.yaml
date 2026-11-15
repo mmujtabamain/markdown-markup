@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/table (core/blocks.mkp): a header row, rows of cells, and how each column is aligned.
+# @mkp/dom draws a scrolling <div> around a <table>: th[scope=col] header cells, td cells.
+id: core.table
+
+props:
+  # lists, as JSON
+  head:  { type: string, default: '["Item", "Price"]' }
+  rows:  { type: string, default: '[["Tea", "3"], ["Cake", "4.50"]]' }
+  align: { type: string, default: '["START", "END"]' }
+
+parts:
+  # roles columnheader and cell aren't in omnicui's role table: declared generic
+  table:   { role: generic }        # the scrolling wrapper
+  header1: { role: generic }        # table.header, the first
+  header2: { role: generic }
+  cell1:   { role: generic }        # table.cell, row by row
+  cell2:   { role: generic }
+  cell3:   { role: generic }
+  cell4:   { role: generic }
+
+tests:
+  - name: a header row, then each row's cells in order
+    expect:
+      - { part: header1, text: "Item" }
+      - { part: header2, text: "Price" }
+      - { part: cell1, text: "Tea" }
+      - { part: cell2, text: "3" }
+      - { part: cell3, text: "Cake" }
+      - { part: cell4, text: "4.50" }
+      - { part: table, visible: true }
+
+  - name: a cell's inline Markdown shows as words
+    props: { head: '["Who", "What"]', rows: '[["**Ada** Lovelace", "the *first* program"]]', align: '[]' }
+    expect:
+      - { part: cell1, text: "Ada Lovelace" }
+      - { part: cell2, text: "the first program" }
+      - { part: cell3, visible: false }
+
+viewports: [{ width: 480, height: 240 }]

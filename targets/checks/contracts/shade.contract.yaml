@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/shade (core/gfx.mkp): fills an area with the colour a shader works out for each pixel.
+# Mounted in a core/canvas (x and y -1..1) and a layer. A shader is code, so the contract can't
+# give it: the adapter's is `glow`, red across and blue up, with args = 1. The adapter waits for
+# it to finish painting before it replies. @mkp/dom draws an SVG <foreignObject role=img> holding
+# a 2D <canvas>.
+id: core.shade
+
+props:
+  area:    { type: string, default: '{"from": {"x": -1, "y": -1}, "to": {"x": 1, "y": 1}}' }   # a region, as JSON
+  opacity: { type: number, default: 1 }
+  label:   { type: string, default: "red across, blue up" }
+
+parts:
+  # role img, which omnicui's role table doesn't have: declared status so its name is checked
+  shade:  { role: status }
+  pixels: { role: generic }         # shade.pixels: the sampled pixels
+
+tests:
+  - name: a picture named by its label, filling its area
+    expect:
+      - { part: shade, name: "red across, blue up", visible: true }
+      - { part: pixels, visible: true }
+
+  - name: a smaller area
+    props: { area: '{"from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}', label: "a corner", opacity: 0.5 }
+    expect:
+      - { part: shade, name: "a corner", visible: true }
+
+viewports: [{ width: 480, height: 400 }]

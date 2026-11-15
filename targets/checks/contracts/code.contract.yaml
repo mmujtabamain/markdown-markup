@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/code (core/blocks.mkp): a block of literal text, such as code, in the mono font. @mkp/dom
+# draws a <pre> (focusable, so a wide block scrolls from the keyboard) holding a <code>.
+id: core.code
+
+props:
+  src:  { type: string, default: "let x = 1;" }
+  lang: { type: string, default: "js" }
+
+parts:
+  code: { role: generic }
+  text: { role: generic }           # code.text: the source
+
+tests:
+  - name: it shows its source as it is
+    expect:
+      - { part: code, role: generic, text: "let x = 1;", visible: true }
+      - { part: text, text: "let x = 1;" }
+
+  - name: its lines and spaces are kept
+    props: { src: "if (ready) {\n    go();\n}", lang: "" }
+    expect:
+      - { part: text, text: "if (ready) {\n    go();\n}" }
+
+  - name: Markdown in it is not read
+    props: { src: "**not bold** and `not code`", lang: "md" }
+    expect:
+      - { part: text, text: "**not bold** and `not code`" }
+
+viewports: [{ width: 480, height: 240 }]

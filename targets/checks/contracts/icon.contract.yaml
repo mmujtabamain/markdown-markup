@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/icon (core/controls.mkp): a symbol from a fixed set. @mkp/dom draws an <svg>: with a
+# label, role img named by it; without one, decoration hidden from assistive technology.
+id: core.icon
+
+props:
+  name:  { type: string, default: CHECK, enum: [PLAY, PAUSE, PREV, NEXT, MORE, LESS, FIRST, LAST, RESET, CHECK, CROSS, PLUS, MINUS, UP, DOWN, LEFT, RIGHT, BAN, ALERT, INFO, HELP, LOCK, UNLOCK, EYE, EDIT, SEARCH, USER, USERS, FILE, FOLDER, DATABASE, SERVER, CLOUD, MAIL, CLOCK, CALENDAR, FLAG, TARGET, GAUGE, LAYERS, BRANCH, BOX, SQUARE, CIRCLE, DOT, STAR, BOLT, LINK, KEY, SHIELD, CART, CHART, CODE, TERMINAL, BELL, HOME, SETTINGS, SLIDERS, TRASH, COPY, DOWNLOAD, UPLOAD, EXPAND, LIGHTBULB, BOOK] }
+  tone:  { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  size:  { type: string, enum: [SMALL, NORMAL, LARGE], default: NORMAL }
+  label: { type: string, default: "" }
+
+parts:
+  # role img, which omnicui's role table doesn't have: declared status so its name is checked
+  icon: { role: status }
+
+tests:
+  - name: with a label, a picture named by it
+    props: { label: "Done" }
+    expect:
+      - { part: icon, name: "Done", visible: true }
+
+  - name: without a label, decoration with no role of its own
+    props: { name: STAR, size: LARGE, tone: ACCENT }
+    expect:
+      - { part: icon, role: generic, visible: true }
+
+viewports: [{ width: 320, height: 240 }]

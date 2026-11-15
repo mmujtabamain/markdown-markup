@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/heading (core/blocks.mkp): a heading, level 1 to 6. @mkp/dom draws an <h1>…<h6>.
+id: core.heading
+
+props:
+  level: { type: integer, enum: [1, 2, 3, 4, 5, 6], default: 1 }
+  value: { type: string, default: "A title" }
+
+parts:
+  heading: { role: heading }
+  level1:  { role: heading }        # the heading, only while it is an <h1>
+  level3:  { role: heading }        # the heading, only while it is an <h3>
+
+tests:
+  - name: a heading named by its words, at level 1
+    expect:
+      - { part: heading, role: heading, name: "A title", text: "A title", visible: true }
+      - { part: level1, text: "A title" }
+      - { part: level3, visible: false }
+
+  - name: at the level it is given
+    props: { level: 3, value: "A part of it" }
+    expect:
+      - { part: level3, role: heading, name: "A part of it" }
+      - { part: level1, visible: false }
+
+  - name: its inline Markdown shows as words
+    props: { value: "Tea and **cake**" }
+    expect:
+      - { part: heading, name: "Tea and cake", text: "Tea and cake" }
+
+viewports: [{ width: 480, height: 240 }]

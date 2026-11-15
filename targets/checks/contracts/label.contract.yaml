@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/label (core/controls.mkp): a plain text value. @mkp/dom draws a <span>.
+id: core.label
+
+props:
+  value:  { type: string, default: "Hello" }
+  tone:   { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  size:   { type: string, enum: [SMALL, NORMAL, LARGE], default: NORMAL }
+  weight: { type: string, enum: [REGULAR, MEDIUM, BOLD], default: REGULAR }
+  font:   { type: string, enum: [BODY, HEADING, MONO] }
+  align:  { type: string, enum: [START, CENTER, END, STRETCH, BASELINE], default: START }
+  wrap:   { type: boolean, default: true }
+  clip:   { type: boolean, default: false }
+  halo:   { type: boolean, default: false }
+
+parts:
+  label: { role: generic }
+
+tests:
+  - name: it shows its value as plain text
+    expect:
+      - { part: label, role: generic, text: "Hello", visible: true }
+
+  - name: Markdown in it is not read
+    props: { value: "**not bold**" }
+    expect:
+      - { part: label, text: "**not bold**" }
+
+  - name: size, weight, font and tone change how it looks, not what it says
+    props: { value: "Big and bold", size: LARGE, weight: BOLD, font: MONO, tone: ACCENT, halo: true }
+    expect:
+      - { part: label, text: "Big and bold", visible: true }
+
+  - name: a clipped label still holds all of its words
+    props: { value: "A label far too long to fit on one line of a narrow page, so it is cut short", clip: true, wrap: false }
+    expect:
+      - { part: label, text: "A label far too long to fit on one line of a narrow page, so it is cut short", visible: true }
+
+viewports:    [{ width: 320, height: 240 }]
+colorSchemes: [light, dark]

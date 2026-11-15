@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/plane (core/layout.mkp): widgets placed anywhere on a plane with coordinates of its own, x
+# right and y up; at zoom 1 a unit is a CSS pixel. center, zoom and drawn are `mut`: the adapter
+# binds them to $state, and each write is reported as writeCenter, writeZoom and writeDrawn (the
+# first layout's writes, while mounting, included). Its items slot holds one spot, "Home", at
+# (100, 40), so the middle is empty space. @mkp/dom draws a div[role=group] named by its label,
+# around a clipped, focusable view that pans with a drag and the arrow keys and zooms with + and -.
+id: core.plane
+
+props:
+  label:     { type: string, default: "A map" }
+  # a region, as JSON, or NONE to leave it out (then it is the region around every spot's box)
+  bounds:    { type: string, default: '{"from": {"x": -400, "y": -300}, "to": {"x": 400, "y": 300}}' }
+  center:    { type: string, default: '{"x": 0, "y": 0}' }   # a point, as JSON
+  zoom:      { type: number, default: 1 }
+  zoomRange: { type: string, default: "1..4" }      # a range, as MKP writes it
+  fit:       { type: boolean, default: false }
+  width:     { type: string, enum: [XS, S, M, L], default: M }
+  aspect:    { type: number, default: 2 }
+
+events:
+  click:                            # a click on empty space, in the plane's units
+    atX: { type: number }
+    atY: { type: number }
+  writeCenter:
+    valueX: { type: number }
+    valueY: { type: number }
+  writeZoom:
+    value: { type: number }
+  writeDrawn:                       # the region drawn, from its bottom-left corner to its top-right one
+    valueFromX: { type: number }
+    valueFromY: { type: number }
+    valueToX:   { type: number }
+    valueToY:   { type: number }
+
+parts:
+  # role group, which omnicui's role table doesn't have: declared status so its name is checked
+  plane: { role: status }
+  # plane.view: declared slider, the one role omnicui lets a test drag (and give keys to); it has
+  # no role of its own
+  view:  { role: slider }
+  label: { role: generic }          # the spot's label
+
+tests:
+  - name: a group named by its label, showing its spots
+    expect:
+      - { part: plane, name: "A map", visible: true }
+      - { part: label, text: "Home", visible: true }
+
+  - name: it writes the region it draws, 320 by 160 around its centre
+    expect:
+      - { event: writeDrawn, last: { valueFromX: -160, valueFromY: -80, valueToX: 160, valueToY: 80 } }
+      - { event: writeCenter, times: 0 }
+
+  - name: it keeps its centre inside its bounds
+    props: { bounds: '{"from": {"x": 0, "y": 0}, "to": {"x": 1000, "y": 500}}' }
+    expect:
+      - { event: writeCenter, times: 1, last: { valueX: 160, valueY: 80 } }
+      - { event: writeDrawn, last: { valueFromX: 0, valueFromY: 0, valueToX: 320, valueToY: 160 } }
+
+  - name: with no bounds, its bounds are its spots', so it centres on its one spot
+    props: { bounds: NONE }
+    expect:
+      - { event: writeCenter, times: 1, last: { valueX: 100, valueY: 40 } }
+      - { event: writeDrawn, last: { valueFromX: -60, valueFromY: -40, valueToX: 260, valueToY: 120 } }
+
+  - name: the arrow keys pan it
+    steps:
+      - { action: focus, part: view }
+      - { action: key, part: view, key: ArrowRight }
+      - { action: key, part: view, key: ArrowUp }
+    expect:
+      - { part: view, focused: true }
+      - { event: writeCenter, times: 2, last: { valueX: 40, valueY: 40 } }
+      - { event: writeDrawn, last: { valueFromX: -120, valueFromY: -40, valueToX: 200, valueToY: 120 } }
+
+  - name: a drag pans it
+    steps:
+      - { action: drag, part: view, dx: -100, dy: 0 }
+    expect:
+      - { event: writeCenter, last: { valueX: 100, valueY: 0 } }
+      - { event: click, times: 0 }
+
+  - name: plus and minus zoom it within its zoom range
+    steps:
+      - { action: focus, part: view }
+      - { action: key, part: view, key: Equal }
+      - { action: key, part: view, key: Equal }
+      - { action: key, part: view, key: Minus }
+    expect:
+      - { event: writeZoom, times: 3, last: { value: 1.25 } }
+
+  - name: it doesn't zoom past its zoom range
+    props: { zoomRange: "1..1" }
+    steps:
+      - { action: focus, part: view }
+      - { action: key, part: view, key: Equal }
+    expect:
+      - { event: writeZoom, times: 0 }
+
+  - name: a click on empty space says where, in its own units
+    steps:
+      - { action: press, part: view }
+    expect:
+      - { event: click, times: 1, last: { atX: 0, atY: 0 } }
+
+viewports: [{ width: 480, height: 320 }]

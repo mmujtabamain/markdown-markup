@@ -1,0 +1,16 @@
+# targets/checks/targets/web/target.yaml: omnicui's target for MKP's widget contracts
+# (targets/checks/contracts/), on the web: @mkp/runtime and @mkp/dom in a real Chromium.
+#
+# This is an omnicui target, not an MKP one: it has no `check_adapter:`, so `mkp target check`
+# skips it (MKP's own web target is targets/ts/web/target.yaml).
+#
+# omnicui runs both commands with /bin/sh -c in this folder. `stubs:` writes every contract (JSON,
+# from standard input) where the adapter reads each one's prop defaults; `adapter:` is the
+# JSON-RPC adapter, which lives with the web target in targets/ts/web.
+name: web
+language: javascript
+stubs: node ../../../ts/web/omnicui/stubs.mjs ../../.omnicui/web-contracts.json
+adapter: exec node ../../../ts/web/omnicui_adapter.mjs --contracts ../../.omnicui/web-contracts.json
+platform: [web]
+stepTimeout: 30s
+startTimeout: 120s

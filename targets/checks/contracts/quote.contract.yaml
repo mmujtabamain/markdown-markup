@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/quote (core/blocks.mkp): a quotation. @mkp/dom draws a <blockquote> holding its blocks.
+id: core.quote
+
+props:
+  body: { type: string, default: "Quoted, with **weight**." }   # its body slot: a paragraph with this text
+
+parts:
+  quote:     { role: generic }      # the <blockquote> (role blockquote, not in omnicui's role table)
+  paragraph: { role: generic }      # the paragraph it holds
+
+tests:
+  - name: it shows what it quotes
+    expect:
+      - { part: quote, text: "Quoted, with weight.", visible: true }
+      - { part: paragraph, text: "Quoted, with weight." }
+
+viewports: [{ width: 480, height: 240 }]

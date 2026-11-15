@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/layer (core/gfx.mkp): shapes drawn together, in the order written. Mounted in a core/canvas;
+# its shapes slot holds a labelled dot (the adapter's filler). @mkp/dom draws an SVG <g>.
+id: core.layer
+
+props:
+  opacity: { type: number, default: 1 }
+  clip:    { type: string }         # a region, as JSON: {"from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}
+
+parts:
+  layer:  { role: generic }
+  shapes: { role: generic }         # layer.shapes: its shapes, clipped by clip
+  circle: { role: status }          # the filler dot: role img, named by its label
+
+tests:
+  - name: it draws its shapes
+    expect:
+      - { part: circle, name: "a dot", visible: true }
+      - { part: shapes, visible: true }
+      - { part: layer, visible: true }
+
+  - name: an opacity and a clip change how it looks, not what it holds
+    props: { opacity: 0.5, clip: '{"from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}' }
+    expect:
+      - { part: circle, name: "a dot", visible: true }
+
+viewports: [{ width: 480, height: 400 }]

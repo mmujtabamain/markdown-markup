@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/image (core/controls.mkp): a picture. @mkp/dom draws an <img> with its alt; an unsafe src
+# is left out.
+id: core.image
+
+props:
+  # a small orange picture, as a data URI, so the check needs no network
+  src:   { type: string, default: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='32'%3E%3Crect width='48' height='32' fill='%23d97706'/%3E%3C/svg%3E" }
+  alt:   { type: string, default: "A cup of tea" }
+  width: { type: string, enum: [XS, S, M, L] }
+
+parts:
+  # role img, which omnicui's role table doesn't have: declared status so its name is checked
+  image: { role: status }
+
+tests:
+  - name: a picture named by its alt text
+    expect:
+      - { part: image, name: "A cup of tea", visible: true }
+
+  - name: an unsafe source is left out, and its alt still names it
+    props: { src: "javascript:alert(1)", alt: "Not loaded" }
+    expect:
+      - { part: image, name: "Not loaded" }
+
+  - name: a width from the size tokens
+    props: { width: S }
+    expect:
+      - { part: image, name: "A cup of tea", visible: true }
+
+viewports: [{ width: 480, height: 240 }]

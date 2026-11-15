@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/press (core/controls.mkp): something to press. With no content it shows its label.
+# @mkp/dom draws it as a <button>, with its role and state by kind (targets/ts/dom/README.md).
+id: core.press
+
+props:
+  label:    { type: string, default: "Save" }
+  kind:     { type: string, enum: [BUTTON, TAB, OPTION, TOGGLE, SWITCH, CHECK, RADIO, PLAIN], default: BUTTON }
+  selected: { type: boolean, default: false }
+  disabled: { type: boolean, default: false }
+  tone:     { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  content:  { type: string }        # the content slot, filled with a label showing this text
+
+events:
+  click: {}
+
+parts:
+  press:    { role: button }
+  switch:   { role: switch }        # the press itself, read as a switch (kind SWITCH)
+  checkbox: { role: checkbox }      # the press itself, read as a checkbox (kind CHECK)
+  label:    { role: generic }       # press.label: its label, when it has no content
+  content:  { role: generic }       # press.content: its content slot
+
+tests:
+  - name: a button named and shown by its label
+    expect:
+      - { part: press, role: button, name: "Save", text: "Save", disabled: false, selected: false }
+      - { part: label, text: "Save" }
+
+  - name: a press fires click
+    steps:
+      - { action: press, part: press, times: 2 }
+    expect:
+      - { event: click, times: 2 }
+      - { part: press, focused: true }
+
+  - name: Enter and Space press it from the keyboard
+    steps:
+      - { action: focus, part: press }
+      - { action: key, part: press, key: Enter }
+      - { action: key, part: press, key: Space }
+    expect:
+      - { event: click, times: 2 }
+
+  - name: a disabled press says so and fires nothing
+    props: { disabled: true }
+    steps:
+      - { action: press, part: press }
+      - { action: focus, part: press }
+      - { action: key, part: press, key: Enter }
+    expect:
+      - { part: press, disabled: true }
+      - { event: click, times: 0 }
+
+  - name: a toggle says whether it is on
+    props: { kind: TOGGLE, selected: true, label: "Bold" }
+    expect:
+      - { part: press, role: button, name: "Bold", selected: true }
+
+  - name: a switch is a switch, checked when selected
+    props: { kind: SWITCH, selected: true, label: "Wi-Fi" }
+    steps:
+      - { action: focus, part: switch }
+      - { action: key, part: switch, key: Space }
+    expect:
+      - { part: switch, role: switch, name: "Wi-Fi", checked: true }
+      - { event: click, times: 1 }
+
+  - name: a check is a checkbox, not checked when not selected
+    props: { kind: CHECK, label: "Remember me" }
+    expect:
+      - { part: checkbox, role: checkbox, name: "Remember me", checked: false }
+
+  - name: a tab says when it is selected
+    props: { kind: TAB, selected: true, label: "Inbox" }
+    expect:
+      - { part: press, name: "Inbox", selected: true }
+
+  - name: an option says when it is not selected
+    props: { kind: OPTION, label: "Large" }
+    expect:
+      - { part: press, name: "Large", selected: false }
+
+  - name: a radio says when it is chosen
+    props: { kind: RADIO, selected: true, label: "Small" }
+    steps:
+      - { action: press, part: press }
+    expect:
+      - { part: press, name: "Small", selected: true }
+      - { event: click, times: 1 }
+
+  - name: a plain press is still a button
+    props: { kind: PLAIN, label: "More" }
+    expect:
+      - { part: press, role: button, name: "More", selected: false }
+
+  - name: with content, it shows the content and its label is its name
+    props: { label: "Add to favourites", content: "Star" }
+    expect:
+      - { part: press, name: "Add to favourites", text: "Star" }
+      - { part: content, text: "Star", visible: true }
+      - { part: label, visible: false }
+
+keyboard:     true                  # Enter and Space on a button, Space on a switch or a checkbox
+viewports:    [{ width: 320, height: 240 }]
+colorSchemes: [light, dark]

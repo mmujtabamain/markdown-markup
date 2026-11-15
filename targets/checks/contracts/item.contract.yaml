@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/item (core/blocks.mkp): one item of a list; done is a task box, ticked, not ticked, or none
+# for an ordinary item. Mounted inside a core/bullets. @mkp/dom draws an <li>, with an
+# <input type=checkbox> for a task.
+id: core.item
+
+props:
+  done: { type: boolean }           # opt<bool>: left out, an ordinary item
+  body: { type: string, default: "Buy milk" }   # its body slot: a paragraph with this text
+
+parts:
+  item:  { role: generic }          # the <li> (role listitem, which omnicui's role table doesn't have)
+  check: { role: checkbox }         # item.check: the task box
+  body:  { role: generic }          # item.body: its blocks
+
+tests:
+  - name: an ordinary item shows its body, with no task box
+    expect:
+      - { part: item, text: "Buy milk" }
+      - { part: body, text: "Buy milk", visible: true }
+      - { part: check, visible: false }
+
+  - name: a done task has a ticked box, named Done
+    props: { done: true }
+    expect:
+      - { part: check, role: checkbox, name: "Done", checked: true, disabled: true, visible: true }
+      - { part: body, text: "Buy milk" }
+
+  - name: a task not done has an empty box, named Not done
+    props: { done: false }
+    expect:
+      - { part: check, role: checkbox, name: "Not done", checked: false, visible: true }
+
+  - name: the box shows the page's state, so a press doesn't tick it
+    props: { done: false }
+    steps:
+      - { action: press, part: check }
+    expect:
+      - { part: check, checked: false, visible: true }
+
+viewports: [{ width: 480, height: 240 }]

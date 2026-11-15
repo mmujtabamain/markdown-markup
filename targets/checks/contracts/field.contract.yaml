@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/field (core/controls.mkp): text typed by the reader. value is `mut`: the adapter binds it
+# to $state, and each write is reported as writeValue. @mkp/dom draws a <label> around its text
+# and an <input type=text> (a <textarea> for lines > 1); Enter submits (Ctrl or Cmd with it in a
+# textarea).
+id: core.field
+
+props:
+  value:       { type: string, default: "" }
+  label:       { type: string, default: "Name" }
+  placeholder: { type: string, default: "" }
+  lines:       { type: integer, default: 1 }
+
+events:
+  submit: {}
+  writeValue:                       # a write to the mut input value
+    value: { type: string }
+
+parts:
+  field: { role: generic }          # the <label> around it
+  label: { role: generic }          # field.label: its label text
+  input: { role: textbox }          # field.input
+
+tests:
+  - name: a text box named by its label, showing its value
+    props: { value: "Ada" }
+    expect:
+      - { part: input, role: textbox, name: "Name", text: "Ada", disabled: false, visible: true }
+      - { part: label, text: "Name" }
+      - { part: field, text: { contains: "Name" }, visible: true }
+
+  - name: typing writes the value, a letter at a time
+    steps:
+      - { action: type, part: input, text: "Grace" }
+    expect:
+      - { part: input, text: "Grace", focused: true }
+      - { event: writeValue, times: 5, last: { value: "Grace" } }
+      - { event: submit, times: 0 }
+
+  - name: Enter submits a one-line field
+    props: { value: "Lin" }
+    steps:
+      - { action: focus, part: input }
+      - { action: key, part: input, key: Enter }
+    expect:
+      - { event: submit, times: 1 }
+      - { event: writeValue, times: 0 }
+      - { part: input, text: "Lin" }
+
+  - name: in a field of several lines, Enter is a new line and Control+Enter submits
+    props: { lines: 3 }
+    steps:
+      - { action: type, part: input, text: "Dear" }
+      - { action: key, part: input, key: Enter }
+      - { action: type, part: input, text: "Ada" }
+      - { action: key, part: input, key: Control+Enter }
+    expect:
+      - { part: input, role: textbox, text: "Dear\nAda" }
+      - { event: writeValue, last: { value: "Dear\nAda" } }
+      - { event: submit, times: 1 }
+
+viewports: [{ width: 320, height: 240 }]

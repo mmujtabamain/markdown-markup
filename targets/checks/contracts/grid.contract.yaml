@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/grid (core/layout.mkp): children in columns that line up across rows. The adapter sets its
+# click, so it is clickable: focusable, and Enter and Space click it. Its children slot holds
+# labels. @mkp/dom draws a CSS grid <div>.
+id: core.grid
+
+props:
+  cols:     { type: string, default: '{"EQUAL": {"count": 2}}' }   # an enum with values, as JSON
+  align:    { type: string, enum: [START, CENTER, END, STRETCH, BASELINE], default: STRETCH }
+  justify:  { type: string, enum: [START, CENTER, END, BETWEEN, AROUND], default: START }
+  gap:      { type: string, enum: [XS, S, M, L, XL] }
+  pad:      { type: string, enum: [XS, S, M, L, XL] }
+  fill:     { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  stroke:   { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  edge:     { type: string, enum: [ALL, TOP, RIGHT, BOTTOM, LEFT, X, Y], default: ALL }
+  radius:   { type: string, enum: [CARD, PILL] }
+  shadow:   { type: string, enum: [RAISED] }
+  children: { type: string, default: '["One", "Two", "Three"]' }   # its children slot, as JSON: a label for each text
+
+events:
+  click: {}
+
+parts:
+  # declared button, the role omnicui lets a test press and give keys to; it has no role of its own
+  grid:   { role: button }
+  label1: { role: generic }
+  label3: { role: generic }
+
+tests:
+  - name: its children, in order
+    expect:
+      - { part: label1, text: "One", visible: true }
+      - { part: label3, text: "Three", visible: true }
+
+  - name: columns of their own sizes show the same children
+    props: { cols: '{"TRACKS": {"of": ["AUTO", {"FR": {"share": 2}}]}}', gap: S }
+    expect:
+      - { part: label1, text: "One" }
+      - { part: label3, text: "Three" }
+
+  - name: a press on it clicks it
+    steps:
+      - { action: press, part: grid }
+    expect:
+      - { event: click, times: 1 }
+
+  - name: Enter and Space click it from the keyboard
+    steps:
+      - { action: focus, part: grid }
+      - { action: key, part: grid, key: Enter }
+      - { action: key, part: grid, key: Space }
+    expect:
+      - { part: grid, focused: true }
+      - { event: click, times: 2 }
+
+keyboard:  true                     # Enter and Space on it do what a press does
+viewports: [{ width: 320, height: 240 }]

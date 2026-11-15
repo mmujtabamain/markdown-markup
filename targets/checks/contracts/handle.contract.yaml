@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/handle (core/gfx.mkp): a point the reader drags. at is `mut`: the adapter binds it to
+# $state, and each write is reported as writeAt, with the point as valueX and valueY. Mounted in a
+# core/canvas 320 pixels wide with x and y -1..1, so a pixel is 0.00625 units. @mkp/dom draws an
+# SVG <g role=slider> with a dot and a larger area that takes the pointer; the arrows move it 8
+# pixels, 40 with Shift.
+id: core.handle
+
+props:
+  at:      { type: string, default: '{"x": 0, "y": 0}' }      # a point, as JSON
+  tone:    { type: string, enum: [SURFACE, INK, MUTED, LINE, ACCENT, INFO, OK, WARN, BAD, C1, C2, C3, C4, C5, C6, SHADOW] }
+  opacity: { type: number, default: 1 }
+  label:   { type: string, default: "the point" }
+
+events:
+  writeAt:                          # a write to the mut input at
+    valueX: { type: number }
+    valueY: { type: number }
+
+parts:
+  handle: { role: slider }
+  dot:    { role: generic }         # handle.dot: what is seen
+
+tests:
+  - name: a slider named by its label, where it is
+    expect:
+      - { part: handle, role: slider, name: "the point", disabled: false, visible: true }
+      - { part: dot, visible: true }
+
+  - name: the arrow keys move it 8 pixels, 40 with Shift
+    steps:
+      - { action: focus, part: handle }
+      - { action: key, part: handle, key: ArrowRight }
+      - { action: key, part: handle, key: ArrowUp }
+      - { action: key, part: handle, key: Shift+ArrowRight }
+    expect:
+      - { part: handle, focused: true }
+      - { event: writeAt, times: 3, last: { valueX: 0.3, valueY: 0.05 } }
+
+  - name: a drag moves it with the pointer, in the canvas's units
+    steps:
+      - { action: drag, part: handle, dx: 40, dy: -80 }
+    expect:
+      - { event: writeAt, last: { valueX: 0.25, valueY: 0.5 } }
+      - { part: handle, focused: true }
+
+  - name: it stays inside the canvas
+    props: { at: '{"x": 0.9, "y": 0}' }
+    steps:
+      - { action: focus, part: handle }
+      - { action: key, part: handle, key: Shift+ArrowRight }
+    expect:
+      - { event: writeAt, times: 1, last: { valueX: 1, valueY: 0 } }
+
+viewports: [{ width: 480, height: 400 }]

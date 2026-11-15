@@ -6,3 +6,4 @@ dist/
 .DS_Store
 !schemas/examples/*.ir.json
 core.[0-9]*
+.omnicui/

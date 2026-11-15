@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# core/divider (core/blocks.mkp): a line across the page. @mkp/dom draws an <hr>.
+id: core.divider
+
+parts:
+  # role separator, which omnicui's role table doesn't have: declared generic
+  divider: { role: generic }
+
+tests:
+  - name: a line across the page, with no words
+    expect:
+      - { part: divider, visible: true, text: "" }
+
+viewports: [{ width: 480, height: 240 }]
