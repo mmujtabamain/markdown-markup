@@ -1,0 +1,8 @@
+# targets/ts/web/target.yaml: the web runtime with our default DOM widgets
+name: web
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: core                            # @mkp/dom draws core's own tokens
+check_adapter: exec node check_adapter.mjs
