@@ -29,3 +29,18 @@ let check_maths: bool = read("$x^2$").segments.len() == 1 && read("costs $5 and 
 let check_bad_maths: bool = rich_text.from(template.of("$x^$")) == opt.NONE;
 let check_reference: bool = rich_text.read(template.of("[a][b]"), map { entries = [{ key = "b", value = "/u" }] }) == rich_text { segments = [segment { part = part.TEXT("a"), marks = marks { link = "/u" } }] };
 let check_hole: bool = rich_text.from(template { pieces = ["*a ", " b*"], holes = [hole.TEXT("x")] }).or(rich_text.plain("")).segments.len() == 3;
+
+fn blocks(s: text): list<block> {
+    return md.from(template.of(s)).or(md { blocks = [] }).blocks;
+}
+
+let check_md_blocks: bool = blocks("# T\n\n- a\n- b\n") == [block.HEADING(1, read("T")), block.BULLETS(false, 1, [list_item { body = [block.PARAGRAPH(read("a"))] }, list_item { body = [block.PARAGRAPH(read("b"))] }])];
+let check_md_code: bool = blocks("```mkp\nx\n```\n\n    y\n") == [block.CODE("x\n", "mkp"), block.CODE("y\n", "")];
+let check_md_quote: bool = blocks("> a\nb\n\n---\n") == [block.QUOTE([block.PARAGRAPH(read("a\nb"))]), block.DIVIDER];
+let check_md_tasks: bool = blocks("- [x] done\n- [ ] not\n") == [block.BULLETS(false, 1, [list_item { done = true, body = [block.PARAGRAPH(read("done"))] }, list_item { done = false, body = [block.PARAGRAPH(read("not"))] }])];
+let check_md_table: bool = blocks("| a | b |\n|:--|--:|\n| 1 | 2 |\n") == [block.TABLE([read("a"), read("b")], [[read("1"), read("2")]], [cell_align.START, cell_align.END])];
+let check_md_reference: bool = blocks("[x][d]\n\n[d]: /u\n") == [block.PARAGRAPH(rich_text { segments = [segment { part = part.TEXT("x"), marks = marks { link = "/u" } }] })];
+let check_md_empty: bool = blocks("\n\n") == [] && blocks("#\n") == [block.HEADING(1, read(""))];
+let written: md = "## Hi\n\nthere";
+let check_md_literal: bool = written.blocks.len() == 2;
+let check_bare_ftp: bool = read("at ftp://x.org.") == rich_text { segments = [seg("at "), segment { part = part.TEXT("ftp://x.org"), marks = marks { link = "ftp://x.org" } }, seg(".")] };

@@ -5,6 +5,9 @@ fn rich_text.from(value: template): opt<rich_text> {
     return rich_text.read(value, map { entries = [] });
 }
 
+//@about The character with this Unicode number, or opt.NONE when the number isn't one.
+extern fn text.of_code(code: number): opt<text>;
+
 //@about Inline Markdown as segments, with the link reference definitions of the page or the md value around it, by their labels as CommonMark matches them.
 fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
     let cs: list<text> = md_chars(value);
@@ -38,7 +41,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     buf = "";
                     pieces.add(md_piece { part = part.BREAK });
                     skip = md_after_spaces(cs, i + 2);
-                } else if (md_is_punct(next)) {
+                } else if (md_is_ascii_punct(next)) {
                     buf = "\{buf}\{next}";
                     skip = i + 2;
                 } else {
@@ -88,10 +91,16 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     opens = false;
                     closes = false;
                 }
-                md_flush(pieces, buf);
-                buf = "";
-                pieces.add(md_piece { part = part.TEXT(md_join(cs, i, i + run)), run = c, left = run, size = run, opens = opens, closes = closes, live = opens || closes });
-                skip = i + run;
+                if (!opens && !closes) {
+                    // a run that can neither open nor close is plain text
+                    buf = "\{buf}\{md_join(cs, i, i + run)}";
+                    skip = i + run;
+                } else {
+                    md_flush(pieces, buf);
+                    buf = "";
+                    pieces.add(md_piece { part = part.TEXT(md_join(cs, i, i + run)), run = c, left = run, size = run, opens = opens, closes = closes, live = opens || closes });
+                    skip = i + run;
+                }
             } else if (c == "[" && next == "^" && md_note_end(cs, i) > 0) {
                 let end: int = md_note_end(cs, i);
                 md_flush(pieces, buf);
@@ -151,7 +160,7 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     buf = "\{md_trim_end(buf)}\n";
                 }
                 skip = md_after_spaces(cs, i + 1);
-            } else if ((c == "w" || c == "h") && md_word_start(cs, i)) {
+            } else if ((c == "w" || c == "h" || c == "f") && md_word_start(cs, i)) {
                 let bare: md_link = md_bare_link(cs, i);
                 if (bare.end > 0) {
                     md_flush(pieces, buf);
@@ -160,6 +169,18 @@ fn rich_text.read(value: template, links: map<text>): opt<rich_text> {
                     skip = bare.end;
                 } else {
                     buf = "\{buf}\{c}";
+                }
+            } else if (c == "@" && md_email_end(cs, i) > 0) {
+                let local: int = md_local_part(buf);
+                if (local > 0) {
+                    let end: int = md_email_end(cs, i);
+                    let address: text = "\{buf.slice(buf.len() - local, local)}@\{md_join(cs, i + 1, end)}";
+                    md_flush(pieces, buf.slice(0, (buf.len() - local).clamp(0, buf.len())));
+                    buf = "";
+                    pieces.add(md_piece { part = part.TEXT(address), marks = marks { link = "mailto:\{address}" } });
+                    skip = end;
+                } else {
+                    buf = "\{buf}@";
                 }
             } else {
                 buf = "\{buf}\{c}";
@@ -269,6 +290,11 @@ fn md_trim_end(s: text): text {
 // Unicode whitespace, as CommonMark's flanking rules read it; the ends count as space. Private to core
 fn md_is_space(c: text): bool {
     return [" ", "\t", "\n", "\u{b}", "\u{c}", "\u{d}", "\u{a0}", "\u{1680}", "\u{2000}", "\u{2001}", "\u{2002}", "\u{2003}", "\u{2004}", "\u{2005}", "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}", "\u{200a}", "\u{202f}", "\u{205f}", "\u{3000}"].has(c);
+}
+
+// ASCII punctuation, which a backslash escapes. Private to core
+fn md_is_ascii_punct(c: text): bool {
+    return c.len() == 1 && "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".has(c);
 }
 
 // ASCII punctuation, and the Unicode punctuation and symbols CommonMark's examples meet. Private to core
@@ -384,13 +410,13 @@ fn md_word_start(cs: list<text>, at: int): bool {
     return md_is_space(before) || ["(", "*", "_", "~"].has(before);
 }
 
-// A bare link: www. or http:// or https://, up to a space or a <, without trailing punctuation. Private to core
+// A bare link: www., http://, https:// or ftp://, up to a space or a <, without trailing punctuation. Private to core
 fn md_bare_link(cs: list<text>, at: int): md_link {
     let head: text = md_join(cs, at, at + 8).lower();
     mut scheme: text = "";
     if (head.starts("www.")) {
         scheme = "http://";
-    } else if (!head.starts("http://") && !head.starts("https://")) {
+    } else if (!head.starts("http://") && !head.starts("https://") && !head.starts("ftp://")) {
         return md_link { };
     }
     mut end: int = at;
@@ -418,13 +444,68 @@ fn md_bare_link(cs: list<text>, at: int): md_link {
             trimming = false;
         }
     }
+    // a trailing &name; looks like an entity, so it is not part of the link
+    if (cs[cut - 1].or("") == ";") {
+        mut amp: int = -1;
+        mut ok: bool = true;
+        for (k in (cut - 2)..at step -1) {
+            let c: text = cs[k].or("");
+            if (amp < 0 && ok) {
+                if (c == "&") {
+                    amp = k;
+                } else if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".has(c)) {
+                    ok = false;
+                }
+            }
+        }
+        if (amp > at && amp < cut - 2) {
+            cut = amp;
+        }
+    }
     let label: text = md_join(cs, at, cut);
-    let host: text = label.slice(scheme == "" ? (label.lower().starts("https://") ? 8 : 7) : 0, label.len());
+    let host: text = label.slice(scheme == "" ? label.split("://").first().or("").len() + 3 : 0, label.len());
     let domain: text = host.split("/").first().or("");
     if (!domain.has(".") || domain.starts(".") || domain.ends(".") || domain.has("_")) {
         return md_link { };
     }
     return md_link { end = cut, dest = "\{scheme}\{label}", label = label };
+}
+
+// How many characters at the end of the text could be an email address's local part. Private to core
+fn md_local_part(buf: text): int {
+    let cs: list<text[1]> = buf.chars();
+    mut n: int = 0;
+    mut going: bool = true;
+    for (k in (cs.len() - 1)..0 step -1) {
+        if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.+-_".has(cs[k].or(" "))) {
+            n = n + 1;
+        } else {
+            going = false;
+        }
+    }
+    return n;
+}
+
+// Where a bare email address's domain ends, after the @ at at: letters, digits, - and _, with a dot, and not ending in - or _; 0 for none. Private to core
+fn md_email_end(cs: list<text>, at: int): int {
+    mut end: int = at + 1;
+    mut going: bool = true;
+    for (k in (at + 1)..(cs.len() - 1)) {
+        if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_".has(cs[k].or(" "))) {
+            end = k + 1;
+        } else {
+            going = false;
+        }
+    }
+    // a trailing dot is punctuation after the address
+    if (cs[end - 1].or("") == ".") {
+        end = end - 1;
+    }
+    let domain: text = md_join(cs, at + 1, end);
+    if (!domain.has(".") || domain.ends("-") || domain.ends("_") || domain.starts(".")) {
+        return 0;
+    }
+    return end;
 }
 
 // How many times c appears from start up to end. Private to core
@@ -526,6 +607,19 @@ fn md_html(cs: list<text>, at: int): int {
         return 0;
     }
     // the tag's name, then attributes, then > or />, with no hole in it
+    mut name_end: int = name_at;
+    mut naming: bool = true;
+    for (k in name_at..(cs.len() - 1)) {
+        if (naming && ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-".has(cs[k].or(" ")))) {
+            name_end = k + 1;
+        } else {
+            naming = false;
+        }
+    }
+    let after_name: text = cs[name_end].or("");
+    if (![" ", "\t", "\n", "/", ">"].has(after_name)) {
+        return 0;
+    }
     mut quote: text = "";
     mut end: int = 0;
     mut bad: bool = false;
@@ -585,6 +679,26 @@ fn md_entity(cs: list<text>, at: int): md_link {
         return md_link { };
     }
     let name: text = md_join(cs, at + 1, end);
+    if (name.starts("#")) {
+        let is_hex: bool = name.starts("#x") || name.starts("#X");
+        let digits: text = name.slice(is_hex ? 2 : 1, name.len()).lower();
+        let base: number = is_hex ? 16 : 10;
+        let allowed: text = is_hex ? "0123456789abcdef" : "0123456789";
+        if (digits == "" || digits.len() > (is_hex ? 6 : 7)) {
+            return md_link { };
+        }
+        mut code: number = 0;
+        for (c in digits.chars()) {
+            if (let d: number = allowed.chars().position(c)) {
+                code = code * base + d;
+            } else {
+                return md_link { };
+            }
+        }
+        // an invalid or zero code is the replacement character, as CommonMark has it
+        let shown: text = code == 0 ? "\u{fffd}" : text.of_code(code).or("\u{fffd}");
+        return md_link { end = end + 1, label = shown };
+    }
     if (let value: text = entities.get(name)) {
         return md_link { end = end + 1, label = value };
     }
@@ -634,7 +748,8 @@ fn md_close_bracket(cs: list<text>, at: int, brackets: list<md_bracket>, links: 
             mut stop: bool = false;
             for (k in (at + 2)..(cs.len() - 1)) {
                 let c: text = cs[k].or("");
-                if (!stop && close == 0) {
+                let escaped: bool = cs[k - 1].or("") == "\\" && cs[k - 2].or("") != "\\";
+                if (!stop && close == 0 && !escaped) {
                     if (c == "]") {
                         close = k;
                     } else if (c == "[") {
@@ -662,7 +777,7 @@ fn md_close_bracket(cs: list<text>, at: int, brackets: list<md_bracket>, links: 
 
 // A label as CommonMark matches them: case folded, spaces collapsed. Private to core
 fn md_label(s: text): text {
-    let flat: text = s.replace("\n", " ").replace("\t", " ").lower();
+    let flat: text = s.replace("\n", " ").replace("\t", " ").lower().replace("ß", "ss");
     return flat.split(" ").filter(fn(w) { return w != ""; }).join(" ");
 }
 
@@ -673,10 +788,15 @@ fn md_inline_link(cs: list<text>, from: int): md_link {
     if (cs[k].or("") == "<") {
         mut close: int = 0;
         mut stop: bool = false;
+        mut escaped: bool = false;
         for (j in (k + 1)..(cs.len() - 1)) {
             let c: text = cs[j].or("");
             if (!stop && close == 0) {
-                if (c == ">") {
+                if (escaped) {
+                    escaped = false;
+                } else if (c == "\\") {
+                    escaped = true;
+                } else if (c == ">") {
                     close = j;
                 } else if (c == "\n" || c == "<") {
                     stop = true;
@@ -692,10 +812,17 @@ fn md_inline_link(cs: list<text>, from: int): md_link {
         mut depth: int = 0;
         mut end: int = k;
         mut stop: bool = false;
+        mut escaped: bool = false;
         for (j in k..(cs.len() - 1)) {
             let c: text = cs[j].or("");
             if (!stop) {
-                if (md_is_space(c) || c == "\u{fffc}") {
+                if (escaped) {
+                    escaped = false;
+                    end = j + 1;
+                } else if (c == "\\") {
+                    escaped = true;
+                    end = j + 1;
+                } else if ([" ", "\t", "\n", "\u{b}", "\u{c}", "\u{d}", "\u{fffc}"].has(c)) {
                     stop = true;
                 } else if (c == "(") {
                     depth = depth + 1;
@@ -772,7 +899,7 @@ fn md_unescape(s: text): text {
     mut skip: int = 0;
     for (k, c in cs) {
         if (k >= skip) {
-            if (c == "\\" && md_is_punct(cs[k + 1].or(""))) {
+            if (c == "\\" && md_is_ascii_punct(cs[k + 1].or(""))) {
                 out = "\{out}\{cs[k + 1].or("")}";
                 skip = k + 2;
             } else if (c == "&") {
@@ -799,7 +926,14 @@ fn md_make_link(mut pieces: list<md_piece>, b: md_bracket, found: md_link) {
         mut for (k, t in pieces) {
             if (mut x: md_piece = t) {
                 if (k > b.at && !x.gone) {
-                    alt = "\{alt}\{x.part.words()}";
+                    // the alt text is plain: a run's characters only where no emphasis used them
+                    if (x.run == "") {
+                        alt = "\{alt}\{x.part.words()}";
+                    } else {
+                        for (j in 1..(x.left)) {
+                            alt = "\{alt}\{x.run}";
+                        }
+                    }
                     x.gone = true;
                 }
             }

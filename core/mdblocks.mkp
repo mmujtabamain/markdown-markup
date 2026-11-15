@@ -1,0 +1,1216 @@
+package core;
+
+//@about Markdown blocks: CommonMark, with GitHub's tables, task lists and footnotes, and each block's inline Markdown through rich_text.read. A hole is never read, so it never starts or ends a block.
+fn md.from(value: template): opt<md> {
+    mut p: mb_parser = mb_parser { };
+    p.nodes.add(mb_node { kind = "document", parent = -1 });
+    let lines: list<text> = mb_lines(value);
+    for (line in lines) {
+        p.incorporate(line);
+    }
+    for (round in 0..200) {
+        if (p.nodes.len() > 0 && mb_open(p.nodes, 0)) {
+            p.finalize(p.tip);
+        }
+    }
+    let links: map<text> = map { entries = p.links };
+    let out: mb_out = mb_blocks(p.nodes, 0, value, links, 0);
+    if (!out.ok) {
+        return opt.NONE;
+    }
+    return md { blocks = out.blocks };
+}
+
+// A template's text, each hole one object replacement character, cut into lines. Private to core
+fn mb_lines(value: template): list<text> {
+    mut whole: text = "";
+    for (k, piece in value.pieces) {
+        whole = k == 0 ? piece : "\{whole}\u{fffc}\{piece}";
+    }
+    mut lines: list<text> = whole.split("\n");
+    if (whole.ends("\n")) {
+        let last: int = lines.len() - 1;
+        if (last in 0...) {
+            lines.remove_at(last);
+        }
+    }
+    return lines;
+}
+
+//@about One block while it is read, of any kind; the parts that don't apply to its kind stay as they start. Private to core
+record mb_node {
+    kind: text;
+    parent: int;
+    mut children: list<int> = [];
+    mut open: bool = true;
+    mut content: text = "";
+    mut last_blank: bool = false;
+    start_line: int = 0;
+    mut ordered: bool = false;
+    mut start: int 0... = 1;
+    mut bullet: text = "";
+    mut delim: text = "";
+    mut tight: bool = true;
+    mut marker_offset: int = 0;
+    mut padding: int = 0;
+    mut done: opt<bool> = opt.NONE;
+    mut label: text = "";
+    mut level: int 1..6 = 1;
+    mut setext: bool = false;
+    mut fenced: bool = false;
+    mut fence_char: text = "";
+    mut fence_len: int = 0;
+    mut fence_offset: int = 0;
+    mut info: text = "";
+    mut html: int = 0;
+    mut align: list<cell_align> = [];
+    mut head: list<text> = [];
+    mut rows: list<list<text>> = [];
+}
+
+//@about The block reader's state: CommonMark's parsing strategy, a line at a time. Private to core
+record mb_parser {
+    mut nodes: list<mb_node> = [];
+    mut tip: int = 0;
+    mut old_tip: int = 0;
+    mut line: list<text> = [];
+    mut line_no: int = 0;
+    mut offset: int = 0;
+    mut column: int = 0;
+    mut next_nonspace: int = 0;
+    mut next_nonspace_column: int = 0;
+    mut indent: int = 0;
+    mut indented: bool = false;
+    mut blank: bool = false;
+    mut partial_tab: bool = false;
+    mut all_closed: bool = true;
+    mut last_matched: int = 0;
+    mut links: list<{ key: text, value: text }> = [];
+}
+
+// What turning blocks into md's blocks gave: the blocks, the next hole, and whether every inline read worked. Private to core
+record mb_out {
+    blocks: list<block> = [];
+    next: int = 0;
+    ok: bool = true;
+}
+
+fn mb_open(nodes: list<mb_node>, k: int): bool {
+    if (let n: mb_node = nodes[k]) {
+        return n.open;
+    }
+    return false;
+}
+
+fn mb_kind(nodes: list<mb_node>, k: int): text {
+    if (let n: mb_node = nodes[k]) {
+        return n.kind;
+    }
+    return "";
+}
+
+fn mb_last_child(nodes: list<mb_node>, k: int): int {
+    if (let n: mb_node = nodes[k]) {
+        return n.children.last().or(-1);
+    }
+    return -1;
+}
+
+fn mb_is_space_or_tab(c: text): bool {
+    return c == " " || c == "\t";
+}
+
+fn mb_parser.peek(self, at: int): text {
+    return self.line[at].or("");
+}
+
+fn mb_parser.rest(self, from: int): text {
+    return md_join(self.line, from, self.line.len());
+}
+
+fn mb_parser.find_next_nonspace(mut self) {
+    mut i: int = self.offset;
+    mut cols: int = self.column;
+    mut going: bool = true;
+    for (k in (self.offset)..(self.line.len() - 1)) {
+        let c: text = self.line[k].or("");
+        if (going && c == " ") {
+            i = k + 1;
+            cols = cols + 1;
+        } else if (going && c == "\t") {
+            i = k + 1;
+            cols = cols + 4 - cols % 4;
+        } else {
+            going = false;
+        }
+    }
+    let c: text = self.line[i].or("");
+    self.blank = c == "" || c == "\n";
+    self.next_nonspace = i;
+    self.next_nonspace_column = cols;
+    self.indent = cols - self.column;
+    self.indented = self.indent >= 4;
+}
+
+fn mb_parser.advance_next_nonspace(mut self) {
+    self.offset = self.next_nonspace;
+    self.column = self.next_nonspace_column;
+    self.partial_tab = false;
+}
+
+fn mb_parser.advance_offset(mut self, count: int, columns: bool) {
+    mut left: int = count;
+    for (k in 1..(count + 1)) {
+        let c: text = self.line[self.offset].or("");
+        if (left > 0 && c != "") {
+            if (c == "\t") {
+                let to_tab: int = 4 - self.column % 4;
+                if (columns) {
+                    self.partial_tab = to_tab > left;
+                    let moved: int = to_tab.min(left);
+                    self.column = self.column + moved;
+                    if (!self.partial_tab) {
+                        self.offset = self.offset + 1;
+                    }
+                    left = left - moved;
+                } else {
+                    self.partial_tab = false;
+                    self.column = self.column + to_tab;
+                    self.offset = self.offset + 1;
+                    left = left - 1;
+                }
+            } else {
+                self.partial_tab = false;
+                self.offset = self.offset + 1;
+                self.column = self.column + 1;
+                left = left - 1;
+            }
+        }
+    }
+}
+
+fn mb_parser.add_line(mut self) {
+    mut s: text = "";
+    if (self.partial_tab) {
+        self.offset = self.offset + 1;
+        let to_tab: int = 4 - self.column % 4;
+        for (k in 1..to_tab) {
+            s = "\{s} ";
+        }
+    }
+    s = "\{s}\{self.rest(self.offset)}\n";
+    if (mut n: mb_node = self.nodes[self.tip]) {
+        n.content = "\{n.content}\{s}";
+    }
+}
+
+fn mb_can_contain(parent: text, child: text): bool {
+    if (["document", "quote", "item", "footnote"].has(parent)) {
+        return child != "item";
+    }
+    return parent == "list" && child == "item";
+}
+
+fn mb_parser.child(mut self, node: mb_node) {
+    for (round in 0..64) {
+        if (!mb_can_contain(mb_kind(self.nodes, self.tip), node.kind)) {
+            self.finalize(self.tip);
+        }
+    }
+    let id: int = self.nodes.len();
+    self.nodes.add(node with { parent = self.tip, start_line = self.line_no });
+    if (mut n: mb_node = self.nodes[self.tip]) {
+        n.children.add(id);
+    }
+    self.tip = id;
+}
+
+fn mb_accepts_lines(kind: text): bool {
+    return kind == "paragraph" || kind == "code" || kind == "html";
+}
+
+fn mb_parser.close_unmatched(mut self) {
+    if (!self.all_closed) {
+        for (round in 0..64) {
+            if (self.old_tip != self.last_matched) {
+                if (let n: mb_node = self.nodes[self.old_tip]) {
+                    let parent: int = n.parent;
+                    self.finalize(self.old_tip);
+                    self.old_tip = parent;
+                }
+            }
+        }
+        self.all_closed = true;
+    }
+}
+
+// 0: the open block goes on, 1: it doesn't, 2: the line is used up (a closing fence). Private to core
+fn mb_parser.continues(mut self, k: int): int {
+    let n: mb_node = self.nodes[k].or(mb_node { kind = "", parent = -1 });
+    if (n.kind == "document" || n.kind == "list") {
+        return 0;
+    }
+    if (n.kind == "quote") {
+        if (!self.indented && self.peek(self.next_nonspace) == ">") {
+            self.advance_next_nonspace();
+            self.advance_offset(1, false);
+            if (mb_is_space_or_tab(self.peek(self.offset))) {
+                self.advance_offset(1, true);
+            }
+            return 0;
+        }
+        return 1;
+    }
+    if (n.kind == "item") {
+        if (self.blank) {
+            if (n.children.len() == 0) {
+                return 1;
+            }
+            self.advance_next_nonspace();
+            return 0;
+        }
+        if (self.indent >= n.marker_offset + n.padding) {
+            self.advance_offset(n.marker_offset + n.padding, true);
+            return 0;
+        }
+        return 1;
+    }
+    if (n.kind == "footnote") {
+        if (self.blank) {
+            self.advance_next_nonspace();
+            return 0;
+        }
+        if (self.indent >= 4) {
+            self.advance_offset(4, true);
+            return 0;
+        }
+        return 1;
+    }
+    if (n.kind == "heading" || n.kind == "thematic") {
+        return 1;
+    }
+    if (n.kind == "code" && n.fenced) {
+        let rest: text = self.rest(self.next_nonspace);
+        let run: int = md_run(self.line, self.next_nonspace, n.fence_char);
+        if (self.indent <= 3 && run >= n.fence_len && run > 0 && rest.slice(run, rest.len()).trim() == "") {
+            self.finalize(k);
+            return 2;
+        }
+        mut i: int = n.fence_offset;
+        for (round in 1..(n.fence_offset)) {
+            if (i > 0 && mb_is_space_or_tab(self.peek(self.offset))) {
+                self.advance_offset(1, true);
+                i = i - 1;
+            }
+        }
+        return 0;
+    }
+    if (n.kind == "code") {
+        if (self.indent >= 4) {
+            self.advance_offset(4, true);
+            return 0;
+        }
+        if (self.blank) {
+            self.advance_next_nonspace();
+            return 0;
+        }
+        return 1;
+    }
+    if (n.kind == "html") {
+        return self.blank && (n.html == 6 || n.html == 7) ? 1 : 0;
+    }
+    if (n.kind == "paragraph" || n.kind == "table") {
+        return self.blank ? 1 : 0;
+    }
+    return 1;
+}
+
+fn mb_parser.incorporate(mut self, ln: text) {
+    self.line = ln.chars();
+    self.line_no = self.line_no + 1;
+    self.offset = 0;
+    self.column = 0;
+    self.blank = false;
+    self.partial_tab = false;
+    self.old_tip = self.tip;
+    mut container: int = 0;
+    mut matching: bool = true;
+    for (round in 0..64) {
+        let last: int = mb_last_child(self.nodes, container);
+        if (matching && last >= 0 && mb_open(self.nodes, last)) {
+            container = last;
+            self.find_next_nonspace();
+            let r: int = self.continues(container);
+            if (r == 1) {
+                if (let n: mb_node = self.nodes[container]) {
+                    container = n.parent;
+                }
+                matching = false;
+            } else if (r == 2) {
+                return;
+            }
+        } else {
+            matching = false;
+        }
+    }
+    self.all_closed = container == self.old_tip;
+    self.last_matched = container;
+    let kind: text = mb_kind(self.nodes, container);
+    mut matched_leaf: bool = kind != "paragraph" && mb_accepts_lines(kind) || kind == "table";
+    for (round in 0..64) {
+        if (!matched_leaf) {
+            self.find_next_nonspace();
+            let c: text = self.peek(self.next_nonspace);
+            if (!self.indented && !"#`~*+_=<>-[|:0123456789".has(c)) {
+                self.advance_next_nonspace();
+                matched_leaf = true;
+            } else {
+                let r: int = self.block_start(container);
+                if (r == 0) {
+                    self.advance_next_nonspace();
+                    matched_leaf = true;
+                } else if (r == 1) {
+                    container = self.tip;
+                } else {
+                    container = self.tip;
+                    matched_leaf = true;
+                }
+            }
+        }
+    }
+    // a table row, or the table's end
+    if (mb_kind(self.nodes, container) == "table") {
+        if (self.offset >= self.line.len() && !self.blank) {
+            return;
+        }
+        self.find_next_nonspace();
+        let rest: text = self.rest(self.next_nonspace);
+        if (!self.blank && !self.indented && (rest.starts(">") || rest.starts("#") || rest.starts("```") || rest.starts("~~~") || mb_thematic(rest))) {
+            self.finalize(container);
+            self.line_no = self.line_no - 1;
+            self.incorporate(ln);
+            return;
+        }
+        if (!self.blank && (self.all_closed || mb_kind(self.nodes, self.tip) == "table")) {
+            if (mut n: mb_node = self.nodes[container]) {
+                mut row: list<text> = mb_split_row(self.rest(self.offset));
+                for (k in (row.len())..(n.head.len() - 1)) {
+                    row.add("");
+                }
+                mut cells: list<text> = [];
+                for (j, cell in row) {
+                    if (j < n.head.len()) {
+                        cells.add(cell);
+                    }
+                }
+                n.rows.add(cells);
+            }
+            return;
+        }
+    }
+    if (!self.all_closed && !self.blank && mb_kind(self.nodes, self.tip) == "paragraph") {
+        // a lazy continuation line
+        self.add_line();
+        return;
+    }
+    self.close_unmatched();
+    if (self.blank) {
+        let last: int = mb_last_child(self.nodes, container);
+        if (mut n: mb_node = self.nodes[last]) {
+            n.last_blank = true;
+        }
+    }
+    let t: text = mb_kind(self.nodes, container);
+    mut first_item: bool = false;
+    if (let n: mb_node = self.nodes[container]) {
+        first_item = t == "item" && n.children.len() == 0 && n.start_line == self.line_no;
+    }
+    let blank_here: bool = self.blank && !(t == "quote" || (t == "code" && mb_fenced(self.nodes, container)) || first_item);
+    if (mut n: mb_node = self.nodes[container]) {
+        n.last_blank = blank_here;
+    }
+    if (mb_accepts_lines(t)) {
+        self.add_line();
+        if (t == "html") {
+            let html_kind: int = self.nodes[container].or(mb_node { kind = "", parent = -1 }).html;
+            if (html_kind >= 1 && html_kind <= 5 && mb_html_end(html_kind, self.rest(self.offset))) {
+                self.finalize(container);
+            }
+        }
+    } else if (self.offset < self.line.len() && !self.blank) {
+        self.child(mb_node { kind = "paragraph", parent = 0 });
+        self.advance_next_nonspace();
+        self.add_line();
+    }
+}
+
+fn mb_fenced(nodes: list<mb_node>, k: int): bool {
+    if (let n: mb_node = nodes[k]) {
+        return n.fenced;
+    }
+    return false;
+}
+
+// 0: no block starts here, 1: a container started, 2: a leaf started. Private to core
+fn mb_parser.block_start(mut self, container: int): int {
+    let c: text = self.peek(self.next_nonspace);
+    let rest: text = self.rest(self.next_nonspace);
+    let ckind: text = mb_kind(self.nodes, container);
+    // block quote
+    if (!self.indented && c == ">") {
+        self.advance_next_nonspace();
+        self.advance_offset(1, false);
+        if (mb_is_space_or_tab(self.peek(self.offset))) {
+            self.advance_offset(1, true);
+        }
+        self.close_unmatched();
+        self.child(mb_node { kind = "quote", parent = 0 });
+        return 1;
+    }
+    // ATX heading
+    if (!self.indented && c == "#") {
+        let hashes: int = md_run(self.line, self.next_nonspace, "#");
+        let after: text = self.peek(self.next_nonspace + hashes);
+        if (hashes >= 1 && hashes <= 6 && (after == "" || after == " " || after == "\t")) {
+            self.advance_next_nonspace();
+            self.advance_offset(hashes, false);
+            self.close_unmatched();
+            mut text_part: text = self.rest(self.offset).trim();
+            let stripped: text = mb_trim_end_char(text_part, "#");
+            if (stripped == "") {
+                text_part = "";
+            } else if (stripped.ends(" ") || stripped.ends("\t")) {
+                text_part = stripped.trim();
+            }
+            if (hashes in 1..6) {
+                self.child(mb_node { kind = "heading", parent = 0, level = hashes, content = text_part });
+            }
+            self.advance_offset(self.line.len() - self.offset, false);
+            return 2;
+        }
+    }
+    // fenced code
+    if (!self.indented && (c == "`" || c == "~")) {
+        let run: int = md_run(self.line, self.next_nonspace, c);
+        let info: text = rest.slice(run, rest.len());
+        if (run >= 3 && !(c == "`" && info.has("`"))) {
+            self.close_unmatched();
+            self.child(mb_node { kind = "code", parent = 0, fenced = true, fence_char = c, fence_len = run, fence_offset = self.indent, info = md_unescape(info.trim()) });
+            self.advance_next_nonspace();
+            self.advance_offset(run, false);
+            self.advance_offset(self.line.len() - self.offset, false);
+            return 2;
+        }
+    }
+    // HTML block
+    if (!self.indented && c == "<") {
+        for (kind in 1..7) {
+            if (mb_html_start(kind, rest) && (kind < 7 || (ckind != "paragraph" && !(!self.all_closed && !self.blank && mb_kind(self.nodes, self.tip) == "paragraph")))) {
+                self.close_unmatched();
+                self.child(mb_node { kind = "html", parent = 0, html = kind });
+                return 2;
+            }
+        }
+    }
+    // setext heading underline
+    if (!self.indented && ckind == "paragraph" && (c == "=" || c == "-")) {
+        let t: text = mb_trim_end_char(rest, " ").trim();
+        if (t != "" && mb_trim_end_char(t, c) == "") {
+            self.close_unmatched();
+            let content: text = self.nodes[container].or(mb_node { kind = "", parent = -1 }).content;
+            let left: text = self.take_link_defs(content);
+            if (mut n: mb_node = self.nodes[container]) {
+                if (left.trim() != "") {
+                    n.kind = "heading";
+                    n.level = c == "=" ? 1 : 2;
+                    n.setext = true;
+                    n.content = left;
+                    self.advance_offset(self.line.len() - self.offset, false);
+                    return 2;
+                }
+                n.content = left;
+            }
+        }
+    }
+    // thematic break
+    if (!self.indented && (c == "*" || c == "-" || c == "_") && mb_thematic(rest)) {
+        self.close_unmatched();
+        self.child(mb_node { kind = "thematic", parent = 0 });
+        self.advance_offset(self.line.len() - self.offset, false);
+        return 2;
+    }
+    // a table's delimiter row, under a one-line paragraph
+    if (!self.indented && ckind == "paragraph") {
+        let content: text = self.nodes[container].or(mb_node { kind = "", parent = -1 }).content;
+        let lines: list<text> = mb_trim_end_char(content, "\n").split("\n");
+        if (lines.len() == 1) {
+            let align: list<cell_align> = mb_delimiter_row(rest);
+            let head: list<text> = mb_split_row(lines.first().or(""));
+            if (align.len() > 0 && head.len() == align.len()) {
+                self.close_unmatched();
+                if (mut n: mb_node = self.nodes[container]) {
+                    n.kind = "table";
+                    n.align = align;
+                    n.head = head;
+                    n.content = "";
+                }
+                self.advance_offset(self.line.len() - self.offset, false);
+                return 2;
+            }
+        }
+    }
+    // footnote definition
+    if (!self.indented && rest.starts("[^")) {
+        let close: int = mb_find(rest, "]:");
+        if (close > 2) {
+            let label: text = rest.slice(2, close - 2);
+            if (!label.has(" ") && !label.has("\t") && !label.has("]")) {
+                self.close_unmatched();
+                self.child(mb_node { kind = "footnote", parent = 0, label = label });
+                self.advance_next_nonspace();
+                self.advance_offset(close + 2, false);
+                if (mb_is_space_or_tab(self.peek(self.offset))) {
+                    self.advance_offset(1, true);
+                }
+                return 1;
+            }
+        }
+    }
+    // list item
+    let marker: mb_marker = self.list_marker(container);
+    if (marker.len > 0) {
+        self.advance_next_nonspace();
+        let marker_offset: int = self.indent;
+        self.advance_offset(marker.len, true);
+        let spaces_start_col: int = self.column;
+        let spaces_start_offset: int = self.offset;
+        mut going: bool = true;
+        for (round in 0..8) {
+            if (going) {
+                self.advance_offset(1, true);
+                let n: text = self.peek(self.offset);
+                if (!(self.column - spaces_start_col < 5 && mb_is_space_or_tab(n))) {
+                    going = false;
+                }
+            }
+        }
+        let blank_item: bool = self.peek(self.offset) == "";
+        let spaces_after: int = self.column - spaces_start_col;
+        mut padding: int = marker.len + spaces_after;
+        if (spaces_after >= 5 || spaces_after < 1 || blank_item) {
+            padding = marker.len + 1;
+            self.column = spaces_start_col;
+            self.offset = spaces_start_offset;
+            if (mb_is_space_or_tab(self.peek(self.offset))) {
+                self.advance_offset(1, true);
+            }
+        }
+        self.close_unmatched();
+        mut same: bool = false;
+        if (let t: mb_node = self.nodes[self.tip]) {
+            same = t.kind == "list" && t.ordered == marker.ordered && (marker.ordered ? t.delim == marker.delim : t.bullet == marker.bullet);
+        }
+        if (!same) {
+            self.child(mb_node { kind = "list", parent = 0, ordered = marker.ordered, start = marker.start, bullet = marker.bullet, delim = marker.delim });
+        }
+        mut done: opt<bool> = opt.NONE;
+        let after: text = self.rest(self.offset);
+        if ((after.starts("[ ]") || after.starts("[x]") || after.starts("[X]")) && mb_is_space_or_tab(after.slice(3, 1))) {
+            done = !after.starts("[ ]");
+            self.advance_offset(4, false);
+        }
+        self.child(mb_node { kind = "item", parent = 0, marker_offset = marker_offset, padding = padding, done = done });
+        return 1;
+    }
+    // indented code
+    if (self.indented && mb_kind(self.nodes, self.tip) != "paragraph" && !self.blank) {
+        self.advance_offset(4, true);
+        self.close_unmatched();
+        self.child(mb_node { kind = "code", parent = 0 });
+        return 2;
+    }
+    return 0;
+}
+
+//@about A list marker: its length (0 for none), and the list it starts. Private to core
+record mb_marker {
+    len: int = 0;
+    ordered: bool = false;
+    start: int 0... = 1;
+    bullet: text = "";
+    delim: text = "";
+}
+
+fn mb_parser.list_marker(self, container: int): mb_marker {
+    if (self.indent >= 4) {
+        return mb_marker { };
+    }
+    let rest: text = self.rest(self.next_nonspace);
+    let in_para: bool = mb_kind(self.nodes, container) == "paragraph";
+    let first: text = rest.slice(0, 1);
+    mut m: mb_marker = mb_marker { };
+    if (["*", "+", "-"].has(first)) {
+        m = mb_marker { len = 1, bullet = first };
+    } else {
+        mut digits: int = 0;
+        mut going: bool = true;
+        for (c in rest.chars()) {
+            if (going && "0123456789".has(c)) {
+                digits = digits + 1;
+            } else {
+                going = false;
+            }
+        }
+        if (digits == 0 || digits > 9) {
+            return mb_marker { };
+        }
+        let d: text = rest.slice(digits, 1);
+        if (d != "." && d != ")") {
+            return mb_marker { };
+        }
+        let number: number = rest.slice(0, digits).number().or(1);
+        if (in_para && number != 1) {
+            return mb_marker { };
+        }
+        m = mb_marker { len = digits + 1, ordered = true, start = number.round().clamp(0, 999999999), delim = d };
+    }
+    let after: text = rest.slice(m.len, 1);
+    if (after != "" && after != " " && after != "\t") {
+        return mb_marker { };
+    }
+    if (in_para && rest.slice(m.len, rest.len()).trim() == "") {
+        return mb_marker { };
+    }
+    if (!m.ordered && (first == "*" || first == "-") && mb_thematic(rest)) {
+        return mb_marker { };
+    }
+    return m;
+}
+
+fn mb_parser.finalize(mut self, k: int) {
+    let n: mb_node = self.nodes[k].or(mb_node { kind = "", parent = -1 });
+    if (mut x: mb_node = self.nodes[k]) {
+        x.open = false;
+    }
+    if (n.kind == "paragraph") {
+        let left: text = self.take_link_defs(n.content);
+        if (mut x: mb_node = self.nodes[k]) {
+            x.content = left;
+        }
+    } else if (n.kind == "code" && n.fenced) {
+        let at: int = mb_find(n.content, "\n");
+        if (mut x: mb_node = self.nodes[k]) {
+            x.content = at >= 0 ? n.content.slice(at + 1, n.content.len()) : "";
+        }
+    } else if (n.kind == "code") {
+        mut lines: list<text> = n.content.split("\n");
+        for (round in 0..(lines.len())) {
+            let last: int = lines.len() - 1;
+            if (last in 0... && lines.last().or("x").trim() == "") {
+                lines.remove_at(last);
+            }
+        }
+        if (mut x: mb_node = self.nodes[k]) {
+            x.content = "\{lines.join("\n")}\n";
+        }
+    } else if (n.kind == "list") {
+        let tight: bool = mb_tight(self.nodes, k);
+        if (mut x: mb_node = self.nodes[k]) {
+            x.tight = tight;
+        }
+    }
+    self.tip = n.parent < 0 ? 0 : n.parent;
+}
+
+fn mb_ends_blank(nodes: list<mb_node>, k: int): bool {
+    mut b: int = k;
+    for (round in 0..64) {
+        if (let n: mb_node = nodes[b]) {
+            if (n.last_blank) {
+                return true;
+            }
+            if (n.kind == "list" || n.kind == "item") {
+                b = n.children.last().or(-1);
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    return false;
+}
+
+fn mb_tight(nodes: list<mb_node>, list: int): bool {
+    let items: list<int> = nodes[list].or(mb_node { kind = "", parent = -1 }).children;
+    for (k, item in items) {
+        if (mb_ends_blank(nodes, item) && k + 1 < items.len()) {
+            return false;
+        }
+        let kids: list<int> = nodes[item].or(mb_node { kind = "", parent = -1 }).children;
+        for (j, sub in kids) {
+            if (mb_ends_blank(nodes, sub) && (k + 1 < items.len() || j + 1 < kids.len())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Takes the link reference definitions off the start of a paragraph's text. Private to core
+fn mb_parser.take_link_defs(mut self, content: text): text {
+    let cs: list<text> = content.chars();
+    mut at: int = 0;
+    mut going: bool = true;
+    for (round in 0..64) {
+        if (going && cs[at].or("") == "[") {
+            let d: mb_def = mb_link_def(cs, at);
+            if (d.end > at) {
+                let key: text = md_label(d.label);
+                if (!self.links.some(fn(l) { return l.key == key; })) {
+                    self.links.add({ key = key, value = d.dest });
+                }
+                at = d.end;
+            } else {
+                going = false;
+            }
+        } else {
+            going = false;
+        }
+    }
+    return md_join(cs, at, cs.len());
+}
+
+//@about A link reference definition read from a paragraph: where it ends (at its start for none), its label and its destination. Private to core
+record mb_def {
+    end: int = 0;
+    label: text = "";
+    dest: text = "";
+}
+
+// One link reference definition at at: [label]: destination "title". Private to core
+fn mb_link_def(cs: list<text>, at: int): mb_def {
+    // the label: no unescaped brackets, not only spaces
+    mut close: int = -1;
+    mut stop: bool = false;
+    mut escaped: bool = false;
+    for (k in (at + 1)..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (!stop && close < 0) {
+            if (escaped) {
+                escaped = false;
+            } else if (c == "\\") {
+                escaped = true;
+            } else if (c == "[") {
+                stop = true;
+            } else if (c == "]") {
+                close = k;
+            }
+        }
+    }
+    if (close < 0 || cs[close + 1].or("") != ":") {
+        return mb_def { end = at };
+    }
+    let label: text = md_join(cs, at + 1, close);
+    if (label.trim() == "" || label.len() > 999) {
+        return mb_def { end = at };
+    }
+    mut k: int = md_after_blank(cs, close + 2);
+    mut dest: text = "";
+    if (cs[k].or("") == "<") {
+        mut end: int = -1;
+        mut bad: bool = false;
+        mut esc: bool = false;
+        for (j in (k + 1)..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (end < 0 && !bad) {
+                if (esc) {
+                    esc = false;
+                } else if (c == "\\") {
+                    esc = true;
+                } else if (c == ">") {
+                    end = j;
+                } else if (c == "\n" || c == "<") {
+                    bad = true;
+                }
+            }
+        }
+        if (end < 0) {
+            return mb_def { end = at };
+        }
+        dest = md_unescape(md_join(cs, k + 1, end));
+        k = end + 1;
+    } else {
+        mut depth: int = 0;
+        mut end: int = k;
+        mut stop2: bool = false;
+        mut esc: bool = false;
+        for (j in k..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (!stop2) {
+                if (esc) {
+                    esc = false;
+                    end = j + 1;
+                } else if (c == "\\") {
+                    esc = true;
+                    end = j + 1;
+                } else if ([" ", "\t", "\n"].has(c)) {
+                    stop2 = true;
+                } else if (c == "(") {
+                    depth = depth + 1;
+                    end = j + 1;
+                } else if (c == ")") {
+                    if (depth == 0) {
+                        stop2 = true;
+                    } else {
+                        depth = depth - 1;
+                        end = j + 1;
+                    }
+                } else {
+                    end = j + 1;
+                }
+            }
+        }
+        if (end == k || depth != 0) {
+            return mb_def { end = at };
+        }
+        dest = md_unescape(md_join(cs, k, end));
+        k = end;
+    }
+    // with no title, the destination ends its line
+    let line_end: int = mb_line_end(cs, k);
+    let before: int = k;
+    let t: int = md_after_blank(cs, k);
+    let q: text = cs[t].or("");
+    if (t > before && (q == "\"" || q == "'" || q == "(")) {
+        let closer: text = q == "(" ? ")" : q;
+        mut end: int = -1;
+        mut esc: bool = false;
+        mut bad: bool = false;
+        for (j in (t + 1)..(cs.len() - 1)) {
+            let c: text = cs[j].or("");
+            if (end < 0 && !bad) {
+                if (esc) {
+                    esc = false;
+                } else if (c == "\\") {
+                    esc = true;
+                } else if (c == closer) {
+                    end = j;
+                } else if (c == "(" && q == "(") {
+                    bad = true;
+                }
+            }
+        }
+        if (end >= 0) {
+            let after: int = mb_line_end(cs, end + 1);
+            if (after >= 0) {
+                return mb_def { end = after, label = label, dest = dest };
+            }
+        }
+    }
+    if (line_end < 0) {
+        return mb_def { end = at };
+    }
+    return mb_def { end = line_end, label = label, dest = dest };
+}
+
+// After spaces and tabs from k: where the next line starts, at a line break or the end; -1 when other text comes first. Private to core
+fn mb_line_end(cs: list<text>, k: int): int {
+    mut found: int = -1;
+    mut going: bool = true;
+    for (j in k..(cs.len() - 1)) {
+        let c: text = cs[j].or("");
+        if (going && found < 0) {
+            if (c == "\n") {
+                found = j + 1;
+            } else if (c != " " && c != "\t") {
+                going = false;
+            }
+        }
+    }
+    if (found < 0 && going) {
+        return cs.len();
+    }
+    return found;
+}
+
+fn mb_trim_end_char(s: text, c: text): text {
+    let cs: list<text[1]> = s.chars();
+    mut end: int = cs.len();
+    mut going: bool = true;
+    for (k in (cs.len() - 1)..0 step -1) {
+        if (going && cs[k].or("") == c) {
+            end = k;
+        } else {
+            going = false;
+        }
+    }
+    return s.slice(0, end.clamp(0, s.len()));
+}
+
+// Where part first appears in s, or -1. Private to core
+fn mb_find(s: text, part: text): int {
+    let n: int = part.len();
+    for (k in 0..(s.len() - n)) {
+        if (k in 0... && s.slice(k, n) == part) {
+            return k;
+        }
+    }
+    return -1;
+}
+
+fn mb_thematic(s: text): bool {
+    let line: text = s.split("\n").first().or("");
+    mut chars: list<text> = [];
+    for (c in line.chars()) {
+        if (c != " " && c != "\t") {
+            chars.add(c);
+        }
+    }
+    let c: text = chars.first().or("");
+    return chars.len() >= 3 && ["*", "-", "_"].has(c) && chars.all(fn(x) { return x == c; });
+}
+
+fn mb_delimiter_row(s: text): list<cell_align> {
+    let t: text = s.trim();
+    if (!t.has("-") || !t.chars().all(fn(c) { return "|-: \t".has(c); })) {
+        return [];
+    }
+    let cells: list<text> = mb_split_row(t);
+    if (!t.has("|") && cells.len() < 2) {
+        return [];
+    }
+    mut out: list<cell_align> = [];
+    for (cell in cells) {
+        let c: text = cell.trim();
+        let inner: text = mb_trim_end_char(c, ":");
+        let middle: text = inner.starts(":") ? inner.slice(1, inner.len()) : inner;
+        if (middle == "" || !middle.chars().all(fn(x) { return x == "-"; })) {
+            return [];
+        }
+        if (c.starts(":") && c.ends(":")) {
+            out.add(cell_align.CENTER);
+        } else if (c.ends(":")) {
+            out.add(cell_align.END);
+        } else {
+            out.add(cell_align.START);
+        }
+    }
+    return out;
+}
+
+// A table row's cells, split at pipes that aren't escaped. Private to core
+fn mb_split_row(s: text): list<text> {
+    mut t: text = s.trim();
+    if (t.starts("|")) {
+        t = t.slice(1, t.len());
+    }
+    if (t.ends("|") && !t.ends("\\|")) {
+        t = t.slice(0, (t.len() - 1).clamp(0, t.len()));
+    }
+    mut out: list<text> = [];
+    mut cell: text = "";
+    let cs: list<text[1]> = t.chars();
+    mut skip: int = 0;
+    for (k, c in cs) {
+        if (k >= skip) {
+            if (c == "\\" && cs[k + 1].or("") == "|") {
+                cell = "\{cell}|";
+                skip = k + 2;
+            } else if (c == "|") {
+                out.add(cell.trim());
+                cell = "";
+            } else {
+                cell = "\{cell}\{c}";
+            }
+        }
+    }
+    out.add(cell.trim());
+    return out;
+}
+
+fn mb_html_start(kind: int, s: text): bool {
+    let lower: text = s.lower();
+    if (kind == 1) {
+        for (tag in ["<pre", "<script", "<style", "<textarea"]) {
+            let after: text = lower.slice(tag.len(), 1);
+            if (lower.starts(tag) && ["", " ", "\t", ">"].has(after)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    if (kind == 2) {
+        return s.starts("<!--");
+    }
+    if (kind == 3) {
+        return s.starts("<?");
+    }
+    if (kind == 4) {
+        return s.starts("<!") && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".has(s.slice(2, 1)) && s.len() > 2;
+    }
+    if (kind == 5) {
+        return s.starts("<![CDATA[");
+    }
+    if (kind == 6) {
+        let t: text = lower.starts("</") ? lower.slice(2, lower.len()) : lower.slice(1, lower.len());
+        mut name: text = "";
+        mut going: bool = true;
+        for (c in t.chars()) {
+            if (going && "abcdefghijklmnopqrstuvwxyz0123456789".has(c)) {
+                name = "\{name}\{c}";
+            } else {
+                going = false;
+            }
+        }
+        let after: text = t.slice(name.len(), 2);
+        let tags: list<text> = ["address", "article", "aside", "base", "basefont", "blockquote", "body", "caption", "center", "col", "colgroup", "dd", "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "iframe", "legend", "li", "link", "main", "menu", "menuitem", "nav", "noframes", "ol", "optgroup", "option", "p", "param", "search", "section", "summary", "table", "tbody", "td", "tfoot", "th", "thead", "title", "tr", "track", "ul"];
+        return tags.has(name) && (["", " ", "\t", ">"].has(after.slice(0, 1)) || after == "/>");
+    }
+    // kind 7: a whole open or closing tag, alone on its line
+    let line: text = s.trim();
+    let end: int = md_html(line.chars(), 0);
+    return end > 0 && end == line.len() && !lower.starts("<script") && !lower.starts("<style") && !lower.starts("<pre") && !lower.starts("<textarea") && !s.starts("<!") && !s.starts("<?");
+}
+
+fn mb_html_end(kind: int, s: text): bool {
+    let lower: text = s.lower();
+    if (kind == 1) {
+        return lower.has("</pre>") || lower.has("</script>") || lower.has("</style>") || lower.has("</textarea>");
+    }
+    if (kind == 2) {
+        return s.has("-->");
+    }
+    if (kind == 3) {
+        return s.has("?>");
+    }
+    if (kind == 4) {
+        return s.has(">");
+    }
+    return s.has("]]>");
+}
+
+// The nodes under k as md's blocks, reading each inline text with its holes in order from next. Private to core
+fn mb_blocks(nodes: list<mb_node>, k: int, value: template, links: map<text>, next: int): mb_out {
+    mut blocks: list<block> = [];
+    mut at: int = next;
+    let kids: list<int> = nodes[k].or(mb_node { kind = "", parent = -1 }).children;
+    for (child in kids) {
+        if (let n: mb_node = nodes[child]) {
+            if (n.kind == "paragraph" || n.kind == "heading") {
+                let source: text = n.kind == "heading" && !n.setext ? n.content.trim() : mb_paragraph_text(n.content);
+                if (source != "") {
+                    let r: mb_rich = mb_read(source, value, links, at);
+                    if (let words: rich_text = r.value) {
+                        at = r.next;
+                        if (n.kind == "paragraph") {
+                            blocks.add(block.PARAGRAPH(words));
+                        } else {
+                            blocks.add(block.HEADING(n.level, words));
+                        }
+                    } else {
+                        return mb_out { ok = false };
+                    }
+                } else if (n.kind == "heading") {
+                    blocks.add(block.HEADING(n.level, rich_text { segments = [] }));
+                }
+            } else if (n.kind == "thematic") {
+                blocks.add(block.DIVIDER);
+            } else if (n.kind == "code") {
+                blocks.add(block.CODE(n.content, n.info.split(" ").first().or("")));
+            } else if (n.kind == "html") {
+                blocks.add(block.PARAGRAPH(rich_text.plain(mb_trim_end_char(n.content, "\n"))));
+            } else if (n.kind == "quote") {
+                let inner: mb_out = mb_blocks(nodes, child, value, links, at);
+                if (!inner.ok) {
+                    return inner;
+                }
+                at = inner.next;
+                blocks.add(block.QUOTE(inner.blocks));
+            } else if (n.kind == "footnote") {
+                let inner: mb_out = mb_blocks(nodes, child, value, links, at);
+                if (!inner.ok) {
+                    return inner;
+                }
+                at = inner.next;
+                blocks.add(block.FOOTNOTE(n.label, inner.blocks));
+            } else if (n.kind == "list") {
+                mut items: list<list_item> = [];
+                for (item in n.children) {
+                    let inner: mb_out = mb_blocks(nodes, item, value, links, at);
+                    if (!inner.ok) {
+                        return inner;
+                    }
+                    at = inner.next;
+                    items.add(list_item { done = nodes[item].or(mb_node { kind = "", parent = -1 }).done, body = inner.blocks });
+                }
+                if (items.len() in 1...) {
+                    blocks.add(block.BULLETS(n.ordered, n.start, items));
+                }
+            } else if (n.kind == "table") {
+                mut head: list<rich_text> = [];
+                for (cell in n.head) {
+                    let r: mb_rich = mb_read(cell, value, links, at);
+                    at = r.next;
+                    head.add(r.value.or(rich_text.plain(cell)));
+                }
+                mut rows: list<list<rich_text>> = [];
+                for (row in n.rows) {
+                    mut cells: list<rich_text> = [];
+                    for (cell in row) {
+                        let r: mb_rich = mb_read(cell, value, links, at);
+                        at = r.next;
+                        cells.add(r.value.or(rich_text.plain(cell)));
+                    }
+                    rows.add(cells);
+                }
+                if (head.len() in 1...) {
+                    blocks.add(block.TABLE(head, rows, n.align));
+                }
+            }
+        }
+    }
+    return mb_out { blocks = blocks, next = at };
+}
+
+//@about One inline text read, and the hole after its own. Private to core
+record mb_rich {
+    value: opt<rich_text> = opt.NONE;
+    next: int = 0;
+}
+
+// Inline Markdown that may hold holes, read with the holes from at on. Private to core
+fn mb_read(source: text, value: template, links: map<text>, at: int): mb_rich {
+    mut pieces: list<text> = [];
+    mut holes: list<hole> = [];
+    mut next: int = at;
+    for (k, piece in source.split("\u{fffc}")) {
+        pieces.add(piece);
+        if (k > 0) {
+            if (let h: hole = value.holes[next]) {
+                holes.add(h);
+            }
+            next = next + 1;
+        }
+    }
+    return mb_rich { value = rich_text.read(template { pieces = pieces, holes = holes }, links), next = next };
+}
+
+// A paragraph's text: each line without its leading spaces, and the last without its trailing ones. Private to core
+fn mb_paragraph_text(content: text): text {
+    let lines: list<text> = mb_trim_end_char(content, "\n").split("\n");
+    mut out: list<text> = [];
+    for (l in lines) {
+        mut start: int = 0;
+        mut going: bool = true;
+        for (c in l.chars()) {
+            if (going && (c == " " || c == "\t")) {
+                start = start + 1;
+            } else {
+                going = false;
+            }
+        }
+        out.add(l.slice(start, l.len()));
+    }
+    return mb_trim_end_char(mb_trim_end_char(out.join("\n"), " "), "\t");
+}
