@@ -216,11 +216,13 @@ pub struct Machine<'p> {
     pub next_id: u64,
     frames: Vec<Frame>,
     pub host: Option<Box<dyn Host + 'p>>,
+    /// The message of the last rule a `try` turned into `none`, for a literal's error.
+    pub last_rule: Option<String>,
 }
 
 impl<'p> Machine<'p> {
     pub fn new(prog: &'p Program, host: Box<dyn Host + 'p>) -> Machine<'p> {
-        Machine { prog, steps: 0, depth: 0, next_id: 0, frames: vec![Frame { vars: Vec::new(), owner: None }], host: Some(host) }
+        Machine { prog, steps: 0, depth: 0, next_id: 0, frames: vec![Frame { vars: Vec::new(), owner: None }], host: Some(host), last_rule: None }
     }
 
     /// Starts counting steps again, for one redraw, one event or one constant.
@@ -1196,7 +1198,10 @@ impl<'p> Machine<'p> {
         };
         match out {
             Ok(v) => Ok(Value::some(v)),
-            Err(f) if f.kind == FailKind::Rule => Ok(Value::none()),
+            Err(f) if f.kind == FailKind::Rule => {
+                self.last_rule = f.rule.clone();
+                Ok(Value::none())
+            }
             Err(f) => Err(f),
         }
     }

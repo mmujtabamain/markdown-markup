@@ -30,9 +30,9 @@ pub struct Binding {
 #[serde(deny_unknown_fields)]
 pub struct Bounds {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub high: Option<Box<Expr>>,
+    pub high: Option<Expr>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub low: Option<Box<Expr>>,
+    pub low: Option<Expr>,
 }
 
 /// A call of a fn by its full name: one written in MKP, an extern, or an interface's, which goes to the fn of the value's own type.
@@ -42,7 +42,7 @@ pub struct Call {
     pub args: Vec<Expr>,
     pub name: String,
     #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
-    pub ty: Option<Box<Type>>,
+    pub ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -78,13 +78,13 @@ pub enum Cond {
 #[serde(deny_unknown_fields)]
 pub struct Contract {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub length: Option<Box<Bounds>>,
+    pub length: Option<Bounds>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub only: Vec<Expr>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub range: Option<Box<Bounds>>,
+    pub range: Option<Bounds>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub step: Option<Box<Expr>>,
+    pub step: Option<Expr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -188,11 +188,11 @@ pub struct ExprCase {
 #[serde(deny_unknown_fields)]
 pub struct ExprRange {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub high: Option<Box<Expr>>,
+    pub high: Option<Expr>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub low: Option<Box<Expr>>,
+    pub low: Option<Expr>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub step: Option<Box<Expr>>,
+    pub step: Option<Expr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -201,7 +201,7 @@ pub struct ExprTokval {
     pub name: String,
     #[serde(rename = "type")]
     pub ty: String,
-    pub value: Box<Expr>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -210,14 +210,14 @@ pub struct ExprTemplate {
     pub holes: Vec<Expr>,
     pub pieces: Vec<String>,
     #[serde(rename = "type")]
-    pub ty: Box<Type>,
+    pub ty: Type,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExprField {
     pub name: String,
-    pub value: Box<Expr>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -225,9 +225,9 @@ pub struct ExprField {
 pub struct ExprApply {
     pub args: Vec<Expr>,
     #[serde(rename = "fn")]
-    pub fn_: Box<Expr>,
+    pub fn_: Expr,
     #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
-    pub ty: Option<Box<Type>>,
+    pub ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -236,26 +236,26 @@ pub struct ExprOp {
     pub args: Vec<Expr>,
     pub name: OpName,
     #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
-    pub ty: Option<Box<Type>>,
+    pub ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExprShow {
-    pub value: Box<Expr>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExprTry {
-    pub value: Box<Expr>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExprWith {
     pub fields: BTreeMap<String, Expr>,
-    pub value: Box<Expr>,
+    pub value: Expr,
 }
 
 /// An expression. Values are expressions too.
@@ -495,7 +495,7 @@ pub struct Lambda {
     pub body: Vec<Stmt>,
     pub params: Vec<Param>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub returns: Option<Box<Type>>,
+    pub returns: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -1067,7 +1067,7 @@ pub struct Type {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<Type>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub contract: Option<Box<Contract>>,
+    pub contract: Option<Contract>,
     /// For `record`: an inline record's fields.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<Field>,

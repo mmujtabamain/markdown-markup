@@ -173,9 +173,9 @@ impl Value {
             Value::Opt(Some(v)) => Expr::Some(Box::new(v.to_ir())),
             Value::Opt(None) => Expr::None(Empty {}),
             Value::Range(r) => Expr::Range(Box::new(ExprRange {
-                low: r.low.as_ref().map(|v| Box::new(v.to_ir())),
-                high: r.high.as_ref().map(|v| Box::new(v.to_ir())),
-                step: r.step.as_ref().map(|v| Box::new(v.to_ir())),
+                low: r.low.as_ref().map(|v| v.to_ir()),
+                high: r.high.as_ref().map(|v| v.to_ir()),
+                step: r.step.as_ref().map(|v| v.to_ir()),
             })),
             Value::Fn(_) => Expr::Text("<fn>".into()),
             Value::View(v) => Expr::View(mkp_ir::ir::ViewValue {

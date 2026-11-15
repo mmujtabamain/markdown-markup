@@ -4,7 +4,7 @@
   "source": "a-match-on-a-token-in-prose-without-case-else.mkp.md",
   "expect": {
     "diagnostics": [
-      {"code": "types.match-on-token-needs-else", "line": 8, "column": 2}
+      {"code": "types.match-on-token-needs-else", "line": 8, "column": 1}
     ]
   }
 }

@@ -1,0 +1,37 @@
+package t;
+
+let day: date = "2026-11-10";
+let at: moment = "2026-11-10T09:30+01:00";
+let a: point = point { x = 1, y = 2 };
+let lookup: map<number> = map { entries = [{ key = "a", value = 1 }, { key = "b", value = 2 }] };
+
+let check_date_show: bool = "\{day}" == "2026-11-10";
+let check_date_days: bool = day.days_to("2026-12-25") == 45;
+let check_date_plus: bool = day.plus(30) == "2026-12-10" && day.plus(-10) == "2026-10-31";
+let check_leap: bool = date.from("2024-02-29") != opt.NONE && date.from("2023-02-29") == opt.NONE;
+let check_month: bool = date.from("2026-13-01") == opt.NONE && date.from("2026-1-01") == opt.NONE;
+let check_before: bool = day < "2026-11-11" && !(day < "2026-11-10");
+let check_epoch: bool = date.from("1970-01-01").or(day).days() == 0;
+let check_far: bool = date.from("0001-01-01").or(day).plus(-5) == "0001-01-01";
+
+let check_moment_same: bool = at == "2026-11-10T08:30+00:00";
+let check_moment_plus: bool = "\{at.plus(90)}" == "2026-11-10T11:00+01:00";
+let check_moment_time: bool = at.time() == "09:30" && at.offset() == 60;
+let check_moment_bad: bool = moment.from("2026-11-10T24:00+00:00") == opt.NONE;
+
+let check_point: bool = a + a == point { x = 2, y = 4 } && "\{a}" == "(1, 2)" && a * 3 == point { x = 3, y = 6 };
+let check_region: bool = region { from = point { x = 0, y = 0 }, to = point { x = 2, y = 2 } }.overlaps(region { from = point { x = 1, y = 1 }, to = point { x = 3, y = 3 } });
+let check_middle: bool = region { from = point { x = 0, y = 0 }, to = point { x = 2, y = 4 } }.middle() == point { x = 1, y = 2 };
+
+let check_map: bool = lookup.get("b").or(0) == 2 && lookup.get("z") == opt.NONE && lookup.has("a") && lookup.keys() == ["a", "b"];
+let check_plain: bool = rich_text.plain("x").show() == "x";
+let check_template: bool = template.of("x").pieces == ["x"];
+
+let check_latex: bool = latex.from(template.of("x^2")) != opt.NONE && latex.from(template.of("x^")) == opt.NONE;
+let check_latex_braces: bool = latex.from(template.of("\\frac{1}{2")) == opt.NONE && latex.from(template.of("\\frac{1}{2}")) != opt.NONE;
+let check_latex_env: bool = latex.from(template.of("\\begin{a}x\\end{a}")) != opt.NONE && latex.from(template.of("\\begin{a}x\\end{b}")) == opt.NONE;
+let check_latex_show: bool = latex.from(template.of("x^2")).or(latex { tex = template.of("y") }).show() == "x^2";
+
+let check_stroke: bool = stroke.from(2.5) != opt.NONE && stroke.from(100) == opt.NONE;
+let check_tokens: bool = color.OK != color.ACCENT && stroke.PX(2) == stroke.PX(2) && stroke.PX(2) != stroke.BOLD;
+let check_opt: bool = opt.SOME(3).or(4) == 3 && opt.NONE.or(4) == 4;

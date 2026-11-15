@@ -1619,7 +1619,7 @@ impl<'a> Parser<'a> {
     }
 
     fn match_stmt(&mut self, kind: BlockKind) -> R<MatchStmt> {
-        self.expect_kw(Kw::Match)?;
+        let span = self.expect_kw(Kw::Match)?;
         self.expect(P::LParen)?;
         let subject = self.expr()?;
         self.expect(P::RParen)?;
@@ -1634,7 +1634,7 @@ impl<'a> Parser<'a> {
             }
             Ok(MatchCase { patterns, span: start.to(body.span), body })
         })?;
-        Ok(MatchStmt { subject, cases })
+        Ok(MatchStmt { subject, cases, span })
     }
 
     // ---- views

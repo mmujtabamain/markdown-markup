@@ -559,6 +559,8 @@ pub struct ForStmt {
 pub struct MatchStmt {
     pub subject: Expr,
     pub cases: Body<MatchCase>,
+    /// The `match` keyword.
+    pub span: Span,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]

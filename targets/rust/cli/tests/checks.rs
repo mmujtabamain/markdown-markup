@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 /// The passes that exist, by the prefix of the codes they report.
-const PASSES: &[&str] = &["syntax.", "file.", "widget.", "prose.", "doc.", "layout.", "fmt."];
+const PASSES: &[&str] = &["syntax.", "file.", "widget.", "prose.", "doc.", "layout.", "fmt.", "names.", "views.", "types."];
 
 fn cases_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../checks/cases")
@@ -29,20 +29,31 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 
 type Found = (String, u32, u32);
 
-fn compile(path: &Path) -> Vec<Found> {
-    let name = path.to_str().unwrap();
+fn core() -> Vec<mkp_check::Source> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    files.sort();
+    files.into_iter().map(|p| mkp_check::Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
+}
+
+/// The case's source, compiled with core; only the source's own diagnostics.
+fn compile(path: &Path, core: &[mkp_check::Source]) -> Vec<Found> {
+    let name = path.to_str().unwrap().to_string();
     let src = std::fs::read_to_string(path).unwrap();
-    let entry = entry_for(name).unwrap_or_else(|| panic!("{}: not an MKP file", name));
-    let parsed = parse(&src, entry);
+    entry_for(&name).unwrap_or_else(|| panic!("{}: not an MKP file", name));
+    let parsed = parse(&src, entry_for(&name).unwrap());
     let lines = Lines::new(&src);
-    parsed
-        .diagnostics
-        .iter()
-        .map(|d| {
-            let at = lines.place(d.span.start);
-            (d.code.to_string(), at.line, at.column)
-        })
-        .collect()
+    let place = |d: &mkp_syntax::Diagnostic| {
+        let at = lines.place(d.span.start);
+        (d.code.to_string(), at.line, at.column)
+    };
+    if parsed.has_errors() {
+        return parsed.diagnostics.iter().map(place).collect();
+    }
+    let main = mkp_check::Source { path: name.clone(), text: src.clone() };
+    let module = if name.ends_with(".mkp.md") { "doc" } else { "t" };
+    let c = mkp_check::compile(core, &[], &[main], module);
+    c.diagnostics.iter().filter(|d| d.file == name).map(|d| place(&d.diagnostic)).collect()
 }
 
 #[test]
@@ -51,6 +62,7 @@ fn every_case_reports_its_diagnostics() {
     walk(&cases_dir(), &mut files);
     assert!(!files.is_empty(), "no cases in {:?}", cases_dir());
     let (mut passed, mut waiting, mut failures) = (0, Vec::new(), Vec::new());
+    let core = core();
     for file in &files {
         let case: Value = serde_json::from_str(&std::fs::read_to_string(file).unwrap())
             .unwrap_or_else(|e| panic!("{}: {}", file.display(), e));
@@ -66,7 +78,7 @@ fn every_case_reports_its_diagnostics() {
             waiting.push(id);
             continue;
         }
-        let mut found = compile(&source);
+        let mut found = compile(&source, &core);
         let mut want = expected.clone();
         found.sort_by(|a, b| (a.1, a.2, &a.0).cmp(&(b.1, b.2, &b.0)));
         want.sort_by(|a, b| (a.1, a.2, &a.0).cmp(&(b.1, b.2, &b.0)));

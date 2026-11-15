@@ -116,6 +116,7 @@ struct FieldOut {
 struct Gen<'a> {
     s: &'a Schema,
     items: Vec<Item>,
+    unions: BTreeSet<String>,
     /// Edges from a type to the types it holds directly (not through a list or a map).
     edges: BTreeMap<String, BTreeSet<String>>,
     foreign: BTreeSet<String>,
@@ -127,7 +128,7 @@ fn doc(v: &Value) -> Option<String> {
 
 impl<'a> Gen<'a> {
     fn new(s: &'a Schema) -> Gen<'a> {
-        Gen { s, items: Vec::new(), edges: BTreeMap::new(), foreign: BTreeSet::new() }
+        Gen { s, items: Vec::new(), unions: BTreeSet::new(), edges: BTreeMap::new(), foreign: BTreeSet::new() }
     }
 
     fn run(&mut self) {
@@ -148,6 +149,7 @@ impl<'a> Gen<'a> {
                 self.edge(name, &ty);
                 variants.push((key.clone(), ty, doc(a)));
             }
+            self.unions.insert(name.to_string());
             self.items.push(Item::Union { name: name.into(), doc: doc(v), variants });
         } else if let Some(values) = v.get("enum").and_then(|e| e.as_array()) {
             let values = values.iter().map(|x| x.as_str().unwrap().to_string()).collect();
@@ -210,8 +212,11 @@ impl<'a> Gen<'a> {
         }
     }
 
-    /// Whether `to` holds `from` again directly, so `from` holding `to` needs a box.
+    /// Whether `to` holds `from` again directly, so `from` holding `to` needs a box. A union's
+    /// payloads are boxed where they are cyclic, so a struct's field needs a box only for a
+    /// cycle of structs alone.
     fn cyclic(&self, from: &str, to: &str) -> bool {
+        let through_unions = self.unions.contains(from);
         let mut seen = BTreeSet::new();
         let mut stack = vec![to.to_string()];
         while let Some(n) = stack.pop() {
@@ -219,6 +224,9 @@ impl<'a> Gen<'a> {
                 return true;
             }
             if !seen.insert(n.clone()) {
+                continue;
+            }
+            if !through_unions && self.unions.contains(&n) {
                 continue;
             }
             if let Some(next) = self.edges.get(&n) {
