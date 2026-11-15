@@ -1,6 +1,6 @@
 //! The schemas, their examples and the generated types agree.
 
-use jsonschema::{Resource, Validator};
+use jsonschema::{Registry, Validator};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -17,14 +17,15 @@ fn json(path: &Path) -> Value {
 fn validator(name: &str) -> Validator {
     let ir = json(&repo().join("schemas/ir.schema.json"));
     let schema = json(&repo().join("schemas").join(name));
+    let registry = Registry::new().add(IR_ID, ir).unwrap().prepare().unwrap();
     jsonschema::options()
-        .with_resource(IR_ID, Resource::from_contents(ir).unwrap())
+        .with_registry(&registry)
         .build(&schema)
         .unwrap_or_else(|e| panic!("schemas/{}: {}", name, e))
 }
 
 fn errors(v: &Validator, doc: &Value) -> Vec<String> {
-    v.iter_errors(doc).map(|e| format!("{} at {}", e, e.instance_path)).take(5).collect()
+    v.iter_errors(doc).map(|e| format!("{} at {}", e, e.instance_path())).take(5).collect()
 }
 
 #[test]

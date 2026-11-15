@@ -11,4 +11,4 @@ serde_json.workspace = true
 
 [dev-dependencies]
 mkp-schemagen = { path = "../../schemagen" }
-jsonschema = { version = "0.26", default-features = false }
+jsonschema = { version = "0.61", default-features = false }
