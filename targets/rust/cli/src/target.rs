@@ -17,24 +17,61 @@ pub struct Target {
     pub dir: PathBuf,
     pub levels: Vec<String>,
     pub adapter: Vec<String>,
+    /// What it supplies: core's widgets and the value fns, as names or `pack/*`.
+    pub supplies: Vec<String>,
+    /// What it leaves out, each with its reason.
+    pub cannot: Vec<(String, String)>,
 }
 
-/// The few lines of `target.yaml` the runner reads: `name`, `levels` and `check_adapter`.
+impl Target {
+    /// Whether it draws or runs an extern, and if not, why not.
+    pub fn can(&self, name: &str) -> Result<(), String> {
+        if let Some((_, why)) = self.cannot.iter().find(|(n, _)| n == name) {
+            return Err(why.clone());
+        }
+        let covered = self.supplies.iter().any(|s| s == name || s.strip_suffix("/*").map_or(false, |pack| name.strip_prefix(pack).map_or(false, |rest| rest.starts_with('/'))));
+        if covered {
+            Ok(())
+        } else {
+            Err("it isn't in the target's supplies".to_string())
+        }
+    }
+}
+
+/// A YAML flow list, `[a, b]`.
+fn flow_list(value: &str) -> Vec<String> {
+    value.trim().trim_start_matches('[').trim_end_matches(']').split(',').map(|s| s.trim().trim_matches('"').to_string()).filter(|s| !s.is_empty()).collect()
+}
+
+/// The lines of `target.yaml` the runner reads: `name`, `levels`, `supplies` (its `widgets` and
+/// `fns`), `cannot` (a name and a reason on each line) and `check_adapter`.
 fn read_target(path: &Path) -> Result<Target, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path.display(), e))?;
     let mut name = None;
     let mut levels = Vec::new();
     let mut adapter = None;
+    let mut supplies = Vec::new();
+    let mut cannot = Vec::new();
+    let mut section = "";
     for line in text.lines() {
         let line = line.split(" #").next().unwrap_or("").trim_end();
-        if line.starts_with(' ') || line.is_empty() || line.starts_with('#') {
+        if line.is_empty() || line.trim_start().starts_with('#') {
             continue;
         }
         let Some((key, value)) = line.split_once(':') else { continue };
+        if line.starts_with(' ') {
+            match section {
+                "supplies" => supplies.extend(flow_list(value)),
+                "cannot" => cannot.push((key.trim().to_string(), value.trim().trim_matches('"').to_string())),
+                _ => {}
+            }
+            continue;
+        }
         let value = value.trim();
-        match key.trim() {
+        section = key.trim();
+        match section {
             "name" => name = Some(value.to_string()),
-            "levels" => levels = value.trim_start_matches('[').trim_end_matches(']').split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+            "levels" => levels = flow_list(value),
             "check_adapter" => adapter = Some(value.strip_prefix("exec ").unwrap_or(value).split_whitespace().map(str::to_string).collect::<Vec<_>>()),
             _ => {}
         }
@@ -44,6 +81,8 @@ fn read_target(path: &Path) -> Result<Target, String> {
         dir: path.parent().unwrap().to_path_buf(),
         levels,
         adapter: adapter.ok_or_else(|| format!("{}: no check_adapter", path.display()))?,
+        supplies,
+        cannot,
     })
 }
 
@@ -367,10 +406,11 @@ fn run_target(base: &mkp_check::Checker, t: &Target, cases: &[Case], defect: Opt
     Ok((observed, failures, steps))
 }
 
-/// `mkp target check [target…] [--cases dir] [--defect name] [--expect-failures]`
+/// `mkp target check [target…] [--cases dir] [--defect name] [--expect-failures] [--require target:name]…`
 pub fn target_check(args: &[String]) -> ExitCode {
     let root = repo();
     let mut names = Vec::new();
+    let mut required: Vec<(String, String)> = Vec::new();
     let mut cases_dir = root.join("targets/checks/cases");
     let mut defect = None;
     let mut expect_failures = false;
@@ -389,6 +429,16 @@ pub fn target_check(args: &[String]) -> ExitCode {
                 expect_failures = true;
                 k += 1;
             }
+            "--require" => {
+                match args.get(k + 1).and_then(|r| r.split_once(':')) {
+                    Some((t, n)) => required.push((t.to_string(), n.to_string())),
+                    None => {
+                        eprintln!("--require takes target:name, as in --require web:core/math");
+                        return ExitCode::from(2);
+                    }
+                }
+                k += 2;
+            }
             other => {
                 names.push(other.to_string());
                 k += 1;
@@ -400,6 +450,24 @@ pub fn target_check(args: &[String]) -> ExitCode {
     if targets.is_empty() {
         eprintln!("no target {:?}: the targets are {:?}", names, all.iter().map(|t| &t.name).collect::<Vec<_>>());
         return ExitCode::from(2);
+    }
+    // a required capability a target leaves out fails the run before any check
+    let mut missing = Vec::new();
+    for (t, n) in &required {
+        match all.iter().find(|x| &x.name == t) {
+            None => missing.push(format!("--require {}:{}: there is no target {}", t, n, t)),
+            Some(x) => {
+                if let Err(why) = x.can(n) {
+                    missing.push(format!("{} can't supply {}: {}", t, n, why));
+                }
+            }
+        }
+    }
+    if !missing.is_empty() {
+        for m in &missing {
+            eprintln!("{}", m);
+        }
+        return ExitCode::from(1);
     }
     let base = mkp_check::compile_core(&crate::core_sources());
     let tmp = std::env::temp_dir().join(format!("mkp-target-check-{}", std::process::id()));

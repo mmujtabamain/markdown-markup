@@ -75,3 +75,24 @@ fn an_mkp_toml_names_the_packs() {
     assert_eq!(code, 2, "{}", err);
     assert!(err.contains("unknown field `pack`"), "{}", err);
 }
+
+#[test]
+fn a_required_capability_a_target_leaves_out_fails_the_run() {
+    let yaml = "name: tiny\nlevels: [core.draw]\nsupplies:\n  widgets: [core/*]\n  fns: [core/moment.local]\ncannot:\n  core/math: \"no maths renderer\"\ncheck_adapter: exec false\n";
+    let dir = scratch("require", &[("targets/checks/cases/.keep", ""), ("targets/tiny/target.yaml", yaml)]);
+    let run = |args: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(args).current_dir(&dir).output().unwrap();
+        (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stderr).into_owned())
+    };
+    let (code, err) = run(&["target", "check", "tiny", "--require", "tiny:core/math"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("tiny can't supply core/math: no maths renderer"), "{}", err);
+    let (code, err) = run(&["target", "check", "tiny", "--require", "tiny:acme/chart"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("tiny can't supply acme/chart: it isn't in the target's supplies"), "{}", err);
+    // what it supplies passes the requirement, and the run goes on to its adapter
+    let (_, err) = run(&["target", "check", "tiny", "--require", "tiny:core/press", "--require", "tiny:core/moment.local"]);
+    assert!(!err.contains("can't supply"), "{}", err);
+    let (code, err) = run(&["target", "check", "--require", "tiny"]);
+    assert_eq!(code, 2, "{}", err);
+}
