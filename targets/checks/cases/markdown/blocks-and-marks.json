@@ -1,0 +1,9 @@
+{
+  "id": "markdown.blocks-and-marks",
+  "about": "every block and mark, written back in its one spelling",
+  "source": "blocks-and-marks.mkp.md",
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "blocks-and-marks.expected.md"}
+  }
+}

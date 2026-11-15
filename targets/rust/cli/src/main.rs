@@ -101,7 +101,9 @@ fn build(args: &[String]) -> ExitCode {
             eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
         }
     }
-    let Some(m) = c.module else { return ExitCode::from(1) };
+    let Some(mut m) = c.module else { return ExitCode::from(1) };
+    // every prop that isn't constant becomes a binding with what it reads
+    mkp_lower::lower(&mut m);
     let json = serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap();
     match out {
         Some(o) => {
@@ -120,6 +122,7 @@ const USAGE: &str = "usage:
   mkp check [--json] [--pack a,b] <file>...   report every error and warning in each file
   mkp parse <file>                  print a file's syntax tree as JSON
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
+  mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
   (--pack takes a comma-separated list of folders and .mkp files)";
 
 fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
@@ -260,6 +263,55 @@ fn check(args: &[String]) -> ExitCode {
     }
 }
 
+/// `mkp md doc.mkp.md [--pack a,b] [--json] [-o out.md]`: the page as Markdown, with its starting
+/// values; `--json` gives its blocks as the checks read them.
+fn md(args: &[String]) -> ExitCode {
+    let json = args.iter().any(|a| a == "--json");
+    let (files, packs, out) = match options(args) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::from(2);
+        }
+    };
+    let Some(path) = files.first() else {
+        eprintln!("{}", USAGE);
+        return ExitCode::from(2);
+    };
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{}: {}", path, e);
+            return ExitCode::from(1);
+        }
+    };
+    let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
+    let c = mkp_check::compile(&core_sources(), &[packs], &[mkp_check::Source { path: path.clone(), text }], module);
+    for d in c.diagnostics.iter().filter(|d| d.diagnostic.is_error()) {
+        eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
+    }
+    let Some(mut m) = c.module else { return ExitCode::from(1) };
+    mkp_lower::lower(&mut m);
+    let blocks = match mkp_markdown::page(&m) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("{}: writing its Markdown failed: {}", path, e.0);
+            return ExitCode::from(1);
+        }
+    };
+    let written = if json { serde_json::to_string_pretty(&mkp_markdown::blocks_json(&blocks)).unwrap() } else { mkp_markdown::write_page(m.front_matter.as_deref(), &blocks) };
+    match out {
+        Some(o) => {
+            if let Err(e) = std::fs::write(&o, written) {
+                eprintln!("{}: {}", o, e);
+                return ExitCode::from(1);
+            }
+        }
+        None => print!("{}", written),
+    }
+    ExitCode::SUCCESS
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -267,6 +319,7 @@ fn main() -> ExitCode {
         Some("parse") => parse_cmd(&args[1..]),
         Some("check") => check(&args[1..]),
         Some("build") => build(&args[1..]),
+        Some("md") => md(&args[1..]),
         _ => {
             eprintln!("{}", USAGE);
             ExitCode::from(2)

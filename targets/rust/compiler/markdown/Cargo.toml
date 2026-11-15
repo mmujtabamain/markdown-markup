@@ -1,0 +1,11 @@
+[package]
+name = "mkp-markdown"
+description = "Markdown out: a page written as Markdown, with the values it has"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mkp-ir = { path = "../ir" }
+mkp-eval = { path = "../../eval" }
+serde_json.workspace = true

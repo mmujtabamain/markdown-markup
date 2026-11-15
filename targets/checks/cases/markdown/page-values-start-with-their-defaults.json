@@ -1,0 +1,9 @@
+{
+  "id": "markdown.page-values-start-with-their-defaults",
+  "about": "the page's values are written as they are: width starts WIDE",
+  "source": "page-values-start-with-their-defaults.mkp.md",
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "page-values-start-with-their-defaults.expected.md"}
+  }
+}

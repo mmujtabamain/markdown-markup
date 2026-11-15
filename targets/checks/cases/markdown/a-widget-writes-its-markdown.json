@@ -1,0 +1,9 @@
+{
+  "id": "markdown.a-widget-writes-its-markdown",
+  "about": "a widget writes its markdown block, with its inputs and its slot's own Markdown",
+  "source": "a-widget-writes-its-markdown.mkp.md",
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "a-widget-writes-its-markdown.expected.md"}
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "markdown.extern-widgets-write-their-markdown",
+  "about": "core's widgets write their own markdown blocks",
+  "source": "extern-widgets-write-their-markdown.mkp.md",
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "extern-widgets-write-their-markdown.expected.md"}
+  }
+}
