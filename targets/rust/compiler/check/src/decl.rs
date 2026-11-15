@@ -509,6 +509,7 @@ impl Checker {
             mkp: env!("CARGO_PKG_VERSION").to_string(),
             module: self.module.clone(),
             levels: Vec::new(),
+            front_matter: self.front_matter(),
             needs: ir::Needs { core: core_needs, packs: Vec::new(), app: app_needs },
             declarations: decls,
             templates,
@@ -517,6 +518,16 @@ impl Checker {
         };
         crate::levels::compute(&mut m);
         m
+    }
+
+    /// The document's front matter, without its `---` lines.
+    fn front_matter(&self) -> Option<String> {
+        let f = self.files.iter().skip(self.from.files).find(|f| f.ast.front_matter.is_some())?;
+        let span = f.ast.front_matter?;
+        let raw = &f.src[span.start as usize..span.end as usize];
+        let lines: Vec<&str> = raw.lines().collect();
+        let inner = lines.iter().skip(1).take_while(|l| l.trim_end() != "---" && l.trim_end() != "...").cloned().collect::<Vec<_>>();
+        Some(inner.join("\n"))
     }
 
     /// Whether a fn is an interface's own member (sent to each type's fn), not one added to it.

@@ -53,12 +53,17 @@
               "items": {
                 "$ref": "#/$defs/diagnostic"
               }
+            },
+            "markdown": {
+              "$ref": "#/$defs/markdown_expected",
+              "description": "The page's Markdown with its starting values, as `mkp md` writes it, before any step."
             }
           },
           "required": [
             "diagnostics"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "What the compiler gives: its diagnostics, and the page's Markdown with its starting values."
         },
         "steps": {
           "type": "array",

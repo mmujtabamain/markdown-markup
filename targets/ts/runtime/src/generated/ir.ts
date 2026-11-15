@@ -324,6 +324,8 @@ export interface Marks {
 export interface Module {
   bindings: Binding[];
   declarations: Declaration[];
+  /** A document's YAML front matter, without its --- lines, passed to the app untouched (page 1). */
+  front_matter?: string;
   handlers: Handler[];
   /** Every level the page needs: the union of its calls'. */
   levels: Level[];

@@ -42,6 +42,10 @@
           "uniqueItems": true,
           "description": "Every level the page needs: the union of its calls'."
         },
+        "front_matter": {
+          "type": "string",
+          "description": "A document's YAML front matter, without its --- lines, passed to the app untouched (page 1)."
+        },
         "needs": {
           "$ref": "#/$defs/needs"
         },

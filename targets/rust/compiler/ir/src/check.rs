@@ -201,10 +201,14 @@ pub struct Call {
     pub call: CallCall,
 }
 
+/// What the compiler gives: its diagnostics, and the page's Markdown with its starting values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CaseExpect {
     pub diagnostics: Vec<Diagnostic>,
+    /// The page's Markdown with its starting values, as `mkp md` writes it, before any step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub markdown: Option<MarkdownExpected>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -219,6 +223,7 @@ pub struct CaseTarget {
 pub struct Case {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub about: Option<String>,
+    /// What the compiler gives: its diagnostics, and the page's Markdown with its starting values.
     pub expect: CaseExpect,
     /// `group.name`, unique.
     pub id: String,

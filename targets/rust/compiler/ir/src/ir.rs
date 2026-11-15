@@ -550,6 +550,9 @@ pub struct Marks {
 pub struct Module {
     pub bindings: Vec<Binding>,
     pub declarations: Vec<Declaration>,
+    /// A document's YAML front matter, without its --- lines, passed to the app untouched (page 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub front_matter: Option<String>,
     pub handlers: Vec<Handler>,
     /// Every level the page needs: the union of its calls'.
     pub levels: Vec<Level>,

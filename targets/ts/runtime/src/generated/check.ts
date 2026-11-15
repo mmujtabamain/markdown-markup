@@ -118,8 +118,11 @@ export interface Call {
   call: CallCall;
 }
 
+/** What the compiler gives: its diagnostics, and the page's Markdown with its starting values. */
 export interface CaseExpect {
   diagnostics: Diagnostic[];
+  /** The page's Markdown with its starting values, as `mkp md` writes it, before any step. */
+  markdown?: MarkdownExpected;
 }
 
 export interface CaseTarget {
@@ -129,6 +132,7 @@ export interface CaseTarget {
 /** A target check: a source, the diagnostics it gives, and what every target must show after each step. */
 export interface Case {
   about?: string;
+  /** What the compiler gives: its diagnostics, and the page's Markdown with its starting values. */
   expect: CaseExpect;
   /** `group.name`, unique. */
   id: string;
