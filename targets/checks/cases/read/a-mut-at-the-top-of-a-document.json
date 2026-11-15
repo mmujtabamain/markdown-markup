@@ -1,0 +1,10 @@
+{
+  "id": "read.a-mut-at-the-top-of-a-document",
+  "about": "a mut at the top of a document",
+  "source": "a-mut-at-the-top-of-a-document.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.mut-at-top", "line": 1, "column": 1}
+    ]
+  }
+}

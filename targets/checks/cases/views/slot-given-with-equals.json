@@ -1,0 +1,10 @@
+{
+  "id": "views.slot-given-with-equals",
+  "about": "slot given with =",
+  "source": "slot-given-with-equals.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.slot-given-with-equals", "line": 26, "column": 27}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "read.state-in-a-pack",
+  "about": "$state in a pack",
+  "source": "state-in-a-pack.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.state-in-pack", "line": 3, "column": 1}
+    ]
+  }
+}

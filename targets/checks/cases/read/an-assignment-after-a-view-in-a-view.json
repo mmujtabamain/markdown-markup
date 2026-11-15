@@ -1,0 +1,10 @@
+{
+  "id": "read.an-assignment-after-a-view-in-a-view",
+  "about": "an assignment among a view's children",
+  "source": "an-assignment-after-a-view-in-a-view.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.assignment-in-view", "line": 8, "column": 15}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "read.an-id-attribute",
+  "about": "an id attribute",
+  "source": "an-id-attribute.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-attributes", "line": 5, "column": 29}
+    ]
+  }
+}

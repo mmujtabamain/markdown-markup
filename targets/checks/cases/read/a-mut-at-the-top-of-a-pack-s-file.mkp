@@ -1,0 +1,3 @@
+package x;
+
+mut points: number = 0;

@@ -1,0 +1,10 @@
+{
+  "id": "read.a-small-type-parameter",
+  "about": "a small type parameter",
+  "source": "a-small-type-parameter.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.small-type-parameter", "line": 3, "column": 10}
+    ]
+  }
+}

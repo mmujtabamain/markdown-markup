@@ -1,0 +1,9 @@
+package t;
+
+record colour {
+    light: text;
+}
+
+tokens neg_pack {
+    colour.INK = 1;
+}

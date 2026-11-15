@@ -1,0 +1,10 @@
+{
+  "id": "read.a-minus-in-front-of-a-name-in-a-contract",
+  "about": "a minus in front of a name in a contract",
+  "source": "a-minus-in-front-of-a-name-in-a-contract.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.negative-name-bound", "line": 4, "column": 20}
+    ]
+  }
+}

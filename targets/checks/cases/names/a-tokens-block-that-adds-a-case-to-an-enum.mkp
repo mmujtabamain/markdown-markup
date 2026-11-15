@@ -1,0 +1,7 @@
+package t;
+
+enum neg_side { LEFT, RIGHT }
+
+tokens neg_pack2 {
+    neg_side.MIDDLE = 1;
+}

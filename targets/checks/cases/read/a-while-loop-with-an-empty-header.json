@@ -1,0 +1,10 @@
+{
+  "id": "read.a-while-loop-with-an-empty-header",
+  "about": "a while loop with an empty header",
+  "source": "a-while-loop-with-an-empty-header.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-counter-loop", "line": 4, "column": 5}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "names.shadowing-a-parameter",
+  "about": "shadowing a parameter",
+  "source": "shadowing-a-parameter.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.shadowing", "line": 4, "column": 9}
+    ]
+  }
+}

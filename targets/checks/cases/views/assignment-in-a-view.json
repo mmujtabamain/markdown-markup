@@ -1,0 +1,10 @@
+{
+  "id": "views.assignment-in-a-view",
+  "about": "assignment in a view (read as the named form, so tries is an input column doesn't have)",
+  "source": "assignment-in-a-view.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.unknown-input", "line": 8, "column": 13}
+    ]
+  }
+}

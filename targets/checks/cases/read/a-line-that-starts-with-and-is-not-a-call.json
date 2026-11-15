@@ -1,0 +1,10 @@
+{
+  "id": "read.a-line-that-starts-with-and-is-not-a-call",
+  "about": "a line that starts with @ and is not a call",
+  "source": "a-line-that-starts-with-and-is-not-a-call.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.line-is-not-a-call", "line": 1, "column": 1}
+    ]
+  }
+}

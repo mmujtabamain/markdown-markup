@@ -1,0 +1,10 @@
+{
+  "id": "read.fn-definition-without-a-parameter-type",
+  "about": "fn definition without a parameter type",
+  "source": "fn-definition-without-a-parameter-type.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.missing-type", "line": 3, "column": 7}
+    ]
+  }
+}

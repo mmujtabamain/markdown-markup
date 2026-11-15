@@ -1,0 +1,3 @@
+package t;
+
+let f: latex = $x^2$;

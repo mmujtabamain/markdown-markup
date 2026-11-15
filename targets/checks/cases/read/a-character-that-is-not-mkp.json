@@ -1,0 +1,10 @@
+{
+  "id": "read.a-character-that-is-not-mkp",
+  "about": "a character that is not part of MKP's code",
+  "source": "a-character-that-is-not-mkp.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.unexpected-character", "line": 3, "column": 19}
+    ]
+  }
+}

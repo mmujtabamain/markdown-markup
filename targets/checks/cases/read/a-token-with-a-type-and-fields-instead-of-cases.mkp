@@ -1,0 +1,5 @@
+package t;
+
+token neg_gap: number {
+    px: number;
+}

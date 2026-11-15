@@ -1,0 +1,10 @@
+{
+  "id": "read.stray-closing-brace-in-prose",
+  "about": "stray closing brace in prose",
+  "source": "stray-closing-brace-in-prose.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.stray-closing-brace", "line": 2, "column": 1}
+    ]
+  }
+}

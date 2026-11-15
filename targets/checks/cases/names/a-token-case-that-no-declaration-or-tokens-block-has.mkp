@@ -1,0 +1,10 @@
+package t;
+
+token neg_level: number { ONE, TWO }
+
+tokens t {
+    neg_level.ONE = 1;
+    neg_level.TWO = 2;
+}
+
+let neg_three: number = neg_level.THREE;

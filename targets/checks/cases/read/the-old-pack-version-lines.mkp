@@ -1,0 +1,6 @@
+package x;
+
+pack x {
+    version = 1;
+    requires core 1;
+}

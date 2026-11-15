@@ -1,0 +1,10 @@
+{
+  "id": "views.missing-required-input",
+  "about": "missing required input",
+  "source": "missing-required-input.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.missing-input", "line": 5, "column": 10}
+    ]
+  }
+}

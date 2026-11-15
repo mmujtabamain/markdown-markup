@@ -1,0 +1,10 @@
+{
+  "id": "read.a-name-that-starts-with-dollar",
+  "about": "a name that starts with $",
+  "source": "a-name-that-starts-with-dollar.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.dollar-is-only-state", "line": 3, "column": 17}
+    ]
+  }
+}

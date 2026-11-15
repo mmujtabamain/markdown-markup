@@ -1,0 +1,6 @@
+package t;
+
+fixture two {
+    @label(value = "a");
+    @label(value = "b");
+}

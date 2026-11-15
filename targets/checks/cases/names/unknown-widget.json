@@ -1,0 +1,10 @@
+{
+  "id": "names.unknown-widget",
+  "about": "unknown widget",
+  "source": "unknown-widget.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-widget", "line": 5, "column": 10}
+    ]
+  }
+}

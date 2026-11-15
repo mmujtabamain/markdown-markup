@@ -1,0 +1,7 @@
+package t;
+
+widget w(a: text) {
+    markdown {
+        \{a}
+    }
+}

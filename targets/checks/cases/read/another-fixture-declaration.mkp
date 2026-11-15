@@ -1,0 +1,8 @@
+package t;
+
+fixture early {
+    markdown {
+        a
+    }
+    @label(value = "a");
+}

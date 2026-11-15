@@ -1,0 +1,10 @@
+{
+  "id": "read.a-state-field-written-with-mut",
+  "about": "a $state field written with mut",
+  "source": "a-state-field-written-with-mut.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.state-field-mut", "line": 2, "column": 5}
+    ]
+  }
+}

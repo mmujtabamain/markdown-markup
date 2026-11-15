@@ -1,0 +1,5 @@
+package t;
+
+enum neg_result {
+    FAILED(mut why: text),
+}

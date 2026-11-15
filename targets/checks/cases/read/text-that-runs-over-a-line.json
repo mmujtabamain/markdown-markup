@@ -1,0 +1,10 @@
+{
+  "id": "read.text-that-runs-over-a-line",
+  "about": "text that runs over a line",
+  "source": "text-that-runs-over-a-line.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.text-runs-over-a-line", "line": 3, "column": 15}
+    ]
+  }
+}

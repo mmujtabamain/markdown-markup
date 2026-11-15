@@ -1,0 +1,3 @@
+package t;
+
+let Limit: number = 10;

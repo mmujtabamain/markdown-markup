@@ -1,0 +1,10 @@
+{
+  "id": "read.expose-in-a-pack-s-file",
+  "about": "expose in a pack's file",
+  "source": "expose-in-a-pack-s-file.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.expose-in-pack", "line": 3, "column": 1}
+    ]
+  }
+}

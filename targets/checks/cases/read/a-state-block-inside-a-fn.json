@@ -1,0 +1,10 @@
+{
+  "id": "read.a-state-block-inside-a-fn",
+  "about": "a $state block inside a fn",
+  "source": "a-state-block-inside-a-fn.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.state-not-at-top", "line": 2, "column": 5}
+    ]
+  }
+}

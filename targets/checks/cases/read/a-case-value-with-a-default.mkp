@@ -1,0 +1,5 @@
+package t;
+
+enum neg_result2 {
+    FAILED(why: text = "x"),
+}

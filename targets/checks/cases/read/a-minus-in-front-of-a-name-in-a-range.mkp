@@ -1,0 +1,5 @@
+package t;
+
+fn neg_span(half: number): range<number> {
+    return -half..half;
+}

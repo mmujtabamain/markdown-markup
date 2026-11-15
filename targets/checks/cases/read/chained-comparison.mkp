@@ -1,0 +1,5 @@
+package t;
+
+fn f(a: number, b: number, c: number): bool {
+    return a < b < c;
+}

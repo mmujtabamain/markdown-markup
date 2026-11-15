@@ -1,0 +1,10 @@
+{
+  "id": "read.chained-comparison",
+  "about": "chained comparison",
+  "source": "chained-comparison.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.chained-comparison", "line": 4, "column": 18}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "names.a-token-case-that-no-declaration-or-tokens-block-has",
+  "about": "a token's case that no declaration or tokens block has",
+  "source": "a-token-case-that-no-declaration-or-tokens-block-has.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-case", "line": 10, "column": 35}
+    ]
+  }
+}

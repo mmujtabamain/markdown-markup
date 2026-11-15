@@ -1,0 +1,10 @@
+{
+  "id": "read.bound-that-is-not-an-atom",
+  "about": "bound that is not an atom",
+  "source": "bound-that-is-not-an-atom.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.bound-not-an-atom", "line": 4, "column": 27}
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+package t;
+
+widget w2(a: text) {
+    view {
+        @label(value = a);
+    }
+}

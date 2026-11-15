@@ -1,0 +1,10 @@
+{
+  "id": "types.a-match-on-a-token-without-case-else",
+  "about": "a match on a token without case else",
+  "source": "a-match-on-a-token-without-case-else.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.match-on-token-needs-else", "line": 11, "column": 5}
+    ]
+  }
+}

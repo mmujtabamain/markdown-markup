@@ -1,0 +1,15 @@
+package t;
+
+widget w4(a: text) {
+    expose app {
+        fn reset() {
+        }
+    }
+    view {
+        @label(value = a);
+    }
+
+    markdown {
+        \{a}
+    }
+}

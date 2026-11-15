@@ -1,0 +1,11 @@
+package t;
+
+widget w() {
+    view {
+        @icon(tone = color.OK);
+    }
+
+    markdown {
+        w
+    }
+}

@@ -1,0 +1,6 @@
+package x;
+
+expose scores {
+    fn clear() {
+    }
+}

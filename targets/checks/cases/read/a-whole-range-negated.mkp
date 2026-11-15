@@ -1,0 +1,3 @@
+package t;
+
+let neg_r: range<number> = -(1..10);

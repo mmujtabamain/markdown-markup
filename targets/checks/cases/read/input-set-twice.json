@@ -1,0 +1,10 @@
+{
+  "id": "read.input-set-twice",
+  "about": "input set twice",
+  "source": "input-set-twice.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.set-twice", "line": 6, "column": 13}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "views.positional-argument-to-a-widget",
+  "about": "positional argument to a widget",
+  "source": "positional-argument-to-a-widget.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.positional-argument", "line": 5, "column": 16}
+    ]
+  }
+}

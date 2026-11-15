@@ -1,0 +1,10 @@
+{
+  "id": "read.two-state-blocks",
+  "about": "two $state blocks",
+  "source": "two-state-blocks.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.state-twice", "line": 5, "column": 1}
+    ]
+  }
+}

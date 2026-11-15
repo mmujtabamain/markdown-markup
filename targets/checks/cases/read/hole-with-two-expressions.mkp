@@ -1,0 +1,3 @@
+package t;
+
+let a: text = "\{1 2}";

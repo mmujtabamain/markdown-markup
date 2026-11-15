@@ -1,0 +1,10 @@
+{
+  "id": "read.if-let-without-a-type",
+  "about": "if let without a type",
+  "source": "if-let-without-a-type.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.missing-type", "line": 4, "column": 14}
+    ]
+  }
+}

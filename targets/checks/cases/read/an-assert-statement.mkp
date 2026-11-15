@@ -1,0 +1,6 @@
+package t;
+
+fn f(): number {
+    assert 1 == 1;
+    return 1;
+}

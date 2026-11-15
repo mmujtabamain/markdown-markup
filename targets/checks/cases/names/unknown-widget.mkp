@@ -1,0 +1,11 @@
+package t;
+
+widget w() {
+    view {
+        @nothing(value = "x");
+    }
+
+    markdown {
+        w
+    }
+}

@@ -1,0 +1,36 @@
+package t;
+
+widget box(title: text[1...]) {
+    slot body: view;
+    slot actions: opt<view>;
+
+    view {
+        @column(gap = space.S) {
+            @label(value = title);
+            if (let a: view = actions) {
+                @a;
+            }
+            @body;
+        }
+    }
+
+    markdown {
+        **\{title}**
+
+        \{body}
+    }
+}
+
+widget w() {
+    view {
+        @box(title = "t") {
+            side {
+                @label(value = "x");
+            }
+        }
+    }
+
+    markdown {
+        w
+    }
+}

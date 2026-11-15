@@ -1,0 +1,10 @@
+{
+  "id": "read.a-case-value-with-a-default",
+  "about": "a case value with a default",
+  "source": "a-case-value-with-a-default.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.case-value-is-plain", "line": 4, "column": 12}
+    ]
+  }
+}

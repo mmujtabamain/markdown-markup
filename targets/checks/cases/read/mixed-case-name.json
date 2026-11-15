@@ -1,0 +1,10 @@
+{
+  "id": "read.mixed-case-name",
+  "about": "mixed-case name",
+  "source": "mixed-case-name.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.mixed-case-name", "line": 3, "column": 5}
+    ]
+  }
+}

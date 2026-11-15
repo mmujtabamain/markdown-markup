@@ -1,0 +1,13 @@
+package t;
+
+widget w3(a: text) {
+    mut n: number = 0;
+    event done();
+    view {
+        @label(value = a);
+    }
+
+    markdown {
+        \{a}
+    }
+}

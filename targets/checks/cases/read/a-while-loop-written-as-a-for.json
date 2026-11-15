@@ -1,0 +1,10 @@
+{
+  "id": "read.a-while-loop-written-as-a-for",
+  "about": "a while loop written as a for",
+  "source": "a-while-loop-written-as-a-for.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-counter-loop", "line": 4, "column": 5}
+    ]
+  }
+}

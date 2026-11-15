@@ -1,0 +1,10 @@
+{
+  "id": "read.unknown-escape",
+  "about": "unknown escape",
+  "source": "unknown-escape.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.unknown-escape", "line": 3, "column": 17}
+    ]
+  }
+}

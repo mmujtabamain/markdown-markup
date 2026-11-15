@@ -1,0 +1,10 @@
+{
+  "id": "read.front-matter-that-is-not-closed",
+  "about": "front matter that is not closed",
+  "source": "front-matter-that-is-not-closed.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.front-matter-not-closed", "line": 1, "column": 1}
+    ]
+  }
+}

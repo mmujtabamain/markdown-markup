@@ -1,0 +1,10 @@
+{
+  "id": "read.a-second-divider",
+  "about": "a second divider",
+  "source": "a-second-divider.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.second-divider", "line": 4, "column": 1}
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+package t;
+
+record r {
+    a: text #hidden;
+}

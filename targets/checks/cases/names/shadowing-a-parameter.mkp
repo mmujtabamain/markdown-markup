@@ -1,0 +1,6 @@
+package t;
+
+fn f(n: number): number {
+    let n: number = 2;
+    return n;
+}

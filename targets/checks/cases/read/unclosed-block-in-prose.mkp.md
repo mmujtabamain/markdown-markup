@@ -1,0 +1,2 @@
+@card(title = "x") {
+Text.

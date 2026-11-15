@@ -1,0 +1,9 @@
+package t;
+
+fn f(s: opt<number>): number {
+    match (s) {
+        case opt.SOME(v), opt.NONE {
+            return 0;
+        }
+    }
+}

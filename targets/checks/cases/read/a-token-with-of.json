@@ -1,0 +1,10 @@
+{
+  "id": "read.a-token-with-of",
+  "about": "a token with of",
+  "source": "a-token-with-of.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.token-shape", "line": 3, "column": 15}
+    ]
+  }
+}

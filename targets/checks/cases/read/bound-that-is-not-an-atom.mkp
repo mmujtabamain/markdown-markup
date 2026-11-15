@@ -1,0 +1,5 @@
+package t;
+
+record r {
+    last: number 0..limit - 1;
+}

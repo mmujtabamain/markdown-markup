@@ -1,0 +1,11 @@
+package t;
+
+widget w() {
+    view {
+        @press(label = "x", click = );
+    }
+
+    markdown {
+        w
+    }
+}

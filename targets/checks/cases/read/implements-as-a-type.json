@@ -1,0 +1,10 @@
+{
+  "id": "read.implements-as-a-type",
+  "about": "implements as a type",
+  "source": "implements-as-a-type.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.implements-is-not-a-type", "line": 4, "column": 18}
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+package t;
+
+widget w() {
+    view {
+        @row(gap = space.M) #id(footer) {
+            @label(value = "The end");
+        }
+    }
+
+    markdown {
+        w
+    }
+}

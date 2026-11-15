@@ -1,0 +1,10 @@
+{
+  "id": "read.an-assert-statement",
+  "about": "an assert statement (there are no tests in the language for now)",
+  "source": "an-assert-statement.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-tests-in-the-language", "line": 4, "column": 5}
+    ]
+  }
+}

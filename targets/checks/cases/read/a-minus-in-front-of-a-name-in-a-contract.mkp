@@ -1,0 +1,5 @@
+package t;
+
+record r {
+    offset: number -limit..0;
+}

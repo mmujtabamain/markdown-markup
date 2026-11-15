@@ -1,0 +1,10 @@
+{
+  "id": "read.maths-as-a-literal-in-code",
+  "about": "maths as a literal in code",
+  "source": "maths-as-a-literal-in-code.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.dollar-is-only-state", "line": 3, "column": 16}
+    ]
+  }
+}

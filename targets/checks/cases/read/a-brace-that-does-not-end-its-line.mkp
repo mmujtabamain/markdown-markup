@@ -1,0 +1,3 @@
+package t;
+
+fn f(n: number): number { return n; }

@@ -1,0 +1,12 @@
+package t;
+
+widget w() {
+    view {
+        @label(value = "x")
+        @label(value = "y");
+    }
+
+    markdown {
+        w
+    }
+}

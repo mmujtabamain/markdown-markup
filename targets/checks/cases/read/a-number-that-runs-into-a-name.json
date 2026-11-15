@@ -1,0 +1,10 @@
+{
+  "id": "read.a-number-that-runs-into-a-name",
+  "about": "a number that runs into a name",
+  "source": "a-number-that-runs-into-a-name.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.number-into-name", "line": 3, "column": 17}
+    ]
+  }
+}

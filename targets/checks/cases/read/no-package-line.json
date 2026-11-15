@@ -1,0 +1,10 @@
+{
+  "id": "read.no-package-line",
+  "about": "a .mkp file without its package line",
+  "source": "no-package-line.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.package-line", "line": 1, "column": 1}
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+package t;
+
+let a: text = "abc
+";

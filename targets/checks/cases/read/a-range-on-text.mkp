@@ -1,0 +1,5 @@
+package t;
+
+record r {
+    initial: text "a".."f";
+}

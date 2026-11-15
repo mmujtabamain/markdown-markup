@@ -1,0 +1,5 @@
+package t;
+
+record colour #token {
+    light: text;
+}

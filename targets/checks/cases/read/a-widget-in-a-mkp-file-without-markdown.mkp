@@ -1,0 +1,7 @@
+package x;
+
+widget bare(a: text) {
+    view {
+        @label(value = a);
+    }
+}

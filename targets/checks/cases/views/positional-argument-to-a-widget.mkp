@@ -1,0 +1,11 @@
+package t;
+
+widget w() {
+    view {
+        @label("x");
+    }
+
+    markdown {
+        w
+    }
+}

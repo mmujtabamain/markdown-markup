@@ -1,0 +1,5 @@
+package x;
+
+$state {
+    points: number = 0;
+}

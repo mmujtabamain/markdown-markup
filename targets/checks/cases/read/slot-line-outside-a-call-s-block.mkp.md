@@ -1,0 +1,3 @@
+@slot body {
+text
+}

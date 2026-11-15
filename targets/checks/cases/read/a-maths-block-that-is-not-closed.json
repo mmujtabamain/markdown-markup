@@ -1,0 +1,10 @@
+{
+  "id": "read.a-maths-block-that-is-not-closed",
+  "about": "a maths block that is not closed",
+  "source": "a-maths-block-that-is-not-closed.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.maths-block-not-closed", "line": 3, "column": 1}
+    ]
+  }
+}

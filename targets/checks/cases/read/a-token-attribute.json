@@ -1,0 +1,10 @@
+{
+  "id": "read.a-token-attribute",
+  "about": "a token attribute",
+  "source": "a-token-attribute.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-attributes", "line": 3, "column": 15}
+    ]
+  }
+}

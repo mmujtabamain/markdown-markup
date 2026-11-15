@@ -1,0 +1,10 @@
+{
+  "id": "names.unknown-enum-case",
+  "about": "unknown enum case",
+  "source": "unknown-enum-case.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-case", "line": 5, "column": 28}
+    ]
+  }
+}

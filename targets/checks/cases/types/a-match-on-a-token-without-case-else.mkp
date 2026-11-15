@@ -1,0 +1,19 @@
+package t;
+
+token neg_tone: number { LOW, HIGH }
+
+tokens t {
+    neg_tone.LOW = 1;
+    neg_tone.HIGH = 2;
+}
+
+fn neg_tone_name(t: neg_tone): text {
+    match (t) {
+        case neg_tone.LOW {
+            return "low";
+        }
+        case neg_tone.HIGH {
+            return "high";
+        }
+    }
+}

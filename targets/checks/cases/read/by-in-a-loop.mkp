@@ -1,0 +1,13 @@
+package t;
+
+widget w() {
+    view {
+        for (t in todos by t.id) {
+            @label(value = t.title);
+        }
+    }
+
+    markdown {
+        w
+    }
+}

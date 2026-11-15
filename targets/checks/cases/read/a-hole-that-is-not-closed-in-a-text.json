@@ -1,0 +1,10 @@
+{
+  "id": "read.a-hole-that-is-not-closed-in-a-text",
+  "about": "a hole in a text literal that is never closed",
+  "source": "a-hole-that-is-not-closed-in-a-text.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.hole-not-closed", "line": 3, "column": 16}
+    ]
+  }
+}

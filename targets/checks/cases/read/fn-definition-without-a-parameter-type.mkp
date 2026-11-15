@@ -1,0 +1,5 @@
+package t;
+
+fn f(x): number {
+    return 1;
+}

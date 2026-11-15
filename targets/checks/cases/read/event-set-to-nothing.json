@@ -1,0 +1,10 @@
+{
+  "id": "read.event-set-to-nothing",
+  "about": "event set to nothing",
+  "source": "event-set-to-nothing.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.expected", "line": 5, "column": 37}
+    ]
+  }
+}

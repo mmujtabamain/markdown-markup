@@ -1,0 +1,6 @@
+package t;
+
+fn f(): number {
+    mut n = 0;
+    return n;
+}

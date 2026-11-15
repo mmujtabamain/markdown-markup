@@ -1,0 +1,9 @@
+package t;
+
+fn f(xs: list<number>): number {
+    let x: number = 1;
+    for (x in xs) {
+        return x;
+    }
+    return 0;
+}

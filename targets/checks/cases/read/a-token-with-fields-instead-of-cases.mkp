@@ -1,0 +1,5 @@
+package t;
+
+token neg_weight {
+    px: number 0.25..16;
+}

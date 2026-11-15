@@ -1,0 +1,7 @@
+package t;
+
+fn f(mut xs: list<number>) {
+    mut for (xs.len() > 0) {
+        xs.remove_at(0);
+    }
+}

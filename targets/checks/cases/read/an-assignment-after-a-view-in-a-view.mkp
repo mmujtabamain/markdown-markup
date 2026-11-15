@@ -1,0 +1,14 @@
+package t;
+
+widget w() {
+    mut tries: number = 0;
+
+    view {
+        @label(value = "a");
+        tries = tries + 1;
+    }
+
+    markdown {
+        w
+    }
+}

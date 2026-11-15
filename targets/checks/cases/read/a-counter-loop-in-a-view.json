@@ -1,0 +1,10 @@
+{
+  "id": "read.a-counter-loop-in-a-view",
+  "about": "a counter loop in a view",
+  "source": "a-counter-loop-in-a-view.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.no-counter-loop", "line": 6, "column": 13}
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+package t;
+
+fn f(x: opt<text>): text {
+    if (let v = x) {
+        return v;
+    }
+    return "";
+}

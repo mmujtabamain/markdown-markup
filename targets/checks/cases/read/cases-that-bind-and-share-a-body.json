@@ -1,0 +1,10 @@
+{
+  "id": "read.cases-that-bind-and-share-a-body",
+  "about": "cases that bind and share a body",
+  "source": "cases-that-bind-and-share-a-body.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.shared-case-binds", "line": 5, "column": 14}
+    ]
+  }
+}

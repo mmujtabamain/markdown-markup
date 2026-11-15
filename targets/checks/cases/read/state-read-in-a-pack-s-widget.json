@@ -1,0 +1,10 @@
+{
+  "id": "read.state-read-in-a-pack-s-widget",
+  "about": "$state read in a pack's widget",
+  "source": "state-read-in-a-pack-s-widget.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.state-in-pack", "line": 5, "column": 27}
+    ]
+  }
+}

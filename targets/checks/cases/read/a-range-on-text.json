@@ -1,0 +1,10 @@
+{
+  "id": "read.a-range-on-text",
+  "about": "a range on text",
+  "source": "a-range-on-text.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.range-on-text", "line": 4, "column": 19}
+    ]
+  }
+}

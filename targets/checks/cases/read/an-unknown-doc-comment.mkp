@@ -1,0 +1,6 @@
+package t;
+
+//@returns the limit
+fn f(): number {
+    return 1;
+}

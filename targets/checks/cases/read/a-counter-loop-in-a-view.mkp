@@ -1,0 +1,15 @@
+package t;
+
+widget w() {
+    view {
+        @column {
+            mut for (i: number = 0; i < 3; i = i + 1) {
+                @label(value = "x");
+            }
+        }
+    }
+
+    markdown {
+        w
+    }
+}

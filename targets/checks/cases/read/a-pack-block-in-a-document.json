@@ -1,0 +1,10 @@
+{
+  "id": "read.a-pack-block-in-a-document",
+  "about": "a pack block in a document",
+  "source": "a-pack-block-in-a-document.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "file.pack-in-document", "line": 1, "column": 1}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "read.text-after-a-call-in-prose",
+  "about": "text after a call's ; in prose",
+  "source": "text-after-a-call-in-prose.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.call-line-end", "line": 1, "column": 22}
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+package t;
+
+//@param nope not an input
+widget w(a: text) {
+    view {
+        @label(value = a);
+    }
+
+    markdown {
+        \{a}
+    }
+}

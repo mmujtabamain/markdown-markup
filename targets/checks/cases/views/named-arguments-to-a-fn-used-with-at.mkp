@@ -1,0 +1,9 @@
+package t;
+
+fn tile(s: text): view {
+    return @label(value = s);
+}
+
+fn two(): view {
+    return @tile(s = "a");
+}

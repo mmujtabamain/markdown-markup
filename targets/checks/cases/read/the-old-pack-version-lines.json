@@ -1,0 +1,10 @@
+{
+  "id": "read.the-old-pack-version-lines",
+  "about": "the old pack version lines",
+  "source": "the-old-pack-version-lines.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.old-pack-line", "line": 3, "column": 8}
+    ]
+  }
+}

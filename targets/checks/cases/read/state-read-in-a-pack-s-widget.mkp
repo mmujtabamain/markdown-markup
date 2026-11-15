@@ -1,0 +1,11 @@
+package x;
+
+widget tally_x() {
+    view {
+        @label(value = "\{$state.points}");
+    }
+
+    markdown {
+        tally
+    }
+}

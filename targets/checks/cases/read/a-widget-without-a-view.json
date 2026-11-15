@@ -1,0 +1,10 @@
+{
+  "id": "read.a-widget-without-a-view",
+  "about": "a widget without a view block",
+  "source": "a-widget-without-a-view.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "widget.view-required", "line": 3, "column": 8}
+    ]
+  }
+}
