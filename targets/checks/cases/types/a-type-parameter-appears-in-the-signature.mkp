@@ -1,0 +1,13 @@
+package t;
+
+record pair<T> {
+    a: number;
+}
+
+fn first<T>(n: number): number {
+    return n;
+}
+
+fn same_back<T>(x: T): T {
+    return x;
+}

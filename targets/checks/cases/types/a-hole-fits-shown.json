@@ -1,0 +1,10 @@
+{
+  "id": "types.a-hole-fits-shown",
+  "about": "a hole's value fits shown, is a view, or an opt of one",
+  "source": "a-hole-fits-shown.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.hole-not-shown", "line": 8, "column": 18}
+    ]
+  }
+}

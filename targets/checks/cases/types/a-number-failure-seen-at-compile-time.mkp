@@ -1,0 +1,3 @@
+package t;
+
+let ratio: number = 1 / 0;

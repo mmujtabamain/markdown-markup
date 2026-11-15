@@ -1,0 +1,10 @@
+{
+  "id": "views.every-view-is-drawn-with-at",
+  "about": "a call that returns a view is always written with @",
+  "source": "every-view-is-drawn-with-at.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.view-needs-at", "line": 9, "column": 9}
+    ]
+  }
+}

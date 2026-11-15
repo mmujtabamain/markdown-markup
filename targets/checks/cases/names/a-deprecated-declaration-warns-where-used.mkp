@@ -1,0 +1,10 @@
+package t;
+
+//@deprecated use total, which counts every item
+fn count(xs: list<number>): number {
+    return xs.len();
+}
+
+fn uses(xs: list<number>): number {
+    return count(xs);
+}

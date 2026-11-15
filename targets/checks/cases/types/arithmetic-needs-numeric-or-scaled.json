@@ -1,0 +1,10 @@
+{
+  "id": "types.arithmetic-needs-numeric-or-scaled",
+  "about": "+ and - need numeric, and *, / and unary - need scaled",
+  "source": "arithmetic-needs-numeric-or-scaled.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.mismatch", "line": 4, "column": 12}
+    ]
+  }
+}

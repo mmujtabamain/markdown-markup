@@ -1,0 +1,7 @@
+package t;
+
+token gap: number 0... { NARROW, WIDE }
+
+tokens own {
+    gap.NARROW = 4;
+}

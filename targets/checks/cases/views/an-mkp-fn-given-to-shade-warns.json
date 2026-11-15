@@ -1,0 +1,10 @@
+{
+  "id": "views.an-mkp-fn-given-to-shade-warns",
+  "about": "an MKP fn fits a shader's type too, and the compiler warns",
+  "source": "an-mkp-fn-given-to-shade-warns.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.shade-given-an-mkp-fn", "line": 9, "column": 111}
+    ]
+  }
+}

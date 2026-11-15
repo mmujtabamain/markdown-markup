@@ -1,0 +1,10 @@
+{
+  "id": "types.a-record-holds-itself-only-in-a-list-or-opt",
+  "about": "a record or an enum holds its own type only inside a list or an opt",
+  "source": "a-record-holds-itself-only-in-a-list-or-opt.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.recursive-type", "line": 3, "column": 8}
+    ]
+  }
+}

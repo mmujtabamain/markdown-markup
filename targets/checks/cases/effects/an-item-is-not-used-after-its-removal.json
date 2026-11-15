@@ -1,0 +1,10 @@
+{
+  "id": "effects.an-item-is-not-used-after-its-removal",
+  "about": "once a block removes x from its list, x can't be used in the rest of that block",
+  "source": "an-item-is-not-used-after-its-removal.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "effects.removed-item-used", "line": 13, "column": 17}
+    ]
+  }
+}

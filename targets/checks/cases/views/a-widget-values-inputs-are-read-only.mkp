@@ -1,0 +1,20 @@
+package t;
+
+widget tag(title: text) {
+    view {
+        @label(value = title);
+    }
+    markdown {
+        \{title}
+    }
+}
+
+fn rename(t: tag): text {
+    let v: tag = @tag(title = "a");
+    return v.title;
+}
+
+fn retitle() {
+    let v: tag = @tag(title = "a");
+    v.title = "b";
+}

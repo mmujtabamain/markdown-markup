@@ -1,0 +1,10 @@
+package t;
+
+widget w() {
+    view {
+        1 + 2;
+    }
+    markdown {
+        W
+    }
+}

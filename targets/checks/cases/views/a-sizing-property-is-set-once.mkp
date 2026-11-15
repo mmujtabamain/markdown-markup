@@ -1,0 +1,21 @@
+package t;
+
+widget sized() {
+    view {
+        @grow {
+            @min_size(width = size.S) {
+                @label(value = "ok");
+            }
+        }
+        @grow(by = 2) {
+            @min_size(width = size.S) {
+                @grow {
+                    @label(value = "twice");
+                }
+            }
+        }
+    }
+    markdown {
+        Sized
+    }
+}

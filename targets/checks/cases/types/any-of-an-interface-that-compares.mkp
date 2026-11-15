@@ -1,0 +1,9 @@
+package t;
+
+fn alike(x: any same): bool {
+    return true;
+}
+
+fn said(x: any shown): text {
+    return "\{x}";
+}

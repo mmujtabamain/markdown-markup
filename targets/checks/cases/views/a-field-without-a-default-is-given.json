@@ -1,0 +1,10 @@
+{
+  "id": "views.a-field-without-a-default-is-given",
+  "about": "making a record, a field with no default must be given",
+  "source": "a-field-without-a-default-is-given.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.missing-input", "line": 8, "column": 15}
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+package t;
+
+record flags {
+    on: bool 0..1;
+    count: int 0..10;
+}

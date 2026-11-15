@@ -1,0 +1,10 @@
+{
+  "id": "types.mut-for-walks-a-mut-list",
+  "about": "mut for walks a mut list",
+  "source": "mut-for-walks-a-mut-list.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.not-mut", "line": 4, "column": 19}
+    ]
+  }
+}

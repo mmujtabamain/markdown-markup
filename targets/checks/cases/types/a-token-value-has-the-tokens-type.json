@@ -1,0 +1,10 @@
+{
+  "id": "types.a-token-value-has-the-tokens-type",
+  "about": "a value in a tokens block has the token's type",
+  "source": "a-token-value-has-the-tokens-type.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.mismatch", "line": 6, "column": 18}
+    ]
+  }
+}

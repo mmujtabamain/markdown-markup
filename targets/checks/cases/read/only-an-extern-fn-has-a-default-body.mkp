@@ -1,0 +1,14 @@
+package t;
+
+extern fn shout(t: text): text {
+    return t.upper();
+}
+
+extern widget badge(value: text) {
+    fn shown(): text {
+        return value;
+    }
+    markdown {
+        \{value}
+    }
+}

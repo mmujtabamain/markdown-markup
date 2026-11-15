@@ -1,0 +1,13 @@
+package t;
+
+record spot {
+    x: number;
+}
+
+fn where(s: spot): text {
+    return "at \{s}";
+}
+
+fn fine(n: number): text {
+    return "n = \{n}";
+}

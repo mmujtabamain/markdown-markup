@@ -1,0 +1,10 @@
+{
+  "id": "names.an-exposed-fn-is-not-called-by-mkp",
+  "about": "an expose block's fns are called only by the app, never by MKP code",
+  "source": "an-exposed-fn-is-not-called-by-mkp.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-fn", "line": 16, "column": 5}
+    ]
+  }
+}

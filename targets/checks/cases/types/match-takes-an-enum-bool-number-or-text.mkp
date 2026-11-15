@@ -1,0 +1,18 @@
+package t;
+
+fn of(xs: list<number>): text {
+    match (xs) {
+        case else {
+            return "x";
+        }
+    }
+}
+
+fn on(b: bool): text {
+    match (b) {
+        case true {
+            return "yes";
+        }
+    }
+    return "no";
+}

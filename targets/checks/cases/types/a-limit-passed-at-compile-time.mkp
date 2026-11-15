@@ -1,0 +1,7 @@
+package t;
+
+fn deep(n: number): number {
+    return n <= 0 ? 0 : 1 + deep(n - 1);
+}
+
+let far: number = deep(500);

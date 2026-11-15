@@ -1,0 +1,10 @@
+{
+  "id": "read.call-block-forms-are-not-mixed",
+  "about": "a block is read by its first word, children or the named form, and the two can't be mixed",
+  "source": "call-block-forms-are-not-mixed.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.expected", "line": 21, "column": 13}
+    ]
+  }
+}

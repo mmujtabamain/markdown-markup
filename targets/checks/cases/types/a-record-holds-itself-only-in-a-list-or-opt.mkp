@@ -1,0 +1,10 @@
+package t;
+
+record node {
+    next: node;
+}
+
+record chain {
+    next: opt<chain>;
+    kids: list<chain>;
+}

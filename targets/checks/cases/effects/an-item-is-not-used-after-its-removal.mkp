@@ -1,0 +1,19 @@
+package t;
+
+record stat {
+    label: text;
+    seen: bool = false;
+}
+
+fn sweep(mut stats: list<stat>) {
+    mut for (t in stats) {
+        if (mut s: stat = t) {
+            if (s.seen) {
+                stats.remove(s);
+                s.seen = false;
+            } else {
+                s.seen = true;
+            }
+        }
+    }
+}

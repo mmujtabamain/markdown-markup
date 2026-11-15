@@ -1,0 +1,5 @@
+package t;
+
+fn joined(a: bool, b: bool): bool {
+    return a + b;
+}

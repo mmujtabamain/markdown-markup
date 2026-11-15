@@ -1,0 +1,9 @@
+package t;
+
+fn upto(n: number): range<number> {
+    return 0..n - 1;
+}
+
+fn fine(n: number): range<number> {
+    return 0..(n - 1);
+}

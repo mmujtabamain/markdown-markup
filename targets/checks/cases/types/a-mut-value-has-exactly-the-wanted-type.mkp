@@ -1,0 +1,10 @@
+package t;
+
+fn add_one(mut xs: list<number>) {
+    xs.add(1);
+}
+
+fn uses() {
+    mut names: list<text> = [];
+    add_one(names);
+}

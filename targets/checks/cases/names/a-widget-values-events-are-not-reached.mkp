@@ -1,0 +1,17 @@
+package t;
+
+widget pick(title: text) {
+    event chosen();
+    view {
+        @label(value = title);
+    }
+    markdown {
+        \{title}
+    }
+}
+
+fn reach(): text {
+    let p: pick = @pick(title = "a");
+    let t: text = p.title;
+    return p.chosen;
+}

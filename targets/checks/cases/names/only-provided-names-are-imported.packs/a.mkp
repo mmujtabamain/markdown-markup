@@ -1,0 +1,8 @@
+package a;
+
+pack a@1 {
+    provides shown;
+}
+
+let shown: number = 1;
+let hidden: number = 2;

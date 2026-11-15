@@ -1,0 +1,10 @@
+{
+  "id": "views.a-sizing-property-is-set-once",
+  "about": "setting one property twice in a chain of sizing wrappers is a compile error",
+  "source": "a-sizing-property-is-set-once.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.sizing-set-twice", "line": 12, "column": 18}
+    ]
+  }
+}

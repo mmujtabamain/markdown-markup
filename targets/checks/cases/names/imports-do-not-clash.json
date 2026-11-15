@@ -1,0 +1,11 @@
+{
+  "id": "names.imports-do-not-clash",
+  "about": "two imports that bring the same name into one set are a compile error on the second",
+  "source": "imports-do-not-clash.mkp.md",
+  "packs": ["imports-do-not-clash.packs/a.mkp", "imports-do-not-clash.packs/b.mkp"],
+  "expect": {
+    "diagnostics": [
+      {"code": "names.import-clash", "line": 2, "column": 1}
+    ]
+  }
+}

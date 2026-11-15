@@ -1,0 +1,14 @@
+package t;
+
+fn tile(n: number): view {
+    return @label(value = "\{n}");
+}
+
+widget cards() {
+    view {
+        tile(1);
+    }
+    markdown {
+        Cards
+    }
+}

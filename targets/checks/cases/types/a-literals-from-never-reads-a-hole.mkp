@@ -1,0 +1,5 @@
+package t;
+
+fn first_of(month: int 1..12): date {
+    return "2026-\{month}-01";
+}

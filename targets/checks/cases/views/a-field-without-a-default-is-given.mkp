@@ -1,0 +1,8 @@
+package t;
+
+record stat {
+    label: text;
+    value: number = 0;
+}
+
+let s: stat = stat { value = 2 };

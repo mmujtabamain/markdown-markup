@@ -1,0 +1,7 @@
+package b;
+
+pack b@1 {
+    provides limit;
+}
+
+let limit: number = 2;

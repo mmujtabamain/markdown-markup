@@ -1,0 +1,20 @@
+package t;
+
+widget pick() {
+    event chosen(index: number);
+    view {
+        @label(value = "pick");
+    }
+    markdown {
+        Pick
+    }
+}
+
+widget uses() {
+    view {
+        @pick(chosen = 3);
+    }
+    markdown {
+        Uses
+    }
+}

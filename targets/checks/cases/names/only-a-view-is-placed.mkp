@@ -1,0 +1,10 @@
+package t;
+
+widget w(count: number) {
+    view {
+        @count;
+    }
+    markdown {
+        W
+    }
+}

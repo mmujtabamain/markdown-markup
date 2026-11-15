@@ -1,0 +1,13 @@
+package t;
+
+fn eq(a: fn(), b: fn()): bool {
+    return a == b;
+}
+
+fn lists(a: list<number>, b: list<number>): bool {
+    return a == b;
+}
+
+fn before(a: bool, b: bool): bool {
+    return a < b;
+}

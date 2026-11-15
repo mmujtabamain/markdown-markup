@@ -1,0 +1,15 @@
+package t;
+
+enum stage { IDLE, RUNNING, DONE }
+
+fn said(s: stage): text {
+    match (s) {
+        case stage.IDLE {
+            return "idle";
+        }
+        case stage.DONE {
+            return "done";
+        }
+    }
+    return "";
+}

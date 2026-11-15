@@ -1,0 +1,10 @@
+{
+  "id": "contracts.only-needs-a-type-that-fits-same",
+  "about": "only (…) is for types that implement same: a widget doesn't",
+  "source": "only-needs-a-type-that-fits-same.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.only-needs-same", "line": 4, "column": 12}
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+package t;
+
+fn each(n: number): number {
+    mut total: number = 0;
+    for (x in n) {
+        total = total + 1;
+    }
+    return total;
+}

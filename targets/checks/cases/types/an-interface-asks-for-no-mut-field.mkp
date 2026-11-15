@@ -1,0 +1,5 @@
+package t;
+
+interface named {
+    mut name: text;
+}

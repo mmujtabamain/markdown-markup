@@ -1,0 +1,11 @@
+package t;
+
+widget cards() {
+    mut held: view = @label(value = "x");
+    view {
+        @label(value = "y");
+    }
+    markdown {
+        Cards
+    }
+}

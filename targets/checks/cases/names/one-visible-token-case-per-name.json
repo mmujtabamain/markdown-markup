@@ -1,0 +1,11 @@
+{
+  "id": "names.one-visible-token-case-per-name",
+  "about": "two visible cases with one name on one type are a compile error",
+  "source": "one-visible-token-case-per-name.mkp",
+  "packs": ["one-visible-token-case-per-name.packs/a.mkp"],
+  "expect": {
+    "diagnostics": [
+      {"code": "names.token-case-twice", "line": 4, "column": 11}
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+package t;
+
+fn tone_of(t: opt<color>): color {
+    return t;
+}
+
+fn fine(t: opt<color>): color {
+    return t.or(color.INFO);
+}

@@ -1,0 +1,10 @@
+{
+  "id": "types.only-a-mut-is-assigned",
+  "about": "to assign a.b, both a and b are mut",
+  "source": "only-a-mut-is-assigned.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.not-mut", "line": 11, "column": 5}
+    ]
+  }
+}

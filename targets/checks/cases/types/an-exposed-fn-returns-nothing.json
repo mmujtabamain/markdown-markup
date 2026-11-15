@@ -1,0 +1,10 @@
+{
+  "id": "types.an-exposed-fn-returns-nothing",
+  "about": "an expose block's fns return nothing",
+  "source": "an-exposed-fn-returns-nothing.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.return", "line": 12, "column": 16}
+    ]
+  }
+}

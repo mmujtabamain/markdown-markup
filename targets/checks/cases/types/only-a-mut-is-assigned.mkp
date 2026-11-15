@@ -1,0 +1,12 @@
+package t;
+
+record count {
+    n: number;
+}
+
+fn bump() {
+    mut c: count = count { n = 1 };
+    c.n = 2;
+    let d: count = count { n = 1 };
+    d.n = 2;
+}

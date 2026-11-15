@@ -1,0 +1,10 @@
+{
+  "id": "types.a-mut-value-has-exactly-the-wanted-type",
+  "about": "a mut value has to have exactly the type that is wanted, with no widening",
+  "source": "a-mut-value-has-exactly-the-wanted-type.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.mismatch", "line": 9, "column": 13}
+    ]
+  }
+}

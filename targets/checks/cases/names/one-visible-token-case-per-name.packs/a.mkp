@@ -1,0 +1,5 @@
+package a;
+
+tokens a_colours {
+    color.BRAND = color_value { light = "#0000aa", dark = "#0000ff" };
+}

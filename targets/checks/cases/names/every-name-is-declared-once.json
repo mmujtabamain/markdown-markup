@@ -1,0 +1,10 @@
+{
+  "id": "names.every-name-is-declared-once",
+  "about": "a declaration can't reuse a name that is already visible in its set",
+  "source": "every-name-is-declared-once.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.duplicate", "line": 4, "column": 5}
+    ]
+  }
+}

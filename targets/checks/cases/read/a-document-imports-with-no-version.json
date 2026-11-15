@@ -1,0 +1,10 @@
+{
+  "id": "read.a-document-imports-with-no-version",
+  "about": "a document imports above its @@@ line and writes no versions",
+  "source": "a-document-imports-with-no-version.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.missing-semicolon", "line": 1, "column": 11}
+    ]
+  }
+}

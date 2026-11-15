@@ -1,0 +1,15 @@
+package t;
+
+widget box_of() {
+    slot label: view;
+    view {
+        @label;
+    }
+    markdown {
+        Box
+    }
+}
+
+fn press(): view {
+    return @label(value = "x");
+}

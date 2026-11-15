@@ -1,0 +1,11 @@
+package t;
+
+widget tinted() {
+    view {
+        @label(value = "x", tone = color.OK);
+        @label(value = "y", tone = color_value { light = "#00aa00", dark = "#00ff00" });
+    }
+    markdown {
+        Tinted
+    }
+}

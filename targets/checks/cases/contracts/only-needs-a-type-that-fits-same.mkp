@@ -1,0 +1,6 @@
+package t;
+
+record pick {
+    shown: label only (@label(value = "a"));
+    side: text only ("left", "right");
+}

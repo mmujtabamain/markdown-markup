@@ -1,0 +1,27 @@
+package t;
+
+widget pair() {
+    slot left: view;
+    slot right: view;
+    view {
+        @left;
+        @right;
+    }
+    markdown {
+        Pair
+    }
+}
+
+widget uses() {
+    view {
+        @pair {
+            left {
+                @label(value = "a");
+            }
+            @label(value = "b");
+        }
+    }
+    markdown {
+        Uses
+    }
+}

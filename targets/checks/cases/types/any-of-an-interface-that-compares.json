@@ -1,0 +1,10 @@
+{
+  "id": "types.any-of-an-interface-that-compares",
+  "about": "any same, any ordered and any numeric are compile errors; any shown is fine",
+  "source": "any-of-an-interface-that-compares.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.any-of-a-self-interface", "line": 3, "column": 13}
+    ]
+  }
+}

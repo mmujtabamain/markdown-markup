@@ -1,0 +1,13 @@
+package t;
+
+interface titled {
+    title: text;
+}
+
+record post implements titled {
+    title: text;
+}
+
+record box implements titled {
+    label: text;
+}

@@ -1,0 +1,4 @@
+package t;
+
+let limit: number = 10;
+let limit: number = 20;

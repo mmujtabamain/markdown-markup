@@ -1,0 +1,9 @@
+package t;
+
+fn sweep(xs: list<number>) {
+    mut for (t in xs) {
+        if (mut x: number = t) {
+            x = 0;
+        }
+    }
+}

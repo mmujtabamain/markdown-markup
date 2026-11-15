@@ -1,0 +1,12 @@
+package t;
+
+fn twice(xs: list<number>): list<number> {
+    return xs.map(fn(x) { return x * 2; });
+}
+
+fn loose(): number {
+    let f: fn(x: number): number = fn(x) { return x; };
+    return f(1);
+}
+
+let g: number = fn(x) { return x; }(1);

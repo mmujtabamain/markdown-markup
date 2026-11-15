@@ -1,0 +1,10 @@
+{
+  "id": "types.a-match-on-an-enum-lists-every-case",
+  "about": "for an enum every case is listed, or case else takes the rest",
+  "source": "a-match-on-an-enum-lists-every-case.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.match-misses-cases", "line": 6, "column": 5}
+    ]
+  }
+}

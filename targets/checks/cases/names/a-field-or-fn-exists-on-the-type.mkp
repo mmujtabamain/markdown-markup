@@ -1,0 +1,9 @@
+package t;
+
+record stat {
+    label: text;
+}
+
+fn read(s: stat): text {
+    return s.title;
+}

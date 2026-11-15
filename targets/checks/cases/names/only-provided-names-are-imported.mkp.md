@@ -1,0 +1,3 @@
+import a.hidden;
+@@@
+Hidden.

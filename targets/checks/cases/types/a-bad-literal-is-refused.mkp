@@ -1,0 +1,4 @@
+package t;
+
+let when: date = "2026-02-30";
+let fine: date = "2026-02-28";

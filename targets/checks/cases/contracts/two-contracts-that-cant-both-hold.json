@@ -1,0 +1,10 @@
+{
+  "id": "contracts.two-contracts-that-cant-both-hold",
+  "about": "two contracts that can't both hold, such as int step 0.5, are a compile error",
+  "source": "two-contracts-that-cant-both-hold.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.cannot-both-hold", "line": 4, "column": 11}
+    ]
+  }
+}

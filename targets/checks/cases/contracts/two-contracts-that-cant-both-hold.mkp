@@ -1,0 +1,6 @@
+package t;
+
+record steps {
+    half: int step 0.5;
+    small: int 0..5;
+}

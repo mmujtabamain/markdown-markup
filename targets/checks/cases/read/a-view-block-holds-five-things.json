@@ -1,0 +1,10 @@
+{
+  "id": "read.a-view-block-holds-five-things",
+  "about": "a view block holds let, if, for, match and views, nothing else",
+  "source": "a-view-block-holds-five-things.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.expected", "line": 5, "column": 9}
+    ]
+  }
+}

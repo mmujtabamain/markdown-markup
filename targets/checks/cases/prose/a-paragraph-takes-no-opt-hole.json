@@ -1,0 +1,10 @@
+{
+  "id": "prose.a-paragraph-takes-no-opt-hole",
+  "about": "a paragraph with an opt hole is a compile error that names the hole",
+  "source": "a-paragraph-takes-no-opt-hole.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "prose.opt-hole", "line": 3, "column": 8}
+    ]
+  }
+}

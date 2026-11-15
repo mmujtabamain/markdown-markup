@@ -1,0 +1,9 @@
+package a;
+
+pack a@1 {
+    provides slug;
+}
+
+fn text.slug(self): text {
+    return self.lower();
+}

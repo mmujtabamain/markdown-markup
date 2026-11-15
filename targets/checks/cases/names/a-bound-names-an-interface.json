@@ -1,0 +1,10 @@
+{
+  "id": "names.a-bound-names-an-interface",
+  "about": "a bound T: labelled names an interface",
+  "source": "a-bound-names-an-interface.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-type", "line": 3, "column": 13}
+    ]
+  }
+}

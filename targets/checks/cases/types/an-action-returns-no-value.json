@@ -1,0 +1,10 @@
+{
+  "id": "types.an-action-returns-no-value",
+  "about": "a return x; in a fn with no return type is a compile error that says to add one",
+  "source": "an-action-returns-no-value.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "types.return", "line": 4, "column": 12}
+    ]
+  }
+}
