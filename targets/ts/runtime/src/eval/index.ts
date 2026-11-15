@@ -1,0 +1,50 @@
+// MKP's evaluator: exact numbers, values, the native fns and the limits, as
+// targets/rust/eval does them, so a page runs the same on the web as natively.
+
+export { Num, NumError, type NumErrorKind } from "./num.js";
+export {
+  Value,
+  some,
+  none,
+  toIr,
+  asNum,
+  asBool,
+  asText,
+  typeName,
+  compareText,
+  type Item,
+  type Entry,
+  type NumValue,
+  type TextValue,
+  type BoolValue,
+  type DurationValue,
+  type ListValue,
+  type RecordValue,
+  type CaseValue,
+  type OptValue,
+  type RangeValue,
+  type FnValue,
+  type ViewValue,
+} from "./value.js";
+export {
+  MAX_STEPS,
+  MAX_ITEMS,
+  MAX_DEPTH,
+  Failure,
+  Constants,
+  Program,
+  Machine,
+  numOp,
+  outerDebug,
+  type Limit,
+  type FailKind,
+  type FailureDetail,
+  type Outer,
+  type OuterKind,
+  type Host,
+  type Binding,
+  type Place,
+  type PlaceRoot,
+  type Step,
+} from "./interp.js";
+export * as natives from "./natives.js";
