@@ -1,0 +1,702 @@
+/* @mkp/dom: a calm, native look in the system font. Every colour, length and font comes from core's
+   tokens, which mount writes on the root as custom properties for the page's theme. The values
+   here are only what shows before then. */
+
+:where(.mkp-root) {
+  --mkp-color-surface: #ffffff;
+  --mkp-color-ink: #1a1c1f;
+  --mkp-color-muted: #6b7280;
+  --mkp-color-line: #d4d7dc;
+  --mkp-color-accent: #2563eb;
+  --mkp-color-bad: #dc2626;
+  --mkp-space-xs: 2px;
+  --mkp-space-s: 4px;
+  --mkp-space-m: 8px;
+  --mkp-space-l: 16px;
+  --mkp-space-xl: 32px;
+  --mkp-radius-card: 8px;
+  --mkp-radius-pill: 999px;
+  --mkp-font-body-family: system-ui, sans-serif;
+  --mkp-font-body-size: 16px;
+  --mkp-font-body-weight: 400;
+  --mkp-font-body-line: 1.5;
+  --mkp-font-heading-family: system-ui, sans-serif;
+  --mkp-font-heading-size: 22px;
+  --mkp-font-heading-weight: 650;
+  --mkp-font-heading-line: 1.25;
+  --mkp-font-mono-family: ui-monospace, monospace;
+  --mkp-font-mono-size: 14px;
+  --mkp-font-mono-weight: 400;
+  --mkp-font-mono-line: 1.45;
+  --mkp-shadow-raised: 0 1px 3px #0000001f;
+}
+
+.mkp-root {
+  display: block;
+  color: var(--mkp-color-ink);
+  background: var(--mkp-color-surface);
+  font-family: var(--mkp-font-body-family);
+  font-size: var(--mkp-font-body-size);
+  font-weight: var(--mkp-font-body-weight);
+  line-height: var(--mkp-font-body-line);
+  -webkit-text-size-adjust: 100%;
+  overflow-wrap: break-word;
+}
+
+.mkp-root *,
+.mkp-root *::before,
+.mkp-root *::after {
+  box-sizing: border-box;
+}
+
+.mkp-root [hidden] {
+  display: none !important;
+}
+
+.mkp-root :focus-visible {
+  outline: 2px solid var(--mkp-color-accent);
+  outline-offset: 2px;
+}
+
+/* ---- blocks: no margins of their own; a flow of blocks spaces them */
+
+:where(.mkp-root) :where(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, figure, hr, table) {
+  margin: 0;
+}
+
+.mkp-root,
+.mkp-quote,
+.mkp-item-body,
+.mkp-footnote-body,
+.mkp-overlay-body {
+  --mkp-flow: 0.75em;
+}
+
+:is(.mkp-root, .mkp-quote, .mkp-item-body, .mkp-footnote-body, .mkp-overlay-body) > * + * {
+  margin-block-start: var(--mkp-flow);
+}
+
+:is(.mkp-root, .mkp-quote, .mkp-item-body, .mkp-footnote-body) > * + :is(h1, h2, h3) {
+  margin-block-start: 1.25em;
+}
+
+.mkp-heading {
+  font-family: var(--mkp-font-heading-family);
+  font-weight: var(--mkp-font-heading-weight);
+  line-height: var(--mkp-font-heading-line);
+  text-wrap: balance;
+}
+
+h1.mkp-heading { font-size: calc(var(--mkp-font-heading-size) * 1.36); }
+h2.mkp-heading { font-size: var(--mkp-font-heading-size); }
+h3.mkp-heading { font-size: calc(var(--mkp-font-heading-size) * 0.82); }
+h4.mkp-heading { font-size: 1em; }
+h5.mkp-heading { font-size: 0.9em; }
+h6.mkp-heading { font-size: 0.85em; color: var(--mkp-color-muted); }
+
+.mkp-root a {
+  color: var(--mkp-color-accent);
+  text-underline-offset: 0.18em;
+}
+
+.mkp-root [data-unsafe-link] {
+  text-decoration: underline dotted;
+}
+
+.mkp-bullets {
+  padding-inline-start: 1.5em;
+}
+
+.mkp-item + .mkp-item {
+  margin-block-start: 0.25em;
+}
+
+.mkp-item.mkp-task {
+  list-style: none;
+  display: flex;
+  gap: 0.5em;
+  align-items: baseline;
+  margin-inline-start: -1.4em;
+}
+
+.mkp-item-check {
+  margin: 0;
+  flex: none;
+  accent-color: var(--mkp-color-accent);
+  translate: 0 0.12em;
+}
+
+.mkp-item-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mkp-quote {
+  border-inline-start: 3px solid var(--mkp-color-line);
+  padding-inline-start: 1em;
+  color: color-mix(in srgb, var(--mkp-color-ink) 80%, var(--mkp-color-muted));
+}
+
+.mkp-root code {
+  font-family: var(--mkp-font-mono-family);
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mkp-color-line) 35%, transparent);
+}
+
+.mkp-code {
+  font-family: var(--mkp-font-mono-family);
+  font-size: var(--mkp-font-mono-size);
+  line-height: var(--mkp-font-mono-line);
+  padding: 0.75em 1em;
+  border-radius: var(--mkp-radius-card);
+  background: color-mix(in srgb, var(--mkp-color-line) 30%, var(--mkp-color-surface));
+  overflow-x: auto;
+  tab-size: 4;
+}
+
+.mkp-root .mkp-code-text {
+  font-size: inherit;
+  padding: 0;
+  background: none;
+}
+
+.mkp-math {
+  font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math, serif;
+}
+
+div.mkp-math {
+  display: block;
+  overflow-x: auto;
+  text-align: center;
+  font-size: 1.1em;
+}
+
+.mkp-math-tex {
+  font-family: var(--mkp-font-mono-family);
+  font-size: 0.9em;
+}
+
+.mkp-table {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.mkp-table-grid {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.mkp-table-grid :is(th, td) {
+  padding: 0.4em 0.75em;
+  border-block-end: 1px solid var(--mkp-color-line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.mkp-table-grid th {
+  font-weight: 600;
+  border-block-end-width: 2px;
+}
+
+.mkp-divider {
+  border: 0;
+  border-block-start: 1px solid var(--mkp-color-line);
+}
+
+.mkp-note-ref a {
+  text-decoration: none;
+  padding-inline: 0.1em;
+}
+
+.mkp-footnote {
+  display: flex;
+  gap: 0.5em;
+  font-size: 0.9em;
+  color: color-mix(in srgb, var(--mkp-color-ink) 75%, var(--mkp-color-muted));
+}
+
+.mkp-footnote-mark {
+  flex: none;
+  min-width: 1.2em;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.mkp-footnote-body {
+  min-width: 0;
+}
+
+.mkp-notice {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--mkp-color-bad);
+  border-radius: var(--mkp-radius-card);
+  background: color-mix(in srgb, var(--mkp-color-bad) 8%, var(--mkp-color-surface));
+  color: var(--mkp-color-ink);
+  font-size: 0.9em;
+}
+
+/* ---- drawing */
+
+.mkp-label {
+  display: block;
+  min-width: 0;
+}
+
+.mkp-inline .mkp-label {
+  display: inline;
+}
+
+.mkp-label[data-size="small"] { font-size: 0.875em; }
+.mkp-label[data-size="large"] { font-size: 1.25em; }
+.mkp-label[data-weight="medium"] { font-weight: 500; }
+.mkp-label[data-weight="bold"] { font-weight: 650; }
+.mkp-label[data-font="body"] { font-family: var(--mkp-font-body-family); }
+.mkp-label[data-font="heading"] { font-family: var(--mkp-font-heading-family); font-weight: var(--mkp-font-heading-weight); }
+.mkp-label[data-font="mono"] { font-family: var(--mkp-font-mono-family); font-size: var(--mkp-font-mono-size); }
+.mkp-label.mkp-nowrap { white-space: nowrap; }
+.mkp-label.mkp-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mkp-label.mkp-halo {
+  text-shadow:
+    0 0 2px var(--mkp-color-surface),
+    0 0 2px var(--mkp-color-surface),
+    0 0 4px var(--mkp-color-surface);
+}
+
+.mkp-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.mkp-root .mkp-icon {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+  vertical-align: -0.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mkp-root .mkp-icon.mkp-filled { fill: currentColor; }
+.mkp-root .mkp-icon[data-size="small"] { width: 1em; height: 1em; }
+.mkp-root .mkp-icon[data-size="large"] { width: 1.75em; height: 1.75em; }
+
+/* ---- press */
+
+.mkp-press {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 2.25em;
+  padding: 0.35em 0.9em;
+  border: 1px solid var(--mkp-color-line);
+  border-radius: var(--mkp-radius-card);
+  background: var(--mkp-color-surface);
+  color: var(--mkp-color-ink);
+  line-height: 1.25;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+}
+
+.mkp-press:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mkp-color-ink) 6%, var(--mkp-color-surface));
+}
+
+.mkp-press:active:not(:disabled) {
+  background: color-mix(in srgb, var(--mkp-color-ink) 11%, var(--mkp-color-surface));
+}
+
+.mkp-press:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mkp-press.mkp-toned {
+  background: var(--mkp-tone);
+  border-color: var(--mkp-tone);
+  color: var(--mkp-color-surface);
+}
+
+.mkp-press.mkp-toned:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mkp-tone) 88%, var(--mkp-color-ink));
+}
+
+.mkp-press-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.mkp-press[data-kind="toggle"].mkp-selected,
+.mkp-press[data-kind="option"].mkp-selected {
+  background: color-mix(in srgb, var(--mkp-color-accent) 14%, var(--mkp-color-surface));
+  border-color: color-mix(in srgb, var(--mkp-color-accent) 55%, var(--mkp-color-line));
+}
+
+.mkp-press[data-kind="plain"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--mkp-color-accent);
+  padding-inline: 0.3em;
+  min-height: 0;
+}
+
+.mkp-press[data-kind="tab"] {
+  border: 0;
+  border-block-end: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mkp-color-muted);
+}
+
+.mkp-press[data-kind="tab"].mkp-selected {
+  color: var(--mkp-color-ink);
+  border-block-end-color: var(--mkp-color-accent);
+}
+
+.mkp-press:is([data-kind="check"], [data-kind="radio"], [data-kind="switch"]) {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.2em;
+  justify-content: flex-start;
+}
+
+.mkp-press-indicator {
+  display: none;
+}
+
+.mkp-press:is([data-kind="check"], [data-kind="radio"], [data-kind="switch"]) .mkp-press-indicator {
+  display: inline-block;
+  position: relative;
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  border: 1.5px solid var(--mkp-color-muted);
+  border-radius: 4px;
+  background: var(--mkp-color-surface);
+  transition: background-color 120ms, border-color 120ms;
+}
+
+.mkp-press[data-kind="radio"] .mkp-press-indicator { border-radius: 50%; }
+
+.mkp-press[data-kind="switch"] .mkp-press-indicator {
+  width: 1.9em;
+  height: 1.1em;
+  border-radius: var(--mkp-radius-pill);
+}
+
+.mkp-press:is([data-kind="check"], [data-kind="radio"], [data-kind="switch"]).mkp-selected .mkp-press-indicator {
+  background: var(--mkp-color-accent);
+  border-color: var(--mkp-color-accent);
+}
+
+.mkp-press[data-kind="check"].mkp-selected .mkp-press-indicator::after {
+  content: "";
+  position: absolute;
+  left: 0.3em;
+  top: 0.1em;
+  width: 0.28em;
+  height: 0.55em;
+  border: solid var(--mkp-color-surface);
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+}
+
+.mkp-press[data-kind="radio"].mkp-selected .mkp-press-indicator::after {
+  content: "";
+  position: absolute;
+  inset: 0.22em;
+  border-radius: 50%;
+  background: var(--mkp-color-surface);
+}
+
+.mkp-press[data-kind="switch"] .mkp-press-indicator::after {
+  content: "";
+  position: absolute;
+  top: 0.1em;
+  left: 0.1em;
+  width: 0.75em;
+  height: 0.75em;
+  border-radius: 50%;
+  background: var(--mkp-color-muted);
+  transition: translate 120ms;
+}
+
+.mkp-press[data-kind="switch"].mkp-selected .mkp-press-indicator::after {
+  translate: 0.8em 0;
+  background: var(--mkp-color-surface);
+}
+
+/* ---- field and slider */
+
+.mkp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  min-width: 0;
+}
+
+.mkp-field-label,
+.mkp-slider-label {
+  font-size: 0.875em;
+  font-weight: 500;
+  color: var(--mkp-color-muted);
+}
+
+.mkp-field-input {
+  font: inherit;
+  width: 100%;
+  min-width: 0;
+  padding: 0.45em 0.65em;
+  border: 1px solid var(--mkp-color-line);
+  border-radius: var(--mkp-radius-card);
+  background: var(--mkp-color-surface);
+  color: var(--mkp-color-ink);
+}
+
+.mkp-root .mkp-field-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--mkp-color-accent) 45%, transparent);
+  outline-offset: 0;
+  border-color: var(--mkp-color-accent);
+}
+
+textarea.mkp-field-input {
+  resize: vertical;
+}
+
+.mkp-field-input::placeholder {
+  color: var(--mkp-color-muted);
+}
+
+.mkp-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15em 0.75em;
+  align-items: center;
+  min-width: 0;
+}
+
+.mkp-slider-label {
+  grid-column: 1 / -1;
+}
+
+.mkp-slider-input {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--mkp-color-accent);
+}
+
+.mkp-slider-value {
+  min-width: 3ch;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- overlay: a popover beside its anchor, or a dialog over the page */
+
+.mkp-overlay {
+  display: inline-block;
+}
+
+.mkp-overlay-anchor {
+  display: inline-block;
+}
+
+.mkp-overlay-anchor[role="button"] {
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.mkp-overlay-body[popover] {
+  position-area: bottom span-right;
+  position-try-fallbacks: flip-block, flip-inline;
+  inset: auto;
+  margin: 6px 0;
+  padding: 0.75em 1em;
+  max-width: min(24rem, calc(100vw - 32px));
+  border: 1px solid var(--mkp-color-line);
+  border-radius: var(--mkp-radius-card);
+  background: var(--mkp-color-surface);
+  color: var(--mkp-color-ink);
+  box-shadow: var(--mkp-shadow-raised), 0 10px 28px rgb(0 0 0 / 0.14);
+}
+
+.mkp-overlay-body[data-mode="tooltip"] {
+  position-area: top;
+  padding: 0.3em 0.6em;
+  font-size: 0.875em;
+  border-color: transparent;
+  background: var(--mkp-color-ink);
+  color: var(--mkp-color-surface);
+  box-shadow: none;
+}
+
+dialog.mkp-overlay-body {
+  padding: 1.25em 1.5em;
+  max-width: min(36rem, calc(100vw - 32px));
+  border: 1px solid var(--mkp-color-line);
+  border-radius: var(--mkp-radius-card);
+  background: var(--mkp-color-surface);
+  color: var(--mkp-color-ink);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
+}
+
+dialog.mkp-overlay-body::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+/* ---- layout */
+
+.mkp-flex {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mkp-flex[data-axis="x"] {
+  flex-direction: row;
+}
+
+.mkp-clickable {
+  cursor: pointer;
+}
+
+.mkp-grid {
+  display: grid;
+  min-width: 0;
+}
+
+.mkp-cell,
+.mkp-sizing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* ---- plane */
+
+.mkp-plane {
+  max-width: 100%;
+  border: 1px solid var(--mkp-color-line);
+  border-radius: var(--mkp-radius-card);
+  overflow: hidden;
+  background: var(--mkp-color-surface);
+}
+
+.mkp-plane-view {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.mkp-plane-view.mkp-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.mkp-plane-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.mkp-plane-background,
+.mkp-plane-items {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.mkp-spot {
+  position: absolute;
+  width: max-content;
+  cursor: auto;
+}
+
+/* ---- gfx */
+
+.mkp-canvas {
+  position: relative;
+  max-width: 100%;
+}
+
+.mkp-canvas-surface {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mkp-canvas.mkp-clickable .mkp-canvas-surface {
+  cursor: crosshair;
+}
+
+.mkp-place {
+  overflow: visible;
+}
+
+.mkp-place-box {
+  width: max-content;
+}
+
+.mkp-shade {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mkp-shade-pixels {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mkp-root .mkp-live {
+  cursor: pointer;
+}
+
+.mkp-root .mkp-live:focus-visible {
+  outline: 2px solid var(--mkp-color-accent);
+}
+
+.mkp-handle {
+  cursor: grab;
+}
+
+.mkp-handle-hit {
+  fill: transparent;
+}
+
+.mkp-handle-dot {
+  stroke: var(--mkp-color-surface);
+  stroke-width: 2px;
+}
+
+.mkp-handle:focus-visible {
+  outline: none;
+}
+
+.mkp-handle:focus-visible .mkp-handle-dot {
+  stroke: var(--mkp-color-accent);
+  stroke-width: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkp-root * {
+    transition: none !important;
+  }
+}
