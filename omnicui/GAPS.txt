@@ -1,0 +1,120 @@
+omnicui 0.2.1: known gaps
+
+These are what is not done, not verified, or only works with a manual step. Each says what is
+missing and what closing it would take. Nothing here stops 0.2.1 working as documented.
+
+Not verified yet
+1.  The release workflow (.github/workflows/release.yml) has run once, for v0.1.0 (eight assets).
+    The merge of 0.2.0 is its second run; check that v0.2.0 appears with the six binaries,
+    omnicui-src-0.2.0.tar.gz and SHA256SUMS.
+2.  The ruleset (.github/rulesets/main.json) protects main only once it is imported by hand:
+    Settings > Rules > Rulesets > Import a ruleset.
+3.  Not run on a real Mac or a real Windows machine. Everything was verified on Linux, with
+    software rendering for egui (lavapipe). The run scripts are bash only; on Windows only the
+    command itself is supported, and it was cross-compiled but never run there.
+4.  Not run with a real GPU here. The pixel thresholds (area 30%, strength 28%, shift 8 px, spot
+    2%) and motion's 40 ms were set from software rendering (lavapipe for egui) in this
+    repository and from the banking stress test's macOS screenshots; a GPU's anti-aliasing may
+    differ. Run ./run.sh check on a GPU machine and see whether any measure comes near its
+    threshold. The tightest margin is spot: correct pages reached 1.6%, the mildest real defect
+    (egui's lighter placeholder text) 2.4%.
+5.  The desktop (egui) app's window was reported not opening on a Mac. The likely cause (a
+    silent first build) is fixed, but the fix has not been seen working on a Mac.
+
+Not in CI
+6.  The real-target suite (three apps, Chromium, a JVM, a GPU driver) runs only with
+    ./run.sh test or ./fresh-copy.sh, not on pull requests. CI runs the command's own tests, the
+    builds, the release scripts' tests and the neutrality check.
+
+Installing and vendoring
+7.  `go install github.com/mmujtabamain/omnicui/...@v0.1.0` does not work: the Go module is named
+    `omnicui`, not its repository path. Today the command comes from a release binary, or from
+    building the source. Closing it: rename the module to
+    github.com/mmujtabamain/omnicui/tools/omnicui, and tag releases also as tools/omnicui/v<version>.
+8.  The release binaries are not signed. macOS quarantines a downloaded binary; the first run needs
+    `xattr -d com.apple.quarantine omnicui_<version>_darwin_<arch>`, or a right-click > Open.
+    Closing it: sign and notarise the macOS binaries in release.yml.
+9.  The source tarball (omnicui-src-<version>.tar.gz) builds on its own, but its unit tests do not
+    run on their own: they read this repository's example contracts (omnicui/contracts/). A
+    project that vendors the source can build it, not test it. Closing it: copy the two contracts
+    into tools/omnicui/testdata/ and point the tests there.
+10. A local build (./run.sh setup, make omnicui) is not stamped with VERSION, so its
+    `omnicui version` says "dev". Release binaries say their version.
+
+Repository
+11. There is no LICENSE file, so by default nobody else may use, copy or change the code. Choose one.
+12. The JavaFX app is installed into the local Maven repository (~/.m2) by ./run.sh setup, so the
+    javafx target can depend on it: the one thing setup writes outside this folder besides the
+    usual download caches.
+
+From the banking stress test (7 November 2026)
+An agent built a banking app three times (React, JavaFX, egui) with omnicui 0.1.0. How the pixel
+and motion measures were chosen is in docs/verification/banking-review/. Built since: the four
+pixel measures, the render check, bounds and the visibility warning, the busy hook,
+role/focused/visible, --fail-on, progress lines, compare, help contract, opacity traces, clips
+compared by visual progress with a synced player, lossless APNG clips, allCombinations,
+viewport props, keyboard checks, and the reference adapters' fixes. egui's side was verified here
+with Mesa's software Vulkan (lavapipe), unpacked without root. Still open:
+13. Shift is shown but doesn't warn by default: on correct renderings anti-aliasing alone makes
+    it 3–7 px, and in neither corpus did it separate a defect from noise. A displacement measure
+    that tells a moved element from re-rasterised glyphs (matching connected shapes, not pixels)
+    would make it useful.
+14. Clip timing is only as good as each target's clock. JavaFX snapshots each pulse (its PNGs
+    are now written off the UI thread, which took an outlier of 128 ms away); Chromium's
+    screencast sends frames only on change. Over 20 correct runs clips measured up to 30 ms
+    apart, hence motion's 40 ms default; more runs on more machines would firm it up. A clip that ends
+    where it started (hover in and out) is now measured out and back; that was verified with the
+    fake adapter and synthetic clips only, not yet on a real toolkit's spring.
+15. Opacity and scale traces are web and JavaFX only: egui multiplies opacity into painted colours
+    and has no transforms to read back. Its fades and springs are compared through the clip.
+16. A linked target (targets/<name> a link to another project's target) doesn't run its stub
+    generator, which would rewrite its app from this project's contracts; that app's types must
+    be refreshed from its own project.
+17. Clips are not yet WebM or MP4 (REC-9); APNG is lossless but larger.
+
+From the mobile stress test (8 November 2026)
+An agent built a five-screen hiking app twice, in Jetpack Compose (Robolectric) and SwiftUI (the
+iOS Simulator), with omnicui 0.2.0 vendored as is, and was stopped after 4.6 hours; what it found
+and what was its own doing is in docs/verification/mobile-review/. Built since: --test, --failed,
+--serial and exclusive targets, time per test and start-up progress, stderr kept on failures,
+"not measured" keyboard tests and target keys, masks and optional parts, part-cropped screenshots,
+do: actions the targets define, scale traces, part clips, round-trip motion, selected, and
+traces that find their part at each frame. Still open:
+18. There is no reference Android or iOS target in this repository: the mobile run's targets are
+    its own, and nothing here was run on Robolectric or the Simulator. The new constructs were
+    verified with the fake adapter and the three reference targets.
+19. Masks are named by the contract. A target can't yet declare its own system UI (a status bar,
+    the soft keyboard, a system picker) to be left out without the contract naming it (REC-2).
+20. A generated keyboard test reaches only what is on screen when the component mounts; a part in
+    a sheet is "not measured" until the sheet is a component of its own. Deriving keyboard tests
+    from a test's own steps would reach it in place (REC-11).
+21. `do:` actions are passed on unchanged: whether swipe means the same on two targets is up to
+    them. SPEC's table of conventions is a starting point, not a check.
+22. `check --failed` and `--test` replace the run folder like any run, so their report shows only
+    what was run again; keep the full report with --out if it is still needed.
+
+From the redesign experiment (11 November 2026)
+A second design of the web counter and switch (a card; a native checkbox) was run against the same
+contracts (experiments/redesign). Built since: design: in target.yaml with colours compared across
+designs, optional parts for traces, clips and expectations, text contains/matches, text as shown,
+and the direction of motion. Still open:
+23. The design language is compared by colour only. Typography (font, size, weight), spacing,
+    corner radii and elevation are not: a design that changed its font alone would measure 0%.
+24. Text colours drawn only as glyphs are seldom solid pixels, so they rarely enter a palette; a
+    wrong text colour is still caught within a design by pixels' strength and spot.
+25. A design's palette is what it drew in this run: a check of one component knows only that
+    component's colours, so a colour another component uses can warn there and not in a full run.
+26. Direction compares where a point went, not the path it took (an arc against a straight line
+    ending at the same place is 0°).
+
+From the per-platform design (12 November 2026)
+Built: platform tags, same: per part with a layout measure, system regions reported by targets
+(closes 19 for targets that report them), viewports per platform, only/except, named inputs, and
+platform exceptions. Still open:
+27. Runs on different machines (egui on Linux and on Windows) are not compared: check --with <run
+    folder> would add a saved run's results as further targets.
+28. A contract can't yet claim a system region its app draws itself (system: { titlebar: [layout] }).
+29. Layout compares boxes relative to the parts both targets show; a part one design nests inside
+    another (a title inside a toolbar) is compared as a box on its own, not as a child.
+30. Fonts are still not an aspect (GAPS 23): `same: [layout, colours]` lets a platform's own font
+    through, and `pixels` holds it to the same rendering.
