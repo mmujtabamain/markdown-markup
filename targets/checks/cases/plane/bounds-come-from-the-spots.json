@@ -1,0 +1,190 @@
+{
+  "id": "plane.bounds-come-from-the-spots",
+  "about": "a plane given no bounds takes the region around every spot's box; drawn larger than them, its centre is their middle, and written back",
+  "source": "bounds-come-from-the-spots.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Two places"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "A"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Bee"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-4"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "4"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          },
+          "s0/s3": {
+            "from": {
+              "x": {
+                "num": "100"
+              },
+              "y": {
+                "num": "50"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "124"
+              },
+              "y": {
+                "num": "70"
+              }
+            }
+          }
+        },
+        "tree": {
+          "s0/s0": {
+            "widget": "core/plane",
+            "props": {
+              "center": {
+                "record": {
+                  "fields": {
+                    "x": {
+                      "num": "60"
+                    },
+                    "y": {
+                      "num": "30"
+                    }
+                  },
+                  "type": "core/point"
+                }
+              },
+              "drawn": {
+                "some": {
+                  "record": {
+                    "fields": {
+                      "from": {
+                        "record": {
+                          "fields": {
+                            "x": {
+                              "num": "-260"
+                            },
+                            "y": {
+                              "num": "-130"
+                            }
+                          },
+                          "type": "core/point"
+                        }
+                      },
+                      "to": {
+                        "record": {
+                          "fields": {
+                            "x": {
+                              "num": "380"
+                            },
+                            "y": {
+                              "num": "190"
+                            }
+                          },
+                          "type": "core/point"
+                        }
+                      }
+                    },
+                    "type": "core/region"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "state": {
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-260"
+                        },
+                        "y": {
+                          "num": "-130"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "380"
+                        },
+                        "y": {
+                          "num": "190"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "outcome": {
+          "refused": [],
+          "failures": []
+        }
+      }
+    }
+  ]
+}

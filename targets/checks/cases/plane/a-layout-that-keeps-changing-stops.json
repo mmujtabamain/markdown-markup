@@ -1,0 +1,55 @@
+{
+  "id": "plane.a-layout-that-keeps-changing-stops",
+  "about": "a spot placed by its own box moves on every layout pass, so the layout never settles: it is stopped after a fixed number of passes and is a failure of the plane",
+  "source": "a-layout-that-keeps-changing-stops.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Runaway"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Run"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "outcome": {
+          "failures": [
+            {
+              "code": "failure.layout",
+              "site": "s0/s0"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

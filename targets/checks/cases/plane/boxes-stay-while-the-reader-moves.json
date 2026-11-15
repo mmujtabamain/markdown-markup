@@ -1,0 +1,543 @@
+{
+  "id": "plane.boxes-stay-while-the-reader-moves",
+  "about": "a spot's box is in the plane's units: panning and zooming change the plane's centre, zoom and drawn region, never the box; the centre is kept inside the bounds and the zoom inside zoom_range, and both are written back",
+  "source": "boxes-stay-while-the-reader-moves.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Map"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Home"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "center",
+          "value": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "50"
+                },
+                "y": {
+                  "num": "20"
+                }
+              },
+              "type": "core/point"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "center": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "50"
+                },
+                "y": {
+                  "num": "20"
+                }
+              },
+              "type": "core/point"
+            }
+          },
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-270"
+                        },
+                        "y": {
+                          "num": "-140"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "370"
+                        },
+                        "y": {
+                          "num": "180"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          },
+          "home": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-16"
+                        },
+                        "y": {
+                          "num": "-10"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "16"
+                        },
+                        "y": {
+                          "num": "10"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-16"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "16"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "zoom",
+          "value": {
+            "num": "2"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "zoom": {
+            "num": "2"
+          },
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-110"
+                        },
+                        "y": {
+                          "num": "-60"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "210"
+                        },
+                        "y": {
+                          "num": "100"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          },
+          "home": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-16"
+                        },
+                        "y": {
+                          "num": "-10"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "16"
+                        },
+                        "y": {
+                          "num": "10"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-16"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "16"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "center",
+          "value": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "390"
+                },
+                "y": {
+                  "num": "0"
+                }
+              },
+              "type": "core/point"
+            }
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "center": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "240"
+                },
+                "y": {
+                  "num": "0"
+                }
+              },
+              "type": "core/point"
+            }
+          },
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "80"
+                        },
+                        "y": {
+                          "num": "-80"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "400"
+                        },
+                        "y": {
+                          "num": "80"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-16"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "16"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          }
+        },
+        "outcome": {
+          "refused": [],
+          "failures": []
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "zoom",
+          "value": {
+            "num": "1"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "zoom": {
+            "num": "1"
+          },
+          "center": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "80"
+                },
+                "y": {
+                  "num": "0"
+                }
+              },
+              "type": "core/point"
+            }
+          },
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "-240"
+                        },
+                        "y": {
+                          "num": "-160"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "400"
+                        },
+                        "y": {
+                          "num": "160"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-16"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "16"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "write": {
+          "site": "s0/s0",
+          "input": "zoom",
+          "value": {
+            "num": "8"
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "zoom": {
+            "num": "4"
+          },
+          "center": {
+            "record": {
+              "fields": {
+                "x": {
+                  "num": "80"
+                },
+                "y": {
+                  "num": "0"
+                }
+              },
+              "type": "core/point"
+            }
+          },
+          "seen": {
+            "some": {
+              "record": {
+                "fields": {
+                  "from": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "0"
+                        },
+                        "y": {
+                          "num": "-40"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  },
+                  "to": {
+                    "record": {
+                      "fields": {
+                        "x": {
+                          "num": "160"
+                        },
+                        "y": {
+                          "num": "40"
+                        }
+                      },
+                      "type": "core/point"
+                    }
+                  }
+                },
+                "type": "core/region"
+              }
+            }
+          }
+        },
+        "boxes": {
+          "s0/s1": {
+            "from": {
+              "x": {
+                "num": "-16"
+              },
+              "y": {
+                "num": "-10"
+              }
+            },
+            "to": {
+              "x": {
+                "num": "16"
+              },
+              "y": {
+                "num": "10"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

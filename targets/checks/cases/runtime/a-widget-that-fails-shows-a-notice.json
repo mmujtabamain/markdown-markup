@@ -116,18 +116,31 @@
           ]
         },
         "markdown": {
-          "has": [
+          "blocks": [
             {
               "heading": {
-                "level": 1,
                 "inline": [
                   {
                     "text": {
                       "value": "Shares"
                     }
                   }
-                ]
+                ],
+                "level": 1
               }
+            },
+            {
+              "quote": [
+                {
+                  "paragraph": [
+                    {
+                      "text": {
+                        "value": "share failed: a division by zero"
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               "paragraph": [
