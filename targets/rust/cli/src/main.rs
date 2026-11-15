@@ -2,6 +2,8 @@
 
 use std::process::ExitCode;
 
+mod target;
+
 use mkp_syntax::{entry_for, format, parse, Diagnostic};
 
 include!(concat!(env!("OUT_DIR"), "/core.rs"));
@@ -157,6 +159,8 @@ const USAGE: &str = "usage:
   mkp parse <file>                  print a file's syntax tree as JSON
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
   mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
+  mkp target check [target…] [--cases dir] [--defect name] [--expect-failures]
+                                    run the target checks on targets, through their check adapters
   (--pack takes a comma-separated list of folders and .mkp files; --config/-c names an mkp.toml,
    and left out, mkp looks for one beside the file and in the folders above: packs = [\"kit\", \"extra.mkp\"])";
 
@@ -355,6 +359,7 @@ fn main() -> ExitCode {
         Some("check") => check(&args[1..]),
         Some("build") => build(&args[1..]),
         Some("md") => md(&args[1..]),
+        Some("target") if args.get(1).map(String::as_str) == Some("check") => target::target_check(&args[2..]),
         _ => {
             eprintln!("{}", USAGE);
             ExitCode::from(2)
