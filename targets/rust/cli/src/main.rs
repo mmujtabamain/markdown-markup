@@ -10,20 +10,79 @@ fn core_sources() -> Vec<mkp_check::Source> {
     CORE.iter().map(|(p, t)| mkp_check::Source { path: p.to_string(), text: t.to_string() }).collect()
 }
 
-/// `mkp build doc.mkp.md [-o out.ir.json]`: the IR, with core and nothing else for now.
-fn build(args: &[String]) -> ExitCode {
-    let mut out = None;
-    let mut files = Vec::new();
+/// The packs `--pack` names: a comma-separated list of folders and `.mkp` files. A folder gives
+/// every `.mkp` file under it; each file says its own pack with its `package` line.
+fn pack_sources(list: &str) -> Result<Vec<mkp_check::Source>, String> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) -> Result<(), String> {
+        let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(dir).map_err(|e| format!("{}: {}", dir.display(), e))?.filter_map(|e| e.ok().map(|e| e.path())).collect();
+        entries.sort();
+        for p in entries {
+            if p.is_dir() {
+                walk(&p, out)?;
+            } else if p.extension().map_or(false, |x| x == "mkp") {
+                out.push(p);
+            }
+        }
+        Ok(())
+    }
+    let mut paths = Vec::new();
+    for item in list.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let p = std::path::Path::new(item);
+        if p.is_dir() {
+            walk(p, &mut paths)?;
+        } else if item.ends_with(".mkp") {
+            paths.push(p.to_path_buf());
+        } else {
+            return Err(format!("--pack {}: not a folder or a .mkp file", item));
+        }
+    }
+    paths
+        .into_iter()
+        .map(|p| {
+            let text = std::fs::read_to_string(&p).map_err(|e| format!("{}: {}", p.display(), e))?;
+            Ok(mkp_check::Source { path: p.to_string_lossy().into_owned(), text })
+        })
+        .collect()
+}
+
+/// `--pack a,b` and `-o out` taken out of the arguments, the files left.
+fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Option<String>), String> {
+    let (mut files, mut packs, mut out) = (Vec::new(), Vec::new(), None);
     let mut k = 0;
     while k < args.len() {
-        if args[k] == "-o" {
-            out = args.get(k + 1).cloned();
-            k += 2;
-            continue;
+        match args[k].as_str() {
+            "-o" | "--pack" => {
+                let Some(v) = args.get(k + 1) else { return Err(format!("{} needs a value", args[k])) };
+                if args[k] == "-o" {
+                    out = Some(v.clone());
+                } else {
+                    packs.extend(pack_sources(v)?);
+                }
+                k += 2;
+            }
+            a if a.starts_with("--pack=") => {
+                packs.extend(pack_sources(&a["--pack=".len()..])?);
+                k += 1;
+            }
+            a if a.starts_with("--") => k += 1,
+            _ => {
+                files.push(args[k].clone());
+                k += 1;
+            }
         }
-        files.push(args[k].clone());
-        k += 1;
     }
+    Ok((files, packs, out))
+}
+
+/// `mkp build doc.mkp.md [--pack a,b] [-o out.ir.json]`: one standalone IR, core and the packs in it.
+fn build(args: &[String]) -> ExitCode {
+    let (files, packs, out) = match options(args) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::from(2);
+        }
+    };
     let Some(path) = files.first() else {
         eprintln!("{}", USAGE);
         return ExitCode::from(2);
@@ -36,7 +95,7 @@ fn build(args: &[String]) -> ExitCode {
         }
     };
     let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-    let c = mkp_check::compile(&core_sources(), &[], &[mkp_check::Source { path: path.clone(), text }], module);
+    let c = mkp_check::compile(&core_sources(), &[packs], &[mkp_check::Source { path: path.clone(), text }], module);
     for d in &c.diagnostics {
         if d.file == *path || d.diagnostic.is_error() {
             eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
@@ -58,9 +117,10 @@ fn build(args: &[String]) -> ExitCode {
 
 const USAGE: &str = "usage:
   mkp fmt [--check] <file>...      print each file back in the canonical layout (in place, or check only)
-  mkp check [--json] <file>...      report every error and warning in each file
+  mkp check [--json] [--pack a,b] <file>...   report every error and warning in each file
   mkp parse <file>                  print a file's syntax tree as JSON
-  mkp build <file> [-o out.ir.json] write a document's IR";
+  mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
+  (--pack takes a comma-separated list of folders and .mkp files)";
 
 fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
     let entry = entry_for(path).ok_or_else(|| format!("{}: not an MKP file (.mkp or .mkp.md)", path))?;
@@ -145,15 +205,22 @@ fn parse_cmd(args: &[String]) -> ExitCode {
 
 fn check(args: &[String]) -> ExitCode {
     let json = args.iter().any(|a| a == "--json");
-    let files: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
+    let (files, packs, _) = match options(args) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::from(2);
+        }
+    };
     if files.is_empty() {
         eprintln!("{}", USAGE);
         return ExitCode::from(2);
     }
     let mut failed = false;
     let mut all = Vec::new();
-    for path in files {
-        let (src, entry) = match read(path) {
+    let base = mkp_check::compile_core(&core_sources());
+    for path in &files {
+        let (src, _) = match read(path) {
             Ok(x) => x,
             Err(e) => {
                 eprintln!("{}", e);
@@ -161,20 +228,26 @@ fn check(args: &[String]) -> ExitCode {
                 continue;
             }
         };
-        let parsed = parse(&src, entry);
-        failed |= parsed.has_errors();
-        if json {
-            let lines = mkp_syntax::Lines::new(&src);
-            for d in &parsed.diagnostics {
+        // each file with core and the packs: a document, or a pack's file with the rest of its pack
+        let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
+        let packs: Vec<mkp_check::Source> = packs.iter().filter(|p| std::path::Path::new(&p.path) != std::path::Path::new(path)).cloned().collect();
+        let c = mkp_check::compile_on(&base, &[packs], &[mkp_check::Source { path: path.to_string(), text: src }], module);
+        failed |= c.module.is_none();
+        // this file's errors and warnings, and any pack's errors
+        for found in c.diagnostics.iter().filter(|d| d.file == *path || d.diagnostic.is_error()) {
+            let (file, d) = (&found.file, &found.diagnostic);
+            let text = c.texts.get(file.as_str()).map(String::as_str).unwrap_or("");
+            if json {
+                let lines = mkp_syntax::Lines::new(text);
                 let at = lines.place(d.span.start);
                 let end = lines.place(d.span.end);
                 all.push(serde_json::json!({
-                    "file": path, "code": d.code, "severity": d.severity, "line": at.line, "column": at.column,
+                    "file": file, "code": d.code, "severity": d.severity, "line": at.line, "column": at.column,
                     "end": {"line": end.line, "column": end.column}, "message": d.message, "fix": d.fix,
                 }));
+            } else {
+                eprintln!("{}", d.render(file, text));
             }
-        } else {
-            report(path, &src, &parsed.diagnostics);
         }
     }
     if json {
