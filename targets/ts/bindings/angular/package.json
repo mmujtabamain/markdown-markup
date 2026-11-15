@@ -1,0 +1,43 @@
+{
+  "name": "@mkp/angular",
+  "version": "0.3.0",
+  "description": "MKP pages in Angular: <mkp-page [ir]=\"…\" />, a standalone component drawn by @mkp/dom, safe to render on a server",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "ngc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/embed": "file:../embed"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=20.0.0",
+    "@angular/core": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@angular/common": "21.2.26",
+    "@angular/compiler": "21.2.26",
+    "@angular/compiler-cli": "21.2.26",
+    "@angular/core": "21.2.26",
+    "@angular/platform-browser": "21.2.26",
+    "@mkp/cli": "file:../../cli",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
+    "rxjs": "7.8.2",
+    "typescript": "5.9.3"
+  }
+}

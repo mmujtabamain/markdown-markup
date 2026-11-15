@@ -1,0 +1,52 @@
+{
+  "name": "@mkp/next",
+  "version": "0.3.0",
+  "description": "MKP pages in Next.js: <MkpPage> as a client component, .mkp.md imports compiled at build time, and the page's Markdown as HTML for the server",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./loader": "./dist/loader.cjs",
+    "./mkp-md": {
+      "types": "./mkp-md.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "mkp-md.d.ts"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/cli": "file:../../cli",
+    "@mkp/embed": "file:../embed",
+    "@mkp/react": "file:../react"
+  },
+  "peerDependencies": {
+    "next": ">=15.3.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "5.9.3"
+  }
+}

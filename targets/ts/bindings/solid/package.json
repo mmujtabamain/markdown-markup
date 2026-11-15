@@ -1,0 +1,36 @@
+{
+  "name": "@mkp/solid",
+  "version": "0.3.0",
+  "description": "MKP pages in Solid: <MkpPage ir={…} />, drawn by @mkp/dom, safe to render on a server",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/embed": "file:../embed"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.8.0"
+  },
+  "devDependencies": {
+    "@mkp/cli": "file:../../cli",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
+    "solid-js": "1.9.19",
+    "typescript": "5.9.3"
+  }
+}
