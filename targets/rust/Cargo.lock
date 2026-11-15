@@ -314,6 +314,7 @@ dependencies = [
  "jsonschema",
  "mkp-eval",
  "mkp-ir",
+ "mkp-lower",
  "mkp-syntax",
  "serde_json",
 ]
@@ -324,6 +325,8 @@ version = "0.3.0"
 dependencies = [
  "mkp-check",
  "mkp-ir",
+ "mkp-lower",
+ "mkp-markdown",
  "mkp-syntax",
  "serde_json",
 ]
@@ -344,6 +347,23 @@ dependencies = [
  "jsonschema",
  "mkp-schemagen",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mkp-lower"
+version = "0.3.0"
+dependencies = [
+ "mkp-ir",
+ "serde_json",
+]
+
+[[package]]
+name = "mkp-markdown"
+version = "0.3.0"
+dependencies = [
+ "mkp-eval",
+ "mkp-ir",
  "serde_json",
 ]
 

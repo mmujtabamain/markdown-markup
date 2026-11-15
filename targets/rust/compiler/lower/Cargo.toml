@@ -1,0 +1,10 @@
+[package]
+name = "mkp-lower"
+description = "Lowering: every prop that isn't constant becomes a binding with everything it reads"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mkp-ir = { path = "../ir" }
+serde_json.workspace = true

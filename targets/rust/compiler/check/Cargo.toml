@@ -11,6 +11,7 @@ mkp-ir = { path = "../ir" }
 mkp-eval = { path = "../../eval" }
 
 [dev-dependencies]
+mkp-lower = { path = "../lower" }
 mkp-eval = { path = "../../eval" }
 serde_json.workspace = true
 jsonschema = { version = "0.61", default-features = false }

@@ -67,6 +67,9 @@ fn every_ir_the_compiler_writes_validates() {
             skipped += 1;
             continue;
         };
+        // the IR as the compiler writes it: lowered
+        let mut m = m;
+        mkp_lower::lower(&mut m);
         let json = serde_json::to_value(&mkp_ir::ir::File { ir: m }).unwrap();
         if trace {
             eprintln!("validate {} ({} bytes)", name, json.to_string().len());

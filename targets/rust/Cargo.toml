@@ -4,6 +4,8 @@ members = [
     "compiler/syntax",
     "compiler/ir",
     "compiler/check",
+    "compiler/lower",
+    "compiler/markdown",
     "eval",
     "schemagen",
     "cli",
