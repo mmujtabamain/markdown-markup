@@ -1,6 +1,6 @@
 # Examples
 
-Page 7 of 9. The card, stats, checklist and tabs widgets, and a whole document, written in MKP. Every block on this page, and every other code block in this doc, has been read by the reference parser described on page 9.
+Page 7 of 9. The card, stats, checklist and tabs widgets, a diagram of tables on a plane, two drawings on a canvas, and a whole document, written in MKP. Every block on this page, and every other code block in this doc, has been read by the reference parser described on page 9.
 
 ### Widgets and a document
 
@@ -81,7 +81,7 @@ widget stats(items: list<stat>[1...]) {
 
     view {
         // at most two tiles a row on a phone, four elsewhere: a whole number 1..4 either way
-        let across: number 1..4 step 1 = page.width == width.NARROW ? items.len().clamp(1, 2) : items.len().clamp(1, 4);
+        let across: int 1..4 = page.width == width.NARROW ? items.len().clamp(1, 2) : items.len().clamp(1, 4);
         @grid(cols = cols.EQUAL(across), gap = space.S) {
             for (s in items) {
                 @tile(s);
@@ -99,7 +99,7 @@ widget stats(items: list<stat>[1...]) {
 
 #### checklist
 
-Numbered items to tick off. The ticks are kept as the positions that are ticked, in a `mut` list that is the widget's own variable. The rows hold nothing of their own, so a plain `for` is enough.
+Numbered items to tick off. The ticks are kept as the positions that are ticked, in a `mut` list that is the widget's own variable. The rows hold nothing of their own, so a plain `for` is enough. Its Markdown writes each box with `@if` and a literal `[x]` or `[ ]`, because a hole is always plain text.
 
 ```java
 package kit;
@@ -152,7 +152,11 @@ widget checklist(items: list<task>[1...]) {
 
     markdown {
         @for (k, t in items) {
-        - [\{ticked.has(k) ? "x" : " "}] \{t.title}
+        @if (ticked.has(k)) {
+        - [x] \{t.title}
+        } else {
+        - [ ] \{t.title}
+        }
         }
     }
 }
@@ -222,20 +226,66 @@ Expo and React Native.
 
 #### A diagram of tables
 
-Boxes placed by the layout, joined by arrows. Each box is held in a list, placed once, and found again by name for its arrows (page 3, "Pointing at a widget").
+Tables on a plane, joined by lines that end in arrowheads. Each table sits at its own point, placed with `spot`, which writes where the table's box landed. The diagram keeps its own copy of the tables, so each `spot` has a `box` to write to. Each link is a `path` on the plane's background, from one box's outline to the other's, and its label is placed at the middle with another `spot`. It is MKP alone, with no extern of its own. The boxes need `core.live` and the lines `core.gfx`; on a target without them, the diagram shows its Markdown.
 
 ```java
 package kit;
 
+//@about A table in a diagram: its name and fields, where it goes, and where it landed.
 record table_info {
-    name: text;
+    name: text[1...];
     fields: list<text>;
+    at: point;                                      // in the plane's units
+    mut box: opt<region> = opt.NONE;                // written by its spot after layout
 }
 
+//@about A link from one table to another, by their names.
 record link {
-    from: text;
-    to: text;
+    from: text[1...];
+    to: text[1...];
     label: text;
+}
+
+//@about Where a link's line runs, from one box's outline to the other's.
+record link_line {
+    from: point;
+    to: point;
+}
+
+fn link_line.middle(self): point {
+    return self.from.add(self.to).scale(0.5);
+}
+
+fn box_of(tables: list<table_info>, name: text): opt<region> {
+    if (let t: table_info = tables.find(fn(o) { return o.name == name; })) {
+        return t.box;
+    }
+    return opt.NONE;
+}
+
+//@about Where a line from the middle of a box toward a point leaves the box's outline.
+fn exit(b: region, toward: point): point {
+    let m: point = b.middle();
+    let d: point = toward.sub(m);
+    let w: number = b.width() / 2;
+    let h: number = b.height() / 2;
+    if (d.x.abs() * h >= d.y.abs() * w) {
+        if (d.x == 0) {
+            return m;
+        }
+        return m.add(d.scale(w / d.x.abs()));
+    }
+    return m.add(d.scale(h / d.y.abs()));
+}
+
+//@about The line of a link, once both of its tables have landed.
+fn line_of(tables: list<table_info>, l: link): opt<link_line> {
+    if (let a: region = box_of(tables, l.from)) {
+        if (let b: region = box_of(tables, l.to)) {
+            return link_line { from = exit(a, b.middle()), to = exit(b, a.middle()) };
+        }
+    }
+    return opt.NONE;
 }
 
 widget table_box(t: table_info) {
@@ -253,20 +303,43 @@ widget table_box(t: table_info) {
     }
 }
 
+//@about Tables on a plane, joined by a line with an arrowhead for each link.
+//@param tables the tables, each at its own point
 widget er(tables: list<table_info>[1...], links: list<link>) {
     require "every link names two tables" {
         return links.all(fn(l) { return tables.some(fn(t) { return t.name == l.from; }) && tables.some(fn(t) { return t.name == l.to; }); });
     }
 
+    // runs once, when the diagram is made; each spot writes its table's box here
+    mut placed: list<table_info> = tables;
+
     view {
-        let boxes: list<table_box> = tables.map(fn(t) { return @table_box(t = t); });
-        @grid(cols = cols.EQUAL(3), gap = space.XL) {
-            for (b in boxes) {
-                @b;
+        @plane(label = "Tables and their links", fit = true) {
+            background {
+                @layer {
+                    for (l in links) {
+                        if (let s: link_line = line_of(placed, l)) {
+                            @path(points = [s.from, s.to], head = head.ARROW, label = "\{l.from} \{l.label} \{l.to}");
+                        }
+                    }
+                }
             }
-        }
-        for (l in links) {
-            @arrow(from = boxes.find(fn(b) { return b.t.name == l.from; }), to = boxes.find(fn(b) { return b.t.name == l.to; }), label = l.label);
+            items {
+                mut for (t in placed) {
+                    if (mut x: table_info = t) {
+                        @spot(at = x.at, box = x.box) {
+                            @table_box(t = x);
+                        }
+                    }
+                }
+                for (l in links) {
+                    if (let s: link_line = line_of(placed, l)) {
+                        @spot(at = s.middle()) {
+                            @label(value = l.label, size = text_size.SMALL, tone = color.MUTED, halo = true);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -274,6 +347,8 @@ widget er(tables: list<table_info>[1...], links: list<link>) {
         @for (t in tables) {
         - **\{t.name}**: \{t.fields.join(", ")}
         }
+
+        Links:
 
         @for (l in links) {
         - \{l.from} \{l.label} \{l.to}
@@ -345,7 +420,7 @@ widget slope() {
             @layer(clip = unit) {
                 @path(points = [point { x = -1, y = 0 }, point { x = 1, y = 0 }], stroke = color.LINE);
                 @path(points = [point { x = 0, y = -1 }, point { x = 0, y = 1 }], stroke = color.LINE);
-                @path(points = [point { x = 0, y = 0 }, p], stroke = color.ACCENT, width = 2, head = head.ARROW);
+                @path(points = [point { x = 0, y = 0 }, p], stroke = color.ACCENT, width = stroke.BOLD, head = head.ARROW);
             }
             @layer {
                 @handle(at = p, label = "the end of the line");
@@ -364,7 +439,7 @@ widget slope() {
 
 #### A whole document
 
-Front matter, then the definitions, the `@@@` line, and the document.
+Front matter, then the definitions, `$state` among them, the `@@@` line, and the document.
 
 ````markdown
 ---
@@ -372,13 +447,16 @@ title: Release week
 ---
 import kit;
 
-mut celsius: number -20..40 step 1 = 18;
+//@about What this document's widgets share.
+$state {
+    celsius: int -20..40 = 18;
+}
 @@@
 # Release week
 
-It is \{celsius}°C right now.
+It is \{$state.celsius}°C right now.
 
-@slider(value = celsius, label = "temperature");
+@slider(value = $state.celsius, label = "temperature");
 
 @grid(cols = cols.EQUAL(2), gap = space.L) {
 
