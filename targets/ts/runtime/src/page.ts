@@ -771,7 +771,8 @@ export class Page {
     for (const [id, i] of [...this.instances]) {
       if (!i.seen) {
         this.instances.delete(id);
-        this.byPath.delete(i.path);
+        // a widget of another kind may have taken its key this redraw: that one stays
+        if (this.byPath.get(i.path) === i) this.byPath.delete(i.path);
       }
     }
     for (const k of [...this.own.keys()]) if (!this.ownSeen.has(k)) this.own.delete(k);

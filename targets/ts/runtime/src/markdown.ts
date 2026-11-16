@@ -4,7 +4,7 @@
 
 import type * as ir from "./generated/ir.js";
 import { Failure, type Binding } from "./eval/index.js";
-import { none, type Value as V } from "./eval/value.js";
+import { none, toIr, type Value as V } from "./eval/value.js";
 import { type Env, Page, setMarkdownWriter } from "./page.js";
 
 export type Inline =
@@ -151,7 +151,9 @@ class Writer {
       return held ? this.nodes(held.nodes, held.env) : [];
     }
     const made: Env = { owner: v.owner, bindings: [...v.captured] as [string, Binding][], path: env.path };
-    return this.widget(v.widget, path, new Map(v.args), {}, v.slots as Record<string, ir.Node[]>, made, path, v.events as Record<string, string>);
+    // its arguments as drawing gives them, so a widget written in MKP gets its inputs
+    const args = Object.fromEntries([...v.args].map(([k, x]) => [k, toIr(x)]));
+    return this.widget(v.widget, path, new Map(v.args), args, v.slots as Record<string, ir.Node[]>, made, path, v.events as Record<string, string>);
   }
 
   slot(slots: Record<string, ir.Node[]>, name: string, env: Env): Piece[] {

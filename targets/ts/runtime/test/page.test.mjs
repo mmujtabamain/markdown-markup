@@ -230,3 +230,34 @@ test("a spot outside its plane's bounds is a warning for the app when the page r
   assert.deepEqual(p.takeWarnings(), [{ code: "views.spot-outside-bounds", site: "s0/s1" }]);
   assert.deepEqual(p.takeOutcome().failures, []);
 });
+
+test("a widget of another kind at a key keeps its own variables", () => {
+  const p = page(
+    '$state {\n    which: bool = true;\n}\n\nwidget one() {\n    mut n: int = 0;\n    view {\n        @press(label = "one \\{n}", click = fn() { n = n + 1; });\n    }\n}\n\nwidget two() {\n    mut n: int = 0;\n    view {\n        @press(label = "two \\{n}", click = fn() { n = n + 1; });\n    }\n}\n\nwidget pile() {\n    view {\n        @press(label = "swap", click = fn() { $state.which = !$state.which; });\n        @stack {\n            if ($state.which) {\n                @one;\n            } else {\n                @two;\n            }\n        }\n    }\n}\n@@@\n@pile;\n',
+  );
+  const at = "s0/s1/s1[0]/s3/s0";
+  p.event(at, "click");
+  assert.deepEqual(p.observeTree()[at].props.label, { text: "one 1" });
+  p.event("s0/s0", "click");
+  assert.deepEqual(p.observeTree()[at].props.label, { text: "two 0" });
+  // `one` left the key, and `two` holds it: its count moves, redraw after redraw
+  for (const k of [1, 2, 3]) {
+    p.event(at, "click");
+    assert.deepEqual(p.observeTree()[at].props.label, { text: `two ${k}` });
+  }
+});
+
+test("a widget in a list slot writes its Markdown with its inputs", () => {
+  const p = page(
+    'widget tally(label: text) {\n    mut votes: int = 0;\n    view {\n        @press(label = "\\{label}: \\{votes}", click = fn() { votes = votes + 1; });\n    }\n    markdown {\n        \\{label} has \\{votes}\n    }\n}\n\nwidget pile() {\n    view {\n        @stack {\n            @tally(label = "a");\n            @tally(label = "b");\n        }\n    }\n}\n@@@\n@pile;\n',
+  );
+  // as the compiler writes it, with the values it has now
+  assert.equal(p.markdown(), "a has 0\n\nb has 0\n");
+  const [press] = Object.entries(p.observeTree()).find(([, n]) => n.props.label?.text === "a: 0");
+  // the stack's markdown places each child at a site of its own, so the Markdown has an
+  // instance of its own for it too: its inputs, and its own variables as they start
+  p.event(press, "click");
+  assert.equal(p.markdown(), "a has 0\n\nb has 0\n");
+  p.event(press, "click");
+  assert.deepEqual(p.observeTree()[press].props.label, { text: "a: 2" });
+});
