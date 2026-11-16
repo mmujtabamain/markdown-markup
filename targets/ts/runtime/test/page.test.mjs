@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Page, Num, layout, place, keepInside, around } from "../dist/index.js";
-import { mkpBinary, workdir } from "./mkp.mjs";
+import { mkpBinary, workdir, repo as repoRoot } from "./mkp.mjs";
 
 const dir = workdir();
 let n = 0;
@@ -185,4 +185,26 @@ test("an app's write of the wrong type is refused, whatever its contract", () =>
   p.set({ tasks: p.value({ list: [{ record: { type: "doc/task", fields: { title: { text: "b" } } } }] }), note: p.value({ some: { text: "hi" } }) });
   assert.deepEqual(p.takeOutcome().refused, []);
   assert.equal(p.observeState().tasks.list[0].record.fields.title.text, "b");
+});
+
+test("an extern widget the target doesn't supply shows its Markdown, and is reported", () => {
+  const pack = join(repoRoot, "targets/checks/packs/badge");
+  const file = join(dir, "pack-page.mkp.md");
+  writeFileSync(file, 'import badge;\n@@@\n# Votes\n\n@badge(label = "Votes", count = 2);\n\n@seal(text = "Checked by nobody");\n');
+  const out = file.replace(/\.mkp\.md$/, ".ir.json");
+  execFileSync(mkpBinary(), ["build", file, "--pack", pack, "-o", out], { stdio: ["ignore", "pipe", "pipe"] });
+  const ir = JSON.parse(readFileSync(out, "utf8"));
+  assert.deepEqual(ir.ir.needs.packs, [{ externs: ["badge/badge", "badge/seal"], name: "badge", version: 1 }]);
+  const p = new Page(ir, { supplies: (w) => w.startsWith("core/") || w === "badge/badge" });
+  const tree = p.observeTree();
+  assert.equal(tree.s1.widget, "badge/badge");
+  // the seal is drawn as its Markdown: a quote holding a paragraph, under its own path
+  assert.equal(tree.s2, undefined);
+  assert.deepEqual(Object.values(tree).map((n) => n.widget).filter((w) => w !== "core/heading"), ["badge/badge", "core/quote", "core/paragraph"]);
+  assert.deepEqual(p.missing(), ["badge/seal"]);
+  // its calls show their Markdown, supplied or not
+  assert.equal(p.markdown(), "# Votes\n\n**Votes**: 2\n\n> Checked by nobody\n");
+  p.setSupplies(() => true);
+  assert.deepEqual(p.missing(), []);
+  assert.equal(p.observeTree().s2.widget, "badge/seal");
 });

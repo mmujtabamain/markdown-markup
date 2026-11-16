@@ -275,16 +275,16 @@ test("gfx: the canvas, its shapes and the plane are named, and the canvas draws 
   await page.close();
 });
 
-test("a widget nobody supplies draws a notice naming it, and an app's widget replaces ours by name", async () => {
+test("a widget nobody supplies shows its Markdown and is reported, and an app's widget replaces ours by name", async () => {
   const acme = pack(
     "acme",
     'package acme;\n\npack acme@1 {\n    uses core@1;\n    provides chart;\n}\n\n//@about A chart only acme draws.\nextern widget chart(title: text) {\n    markdown {\n        \\{title}\n    }\n}\n',
   );
   const page = await open(browser, ir("import acme;\n@@@\nBefore.\n\n@chart(title = \"Sales\");\n", { packs: [acme] }));
-  const alert = page.getByRole("alert");
-  assert.equal(await alert.count(), 1);
-  assert.match(await alert.textContent(), /acme\/chart/);
-  assert.equal(await alert.getAttribute("data-mkp-site"), "s1");
+  // its Markdown, drawn as the blocks it is made of: a paragraph saying "Sales"
+  assert.equal(await page.getByRole("alert").count(), 0);
+  assert.equal(await page.locator("p").nth(1).textContent(), "Sales");
+  assert.deepEqual(await page.evaluate(() => window.mounted.page.missing()), ["acme/chart"]);
   await page.close();
 
   const mine = await open(browser, '$state {\n    who: text = "Ada";\n}\n\nwidget hi() {\n    view {\n        @label(value = "Hi \\{$state.who}");\n    }\n}\n@@@\n@hi;\n', { labels: true });

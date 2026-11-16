@@ -24,6 +24,9 @@ export interface PageOptions {
   externs?: Record<string, Record<string, ir.Expr>>;
   /** The value fns the target supplies, by full name. */
   fns?: Record<string, (args: readonly V[]) => V | null>;
+  /** Whether the target draws an extern widget, by full name. One it doesn't shows its Markdown
+   * instead (page 6), and is reported in `missing()`. Left out, every one is drawn. */
+  supplies?: (widget: string) => boolean;
   /** For the test target only: defects to switch on. */
   defects?: string[];
 }
@@ -127,12 +130,17 @@ export class Page {
   readonly errors: unknown[] = [];
   /** Defects switched on, for the test target: each must be caught by a check. */
   private readonly defects: Set<string>;
+  /** Whether the target draws an extern widget. */
+  private supplies: (widget: string) => boolean;
+  /** Extern widgets drawn as their Markdown because the target doesn't supply them. */
+  private readonly missed = new Set<string>();
   /** The value fns the target supplies, by full name: `core/moment.local`. */
   private readonly targetFns: Record<string, (args: readonly V[]) => V | null>;
 
   constructor(ir: ir.File | ir.Module, opts: PageOptions = {}) {
     this.defects = new Set(opts.defects ?? []);
     this.targetFns = opts.fns ?? {};
+    this.supplies = opts.supplies ?? (() => true);
     this.module = "ir" in ir ? ir.ir : ir;
     this.program = Program.fromModule(this.module);
     for (const t of this.module.templates) {
@@ -197,6 +205,44 @@ export class Page {
           for (const [s, kids] of n.slots) entry.slots[s] = kids.map((k) => k.path);
         }
         out[n.path] = entry;
+        for (const kids of n.slots.values()) walk(kids);
+      }
+    };
+    walk(this.drawn);
+    return out;
+  }
+
+  /** Every `shade` drawn, by path: the fn it was given, by name, and its arguments (plan tab 16,
+   * `shaded`). With `samples`, also the colour at the area's two corners and its middle, worked
+   * out by the shader itself, as the test target does. */
+  observeShaded(samples = false): Record<string, { shader: string; args: ir.Expr; samples?: { at: ir.Expr; pixel: ir.Expr }[] }> {
+    const out: Record<string, { shader: string; args: ir.Expr; samples?: { at: ir.Expr; pixel: ir.Expr }[] }> = {};
+    const walk = (nodes: Drawn[]) => {
+      for (const n of nodes) {
+        if (n.widget === "core/shade") {
+          const fn = n.props.get("shader");
+          const args = n.props.get("args") ?? none();
+          const entry: { shader: string; args: ir.Expr; samples?: { at: ir.Expr; pixel: ir.Expr }[] } = { shader: fn ? shaderName(fn) : "", args: toIr(args) };
+          const area = n.props.get("area");
+          if (samples && fn && area?.kind === "record") {
+            const pt = (name: string) => area.fields.find(([k]) => k === name)?.[1];
+            const from = pt("from");
+            const to = pt("to");
+            const coord = (p: V | undefined, k: string) => (p?.kind === "record" ? p.fields.find(([f]) => f === k)?.[1] : undefined);
+            const fx = coord(from, "x"), fy = coord(from, "y"), tx = coord(to, "x"), ty = coord(to, "y");
+            if (fx?.kind === "num" && fy?.kind === "num" && tx?.kind === "num" && ty?.kind === "num") {
+              const half = Num.literal("0.5")!;
+              const point = (x: Num, y: Num): V => ({ kind: "record", ty: "core/point", fields: [["x", { kind: "num", n: x }], ["y", { kind: "num", n: y }]] }) as V;
+              const px = { kind: "num", n: tx.n.sub(fx.n).abs().div(Num.int(64)) } as V;
+              entry.samples = [point(fx.n, fy.n), point(fx.n.add(tx.n).mul(half), fy.n.add(ty.n).mul(half)), point(tx.n, ty.n)].map((at) => {
+                this.machine.resetSteps();
+                const pixel = this.machine.apply(fn, [{ value: at }, { value: px }, { value: args }]);
+                return { at: toIr(at), pixel: pixel ? toIr(pixel) : { none: {} } };
+              });
+            }
+          }
+          out[n.path] = entry;
+        }
         for (const kids of n.slots.values()) walk(kids);
       }
     };
@@ -387,6 +433,20 @@ export class Page {
     this.changes++;
     this.applyPage(page);
     this.redraw();
+  }
+
+  /** Which extern widgets the target draws: set by a target before it first draws the page,
+   * as @mkp/dom does from its registry. The page is drawn again. */
+  setSupplies(supplies: (widget: string) => boolean): void {
+    this.supplies = supplies;
+    this.missed.clear();
+    this.redraw();
+  }
+
+  /** The extern widgets this page uses that the target doesn't supply, each shown as its
+   * Markdown: reported when the page is mounted, and kept up to date as it changes. */
+  missing(): string[] {
+    return [...this.missed].sort();
   }
 
   // ---- the page's Markdown
@@ -680,6 +740,7 @@ export class Page {
     this.machine.resetSteps();
     for (const i of this.instances.values()) i.seen = false;
     this.held = [];
+    this.missed.clear();
     this.atPath = new Map();
     this.ownSeen = new Set();
     const doc = this.templates.get("doc");
@@ -776,6 +837,17 @@ export class Page {
     const w = this.externWidgets.get(x.name);
     for (const f of w?.inputs ?? []) {
       if (!props.has(f.name) && f.default) props.set(f.name, this.evalIn(env, f.default));
+    }
+    // a widget the target doesn't draw shows its Markdown instead (page 6), drawn with the
+    // blocks the target does: its markdown block, in an instance holding its inputs
+    if (w && !this.supplies(x.name)) {
+      this.missed.add(x.name);
+      const inst = this.enterExtern(w, path, props, x.slots ?? {}, env);
+      try {
+        return this.drawNodes(w.markdown ?? [], { ...inst, path, key });
+      } finally {
+        this.leave(inst);
+      }
     }
     // what it wrote to its own `mut` inputs stands until the caller gives them a variable
     const own = this.own.get(key);
@@ -967,6 +1039,16 @@ export class Page {
   externsNow(): Map<string, V> {
     return this.externs;
   }
+}
+
+/** A shader's name: a named fn is lowered to a lambda that calls it with its own parameters. */
+function shaderName(f: V): string {
+  if (f.kind !== "fn" || f.body.length !== 1) return "";
+  const ret = (f.body[0] as { return?: { value?: ir.Expr } }).return?.value as { call?: ir.Call } | undefined;
+  const call = ret?.call;
+  if (!call) return "";
+  const passes = call.args.length === f.params.length && call.args.every((a, k) => (a as { get?: { local?: string } }).get?.local === f.params[k].name);
+  return passes ? call.name : "";
 }
 
 function numOf(n: number) {

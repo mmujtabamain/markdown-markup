@@ -62,6 +62,9 @@ function focusOf(root: HTMLElement): (() => void) | undefined {
 export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): Mounted {
   injectStyle(root);
   const registry: Record<string, Widget> = { ...ours, ...(opts.widgets ?? {}) };
+  // an extern widget nobody registered shows its Markdown instead (page 6): the page draws it
+  // with the blocks we do draw, and reports it in page.missing()
+  page.setSupplies((widget) => Object.hasOwn(registry, widget));
   const tokens = tokensOf(page);
   const uid = newUid();
   const containers = new Map<Element, Map<string, Entry>>();
