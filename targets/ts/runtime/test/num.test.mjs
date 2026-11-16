@@ -137,8 +137,9 @@ describe("34 digits, halves to even", () => {
     assert.equal(n("-2").div(n("3")).show(), "-0.6666666666666666666666666666666667");
   });
 
-  test("libdecnumber's pow rounds its result halves up (num.rs's context)", () => {
-    assert.equal(n("100000000000000005").pow(n("2")).show(), "10000000000000001000000000000000030");
+  test("pow rounds its result halves to even, as a product does (page 2)", () => {
+    assert.equal(n("100000000000000005").pow(n("2")).show(), "10000000000000001000000000000000020");
+    assert.equal(n("100000000000000005").pow(n("2")).show(), n("100000000000000005").mul(n("100000000000000005")).show());
     assert.equal(n("2").pow(n("10")).show(), "1024");
     assert.equal(n("2").pow(n("-2")).show(), "0.25");
     assert.equal(n("16").pow(n("0.5")).show(), "4");

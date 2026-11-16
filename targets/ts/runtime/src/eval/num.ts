@@ -364,13 +364,13 @@ export class Num {
     if (this.isNegative()) {
       return null;
     }
-    return finOrNull(new D70(this.#dec).sqrt(), ROUND_HALF_UP);
+    return finOrNull(new D70(this.#dec).sqrt(), ROUND_HALF_EVEN);
   }
 
   /** `null` for 0 to a negative power, or a negative number to a power that isn't whole.
    * libdecnumber's decNumberPower, step for step: a whole power below 2^31 by repeated squaring
    * at 34 + (its digits) + 2 digits, halves to even, any other as exp(ln(x) × p) at 44 digits,
-   * and the result rounded to 34 digits with halves going up, as num.rs's context does. */
+   * and the result rounded to 34 digits, halves to even, as every result is (page 2). */
   pow(p: Num): Num | null {
     if (this.isZero() && p.isNegative()) {
       return null;
@@ -388,7 +388,7 @@ export class Num {
     if (this.#dec.lt(-MATH_LIMIT)) {
       return ZERO;
     }
-    return fin(new D70(this.#dec).exp(), ROUND_HALF_UP);
+    return fin(new D70(this.#dec).exp(), ROUND_HALF_EVEN);
   }
 
   /** `null` at 0 or below. */
@@ -396,7 +396,7 @@ export class Num {
     if (this.isZero() || this.isNegative()) {
       return null;
     }
-    return finOrNull(new D70(this.#dec).ln(), ROUND_HALF_UP);
+    return finOrNull(new D70(this.#dec).ln(), ROUND_HALF_EVEN);
   }
 
   sin(): Num {
@@ -565,7 +565,7 @@ function power(lhs: Decimal, rhs: Decimal): Num | null {
     if (m.lt(-MATH_LIMIT)) {
       return ZERO;
     }
-    return fin(m.exp(), ROUND_HALF_UP);
+    return fin(m.exp(), ROUND_HALF_EVEN);
   }
   if (n === 0) {
     return ONE;
@@ -616,7 +616,7 @@ function power(lhs: Decimal, rhs: Decimal): Num | null {
     // decFinalize keeps the working digits; num.rs's from_wide rounds them halves to even
     return fin(dac, ROUND_HALF_EVEN);
   }
-  return fin(dac, ROUND_HALF_UP);
+  return fin(dac, ROUND_HALF_EVEN);
 }
 
 // ---- the maths libdecnumber doesn't do, as series in 120 digits, rounded to 34 at the end

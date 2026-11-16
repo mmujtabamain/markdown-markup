@@ -47,9 +47,11 @@ fn wide_cx(digits: usize) -> Context<Wide> {
     c
 }
 
-/// A context with decimal128's own precision and exponents, for libdecnumber's maths.
+/// A context with decimal128's own precision and exponents, for libdecnumber's maths. It rounds
+/// halves to even, as every result does (page 2): libdecnumber's default is half up.
 fn d128_cx() -> Context<Wide> {
     let mut c = Context::<Wide>::default();
+    c.set_rounding(dec::Rounding::HalfEven);
     c.set_precision(34).unwrap();
     c.set_max_exponent(6144).unwrap();
     c.set_min_exponent(-6143).unwrap();
@@ -680,6 +682,16 @@ mod tests {
         assert!(n("0").pow(n("-1")).unwrap().is_none());
         assert!(n("-8").pow(n("0.5")).unwrap().is_none());
         assert_eq!(n("-2").pow(n("3")).unwrap().unwrap().show(), "-8");
+    }
+
+    #[test]
+    fn maths_rounds_halves_to_even() {
+        // 100000000000000005² has 35 digits and ends in 25: the tie goes to the even neighbour,
+        // as a product does (page 2)
+        let x = Num::parse("100000000000000005").unwrap();
+        let squared = x.pow(Num::int(2)).unwrap().unwrap();
+        assert_eq!(squared, x.mul(x).unwrap());
+        assert_eq!(squared.show(), "10000000000000001000000000000000020");
     }
 
     #[test]
