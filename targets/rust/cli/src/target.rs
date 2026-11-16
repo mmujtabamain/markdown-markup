@@ -216,6 +216,25 @@ fn compare(base: &mkp_check::Checker, dir: &Path, want: &Value, got: &Value) -> 
                     }
                 }
             }
+            "shaded" => {
+                for (site, ws) in w.as_object().into_iter().flatten() {
+                    let Some(gs) = got["shaded"].get(site) else {
+                        out.push(format!("shaded: no shade at {}", site));
+                        continue;
+                    };
+                    for part in ["shader", "args", "samples"] {
+                        // samples are the test target's: a target that takes none isn't held to them
+                        if part == "samples" && gs.get("samples").is_none() {
+                            continue;
+                        }
+                        if let Some(v) = ws.get(part) {
+                            if gs.get(part) != Some(v) {
+                                out.push(format!("shaded {}: {} is {}, not {}", site, part, gs.get(part).unwrap_or(&Value::Null), v));
+                            }
+                        }
+                    }
+                }
+            }
             "calls" | "boxes" => {
                 if got.get(k) != Some(w) {
                     out.push(format!("{} are {}, not {}", k, got.get(k).unwrap_or(&Value::Null), w));
@@ -406,6 +425,20 @@ fn run_target(base: &mkp_check::Checker, t: &Target, cases: &[Case], defect: Opt
     Ok((observed, failures, steps))
 }
 
+/// An observation as targets are compared with each other: a shade's samples are only the test
+/// target's (plan tab 16), so they are left out.
+fn comparable(o: &Value) -> Value {
+    let mut o = o.clone();
+    if let Some(shaded) = o.get_mut("shaded").and_then(|s| s.as_object_mut()) {
+        for entry in shaded.values_mut() {
+            if let Some(e) = entry.as_object_mut() {
+                e.remove("samples");
+            }
+        }
+    }
+    o
+}
+
 /// `mkp target check [target…] [--cases dir] [--defect name] [--expect-failures] [--require target:name]…`
 pub fn target_check(args: &[String]) -> ExitCode {
     let root = repo();
@@ -493,7 +526,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
             for (id, sa) in oa {
                 let Some(sb) = ob.get(id) else { continue };
                 for (k, (x, y)) in sa.iter().zip(sb.iter()).enumerate() {
-                    if x != y {
+                    if comparable(x) != comparable(y) {
                         failures.push(format!("{} and {} disagree on {} after step {}", a, b, id, k));
                     }
                 }

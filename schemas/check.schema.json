@@ -372,6 +372,45 @@
           "additionalProperties": {
             "$ref": "#/$defs/box"
           }
+        },
+        "shaded": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "shader": {
+                "type": "string"
+              },
+              "args": {
+                "$ref": "ir.schema.json#/$defs/expr"
+              },
+              "samples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "$ref": "ir.schema.json#/$defs/expr"
+                    },
+                    "pixel": {
+                      "$ref": "ir.schema.json#/$defs/expr"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "pixel"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "shader",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Each shade drawn, by site: the fn it was given, by name (\"\" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader."
         }
       },
       "additionalProperties": false
@@ -471,6 +510,25 @@
               },
               "args": {
                 "$ref": "ir.schema.json#/$defs/expr"
+              },
+              "samples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "$ref": "ir.schema.json#/$defs/expr"
+                    },
+                    "pixel": {
+                      "$ref": "ir.schema.json#/$defs/expr"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "pixel"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
@@ -478,7 +536,8 @@
               "args"
             ],
             "additionalProperties": false
-          }
+          },
+          "description": "Each shade drawn, by site: the fn it was given, by name (\"\" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader."
         }
       },
       "required": [

@@ -1,6 +1,6 @@
 {
   "id": "widgets.shade",
-  "about": "claims are checked: a shader painting a region of a canvas",
+  "about": "claims are checked: a shader painting a region of a canvas, observed by its fn and arguments, and on the test target by its colour at the corners and the middle",
   "source": "shade.mkp.md",
   "target": {
     "levels": [
@@ -47,6 +47,118 @@
           },
           "s0/s2": {
             "widget": "core/shade"
+          }
+        },
+        "shaded": {
+          "s0/s2": {
+            "shader": "doc/glow",
+            "args": {
+              "num": "1"
+            },
+            "samples": [
+              {
+                "at": {
+                  "record": {
+                    "fields": {
+                      "x": {
+                        "num": "0"
+                      },
+                      "y": {
+                        "num": "0"
+                      }
+                    },
+                    "type": "core/point"
+                  }
+                },
+                "pixel": {
+                  "record": {
+                    "fields": {
+                      "a": {
+                        "num": "1"
+                      },
+                      "b": {
+                        "num": "0"
+                      },
+                      "g": {
+                        "num": "0"
+                      },
+                      "r": {
+                        "num": "0"
+                      }
+                    },
+                    "type": "core/pixel"
+                  }
+                }
+              },
+              {
+                "at": {
+                  "record": {
+                    "fields": {
+                      "x": {
+                        "num": "0.5"
+                      },
+                      "y": {
+                        "num": "0.5"
+                      }
+                    },
+                    "type": "core/point"
+                  }
+                },
+                "pixel": {
+                  "record": {
+                    "fields": {
+                      "a": {
+                        "num": "1"
+                      },
+                      "b": {
+                        "num": "0.5"
+                      },
+                      "g": {
+                        "num": "0"
+                      },
+                      "r": {
+                        "num": "0.5"
+                      }
+                    },
+                    "type": "core/pixel"
+                  }
+                }
+              },
+              {
+                "at": {
+                  "record": {
+                    "fields": {
+                      "x": {
+                        "num": "1"
+                      },
+                      "y": {
+                        "num": "1"
+                      }
+                    },
+                    "type": "core/point"
+                  }
+                },
+                "pixel": {
+                  "record": {
+                    "fields": {
+                      "a": {
+                        "num": "1"
+                      },
+                      "b": {
+                        "num": "1"
+                      },
+                      "g": {
+                        "num": "0"
+                      },
+                      "r": {
+                        "num": "1"
+                      }
+                    },
+                    "type": "core/pixel"
+                  }
+                }
+              }
+            ]
           }
         }
       }
