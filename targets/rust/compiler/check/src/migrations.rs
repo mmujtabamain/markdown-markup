@@ -8,7 +8,9 @@ use mkp_syntax::ast::{self, Expr, ExprKind, Item, MigrationItem, MigrationStmt, 
 use mkp_syntax::span::Span;
 
 use crate::versions::{breaks, Api, ApiItem, Break};
-use crate::{codes, Checker};
+use crate::body::{Cx, Local, LocalKind};
+use crate::ty::Ty;
+use crate::{codes, Checker, DefKind};
 
 /// The statements core declares, with the parameters each takes.
 const STATEMENTS: &[(&str, &[&str])] = &[
@@ -41,6 +43,21 @@ struct Fate {
     given: BTreeSet<String>,
     /// The widget a `wrap` put the uses inside.
     parent: Option<String>,
+    /// What to type-check once every block is read: a value, a condition, an execute.
+    pending: Vec<Pending>,
+}
+
+/// Code in a block, with the older members it sees by the names they have at that point.
+#[derive(Debug, Clone)]
+struct Pending {
+    names: Vec<(String, String)>,
+    /// The newer member a `set` gives a value to.
+    member: Option<String>,
+    expr: Option<Expr>,
+    when: Option<Expr>,
+    block: Option<ast::Block>,
+    /// The block's declaration's name at that point, in the newer version.
+    now: Option<String>,
 }
 
 struct Step<'a> {
@@ -99,7 +116,7 @@ impl Checker {
             }
             let old = self.api(&start, pack);
             let new = self.api(&end, pack);
-            self.check_migration(*file, m, *span, &old, &new, &fns);
+            self.check_migration(*file, m, *span, &old, &new, &fns, (&start, &end));
         }
         if let (Some(last), false) = (chain_to, found.is_empty()) {
             if last != version {
@@ -109,7 +126,7 @@ impl Checker {
         }
     }
 
-    fn check_migration(&mut self, file: usize, m: &ast::MigrationDecl, span: Span, old: &Api, new: &Api, fns: &BTreeMap<String, ast::MigrationFn>) {
+    fn check_migration(&mut self, file: usize, m: &ast::MigrationDecl, span: Span, old: &Api, new: &Api, fns: &BTreeMap<String, ast::MigrationFn>, packs: (&str, &str)) {
         let label = format!("{}@{} to {}@{}", m.from.name.name, m.from.version.name, m.to.name.name, m.to.version.name);
         let mut fates: BTreeMap<String, Fate> = BTreeMap::new();
         for item in m.items.iter() {
@@ -136,6 +153,7 @@ impl Checker {
             }
             fates.insert(key, step.fate);
         }
+        self.type_check_blocks(file, &fates, packs);
         // complete: what's left of the older version, renamed as the blocks say, against the newer
         let mut moved = Api::default();
         for (key, item) in &old.items {
@@ -178,7 +196,11 @@ impl Checker {
 
     fn migration_stmt(&mut self, step: &mut Step, st: &MigrationStmt, fns: &BTreeMap<String, ast::MigrationFn>, depth: usize) {
         match st {
-            MigrationStmt::Execute(_) => step.fate.executed = true,
+            MigrationStmt::Execute(b) => {
+                step.fate.executed = true;
+                let p = Pending { names: names_now(&step.fate), member: None, expr: None, when: None, block: Some(b.clone()), now: step.fate.now.clone() };
+                step.fate.pending.push(p);
+            }
             MigrationStmt::Event { name, body } => {
                 let o = step.old.items.get(&step.item);
                 if o.and_then(|o| o.members.get(&name.name)).map_or(true, |m| m.kind != "event") {
@@ -391,8 +413,16 @@ impl Checker {
                     return;
                 }
                 step.fate.given.insert(m.name.clone());
+                if kind != "arg" {
+                    let p = Pending { names: names_now(&step.fate), member: Some(m.name.clone()), expr: arg("value").cloned(), when: arg("when").cloned(), block: None, now: step.fate.now.clone() };
+                    step.fate.pending.push(p);
+                }
             }
             "notify" => {
+                if let Some(w) = arg("when") {
+                    let p = Pending { names: names_now(&step.fate), member: None, expr: None, when: Some(w.clone()), block: None, now: step.fate.now.clone() };
+                    step.fate.pending.push(p);
+                }
                 if let Some((kind, m)) = &member_arg {
                     if let Some(m) = self.member_named(step, kind, m, span) {
                         let now = step.fate.members.get(&m).cloned().flatten().unwrap_or(m);
@@ -482,6 +512,220 @@ impl Checker {
                 let _ = at;
                 self.error(step.file, codes::MIGRATION, name.span, format!("`{}` has no {} `{}` at this point; it has {}", step.item, if kind == "member" { "input or slot" } else { kind }, name.name, list(&there)));
                 None
+            }
+        }
+    }
+}
+
+/// Each older member a block's code sees, `(name now, older name)`.
+fn names_now(f: &Fate) -> Vec<(String, String)> {
+    f.members.iter().filter_map(|(o, now)| now.clone().map(|n| (n, o.clone()))).collect()
+}
+
+impl Checker {
+    /// Each block's code, typed: a `set`'s value as the newer member's type, a condition as a
+    /// `bool`, and an `execute` as a fn from the older use to the newer one. The older members
+    /// keep their types, with the older version's declarations read as the newer ones they became.
+    fn type_check_blocks(&mut self, file: usize, fates: &BTreeMap<String, Fate>, (start, end): (&str, &str)) {
+        let mut map: std::collections::HashMap<crate::DefId, crate::DefId> = std::collections::HashMap::new();
+        for (d, def) in self.defs.iter().enumerate() {
+            if def.pack != start {
+                continue;
+            }
+            let now = fates.get(&def.name).map(|f| f.now.clone()).unwrap_or_else(|| Some(def.name.clone()));
+            if let Some(now) = now {
+                if let Some(n) = self.defs.iter().position(|x| x.pack == end && x.name == now) {
+                    map.insert(d, n);
+                }
+            }
+        }
+        for (key, fate) in fates {
+            let Some(old) = self.defs.iter().position(|x| x.pack == start && x.name == *key) else { continue };
+            let olds: Vec<(String, Ty)> = match &self.defs[old].kind {
+                DefKind::Widget { inputs, slots, events, .. } => inputs
+                    .iter()
+                    .map(|i| (i.name.clone(), i.ty.clone()))
+                    .chain(slots.iter().map(|s| (s.name.clone(), s.ty.clone())))
+                    .chain(events.iter().map(|e| (e.name.clone(), Ty::Fn(e.params.iter().map(|p| crate::ty::FnParam { ty: p.ty.clone(), mutable: p.mutable }).collect(), None))))
+                    .collect(),
+                DefKind::Record { fields } => fields.iter().map(|f| (f.name.clone(), f.ty.clone())).collect(),
+                _ => Vec::new(),
+            };
+            for p in &fate.pending {
+                let newer = p.now.as_ref().and_then(|n| self.defs.iter().position(|x| x.pack == end && x.name == *n));
+                let mut cx = Cx::new(file);
+                cx.push();
+                for (now, older) in &p.names {
+                    if let Some((_, t)) = olds.iter().find(|(n, _)| n == older) {
+                        let ty = map_ty(t, &map);
+                        let known = Some(crate::proof::Known::of(&self.ir_ty(&ty)));
+                        cx.scopes.last_mut().unwrap().push(Local { name: now.clone(), ty, mutable: false, kind: LocalKind::Plain, known, own_origin: false });
+                    }
+                }
+                if let (Some(member), Some(e), Some(n)) = (&p.member, &p.expr, newer) {
+                    let field = match &self.defs[n].kind {
+                        DefKind::Widget { inputs, .. } => inputs.iter().find(|i| i.name == *member).cloned(),
+                        DefKind::Record { fields } => fields.iter().find(|f| f.name == *member).cloned(),
+                        _ => None,
+                    };
+                    if let Some(f) = field {
+                        let e = decided(e);
+                        let (x, _) = self.expr(&mut cx, &e, Some(&f.ty));
+                        self.want(&cx, &e, &x, &f.ir, format!("`{}`'s value", member));
+                    }
+                }
+                if let Some(w) = &p.when {
+                    let w = decided(w);
+                    let (x, _) = self.expr(&mut cx, &w, Some(&Ty::Bool));
+                    let b = self.ir_ty(&Ty::Bool);
+                    self.want(&cx, &w, &x, &b, "a condition");
+                }
+                if let (Some(b), Some(n)) = (&p.block, newer) {
+                    let ret = Ty::Opt(Box::new(Ty::Def(n, Vec::new())));
+                    cx.ret_ir = Some(self.ir_ty(&ret));
+                    cx.ret = Some(Some(ret));
+                    let mut b = b.clone();
+                    decided_block(&mut b);
+                    self.block(&mut cx, &b);
+                }
+            }
+        }
+    }
+}
+
+/// A type of the older version, its declarations read as the newer ones they became.
+fn map_ty(t: &Ty, map: &std::collections::HashMap<crate::DefId, crate::DefId>) -> Ty {
+    let m = |t: &Ty| map_ty(t, map);
+    match t {
+        Ty::List(x) => Ty::List(Box::new(m(x))),
+        Ty::Opt(x) => Ty::Opt(Box::new(m(x))),
+        Ty::Range(x) => Ty::Range(Box::new(m(x))),
+        Ty::Def(d, args) => Ty::Def(*map.get(d).unwrap_or(d), args.iter().map(m).collect()),
+        Ty::Any(d, args) => Ty::Any(*map.get(d).unwrap_or(d), args.iter().map(m).collect()),
+        Ty::Fn(ps, r) => Ty::Fn(ps.iter().map(|p| crate::ty::FnParam { ty: m(&p.ty), mutable: p.mutable }).collect(), r.as_ref().map(|r| Box::new(m(r)))),
+        Ty::Inline(fs) => Ty::Inline(fs.iter().map(|(n, t)| (n.clone(), m(t))).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Code as it is type-checked: what a person decides when migrating stands in as a value of its
+/// type. `given(x)` and `confirm(…)` are a `bool`, `ask(…)` its first option, `notify(…)` nothing.
+fn decided(e: &Expr) -> Expr {
+    let mut e = e.clone();
+    decide(&mut e);
+    e
+}
+
+fn decide(e: &mut Expr) {
+    if let ExprKind::Call { callee, args } = &e.kind {
+        if let ExprKind::Name(n) = &callee.kind {
+            match n.name.as_str() {
+                "given" | "confirm" => {
+                    e.kind = ExprKind::Bool(true);
+                    return;
+                }
+                "ask" => {
+                    let first = args.iter().find(|a| a.name.as_ref().map_or(false, |n| n.name == "options")).and_then(|a| match &a.value.kind {
+                        ExprKind::List(xs) => xs.iter().next().cloned(),
+                        _ => None,
+                    });
+                    if let Some(x) = first {
+                        *e = x;
+                        decide(e);
+                        return;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    match &mut e.kind {
+        ExprKind::Call { callee, args } => {
+            decide(callee);
+            for a in args.items.iter_mut() {
+                decide(&mut a.item.value);
+            }
+        }
+        ExprKind::Field { target, .. } | ExprKind::Paren(target) | ExprKind::Try(target) => decide(target),
+        ExprKind::Index { target, index } => {
+            decide(target);
+            decide(index);
+        }
+        ExprKind::List(xs) => {
+            for x in xs.items.iter_mut() {
+                decide(&mut x.item);
+            }
+        }
+        ExprKind::Record { inits, .. } | ExprKind::With { inits, .. } => {
+            for i in inits.items.iter_mut() {
+                decide(&mut i.item.value);
+            }
+        }
+        ExprKind::Unary { operand, .. } => decide(operand),
+        ExprKind::Binary { left, right, .. } => {
+            decide(left);
+            decide(right);
+        }
+        ExprKind::Ternary { cond, then, otherwise } => {
+            decide(cond);
+            decide(then);
+            decide(otherwise);
+        }
+        ExprKind::Lambda(l) => decided_block(&mut l.body),
+        ExprKind::View(v) => {
+            if let Some(args) = v.args.as_mut() {
+                for a in args.items.iter_mut() {
+                    decide(&mut a.item.value);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn decided_block(b: &mut ast::Block) {
+    // a notify says something to whoever migrates, and nothing to the code around it
+    b.stmts.retain(|n| !matches!(&n.item, Stmt::Expr(Expr { kind: ExprKind::Call { callee, .. }, .. }) if matches!(&callee.kind, ExprKind::Name(n) if n.name == "notify")));
+    for n in b.stmts.iter_mut() {
+        match &mut n.item {
+            Stmt::Expr(e) | Stmt::Return(Some(e)) => decide(e),
+            // returning nothing removes the use
+            Stmt::Return(r @ None) => {
+                let span = Span::default();
+                let none = Expr { kind: ExprKind::Case { target: Box::new(Expr { kind: ExprKind::Name(ast::Ident { name: "opt".into(), span }), span }), name: ast::Ident { name: "NONE".into(), span }, args: None }, span };
+                *r = Some(none);
+            }
+            Stmt::Let(v) | Stmt::Mut(v) => decide(&mut v.value),
+            Stmt::Assign { place, value } => {
+                decide(place);
+                decide(value);
+            }
+            Stmt::If(i) => {
+                for (c, blk) in i.branches.iter_mut() {
+                    match c {
+                        ast::Cond::Expr(e) => decide(e),
+                        ast::Cond::Open { value, .. } => decide(value),
+                    }
+                    decided_block(blk);
+                }
+                if let Some(o) = i.otherwise.as_mut() {
+                    decided_block(o);
+                }
+            }
+            Stmt::For(f) => {
+                decide(&mut f.over);
+                decided_block(&mut f.body);
+            }
+            Stmt::Match(m) => {
+                decide(&mut m.subject);
+                for c in m.cases.items.iter_mut() {
+                    decided_block(&mut c.item.body);
+                }
+            }
+            Stmt::Invoke { args, .. } => {
+                for a in args.items.iter_mut() {
+                    decide(&mut a.item.value);
+                }
             }
         }
     }

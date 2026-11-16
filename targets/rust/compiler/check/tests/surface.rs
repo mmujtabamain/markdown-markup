@@ -114,3 +114,16 @@ fn migrations_form_a_chain_from_a_surface() {
     let found = migrate(&COMPLETE.replace("migration kit@1 to kit@2 {", "migration kit@1 to kit@3 {"));
     assert!(found.iter().any(|(_, m)| m.contains("a migration moves uses to a later version, and kit is at kit@2")), "{:?}", found);
 }
+
+#[test]
+fn a_migrations_code_is_typed_against_both_versions() {
+    // the older members keep their types, read as the newer declarations they became
+    let typed = COMPLETE.replace("        color_to_tone();\n", "        color_to_tone();\n        set(input = tone, value = color.BAD, when = !given(tone) && confirm(why = \"red?\"), why = \"red\");\n");
+    assert_eq!(migrate(&typed), Vec::<(String, String)>::new());
+    let wrong = COMPLETE.replace("        color_to_tone();\n", "        color_to_tone();\n        set(input = tone, value = \"red\", why = \"red\");\n");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.mkp", KIT2), src("kit/surfaces/kit@1.mkp", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.mkp", &wrong)], "main");
+    assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "types.mismatch" && d.diagnostic.message.contains("expected color")), "{:?}", c.diagnostics.iter().map(|d| &d.diagnostic.message).collect::<Vec<_>>());
+    let missing = COMPLETE.replace("        rename(to = plot);\n        color_to_tone();\n", "        rename(to = plot);\n        execute {\n            return @plot(tone = color);\n        }\n");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.mkp", KIT2), src("kit/surfaces/kit@1.mkp", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.mkp", &missing)], "main");
+    assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "views.missing-input" && d.diagnostic.message.contains("`values`")), "{:?}", c.diagnostics.iter().map(|d| &d.diagnostic.message).collect::<Vec<_>>());
+}
