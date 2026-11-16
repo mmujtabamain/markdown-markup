@@ -39,7 +39,7 @@ from inside one of its own calls (a `Measure` calling the page) is an error, not
 
 ```sh
 targets/android/mkp/build.sh host      # libmkp_android.so for linux-x86-64 (Robolectric, through JNA) + the bindings
-targets/android/mkp/build.sh android   # libmkp_android.so for arm64-v8a and x86_64, with the NDK's clang
+targets/android/mkp/build.sh android   # libmkp_android.so for arm64-v8a, armeabi-v7a and x86_64, with the NDK's clang
 targets/android/mkp/build.sh           # both
 ```
 

@@ -93,7 +93,7 @@ Rust with the Android targets. Gradle comes from the wrapper (8.14.4); AGP 8.13.
 2025.10.01 and Robolectric 4.16.1 are the versions omnicui's Android example runs.
 
 ```sh
-targets/android/mkp/build.sh            # 1. libmkp_android.so for the host, arm64-v8a and x86_64, and the bindings
+targets/android/mkp/build.sh            # 1. libmkp_android.so for the host, arm64-v8a, armeabi-v7a and x86_64, and the bindings
 cd targets/android/compose
 ./gradlew :mkp-android:assembleRelease  # 2. the AAR: mkp-android/build/outputs/aar/mkp-android-release.aar
 ./gradlew :mkp-android:publish          #    or published, as mkp:mkp-android:0.3.0, to build/repo
@@ -103,7 +103,7 @@ cd targets/android/compose
 
 The library's build stops with a message when `native/` is missing (step 1). The sample builds its pages' IR with
 `targets/rust/target/release/mkp` (`cargo build --release` in targets/rust) as part of its build:
-`examples/pages/shop.mkp.md` and `sample/pages/tour.mkp.md`. The APK carries arm64-v8a and x86_64 only.
+`examples/pages/shop.mkp.md` and `sample/pages/tour.mkp.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 
 ## The checks
 
