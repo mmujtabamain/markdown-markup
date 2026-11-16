@@ -876,7 +876,10 @@ impl Checker {
                     return self.call_fn(cx, f, None, args, expect, span);
                 }
                 match self.lookup_value(file, &n.name) {
-                    Some(ValueSym::Fn(f)) => self.call_fn(cx, f, None, args, expect, span),
+                    Some(ValueSym::Fn(f)) => {
+                        self.note_ref(file, n.span, span, crate::RefTarget::Fn(f));
+                        self.call_fn(cx, f, None, args, expect, span)
+                    }
                     _ if self.visible_in_widget(cx, &n.name) => self.apply(cx, callee, args, span),
                     _ => {
                         self.error(file, codes::UNKNOWN_FN, n.span, format!("there is no fn `{}`", n.name));
@@ -895,7 +898,10 @@ impl Checker {
                         };
                         let found = key.and_then(|k| self.methods.get(&k)).and_then(|m| m.get(&name.name)).and_then(|f| f.first()).copied();
                         return match found {
-                            Some(f) => self.call_fn(cx, f, None, args, expect, span),
+                            Some(f) => {
+                                self.note_ref(file, name.span, span, crate::RefTarget::Fn(f));
+                                self.call_fn(cx, f, None, args, expect, span)
+                            }
                             None => {
                                 self.error(file, codes::UNKNOWN_FN, name.span, format!("`{}` has no fn `{}`", tn.name, name.name));
                                 (ir::Expr::Num("0".into()), Ty::Err)
@@ -912,6 +918,7 @@ impl Checker {
                 let bounds = cx.bounds.clone();
                 let found = self.methods_of(&rt, &name.name, &bounds);
                 if let Some(f) = self.pick(cx, &found, &rt) {
+                    self.note_ref(file, name.span, span, crate::RefTarget::Fn(f));
                     return self.call_fn(cx, f, Some((recv, rt, target)), args, expect, span);
                 }
                 // a field that holds a fn

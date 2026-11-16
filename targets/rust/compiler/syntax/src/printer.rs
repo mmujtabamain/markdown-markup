@@ -15,6 +15,20 @@ pub fn print(src: &str, file: &File) -> String {
     p.out
 }
 
+/// An expression in the canonical layout, as a migration writes one into a use.
+pub fn print_expr(e: &Expr) -> String {
+    let mut p = Printer { src: "", out: String::new(), indent: 0 };
+    p.expr(e);
+    p.out
+}
+
+/// A block's statements in the canonical layout, at `indent` spaces.
+pub fn print_block(b: &Block, indent: usize) -> String {
+    let mut p = Printer { src: "", out: String::new(), indent };
+    p.block(b);
+    p.out
+}
+
 struct Printer<'a> {
     src: &'a str,
     out: String,

@@ -321,6 +321,8 @@ pub enum RefTarget {
     /// An input, a slot, an event or a field of the declaration, by its name.
     Member(DefId, String),
     Case(DefId, String),
+    /// A fn called by its name: `slug` in `title.slug()`.
+    Fn(usize),
 }
 
 #[derive(Clone)]
@@ -1149,12 +1151,13 @@ pub fn compile_refs(base: &Checker, packs: &[Vec<Source>], main: &[Source], modu
         if !mains.contains(file.as_str()) {
             continue;
         }
-        let (d, member, case) = match &r.target {
-            RefTarget::Decl(d) => (*d, None, false),
-            RefTarget::Member(d, m) => (*d, Some(m.clone()), false),
-            RefTarget::Case(d, m) => (*d, Some(m.clone()), true),
+        let (decl, member, case) = match &r.target {
+            RefTarget::Decl(d) => (c.defs[*d].full.clone(), None, false),
+            RefTarget::Member(d, m) => (c.defs[*d].full.clone(), Some(m.clone()), false),
+            RefTarget::Case(d, m) => (c.defs[*d].full.clone(), Some(m.clone()), true),
+            RefTarget::Fn(f) => (c.fns[*f].full.clone(), None, false),
         };
-        let found = FoundRef { file, at: r.at, whole: r.whole, decl: c.defs[d].full.clone(), member, case };
+        let found = FoundRef { file, at: r.at, whole: r.whole, decl, member, case };
         if !out.contains(&found) {
             out.push(found);
         }

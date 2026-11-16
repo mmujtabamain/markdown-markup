@@ -3,6 +3,7 @@
 use std::process::ExitCode;
 
 mod migrate;
+mod migrate_step;
 mod surface;
 mod target;
 

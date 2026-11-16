@@ -165,10 +165,43 @@ fn migrate_finds_the_version_a_document_compiles_against_and_writes_nothing_brok
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
     assert_eq!(code, 0, "{}", out);
     assert!(out.contains("written for kit@1, as it compiles against that surface"), "{}", out);
-    // a statement it can't apply yet: the file is reported and left as it was
-    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), MIGRATION.replace("        rename(input = color, to = tone);\n", "        execute {\n            return @plot(values = values, tone = color);\n        }\n")).unwrap();
+    // a decision only a person can make, and no terminal to ask in: reported, left as it was
+    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")).unwrap();
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 1);
-    assert!(out.contains("not written") && out.contains("`execute` in chart's migration isn't applied yet"), "{}", out);
+    assert!(out.contains("not written") && out.contains("only a person knows which this one is"), "{}", out);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+}
+
+#[test]
+fn migrate_runs_execute_move_wrap_and_migration_fns_over_each_use() {
+    let surface = "package kit@1;\n\nextern widget status(label: text, kind: text = \"info\");\nextern widget callout(text: text);\nextern widget card(title: text) {\n    slot body: view;\n}\nextern widget chart(values: list<number>, color: color = color.ACCENT, width: number = 2);\n";
+    let pack = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides status, tone, callout, card, holder, chart, chart_style;\n}\n\nenum tone { INFO, WARN }\n\nrecord chart_style {\n    color: color = color.ACCENT;\n    width: number = 2;\n}\n\nextern widget status(label: text, tone: tone = tone.INFO);\nextern widget callout() {\n    slot body: view;\n}\nextern widget holder(title: text) {\n    slot body: view;\n}\nextern widget card() {\n    slot body: view;\n}\nextern widget chart(values: list<number>, style: chart_style = chart_style {});\n";
+    let migration = "package kit;\n\nmigration fn into_style(inputs: list<input>) {\n    nest(inputs = inputs, into = style, why = \"a chart's look is one record now\");\n}\n\nmigration kit@1 to kit@2 {\n    widget status {\n        execute {\n            match (kind) {\n                case \"warn\" {\n                    return @status(label = label, tone = tone.WARN);\n                }\n                case else {\n                    return @status(label = label);\n                }\n            }\n        }\n    }\n\n    widget callout {\n        move(from = text, to = body, why = \"the text is the callout's children now\");\n    }\n\n    widget card {\n        wrap(parent = holder, why = \"a holder keeps the title now\");\n        move(from = title, to = holder.title, why = \"the title is the holder's\");\n    }\n\n    widget chart {\n        into_style(inputs = [color, width]);\n    }\n}\n";
+    let doc = "import kit;\n@@@\n# Ops\n\n@status(label = \"Deploys\", kind = \"warn\");\n@status(label = \"Builds\");\n\n@callout(text = \"Deploys pause on Friday.\");\n\n@card(title = \"Q3\") {\nRevenue grew.\n}\n\n@chart(values = [1, 2], color = color.OK);\n";
+    let dir = scratch("migrate-execute", &[("kit/kit.mkp", pack), ("kit/surfaces/kit@1.mkp", surface), ("kit/migrations/kit@2.mkp", migration), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/ops.mkp.md", doc)]);
+    let docs = dir.join("docs");
+    assert_eq!(mkp(&["check", "--pack", dir.join("kit").to_str().unwrap(), dir.join("kit/migrations/kit@2.mkp").to_str().unwrap()]).0, 0, "the migration itself checks");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(
+        std::fs::read_to_string(docs.join("ops.mkp.md")).unwrap(),
+        "import kit;\n@@@\n# Ops\n\n@status(label = \"Deploys\", tone = tone.WARN);\n@status(label = \"Builds\");\n\n@callout {\nDeploys pause on Friday.\n}\n\n@holder(title = \"Q3\") {\n@card {\nRevenue grew.\n}\n}\n\n@chart(values = [1, 2], style = chart_style { color = color.OK });\n"
+    );
+}
+
+#[test]
+fn migrate_renames_fn_calls_and_changes_handlers_for_an_events_new_arguments() {
+    let surface = "package kit@1;\n\nextern fn text.slug(self): text;\n\nextern widget button(label: text) {\n    event click();\n}\n";
+    let pack = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides button;\n}\n\nextern fn text.slugify(self, sep: text): text;\n\nextern widget button(label: text) {\n    event press(at: point);\n}\n";
+    let migration = "package kit;\n\nmigration kit@1 to kit@2 {\n    fn text.slug {\n        rename(to = slugify);\n        add(arg = sep, value = \"-\");\n    }\n\n    widget button {\n        event click {\n            rename(to = press);\n            add(arg = at);\n        }\n    }\n}\n";
+    let doc = "import kit;\n\n$state {\n    n: number = 0;\n}\n\nfn id_of(t: text): text {\n    return t.slug();\n}\n@@@\n@button(label = \"Add\", click = fn() { $state.n = $state.n + 1; });\n";
+    let dir = scratch("migrate-fns", &[("kit/kit.mkp", pack), ("kit/surfaces/kit@1.mkp", surface), ("kit/migrations/kit@2.mkp", migration), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/a.mkp.md", doc)]);
+    let docs = dir.join("docs");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(
+        std::fs::read_to_string(docs.join("a.mkp.md")).unwrap(),
+        "import kit;\n\n$state {\n    n: number = 0;\n}\n\nfn id_of(t: text): text {\n    return t.slugify(\"-\");\n}\n@@@\n@button(label = \"Add\", press = fn(at: point) { $state.n = $state.n + 1; });\n"
+    );
 }

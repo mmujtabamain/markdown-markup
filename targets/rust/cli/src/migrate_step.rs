@@ -1,0 +1,1162 @@
+//! One migration applied to one file: each use of a changed declaration is read as a call (its
+//! arguments, its block, the widgets put around it), the block's statements are applied to it in
+//! order, and it is written back. Other references (types, imports, field reads, cases, fn calls)
+//! are renamed where they are. Every edit is at a span the checker found.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::io::{IsTerminal, Write};
+
+use mkp_check::{FoundRef, Source};
+use mkp_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt, WidgetMember};
+use mkp_syntax::printer::print_expr;
+use mkp_syntax::{parse, Entry, Lines, Span};
+
+/// A text edit: what's between `start` and `end` becomes `text`.
+#[derive(Debug, Clone)]
+pub(crate) struct Edit {
+    pub start: usize,
+    pub end: usize,
+    pub text: String,
+}
+
+/// The edits, with an edit inside a larger one left to that one.
+pub(crate) fn apply(text: &str, edits: &[Edit]) -> String {
+    let mut sorted: Vec<&Edit> = edits.iter().collect();
+    sorted.sort_by(|a, b| a.start.cmp(&b.start).then(b.end.cmp(&a.end)));
+    let mut out = String::new();
+    let mut at = 0;
+    for e in sorted {
+        if e.start < at || (e.start == at && e.end == e.start && out.ends_with(&e.text) && !e.text.is_empty() && false) {
+            continue;
+        }
+        out.push_str(&text[at..e.start]);
+        out.push_str(&e.text);
+        at = e.end;
+    }
+    out.push_str(&text[at..]);
+    out
+}
+
+/// The edits inside `span`, applied to that part of the text.
+fn within(text: &str, span: (usize, usize), edits: &[Edit]) -> String {
+    let inner: Vec<Edit> = edits.iter().filter(|e| e.start >= span.0 && e.end <= span.1 && !(e.start == span.0 && e.end == span.1)).map(|e| Edit { start: e.start - span.0, end: e.end - span.0, text: e.text.clone() }).collect();
+    apply(&text[span.0..span.1], &inner)
+}
+
+pub(crate) struct Step<'a> {
+    pub text: &'a str,
+    pub doc: &'a str,
+    pub refs: &'a [FoundRef],
+    pub pack: &'a str,
+    pub step: &'a ast::MigrationDecl,
+    pub label: &'a str,
+    /// The pack's migration fns, by name.
+    pub fns: &'a BTreeMap<String, ast::MigrationFn>,
+    /// The surface the file is written for, and the pack's files at the version it moves to.
+    pub old: &'a [Source],
+    pub new: &'a [Source],
+}
+
+#[derive(Default)]
+pub(crate) struct Done {
+    pub edits: Vec<Edit>,
+    pub changes: usize,
+    pub deletions: Vec<String>,
+    pub notices: Vec<String>,
+    pub refused: Vec<String>,
+}
+
+/// One statement, with migration fns' calls replaced by their bodies.
+#[derive(Clone, Debug)]
+enum Op {
+    Call(String, Vec<(String, Expr)>),
+    Execute(ast::Block),
+    Event(String, Vec<Op>),
+}
+
+/// A use as a call: `@name(args) { block }`, or a record literal `name { args }`.
+#[derive(Clone, Debug)]
+struct Use {
+    name: String,
+    args: Vec<(String, String)>,
+    parens: bool,
+    block: Option<String>,
+    record: bool,
+    wrappers: Vec<(String, Vec<(String, String)>)>,
+    /// What an execute returned, written as it stands, or `Some(None)` to remove the use.
+    replaced: Option<Option<String>>,
+    /// The spans of its argument names, which the use's own rendering renames.
+    arg_names: Vec<(usize, usize)>,
+    /// Why it was removed, for the comment it stays as.
+    why: String,
+}
+
+/// What a declaration is in one version: its inputs (name, type's name, default), slots and
+/// events (name, parameters as written).
+#[derive(Default, Debug, Clone)]
+struct DeclInfo {
+    inputs: Vec<(String, Option<String>, Option<Expr>)>,
+    slots: Vec<String>,
+    events: Vec<(String, Vec<(String, String)>)>,
+}
+
+fn decl_info(srcs: &[Source], name: &str) -> Option<DeclInfo> {
+    for s in srcs {
+        let Some(f) = parse(&s.text, Entry::Mkp).file else { continue };
+        for n in &f.items {
+            let Item::Decl(d) = &n.item else { continue };
+            let ty_name = |t: &ast::Type| match &t.base {
+                ast::TypeBase::Named { name, .. } => Some(name.name.clone()),
+                _ => None,
+            };
+            match &d.kind {
+                DeclKind::Widget(w) | DeclKind::ExternWidget(w) if w.name.name == name => {
+                    let mut info = DeclInfo { inputs: w.inputs.iter().map(|i| (i.name.name.clone(), ty_name(&i.ty), i.default.clone())).collect(), ..DeclInfo::default() };
+                    for m in w.body.iter().flat_map(|b| b.iter()) {
+                        match m {
+                            WidgetMember::Slot(sl) => info.slots.push(sl.name.name.clone()),
+                            WidgetMember::Event(e) => info.events.push((e.name.name.clone(), e.params.iter().map(|p| (p.name.name.clone(), p.ty.as_ref().map(|t| s.text[t.span.range()].to_string()).unwrap_or_default())).collect())),
+                            _ => {}
+                        }
+                    }
+                    return Some(info);
+                }
+                DeclKind::Record(r) if r.name.name == name => {
+                    let inputs = r.members.iter().filter_map(|m| if let ast::Member::Field(f) = m { Some((f.name.name.clone(), ty_name(&f.ty), f.default.clone())) } else { None }).collect();
+                    return Some(DeclInfo { inputs, ..DeclInfo::default() });
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+impl<'a> Step<'a> {
+    pub(crate) fn run(&self) -> Done {
+        let mut done = Done::default();
+        let lines = Lines::new(self.text);
+        let line_of = |at: usize| lines.place(at as u32).line as usize;
+        let prose_from = self.text.find("\n@@@\n").map(|i| i + 5).or_else(|| self.text.starts_with("@@@\n").then_some(4)).unwrap_or(0);
+        // point edits (renames where a name is), then each use rewritten, innermost first
+        let mut edits: Vec<Edit> = Vec::new();
+        let mut uses_done: Vec<(usize, usize, String)> = Vec::new();
+        for item in self.step.items.iter() {
+            let MigrationItem::Block(b) = item else { continue };
+            let key = b.path.iter().map(|i| i.name.as_str()).collect::<Vec<_>>().join(".");
+            let full = format!("{}/{}", self.pack, key);
+            if !self.refs.iter().any(|r| r.decl == full) {
+                continue;
+            }
+            let mut ops = Vec::new();
+            flatten(&b.body, self.fns, &BTreeMap::new(), &mut ops, 0);
+            if b.kind.name == "fn" {
+                self.fn_block(&key, &full, &ops, &mut edits, &mut done, &line_of);
+                continue;
+            }
+            let old_info = decl_info(self.old, &key).unwrap_or_default();
+            // the declaration's name and members as they end up, for references outside uses
+            let mut now = key.clone();
+            let mut renamed: BTreeMap<String, String> = BTreeMap::new();
+            for op in &ops {
+                match op {
+                    Op::Call(o, args) if o == "rename" => match (member(args), arg_name(args, "to")) {
+                        (Some(m), Some(to)) => {
+                            let first = renamed.iter().find(|(_, v)| **v == m).map(|(k, _)| k.clone()).unwrap_or(m);
+                            renamed.insert(first, to);
+                        }
+                        (None, Some(to)) if !args.iter().any(|(n, _)| n == "from") => now = to,
+                        _ => {}
+                    },
+                    Op::Event(e, inner) => {
+                        for i in inner {
+                            if let Op::Call(o, a) = i {
+                                if o == "rename" {
+                                    if let Some(to) = arg_name(a, "to") {
+                                        renamed.insert(e.clone(), to);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let new_info = decl_info(self.new, &now).unwrap_or_default();
+            // the uses: a widget's calls, a record's literals
+            let mut uses: Vec<&FoundRef> = self.refs.iter().filter(|r| r.decl == full && r.member.is_none() && is_use(&self.text[r.whole.range()], &key)).collect();
+            uses.sort_by_key(|r| r.whole.end - r.whole.start);
+            let mut arg_spans: BTreeSet<(usize, usize)> = BTreeSet::new();
+            for u in &uses {
+                let (ws, mut we) = (u.whole.start as usize, u.whole.end as usize);
+                let prose = ws >= prose_from && self.text[..ws].rsplit('\n').next().map_or(true, |l| l.trim().is_empty());
+                // a call in prose: its block runs to its closing line, and its `;` ends it
+                let line_end = self.text[we..].find('\n').map(|i| we + i).unwrap_or(self.text.len());
+                let tail = self.text[we..line_end].trim_end();
+                let mut semi = false;
+                if prose && tail.trim() == "{" {
+                    if let Some(end) = prose_block_end(self.text, line_end) {
+                        we = end;
+                    }
+                } else if tail.starts_with(';') {
+                    we += 1;
+                    semi = true;
+                }
+                let Some(mut model) = read_use(self.text, ws, we, &edits) else {
+                    done.refused.push(format!("line {}: a use of {} written in a way {} can't read yet", line_of(ws), key, self.label));
+                    continue;
+                };
+                arg_spans.extend(model.arg_names.iter().copied());
+                let before = render(&model, false);
+                let mut said = Vec::new();
+                for op in &ops {
+                    if let Err(why) = self.apply_op(op, &mut model, &old_info, &new_info, &key, ws, &mut done, &mut said, &line_of) {
+                        done.refused.push(format!("line {}: {}", line_of(ws), why));
+                        break;
+                    }
+                }
+                done.notices.extend(said);
+                let after = match &model.replaced {
+                    Some(None) => {
+                        done.deletions.push(format!("{}:{}  {} (kept as a comment){}", self.doc, line_of(ws), first_line(&self.text[ws..u.whole.end as usize]), model.why));
+                        comment_out(&self.text[ws..we], &self.text[..ws], prose, &format!("{} dropped {}{}", self.label, key, model.why))
+                    }
+                    _ => {
+                        let t = render(&model, prose);
+                        if semi && !t.ends_with('}') {
+                            format!("{};", t)
+                        } else {
+                            t
+                        }
+                    }
+                };
+                let before = if semi { format!("{};", before) } else { before };
+                if after != before || model.replaced.is_some() {
+                    done.changes += 1;
+                    edits.push(Edit { start: ws, end: we, text: after.clone() });
+                    uses_done.push((ws, we, after));
+                }
+            }
+            // every other reference: a type, an import, a field read, a case, an argument
+            // outside the uses rewritten above
+            for r in self.refs.iter().filter(|r| r.decl == full) {
+                let (s, e) = (r.at.start as usize, r.at.end as usize);
+                if arg_spans.contains(&(s, e)) || uses.iter().any(|u| u.at == r.at) {
+                    continue;
+                }
+                let here = &self.text[s..e];
+                let to = match (&r.member, r.case) {
+                    (None, _) if here == key && now != key => Some(now.clone()),
+                    (Some(m), false) if here == m => renamed.get(m).cloned(),
+                    (Some(c), true) if here == c => self.case_rename(&ops, c, s, &mut done, &line_of),
+                    _ => None,
+                };
+                if let Some(to) = to {
+                    if to != here {
+                        done.changes += 1;
+                        edits.push(Edit { start: s, end: e, text: to });
+                    }
+                }
+            }
+        }
+        let _ = uses_done;
+        done.edits = edits;
+        done
+    }
+
+    /// A case's new name: one `rename(from = …)` gives, or the one a person picks for `split`.
+    fn case_rename(&self, ops: &[Op], case: &str, at: usize, done: &mut Done, line_of: &dyn Fn(usize) -> usize) -> Option<String> {
+        for op in ops {
+            let Op::Call(o, args) = op else { continue };
+            let from = args.iter().find(|(n, _)| n == "from").and_then(|(_, v)| case_of(v));
+            if from.as_deref() != Some(case) {
+                continue;
+            }
+            match o.as_str() {
+                "rename" => return args.iter().find(|(n, _)| n == "to").and_then(|(_, v)| case_of(v)),
+                "split" => {
+                    let options: Vec<String> = match args.iter().find(|(n, _)| n == "to").map(|(_, v)| &v.kind) {
+                        Some(ExprKind::List(xs)) => xs.iter().filter_map(case_of).collect(),
+                        _ => Vec::new(),
+                    };
+                    let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).unwrap_or_default();
+                    match ask(&format!("{}:{} uses {}, which {} replaces{}", self.doc, line_of(at), case, self.label, if why.is_empty() { String::new() } else { format!(": {}", why) }), &options) {
+                        Some(pick) => return Some(pick),
+                        None => {
+                            done.refused.push(format!("line {}: {} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal to answer", line_of(at), self.label, case, options.join(", ")));
+                            return None;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    /// A fn's block: its calls renamed, and arguments added in the place the newer one has them.
+    fn fn_block(&self, key: &str, full: &str, ops: &[Op], edits: &mut Vec<Edit>, done: &mut Done, line_of: &dyn Fn(usize) -> usize) {
+        let old_name = key.rsplit('.').next().unwrap_or(key).to_string();
+        for r in self.refs.iter().filter(|r| r.decl == full) {
+            let (s, e) = (r.at.start as usize, r.at.end as usize);
+            if self.text[s..e] != old_name {
+                continue;
+            }
+            for op in ops {
+                let Op::Call(o, args) = op else { continue };
+                match o.as_str() {
+                    "rename" => {
+                        if let Some(to) = arg_name(args, "to") {
+                            done.changes += 1;
+                            edits.push(Edit { start: s, end: e, text: to });
+                        }
+                    }
+                    "add" => {
+                        let Some(v) = args.iter().find(|(n, _)| n == "value").map(|(_, v)| print_expr(v)) else { continue };
+                        let open = self.text[e..].find('(').map(|i| e + i);
+                        match open.and_then(|o| matching(self.text, o).map(|c| (o, c))) {
+                            Some((o, c)) => {
+                                let inner = self.text[o + 1..c].trim();
+                                done.changes += 1;
+                                edits.push(Edit { start: c, end: c, text: if inner.is_empty() { v } else { format!(", {}", v) } });
+                            }
+                            None => done.refused.push(format!("line {}: {} adds an argument to {}, and this call can't be read", line_of(s), self.label, key)),
+                        }
+                    }
+                    "drop" | "set" | "move" => done.refused.push(format!("line {}: {} changes {}'s arguments ({}): change this call yourself", line_of(s), self.label, key, o)),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// One statement applied to a use.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_op(&self, op: &Op, u: &mut Use, old: &DeclInfo, new: &DeclInfo, key: &str, at: usize, done: &mut Done, said: &mut Vec<String>, line_of: &dyn Fn(usize) -> usize) -> Result<(), String> {
+        if u.replaced.is_some() {
+            return Ok(());
+        }
+        let line = line_of(at);
+        match op {
+            Op::Execute(b) => {
+                let env = Env::of(u, old);
+                match run(b, &env, said, &format!("{}:{}  {}, {}", self.doc, line, self.label, key)) {
+                    Flow::Return(Some(e)) => u.replaced = Some(Some(print_expr(&env.subst(&e)))),
+                    Flow::Return(None) => u.replaced = Some(None),
+                    Flow::Next => return Err(format!("{}'s execute for {} ends without a return", self.label, key)),
+                    Flow::Unknown(why) => return Err(format!("{}'s execute for {} can't decide this use: {}", self.label, key, why)),
+                }
+            }
+            Op::Event(name, inner) => {
+                // the event's name as the statements before have left it
+                let mut current = name.clone();
+                for i in inner {
+                    let Op::Call(o, args) = i else { continue };
+                    let pos = u.args.iter().position(|(n, _)| *n == current);
+                    match o.as_str() {
+                        "rename" => {
+                            if let Some(to) = arg_name(args, "to") {
+                                if let Some(p) = pos {
+                                    u.args[p].0 = to.clone();
+                                }
+                                current = to;
+                            }
+                        }
+                        "add" | "drop" => {
+                            let Some(p) = pos else { continue };
+                            let param = arg_name(args, "arg").ok_or_else(|| format!("{} {}s an argument of {} with no name", self.label, o, name))?;
+                            let ev = u.args[p].0.clone();
+                            let handler = u.args[p].1.clone();
+                            let ty = new.events.iter().find(|(n, _)| *n == ev).and_then(|(_, ps)| ps.iter().find(|(n, _)| *n == param)).map(|(_, t)| t.clone());
+                            u.args[p].1 = edit_handler(&handler, o, &param, ty.as_deref()).ok_or_else(|| format!("{} {}s the argument `{}` of {}'s handlers, and this handler is one to change yourself", self.label, o, param, ev))?;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Op::Call(o, args) => {
+                let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).filter(|w| !w.is_empty()).map(|w| format!(": {}", w)).unwrap_or_default();
+                let mem = member(args);
+                let when = args.iter().find(|(n, _)| n == "when").map(|(_, v)| v.clone());
+                let env = Env::of(u, old);
+                let holds = |w: &Option<Expr>| -> Result<bool, String> {
+                    match w {
+                        None => Ok(true),
+                        Some(w) => env.decide(w).ok_or_else(|| format!("whether {}'s `{}` applies here depends on more than this use gives: decide it yourself", self.label, o)),
+                    }
+                };
+                match o.as_str() {
+                    "rename" => {
+                        if let (Some(m), Some(to)) = (&mem, arg_name(args, "to")) {
+                            if let Some(p) = u.args.iter().position(|(n, _)| n == m) {
+                                u.args[p].0 = to;
+                            }
+                        } else if let Some(to) = arg_name(args, "to") {
+                            if !args.iter().any(|(n, _)| n == "from") {
+                                u.name = to;
+                            }
+                        }
+                    }
+                    "drop" => match &mem {
+                        Some(m) => {
+                            if let Some(p) = u.args.iter().position(|(n, _)| n == m) {
+                                let v = u.args[p].1.clone();
+                                if v.contains('\n') || v.trim_start().starts_with("fn(") {
+                                    return Err(format!("{} drops {}.{}, and this use gives it code of its own: move it yourself", self.label, key, m));
+                                }
+                                done.deletions.push(format!("{}:{}  {} = {}{}", self.doc, line, m, v, why));
+                                u.args.remove(p);
+                            }
+                        }
+                        None => {
+                            u.replaced = Some(None);
+                            u.why = why.clone();
+                        }
+                    },
+                    "set" | "add" => {
+                        let m = mem.ok_or("a set with no member")?;
+                        if !holds(&when)? {
+                            return Ok(());
+                        }
+                        let value = args.iter().find(|(n, _)| n == "value").map(|(_, v)| print_expr(&env.subst(v))).ok_or("a set with no value")?;
+                        match u.args.iter().position(|(n, _)| *n == m) {
+                            Some(p) => u.args[p].1 = value,
+                            None => u.args.push((m, value)),
+                        }
+                        u.parens = true;
+                    }
+                    "notify" => {
+                        if when.as_ref().map_or(Some(true), |w| env.decide(w)) != Some(false) {
+                            said.push(format!("{}:{}  {}, {}{}", self.doc, line, self.label, key, why));
+                        }
+                    }
+                    "move" => {
+                        let from = args.iter().find(|(n, _)| n == "from").map(|(_, v)| place(v)).flatten().ok_or("a move with no `from`")?;
+                        let to = args.iter().find(|(n, _)| n == "to").map(|(_, v)| place(v)).flatten().ok_or("a move with no `to`")?;
+                        self.move_value(u, &from, &to, new, key)?;
+                    }
+                    "nest" => {
+                        let into = arg_name(args, "into").ok_or("a nest with no `into`")?;
+                        let inputs: Vec<String> = match args.iter().find(|(n, _)| n == "inputs").map(|(_, v)| &v.kind) {
+                            Some(ExprKind::List(xs)) => xs.iter().filter_map(|x| bare(x)).collect(),
+                            _ => Vec::new(),
+                        };
+                        for i in inputs {
+                            self.move_value(u, &vec![i.clone()], &vec![into.clone(), i], new, key)?;
+                        }
+                    }
+                    "flatten" => {
+                        let r = arg_name(args, "input").ok_or("a flatten with no `input`")?;
+                        if let Some(p) = u.args.iter().position(|(n, _)| *n == r) {
+                            let (_, fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} flattens {}.{}, and this use gives it something other than a record written out", self.label, key, r))?;
+                            u.args.remove(p);
+                            for (n, v) in fields.into_iter().rev() {
+                                u.args.insert(p, (n, v));
+                            }
+                        }
+                    }
+                    "wrap" => {
+                        let parent = arg_name(args, "parent").ok_or("a wrap with no `parent`")?;
+                        u.wrappers.push((parent, Vec::new()));
+                    }
+                    "split" | "example" => {}
+                    other => return Err(format!("{} uses `{}`, which mkp migrate can't apply", self.label, other)),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// What a use gives at one place, moved to another: an input, a field of a record input, a
+    /// slot, or an input of the widget a wrap put around it.
+    fn move_value(&self, u: &mut Use, from: &[String], to: &[String], new: &DeclInfo, key: &str) -> Result<(), String> {
+        // take it out
+        let value = match from {
+            [m] => match u.args.iter().position(|(n, _)| n == m) {
+                Some(p) => u.args.remove(p).1,
+                None => return Ok(()),
+            },
+            [r, f] => {
+                let Some(p) = u.args.iter().position(|(n, _)| n == r) else { return Ok(()) };
+                let (ty, mut fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} moves {}.{}.{}, and this use doesn't write {} out as a record", self.label, key, r, f, r))?;
+                let Some(fp) = fields.iter().position(|(n, _)| n == f) else { return Ok(()) };
+                let v = fields.remove(fp).1;
+                if fields.is_empty() {
+                    u.args.remove(p);
+                } else {
+                    u.args[p].1 = write_record(&ty, &fields);
+                }
+                v
+            }
+            _ => return Err(format!("{} moves from a place it can't name", self.label)),
+        };
+        // and put it where it goes
+        match to {
+            [w, m] if u.wrappers.iter().any(|(n, _)| n == w) => {
+                let wp = u.wrappers.iter().position(|(n, _)| n == w).unwrap();
+                u.wrappers[wp].1.push((m.clone(), value));
+            }
+            [s] if new.slots.contains(s) => {
+                u.block = Some(format!("{{\n{}\n}}", as_prose(&value)));
+            }
+            [m] => {
+                u.args.push((m.clone(), value));
+                u.parens = true;
+            }
+            [r, f] => {
+                let ty = new.inputs.iter().find(|(n, _, _)| n == r).and_then(|(_, t, _)| t.clone()).ok_or_else(|| format!("{} moves into {}.{}, whose type isn't a record it can write", self.label, r, f))?;
+                match u.args.iter().position(|(n, _)| n == r) {
+                    Some(p) => {
+                        let (t, mut fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} moves into {}.{}, and this use gives {} something other than a record written out", self.label, r, f, r))?;
+                        fields.push((f.clone(), value));
+                        u.args[p].1 = write_record(&t, &fields);
+                    }
+                    None => {
+                        u.args.push((r.clone(), write_record(&ty, &[(f.clone(), value)])));
+                        u.parens = true;
+                    }
+                }
+            }
+            _ => return Err(format!("{} moves to a place it can't name", self.label)),
+        }
+        Ok(())
+    }
+}
+
+/// Statements in order, a migration fn's call replaced by its body with its parameters bound.
+fn flatten(body: &ast::Body<MigrationStmt>, fns: &BTreeMap<String, ast::MigrationFn>, bound: &BTreeMap<String, Expr>, out: &mut Vec<Op>, depth: usize) {
+    for st in body.iter() {
+        flatten_one(st, fns, bound, out, depth);
+    }
+}
+
+fn flatten_one(st: &MigrationStmt, fns: &BTreeMap<String, ast::MigrationFn>, bound: &BTreeMap<String, Expr>, out: &mut Vec<Op>, depth: usize) {
+    match st {
+        MigrationStmt::Execute(b) => out.push(Op::Execute(b.clone())),
+        MigrationStmt::Event { name, body } => {
+            let mut inner = Vec::new();
+            flatten(body, fns, bound, &mut inner, depth);
+            out.push(Op::Event(name.name.clone(), inner));
+        }
+        MigrationStmt::Stmt(Stmt::Expr(e)) => {
+            let e = subst_bound(e, bound);
+            let Some((op, args)) = call(&e) else { return };
+            match fns.get(&op) {
+                Some(f) if depth < 16 => {
+                    let mut inner: BTreeMap<String, Expr> = BTreeMap::new();
+                    for (n, v) in &args {
+                        inner.insert(n.clone(), v.clone());
+                    }
+                    flatten(&f.body, fns, &inner, out, depth + 1);
+                }
+                _ => out.push(Op::Call(op, args)),
+            }
+        }
+        MigrationStmt::Stmt(Stmt::For(f)) => {
+            let over = subst_bound(&f.over, bound);
+            if let ExprKind::List(xs) = &over.kind {
+                for x in xs.iter() {
+                    let mut inner = bound.clone();
+                    inner.insert(f.name.name.clone(), x.clone());
+                    for s in f.body.stmts.iter() {
+                        flatten_one(&MigrationStmt::Stmt(s.item.clone()), fns, &inner, out, depth);
+                    }
+                }
+            }
+        }
+        MigrationStmt::Stmt(_) => {}
+    }
+}
+
+fn subst_bound(e: &Expr, bound: &BTreeMap<String, Expr>) -> Expr {
+    let mut e = e.clone();
+    walk_names(&mut e, &mut |n| bound.get(n).cloned());
+    e
+}
+
+/// Each name that stands for a value, as `f` replaces it; a case's type and a fn's name stay.
+fn walk_names(e: &mut Expr, f: &mut dyn FnMut(&str) -> Option<Expr>) {
+    if let ExprKind::Name(n) = &e.kind {
+        if let Some(v) = f(&n.name) {
+            *e = v;
+        }
+        return;
+    }
+    match &mut e.kind {
+        ExprKind::Call { callee, args } => {
+            if !matches!(callee.kind, ExprKind::Name(_)) {
+                walk_names(callee, f);
+            }
+            for a in args.items.iter_mut() {
+                walk_names(&mut a.item.value, f);
+            }
+        }
+        ExprKind::Field { target, .. } | ExprKind::Paren(target) | ExprKind::Try(target) => walk_names(target, f),
+        ExprKind::Index { target, index } => {
+            walk_names(target, f);
+            walk_names(index, f);
+        }
+        ExprKind::List(xs) => {
+            for x in xs.items.iter_mut() {
+                walk_names(&mut x.item, f);
+            }
+        }
+        ExprKind::Record { inits, .. } | ExprKind::With { inits, .. } => {
+            for i in inits.items.iter_mut() {
+                walk_names(&mut i.item.value, f);
+            }
+        }
+        ExprKind::Unary { operand, .. } => walk_names(operand, f),
+        ExprKind::Binary { left, right, .. } => {
+            walk_names(left, f);
+            walk_names(right, f);
+        }
+        ExprKind::Ternary { cond, then, otherwise } => {
+            walk_names(cond, f);
+            walk_names(then, f);
+            walk_names(otherwise, f);
+        }
+        ExprKind::View(v) => {
+            if let Some(args) = v.args.as_mut() {
+                for a in args.items.iter_mut() {
+                    walk_names(&mut a.item.value, f);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A use's old values, by name, as the migration's code sees them: what the use gives, or its
+/// old default where it gives nothing.
+struct Env {
+    vals: BTreeMap<String, String>,
+    given: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Val {
+    Text(String),
+    Num(String),
+    Bool(bool),
+    Case(String, String),
+}
+
+impl Env {
+    fn of(u: &Use, old: &DeclInfo) -> Env {
+        let mut vals = BTreeMap::new();
+        for (n, _, d) in &old.inputs {
+            if let Some(d) = d {
+                vals.insert(n.clone(), print_expr(d));
+            }
+        }
+        let mut given = BTreeSet::new();
+        for (n, v) in &u.args {
+            vals.insert(n.clone(), v.clone());
+            given.insert(n.clone());
+        }
+        Env { vals, given }
+    }
+
+    /// An expression with the use's values in place of the names they have.
+    fn subst(&self, e: &Expr) -> Expr {
+        let mut e = e.clone();
+        walk_names(&mut e, &mut |n| {
+            self.vals.get(n).map(|v| {
+                let text = if v.contains(' ') && !(v.starts_with('"') || v.starts_with('[') || v.starts_with('@') || v.starts_with('(')) && !v.ends_with('}') { format!("({})", v) } else { v.clone() };
+                Expr { kind: ExprKind::Name(ast::Ident { name: text, span: Span::default() }), span: Span::default() }
+            })
+        });
+        e
+    }
+
+    fn val(&self, e: &Expr) -> Option<Val> {
+        match &e.kind {
+            ExprKind::Bool(b) => Some(Val::Bool(*b)),
+            ExprKind::Number(n) => Some(Val::Num(n.clone())),
+            ExprKind::Text(t) if t.parts.iter().all(|p| matches!(p, ast::TextPart::Piece { .. })) => Some(Val::Text(literal_text(e))),
+            ExprKind::Case { target, name, args: None } => match &target.kind {
+                ExprKind::Name(t) => Some(Val::Case(t.name.clone(), name.name.clone())),
+                _ => None,
+            },
+            ExprKind::Paren(x) => self.val(x),
+            ExprKind::Name(n) => {
+                let v = self.vals.get(&n.name)?;
+                let parsed = parse(&format!("let x: number = {};\n", v), Entry::Body).file?;
+                match parsed.items.first().map(|i| &i.item) {
+                    Some(Item::Stmt(Stmt::Let(var))) => self.val(&var.value).filter(|v| !matches!(v, Val::Text(_)) || true),
+                    Some(Item::Decl(ast::Decl { kind: DeclKind::Let(var), .. })) => self.val(&var.value),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether a condition holds for this use; `None` when it depends on more than it gives.
+    fn decide(&self, e: &Expr) -> Option<bool> {
+        match &e.kind {
+            ExprKind::Paren(x) => self.decide(x),
+            ExprKind::Unary { operand, .. } => self.decide(operand).map(|b| !b),
+            ExprKind::Binary { op, left, right } => match op {
+                ast::BinOp::And => match (self.decide(left), self.decide(right)) {
+                    (Some(false), _) | (_, Some(false)) => Some(false),
+                    (Some(true), Some(true)) => Some(true),
+                    _ => None,
+                },
+                ast::BinOp::Or => match (self.decide(left), self.decide(right)) {
+                    (Some(true), _) | (_, Some(true)) => Some(true),
+                    (Some(false), Some(false)) => Some(false),
+                    _ => None,
+                },
+                ast::BinOp::Eq | ast::BinOp::Ne => {
+                    let (l, r) = (self.val(left)?, self.val(right)?);
+                    Some((l == r) == matches!(op, ast::BinOp::Eq))
+                }
+                _ => None,
+            },
+            ExprKind::Call { callee, args } => match &callee.kind {
+                ExprKind::Name(n) if n.name == "given" => args.iter().next().and_then(|a| bare(&a.value)).map(|m| self.given.contains(&m)),
+                ExprKind::Name(n) if n.name == "confirm" => {
+                    let why = args.iter().find(|a| a.name.as_ref().map_or(false, |n| n.name == "why")).map(|a| literal_text(&a.value)).unwrap_or_default();
+                    confirm(&why)
+                }
+                _ => None,
+            },
+            _ => match self.val(e)? {
+                Val::Bool(b) => Some(b),
+                _ => None,
+            },
+        }
+    }
+}
+
+enum Flow {
+    Next,
+    Return(Option<Expr>),
+    Unknown(String),
+}
+
+/// An execute's body, run over a use's values: what it returns, or why it can't say.
+fn run(b: &ast::Block, env: &Env, said: &mut Vec<String>, at: &str) -> Flow {
+    let mut env = Env { vals: env.vals.clone(), given: env.given.clone() };
+    for n in &b.stmts {
+        match &n.item {
+            Stmt::Return(r) => return Flow::Return(r.clone()),
+            Stmt::Let(v) => {
+                let e = env.subst(&v.value);
+                env.vals.insert(v.name.name.clone(), print_expr(&e));
+            }
+            Stmt::Expr(e) => {
+                if let Some((op, args)) = call(e) {
+                    if op == "notify" {
+                        let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).unwrap_or_default();
+                        said.push(format!("{}: {}", at, why));
+                    }
+                }
+            }
+            Stmt::If(i) => {
+                let mut taken = None;
+                for (c, blk) in &i.branches {
+                    let ast::Cond::Expr(c) = c else { return Flow::Unknown("an `if` that opens an opt".into()) };
+                    match env.decide(c) {
+                        Some(true) => {
+                            taken = Some(blk);
+                            break;
+                        }
+                        Some(false) => {}
+                        None => return Flow::Unknown(format!("`if ({})`", print_expr(c))),
+                    }
+                }
+                let blk = match (taken, &i.otherwise) {
+                    (Some(b), _) => b,
+                    (None, Some(o)) => o,
+                    (None, None) => continue,
+                };
+                match run(blk, &env, said, at) {
+                    Flow::Next => {}
+                    other => return other,
+                }
+            }
+            Stmt::Match(m) => {
+                let Some(v) = env.val(&m.subject) else { return Flow::Unknown(format!("`match ({})`, whose value this use doesn't give as a constant", print_expr(&m.subject))) };
+                let case = m.cases.iter().find(|c| c.patterns.is_empty() || c.patterns.iter().any(|p| pattern_is(p, &v)));
+                if let Some(c) = case {
+                    match run(&c.body, &env, said, at) {
+                        Flow::Next => {}
+                        other => return other,
+                    }
+                }
+            }
+            Stmt::For(_) => return Flow::Unknown("a `for` loop".into()),
+            _ => {}
+        }
+    }
+    Flow::Next
+}
+
+fn pattern_is(p: &ast::Pattern, v: &Val) -> bool {
+    match (p, v) {
+        (ast::Pattern::Case { ty, case, binds: None }, Val::Case(t, c)) => ty.name == *t && case.name == *c,
+        (ast::Pattern::Number { negative, text, .. }, Val::Num(n)) => (if *negative { format!("-{}", text) } else { text.clone() }) == *n,
+        (ast::Pattern::Text(t), Val::Text(s)) => t.parts.iter().map(|p| if let ast::TextPart::Piece { raw, .. } = p { raw.clone() } else { String::new() }).collect::<String>() == *s,
+        (ast::Pattern::Bool(b, _), Val::Bool(x)) => b == x,
+        _ => false,
+    }
+}
+
+/// Whether a reference's text is a use: a call (`@chart(…)`) or a record literal (`stat { … }`).
+fn is_use(whole: &str, key: &str) -> bool {
+    (whole.starts_with('@') && whole[1..].starts_with(key)) || (whole.starts_with(key) && whole[key.len()..].trim_start().starts_with('{'))
+}
+
+/// A use read from the text, its argument values with the edits inside them made.
+fn read_use(text: &str, ws: usize, we: usize, edits: &[Edit]) -> Option<Use> {
+    let s = &text[ws..we];
+    let record = !s.starts_with('@');
+    let name_start = if record { 0 } else { 1 };
+    let name_len = s[name_start..].find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).unwrap_or(s.len() - name_start);
+    let name = s[name_start..name_start + name_len].to_string();
+    let mut k = name_start + name_len;
+    let mut u = Use { name, args: Vec::new(), parens: false, block: None, record, wrappers: Vec::new(), replaced: None, arg_names: Vec::new(), why: String::new() };
+    let open = if record { '{' } else { '(' };
+    let rest = &s[k..];
+    let skip = rest.len() - rest.trim_start().len();
+    if s[k + skip..].starts_with(open) {
+        let o = k + skip;
+        let c = matching(s, o)?;
+        u.parens = !record;
+        for (ps, pe) in split_top(s, o + 1, c) {
+            let part = &s[ps..pe];
+            let eq = top_eq(part)?;
+            let n = part[..eq].trim();
+            let n_start = ps + part.find(n)?;
+            let v_start = ps + eq + 1 + (part[eq + 1..].len() - part[eq + 1..].trim_start().len());
+            let v_end = ps + part.trim_end().len();
+            u.arg_names.push((ws + n_start, ws + n_start + n.len()));
+            u.args.push((n.to_string(), within(text, (ws + v_start, ws + v_end), edits)));
+        }
+        k = c + 1;
+    }
+    if !record {
+        let rest = &s[k..];
+        let skip = rest.len() - rest.trim_start().len();
+        if s[k + skip..].starts_with('{') {
+            let c = matching(s, k + skip)?;
+            u.block = Some(within(text, (ws + k + skip, ws + c + 1), edits));
+            k = c + 1;
+        }
+    }
+    if !s[k..].trim().is_empty() && s[k..].trim() != ";" {
+        return None;
+    }
+    Some(u)
+}
+
+/// The end of a prose call's block that opens on the line before `from`: its closing `}` line.
+fn prose_block_end(text: &str, from: usize) -> Option<usize> {
+    let mut depth = 1;
+    let mut at = from;
+    while at < text.len() {
+        let start = at + 1;
+        let end = text[start..].find('\n').map(|i| start + i).unwrap_or(text.len());
+        let line = text[start..end].trim();
+        if line == "}" {
+            depth -= 1;
+            if depth == 0 {
+                return Some(end);
+            }
+        } else if line.starts_with('@') && line.ends_with('{') {
+            depth += 1;
+        }
+        at = end;
+        if end >= text.len() {
+            break;
+        }
+    }
+    None
+}
+
+/// A use written back: `@name(args)` with its block, inside any widgets put around it.
+fn render(u: &Use, prose: bool) -> String {
+    if let Some(Some(t)) = &u.replaced {
+        return t.clone();
+    }
+    let args = u.args.iter().map(|(n, v)| format!("{} = {}", n, v)).collect::<Vec<_>>().join(", ");
+    let mut out = if u.record {
+        if args.is_empty() { format!("{} {{}}", u.name) } else { format!("{} {{ {} }}", u.name, args) }
+    } else {
+        let mut t = format!("@{}", u.name);
+        if !u.args.is_empty() || (u.parens && u.block.is_none()) {
+            t.push_str(&format!("({})", args));
+        }
+        if let Some(b) = &u.block {
+            t.push(' ');
+            t.push_str(b);
+        }
+        t
+    };
+    for (w, wargs) in &u.wrappers {
+        let a = wargs.iter().map(|(n, v)| format!("{} = {}", n, v)).collect::<Vec<_>>().join(", ");
+        let head = if a.is_empty() { format!("@{}", w) } else { format!("@{}({})", w, a) };
+        out = if prose { format!("{} {{\n{}\n}}", head, out) } else { format!("{} {{ {} }}", head, out) };
+    }
+    out
+}
+
+/// `T { a = 1, b = 2 }` read, as its type and its fields.
+fn read_record(v: &str) -> Option<(String, Vec<(String, String)>)> {
+    let v = v.trim();
+    let open = v.find('{')?;
+    let ty = v[..open].trim().to_string();
+    let close = matching(v, open)?;
+    if close != v.len() - 1 {
+        return None;
+    }
+    let mut fields = Vec::new();
+    for (ps, pe) in split_top(v, open + 1, close) {
+        let part = &v[ps..pe];
+        let eq = top_eq(part)?;
+        fields.push((part[..eq].trim().to_string(), part[eq + 1..].trim().to_string()));
+    }
+    Some((ty, fields))
+}
+
+fn write_record(ty: &str, fields: &[(String, String)]) -> String {
+    if fields.is_empty() {
+        return format!("{} {{}}", ty);
+    }
+    format!("{} {{ {} }}", ty, fields.iter().map(|(n, v)| format!("{} = {}", n, v)).collect::<Vec<_>>().join(", "))
+}
+
+/// A value moved into a slot, as prose: a text's words, or a hole for anything else.
+fn as_prose(v: &str) -> String {
+    let t = v.trim();
+    if t.starts_with('"') && t.ends_with('"') && t.len() >= 2 && !t[1..t.len() - 1].contains("\\{") {
+        let inner = &t[1..t.len() - 1];
+        let words = inner.replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\");
+        // what prose would read otherwise: a call, a comment, a closing brace at a line's start
+        return words.lines().map(|l| if l.starts_with('@') || l.starts_with('}') { format!("\\{}", l) } else { l.to_string() }).collect::<Vec<_>>().join("\n");
+    }
+    format!("\\{{{}}}", t)
+}
+
+/// A handler with an argument added or taken out; `None` when that changes what it does.
+fn edit_handler(h: &str, op: &str, param: &str, ty: Option<&str>) -> Option<String> {
+    let t = h.trim();
+    if let Some(rest) = t.strip_prefix("fn(") {
+        let close = matching(t, 2)?;
+        let params: Vec<String> = rest[..close - 3].split(',').map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect();
+        let body = &t[close + 1..];
+        let mut params = params;
+        if op == "add" {
+            params.push(match ty {
+                Some(ty) => format!("{}: {}", param, ty),
+                None => param.to_string(),
+            });
+        } else {
+            let p = params.iter().position(|p| p.split(':').next().map(str::trim) == Some(param))?;
+            // the body still reads it: taking it away would change what the handler does
+            if body.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).any(|w| w == param) {
+                return None;
+            }
+            params.remove(p);
+        }
+        return Some(format!("fn({}){}", params.join(", "), body));
+    }
+    // a handler given by name, wrapped so the fn it names stays as it is
+    if op == "add" && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Some(format!("fn({}) {{ {}(); }}", ty.map(|ty| format!("{}: {}", param, ty)).unwrap_or_else(|| param.to_string()), t));
+    }
+    None
+}
+
+/// A use kept as a comment: `@//` lines in prose, `//` in code.
+fn comment_out(body: &str, before: &str, prose: bool, note: &str) -> String {
+    let line_start = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let indent = &before[line_start..];
+    let mark = if prose { "@//" } else { "//" };
+    let mut out = format!("{} {}\n", mark, note);
+    for (k, l) in body.lines().enumerate() {
+        if k > 0 {
+            out.push('\n');
+            out.push_str(indent);
+        } else if !prose {
+            out.push_str(indent);
+        }
+        out.push_str(mark);
+        out.push(' ');
+        out.push_str(l);
+    }
+    if !prose {
+        out = out.trim_start().to_string();
+    }
+    out
+}
+
+/// The ranges of the top-level, comma-separated parts between `from` and `to`.
+fn split_top(s: &str, from: usize, to: usize) -> Vec<(usize, usize)> {
+    let b = s.as_bytes();
+    let mut out = Vec::new();
+    let (mut depth, mut in_text, mut start) = (0i32, false, from);
+    let mut k = from;
+    while k < to {
+        let c = b[k];
+        if in_text {
+            if c == b'\\' {
+                k += 1;
+            } else if c == b'"' {
+                in_text = false;
+            }
+        } else {
+            match c {
+                b'"' => in_text = true,
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 0 => {
+                    if !s[start..k].trim().is_empty() {
+                        out.push((start, k));
+                    }
+                    start = k + 1;
+                }
+                _ => {}
+            }
+        }
+        k += 1;
+    }
+    if !s[start..to].trim().is_empty() {
+        out.push((start, to));
+    }
+    out
+}
+
+/// The `=` of `name = value`, not one of `==`, `!=`, `<=` or `>=`.
+fn top_eq(part: &str) -> Option<usize> {
+    let b = part.as_bytes();
+    (0..b.len()).find(|&k| b[k] == b'=' && b.get(k + 1) != Some(&b'=') && (k == 0 || !matches!(b[k - 1], b'=' | b'!' | b'<' | b'>')))
+}
+
+pub(crate) fn matching(s: &str, open: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let (o, c) = match bytes.get(open)? {
+        b'(' => (b'(', b')'),
+        b'{' => (b'{', b'}'),
+        b'[' => (b'[', b']'),
+        _ => return None,
+    };
+    let (mut depth, mut in_text) = (0, false);
+    let mut k = open;
+    while k < bytes.len() {
+        let b = bytes[k];
+        if in_text {
+            if b == b'\\' {
+                k += 1;
+            } else if b == b'"' {
+                in_text = false;
+            }
+        } else if b == b'"' {
+            in_text = true;
+        } else if b == o {
+            depth += 1;
+        } else if b == c {
+            depth -= 1;
+            if depth == 0 {
+                return Some(k);
+            }
+        }
+        k += 1;
+    }
+    None
+}
+
+fn call(e: &Expr) -> Option<(String, Vec<(String, Expr)>)> {
+    let ExprKind::Call { callee, args } = &e.kind else { return None };
+    let ExprKind::Name(n) = &callee.kind else { return None };
+    Some((n.name.clone(), args.iter().map(|a| (a.name.as_ref().map(|i| i.name.clone()).unwrap_or_default(), a.value.clone())).collect()))
+}
+
+fn bare(e: &Expr) -> Option<String> {
+    match &e.kind {
+        ExprKind::Name(n) => Some(n.name.clone()),
+        _ => None,
+    }
+}
+
+fn arg_name(args: &[(String, Expr)], name: &str) -> Option<String> {
+    args.iter().find(|(n, _)| n == name).and_then(|(_, v)| bare(v))
+}
+
+fn member(args: &[(String, Expr)]) -> Option<String> {
+    args.iter().find(|(n, _)| matches!(n.as_str(), "input" | "slot" | "field" | "event" | "arg")).and_then(|(_, v)| bare(v))
+}
+
+fn case_of(e: &Expr) -> Option<String> {
+    match &e.kind {
+        ExprKind::Case { name, .. } => Some(name.name.clone()),
+        _ => None,
+    }
+}
+
+/// A place: `color`, or `style.color`.
+fn place(e: &Expr) -> Option<Vec<String>> {
+    match &e.kind {
+        ExprKind::Name(n) => Some(vec![n.name.clone()]),
+        ExprKind::Field { target, name } => {
+            let mut p = place(target)?;
+            p.push(name.name.clone());
+            Some(p)
+        }
+        _ => None,
+    }
+}
+
+/// A text literal's words, as written.
+fn literal_text(e: &Expr) -> String {
+    match &e.kind {
+        ExprKind::Text(t) => t.parts.iter().map(|p| match p {
+            ast::TextPart::Piece { raw, .. } => raw.clone(),
+            _ => String::new(),
+        }).collect(),
+        _ => String::new(),
+    }
+}
+
+fn first_line(s: &str) -> &str {
+    s.lines().next().unwrap_or("")
+}
+
+/// A yes or no for the whole run: asked once in a terminal; `None` where nobody can be asked.
+fn confirm(question: &str) -> Option<bool> {
+    use std::sync::Mutex;
+    static ANSWERS: Mutex<Vec<(String, bool)>> = Mutex::new(Vec::new());
+    let mut answers = ANSWERS.lock().unwrap();
+    if let Some((_, a)) = answers.iter().find(|(q, _)| q == question) {
+        return Some(*a);
+    }
+    if !std::io::stdin().is_terminal() {
+        return Some(false);
+    }
+    print!("{} [y/N] ", question);
+    let _ = std::io::stdout().flush();
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    let a = matches!(s.trim(), "y" | "Y" | "yes");
+    answers.push((question.to_string(), a));
+    Some(a)
+}
+
+/// A choice about one use, asked in a terminal; `None` where nobody can be asked.
+fn ask(question: &str, options: &[String]) -> Option<String> {
+    if !std::io::stdin().is_terminal() || options.is_empty() {
+        return None;
+    }
+    println!("{}", question);
+    for (k, o) in options.iter().enumerate() {
+        println!("  {}) {}", k + 1, o);
+    }
+    print!("[1-{}] ", options.len());
+    let _ = std::io::stdout().flush();
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    s.trim().parse::<usize>().ok().filter(|k| *k >= 1 && *k <= options.len()).map(|k| options[k - 1].clone())
+}

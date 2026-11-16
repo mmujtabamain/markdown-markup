@@ -8,9 +8,9 @@ use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use mkp_check::{FoundRef, Source};
-use mkp_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt};
-use mkp_syntax::{parse, Entry, Lines, Span};
+use mkp_check::Source;
+use mkp_syntax::ast::{self, DeclKind, Item};
+use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
                   [--dry-run | --check | --diff] [--yes] [--allow-dirty]
@@ -26,6 +26,8 @@ struct Pack {
     files: Vec<Source>,
     surfaces: BTreeMap<u32, Source>,
     steps: BTreeMap<u32, (ast::MigrationDecl, String)>,
+    /// Its migration fns, by name.
+    fns: BTreeMap<String, ast::MigrationFn>,
 }
 
 /// What migrating one file came to.
@@ -234,7 +236,7 @@ fn packs_of(sources: &[Source]) -> Vec<Pack> {
     for s in sources {
         let Some(f) = parse(&s.text, Entry::Mkp).file else { continue };
         let Some(name) = f.package.as_ref().map(|p| p.item.name.clone()) else { continue };
-        let p = packs.entry(name.clone()).or_insert_with(|| Pack { name, version: 0, files: Vec::new(), surfaces: BTreeMap::new(), steps: BTreeMap::new() });
+        let p = packs.entry(name.clone()).or_insert_with(|| Pack { name, version: 0, files: Vec::new(), surfaces: BTreeMap::new(), steps: BTreeMap::new(), fns: BTreeMap::new() });
         if let Some(v) = f.surface.as_ref().and_then(|v| v.name.parse().ok()) {
             p.surfaces.insert(v, s.clone());
             continue;
@@ -247,6 +249,9 @@ fn packs_of(sources: &[Source]) -> Vec<Pack> {
                     if let Ok(v) = m.from.version.name.parse::<u32>() {
                         p.steps.insert(v, (m.clone(), s.text.clone()));
                     }
+                }
+                Item::Decl(ast::Decl { kind: DeclKind::MigrationFn(f), .. }) => {
+                    p.fns.insert(f.sig.name.name.clone(), f.clone());
                 }
                 _ => {}
             }
@@ -368,12 +373,21 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], pa
             }
             let label = format!("{}@{}", pack.name, v + 1);
             let current = o.text.clone();
-            let edits = step_edits(&current, &doc_path, &refs, &pack.name, step, step_src, &label, &mut o);
-            if !o.refused.is_empty() {
+            let old_world: Vec<Source> = pack.surfaces.get(&v).cloned().into_iter().collect();
+            let new_world: Vec<Source> = match pack.surfaces.get(&(v + 1)) {
+                Some(s) if v + 1 < pack.version => vec![s.clone()],
+                _ => pack.files.clone(),
+            };
+            let done = crate::migrate_step::Step { text: &current, doc: &doc_path, refs: &refs, pack: &pack.name, step, label: &label, fns: &pack.fns, old: &old_world, new: &new_world }.run();
+            let _ = step_src;
+            o.deletions.extend(done.deletions);
+            o.notices.extend(done.notices);
+            if !done.refused.is_empty() {
+                o.refused.extend(done.refused);
                 return o;
             }
-            o.changes += edits.len();
-            o.text = apply(&o.text, edits);
+            o.changes += done.changes;
+            o.text = crate::migrate_step::apply(&o.text, &done.edits);
         }
     }
     if o.moved.is_empty() {
@@ -422,384 +436,6 @@ fn provided(text: &str) -> Vec<String> {
             _ => None,
         })
         .collect()
-}
-
-/// A text edit: what's between `start` and `end` becomes `text`.
-#[derive(Debug, Clone)]
-struct Edit {
-    start: usize,
-    end: usize,
-    text: String,
-}
-
-fn apply(text: &str, mut edits: Vec<Edit>) -> String {
-    edits.sort_by_key(|e| (e.start, e.end));
-    // an edit inside a deletion goes with it
-    let mut kept: Vec<Edit> = Vec::new();
-    for e in edits {
-        if let Some(last) = kept.last() {
-            if e.start < last.end {
-                if e.end <= last.end && last.text.is_empty() {
-                    continue;
-                }
-                if last.end <= e.end && e.text.is_empty() && e.start <= last.start {
-                    kept.pop();
-                }
-            }
-        }
-        kept.push(e);
-    }
-    let mut out = String::new();
-    let mut at = 0;
-    for e in kept {
-        if e.start < at {
-            continue;
-        }
-        out.push_str(&text[at..e.start]);
-        out.push_str(&e.text);
-        at = e.end;
-    }
-    out.push_str(&text[at..]);
-    out
-}
-
-/// The edits one migration makes to one file, from the references the checker found in it.
-#[allow(clippy::too_many_arguments)]
-fn step_edits(text: &str, doc: &str, refs: &[FoundRef], pack: &str, step: &ast::MigrationDecl, step_src: &str, label: &str, o: &mut Outcome) -> Vec<Edit> {
-    let lines = Lines::new(text);
-    let line_of = |s: Span| lines.place(s.start).line;
-    let mut edits = Vec::new();
-    let replace = |edits: &mut Vec<Edit>, r: &FoundRef, old: &str, new: &str| {
-        if &text[r.at.range()] == old {
-            edits.push(Edit { start: r.at.start as usize, end: r.at.end as usize, text: new.to_string() });
-        }
-    };
-    for item in step.items.iter() {
-        let MigrationItem::Block(b) = item else { continue };
-        let key = b.path.iter().map(|i| i.name.as_str()).collect::<Vec<_>>().join(".");
-        let full = format!("{}/{}", pack, key);
-        let uses: Vec<&FoundRef> = refs.iter().filter(|r| r.decl == full && r.member.is_none()).collect();
-        let full_ref = &full;
-        let members = |m: &str| refs.iter().filter(|r| r.decl == *full_ref && r.member.as_deref() == Some(m) && !r.case).collect::<Vec<_>>();
-        if uses.is_empty() && !refs.iter().any(|r| r.decl == full) {
-            continue;
-        }
-        if b.path.len() > 1 {
-            o.refused.push(format!("line {}: fns' migrations aren't applied yet ({} {})", uses.first().map(|r| line_of(r.at)).unwrap_or(1), b.kind.name, key));
-            continue;
-        }
-        for st in b.body.iter() {
-            let (op, args) = match st {
-                MigrationStmt::Stmt(Stmt::Expr(e)) => match call(e) {
-                    Some(c) => c,
-                    None => continue,
-                },
-                MigrationStmt::Event { name, body } => {
-                    for s in body.iter() {
-                        let MigrationStmt::Stmt(Stmt::Expr(e)) = s else { continue };
-                        match call(e) {
-                            Some((op, a)) if op == "rename" => {
-                                if let Some(to) = arg_name(&a, "to") {
-                                    for r in members(&name.name) {
-                                        replace(&mut edits, r, &name.name, &to);
-                                    }
-                                }
-                            }
-                            Some((op, _)) => {
-                                if let Some(r) = members(&name.name).first() {
-                                    o.refused.push(format!("line {}: an event's `{}` isn't applied yet: change the handler of {} yourself", line_of(r.at), op, name.name));
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                    continue;
-                }
-                MigrationStmt::Execute(_) | MigrationStmt::Stmt(_) => {
-                    if let Some(r) = uses.first() {
-                        o.refused.push(format!("line {}: `execute` in {}'s migration isn't applied yet", line_of(r.at), key));
-                    }
-                    continue;
-                }
-            };
-            let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| text_of(v, step_src)).map(|w| format!(": {}", w)).unwrap_or_default();
-            let member = args.iter().find(|(n, _)| matches!(n.as_str(), "input" | "slot" | "field" | "event" | "arg")).and_then(|(_, v)| bare(v));
-            match op.as_str() {
-                "rename" => {
-                    let to = arg_name(&args, "to").unwrap_or_default();
-                    if let Some(m) = &member {
-                        for r in members(m) {
-                            replace(&mut edits, r, m, &to);
-                        }
-                    } else if let Some(c) = args.iter().find(|(n, _)| n == "from").and_then(|(_, v)| case_of(v)) {
-                        let t = args.iter().find(|(n, _)| n == "to").and_then(|(_, v)| case_of(&v.clone())).unwrap_or_default();
-                        for r in refs.iter().filter(|r| r.decl == full && r.case && r.member.as_deref() == Some(c.as_str())) {
-                            replace(&mut edits, r, &c, &t);
-                        }
-                    } else {
-                        for r in &uses {
-                            replace(&mut edits, r, &key, &to);
-                        }
-                    }
-                }
-                "drop" => match &member {
-                    Some(m) => {
-                        for r in members(m) {
-                            let whole = &text[r.whole.range()];
-                            if whole.contains('\n') || whole.contains("fn(") {
-                                o.refused.push(format!("line {}: {} drops {}.{}, and this use gives it code of its own: move it yourself", line_of(r.at), label, key, m));
-                                continue;
-                            }
-                            o.deletions.push(format!("{}:{}  {}{}", doc, line_of(r.at), whole, why));
-                            edits.push(deletion(text, r.whole));
-                        }
-                    }
-                    None => {
-                        for r in &uses {
-                            let whole = &text[r.whole.range()];
-                            if whole.starts_with('@') {
-                                o.deletions.push(format!("{}:{}  {} (kept as a comment){}", doc, line_of(r.at), first_line(whole), why));
-                                edits.push(comment_out(text, r.whole, &format!("{} dropped {}{}", label, key, why)));
-                            } else {
-                                o.refused.push(format!("line {}: {} drops {}, used here: change it yourself", line_of(r.at), label, key));
-                            }
-                        }
-                    }
-                },
-                "set" | "add" => {
-                    let Some(m) = member else { continue };
-                    let Some(value) = args.iter().find(|(n, _)| n == "value").map(|(_, v)| v.clone()) else { continue };
-                    let when = args.iter().find(|(n, _)| n == "when").map(|(_, v)| v.clone());
-                    for r in &uses {
-                        let given = refs.iter().any(|x| x.decl == full && x.member.as_deref() == Some(m.as_str()) && x.at.start >= r.whole.start && x.at.end <= r.whole.end);
-                        let holds = match &when {
-                            None => Some(!given || op == "set"),
-                            Some(w) => decide(w, given),
-                        };
-                        match holds {
-                            Some(false) => {}
-                            Some(true) if given && op == "set" => {
-                                o.refused.push(format!("line {}: {} sets {}.{} where this use already gives it: change it yourself", line_of(r.at), label, key, m));
-                            }
-                            Some(true) => match insertion(text, r.whole, &format!("{} = {}", m, &step_src[value.span.range()])) {
-                                Some(e) => edits.push(e),
-                                None => o.refused.push(format!("line {}: {} gives {}.{} a value, and this use's shape isn't one it can add to yet", line_of(r.at), label, key, m)),
-                            },
-                            None => o.refused.push(format!("line {}: whether {} sets {}.{} here depends on more than what the use gives: decide it yourself", line_of(r.at), label, key, m)),
-                        }
-                    }
-                }
-                "notify" => {
-                    let when = args.iter().find(|(n, _)| n == "when").map(|(_, v)| v.clone());
-                    for r in &uses {
-                        if when.as_ref().map_or(Some(true), |w| decide(w, false)) != Some(false) {
-                            o.notices.push(format!("{}:{}  {}, {}{}", doc, line_of(r.at), label, key, why));
-                        }
-                    }
-                }
-                "example" => {}
-                other => {
-                    if let Some(r) = uses.first() {
-                        o.refused.push(format!("line {}: `{}` in {}'s migration isn't applied yet", line_of(r.at), other, key));
-                    }
-                }
-            }
-        }
-    }
-    edits
-}
-
-/// Whether a `when` holds for a use, from what it gives: `given`, `!`, `&&`, `||`, `true`,
-/// `false`, and `confirm`, asked as a yes or no. `None` when it depends on more.
-fn decide(e: &Expr, given: bool) -> Option<bool> {
-    match &e.kind {
-        ExprKind::Bool(b) => Some(*b),
-        ExprKind::Paren(x) => decide(x, given),
-        ExprKind::Unary { operand, .. } => decide(operand, given).map(|b| !b),
-        ExprKind::Binary { op, left, right } => {
-            let (l, r) = (decide(left, given), decide(right, given));
-            match op {
-                ast::BinOp::And => match (l, r) {
-                    (Some(false), _) | (_, Some(false)) => Some(false),
-                    (Some(true), Some(true)) => Some(true),
-                    _ => None,
-                },
-                ast::BinOp::Or => match (l, r) {
-                    (Some(true), _) | (_, Some(true)) => Some(true),
-                    (Some(false), Some(false)) => Some(false),
-                    _ => None,
-                },
-                _ => None,
-            }
-        }
-        ExprKind::Call { callee, args } => match &callee.kind {
-            ExprKind::Name(n) if n.name == "given" => Some(given),
-            ExprKind::Name(n) if n.name == "confirm" => {
-                let why = args.iter().find(|a| a.name.as_ref().map_or(false, |n| n.name == "why")).map(|a| format!("{:?}", a.value.kind)).unwrap_or_default();
-                Some(confirm(&why))
-            }
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-/// A yes or no for the whole run: asked once in a terminal, no elsewhere.
-fn confirm(question: &str) -> bool {
-    use std::sync::Mutex;
-    static ANSWERS: Mutex<Vec<(String, bool)>> = Mutex::new(Vec::new());
-    let mut answers = ANSWERS.lock().unwrap();
-    if let Some((_, a)) = answers.iter().find(|(q, _)| q == question) {
-        return *a;
-    }
-    let a = if std::io::stdin().is_terminal() {
-        print!("{} [y/N] ", question.trim_matches('"'));
-        let _ = std::io::stdout().flush();
-        let mut s = String::new();
-        let _ = std::io::stdin().read_line(&mut s);
-        matches!(s.trim(), "y" | "Y" | "yes")
-    } else {
-        false
-    };
-    answers.push((question.to_string(), a));
-    a
-}
-
-fn call(e: &Expr) -> Option<(String, Vec<(String, Expr)>)> {
-    let ExprKind::Call { callee, args } = &e.kind else { return None };
-    let ExprKind::Name(n) = &callee.kind else { return None };
-    Some((n.name.clone(), args.iter().map(|a| (a.name.as_ref().map(|i| i.name.clone()).unwrap_or_default(), a.value.clone())).collect()))
-}
-
-fn bare(e: &Expr) -> Option<String> {
-    match &e.kind {
-        ExprKind::Name(n) => Some(n.name.clone()),
-        _ => None,
-    }
-}
-
-fn arg_name(args: &[(String, Expr)], name: &str) -> Option<String> {
-    args.iter().find(|(n, _)| n == name).and_then(|(_, v)| bare(v))
-}
-
-fn case_of(e: &Expr) -> Option<String> {
-    match &e.kind {
-        ExprKind::Case { name, .. } => Some(name.name.clone()),
-        _ => None,
-    }
-}
-
-/// A value as the migration writes it: a text's contents for `why`, the source otherwise.
-fn text_of(e: &Expr, src: &str) -> String {
-    match &e.kind {
-        ExprKind::Text(t) => t.parts.iter().map(|p| match p {
-            ast::TextPart::Piece { raw, .. } => raw.clone(),
-            _ => String::new(),
-        }).collect(),
-        _ => src[e.span.range()].to_string(),
-    }
-}
-
-fn first_line(s: &str) -> &str {
-    s.lines().next().unwrap_or("")
-}
-
-/// A named argument or a field taken out, with the comma that joins it to its neighbours.
-fn deletion(text: &str, whole: Span) -> Edit {
-    let (mut start, mut end) = (whole.start as usize, whole.end as usize);
-    let after = &text[end..];
-    let skip = after.len() - after.trim_start_matches([' ', '\t']).len();
-    if after[skip..].starts_with(',') {
-        end += skip + 1;
-        let more = &text[end..];
-        end += more.len() - more.trim_start_matches([' ', '\t']).len();
-    } else {
-        let before = &text[..start];
-        let back = before.trim_end_matches([' ', '\t']);
-        if back.ends_with(',') {
-            start = back.len() - 1;
-        }
-    }
-    Edit { start, end, text: String::new() }
-}
-
-/// A use of a dropped widget, kept as a comment with why.
-fn comment_out(text: &str, whole: Span, note: &str) -> Edit {
-    let (ws, we) = (whole.start as usize, whole.end as usize);
-    let line_start = text[..ws].rfind('\n').map(|i| i + 1).unwrap_or(0);
-    let indent = &text[line_start..ws];
-    let body = &text[ws..we];
-    let mut out = format!("@// {}\n", note);
-    for (k, l) in body.lines().enumerate() {
-        if k > 0 {
-            out.push('\n');
-            out.push_str(indent);
-        }
-        out.push_str("@// ");
-        out.push_str(l);
-    }
-    Edit { start: ws, end: we, text: out }
-}
-
-/// `name = value` written into a use: a call's arguments or a record literal's fields.
-fn insertion(text: &str, whole: Span, arg: &str) -> Option<Edit> {
-    let use_text = &text[whole.range()];
-    let ws = whole.start as usize;
-    if use_text.starts_with('@') {
-        let name_end = use_text[1..].find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).map(|i| i + 1).unwrap_or(use_text.len());
-        if use_text[name_end..].starts_with('(') {
-            let close = matching(use_text, name_end)?;
-            let inner = use_text[name_end + 1..close].trim();
-            let at = ws + close;
-            let t = if inner.is_empty() { arg.to_string() } else { format!(", {}", arg) };
-            return Some(Edit { start: at, end: at, text: t });
-        }
-        let at = ws + name_end;
-        return Some(Edit { start: at, end: at, text: format!("({})", arg) });
-    }
-    // a record literal: `stat { … }`
-    let open = use_text.find('{')?;
-    let close = matching(use_text, open)?;
-    let inner = use_text[open + 1..close].trim();
-    let body = &use_text[open + 1..close];
-    let at = ws + open + 1 + body.trim_end().len();
-    let t = if inner.is_empty() { format!(" {} ", arg) } else { format!(", {}", arg) };
-    Some(Edit { start: at, end: at, text: t })
-}
-
-/// The bracket that closes the one at `open`, past texts and nested brackets.
-fn matching(s: &str, open: usize) -> Option<usize> {
-    let bytes = s.as_bytes();
-    let (o, c) = match bytes[open] {
-        b'(' => (b'(', b')'),
-        b'{' => (b'{', b'}'),
-        b'[' => (b'[', b']'),
-        _ => return None,
-    };
-    let mut depth = 0;
-    let mut in_text = false;
-    let mut k = open;
-    while k < bytes.len() {
-        let b = bytes[k];
-        if in_text {
-            if b == b'\\' {
-                k += 1;
-            } else if b == b'"' {
-                in_text = false;
-            }
-        } else if b == b'"' {
-            in_text = true;
-        } else if b == o {
-            depth += 1;
-        } else if b == c {
-            depth -= 1;
-            if depth == 0 {
-                return Some(k);
-            }
-        }
-        k += 1;
-    }
-    None
 }
 
 /// The stamp brought up to the versions the file now is written for, where it has one.
