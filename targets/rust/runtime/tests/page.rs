@@ -396,3 +396,112 @@ fn a_widget_of_another_kind_at_a_key_keeps_its_own_variables() {
         assert_eq!(p.observe_tree()[at].props["label"], text(&format!("two {}", k)));
     }
 }
+
+// ---- reusing what didn't change (plan tab 2: only the bindings that read what changed)
+
+const MEMO_PAGE: &str = "record task {\n    title: text;\n}\n\n$state {\n    n: int = 0;\n    tasks: list<task> = [task { title = \"a\" }, task { title = \"b\" }];\n    note: text = \"hi\";\n}\n\nwidget row(t: task) {\n    mut votes: int = 0;\n    view {\n        @press(label = \"\\{t.title}: \\{votes}\", click = fn() { votes = votes + 1; });\n    }\n}\n\nwidget board() {\n    view {\n        @label(value = \"n is \\{$state.n}\");\n        @slider(value = $state.n, label = \"N\", range = 0..100);\n        mut for (t in $state.tasks) {\n            if (mut x: task = t) {\n                @row(t = x);\n                @press(label = \"Drop\", click = fn() { $state.tasks.remove(x); });\n            }\n        }\n        @label(value = $state.note);\n    }\n}\n@@@\n# Board\n\n@board;\n";
+
+fn by_path(p: &Page) -> BTreeMap<String, Drawn> {
+    fn walk(nodes: &[Drawn], out: &mut BTreeMap<String, Drawn>) {
+        for d in nodes {
+            out.insert(d.path.clone(), d.clone());
+            for kids in d.slots.values() {
+                walk(kids, out);
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(p.tree(), &mut out);
+    out
+}
+
+#[test]
+fn a_widget_whose_reads_didnt_change_is_the_very_same_node_after_a_change() {
+    let mut p = page(MEMO_PAGE);
+    let before = by_path(&p);
+    p.write("s1/s1", "value", v(&p, num("5"))).unwrap();
+    let after = by_path(&p);
+    // what reads $state.n is drawn anew; the rows and the note are reused as they were
+    assert!(!Drawn::same(&after["s1/s0"], &before["s1/s0"]));
+    assert_eq!(p.observe_tree()["s1/s0"].props["value"], text("n is 5"));
+    for reused in ["s1/s6", "s1/s2[0]/s4/s0", "s1/s2[1]/s5", "m0"] {
+        assert!(before.contains_key(reused), "{} is drawn", reused);
+        assert!(Drawn::same(&after[reused], &before[reused]), "{} is reused", reused);
+    }
+}
+
+/// Every step, on a page with reuse and on one without: the same tree, `$state` and Markdown.
+fn same_with_and_without_reuse(source: &str, steps: &[&dyn Fn(&mut Page)]) {
+    let mut on = page(source);
+    let mut off = page_with(source, PageOptions { memo: false, ..PageOptions::default() });
+    let same = |on: &Page, off: &Page, k: usize| {
+        assert_eq!(on.observe_tree(), off.observe_tree(), "the tree after step {}", k);
+        assert_eq!(on.observe_state(), off.observe_state(), "$state after step {}", k);
+        assert_eq!(on.markdown().unwrap(), off.markdown().unwrap(), "the Markdown after step {}", k);
+    };
+    same(&on, &off, 0);
+    for (k, step) in steps.iter().enumerate() {
+        step(&mut on);
+        step(&mut off);
+        same(&on, &off, k + 1);
+        assert_eq!(on.take_outcome(), off.take_outcome(), "the outcome after step {}", k + 1);
+    }
+}
+
+#[test]
+fn with_and_without_reuse_every_step_observes_the_same_tree_state_and_markdown() {
+    same_with_and_without_reuse(
+        MEMO_PAGE,
+        &[
+            &|p| p.write("s1/s1", "value", v(p, num("7"))).unwrap(),
+            &|p| p.event("s1/s2[1]/s4/s0", "click", vec![]).unwrap(),
+            &|p| p.event("s1/s2[1]/s4/s0", "click", vec![]).unwrap(),
+            &|p| p.event("s1/s2[0]/s5", "click", vec![]).unwrap(),
+            &|p| p.set(vec![("note".into(), v(p, text("there")))]).unwrap(),
+            &|p| p.event("s1/s2[0]/s4/s0", "click", vec![]).unwrap(),
+            &|p| p.set(vec![("n".into(), v(p, num("-1")))]).unwrap(),
+            &|p| p.set_page(PageValues { width: Some(PageWidth::Narrow), theme: Some(mkp_runtime::PageTheme::Dark) }).unwrap(),
+            &|p| p.write("s1/s1", "value", v(p, num("3"))).unwrap(),
+        ],
+    );
+}
+
+#[test]
+fn an_undone_change_leaves_no_reused_node_behind() {
+    let mut p = page("$state {\n    n: int = 0;\n    total: number = 10;\n}\n\nwidget go() {\n    view {\n        @label(value = \"\\{$state.n} of \\{$state.total}\");\n        @press(label = \"Go\", click = fn() { $state.n = $state.n + 1; $state.total = $state.total / 0; });\n    }\n}\n@@@\n@go;\n");
+    p.event("s0/s1", "click", vec![]).unwrap();
+    assert_eq!(p.observe_tree()["s0/s0"].props["value"], text("0 of 10"));
+    assert_eq!(p.take_outcome().failures.len(), 1);
+}
+
+#[test]
+fn dragging_on_the_tour_page_observes_the_same_with_and_without_reuse() {
+    let source = std::fs::read_to_string(repo().join("targets/android/compose/sample/pages/tour.mkp.md")).unwrap();
+    let point = |x: &str, y: &str| {
+        Expr::Record(mkp_runtime::ir::ExprRecord { ty: "core/point".into(), fields: BTreeMap::from([("x".to_string(), num(x)), ("y".to_string(), num(y))]) })
+    };
+    let find = |p: &Page, widget: &str| p.observe_tree().into_iter().find(|(_, m)| m.widget == widget).unwrap().0;
+    let lay = |p: &mut Page| {
+        let mut m = Fixed { width: n("640"), measured: Rc::new(Cell::new(0)), grow: 0 };
+        p.layout(&mut m).unwrap();
+    };
+    let handle = |x: &'static str, y: &'static str| {
+        move |p: &mut Page| {
+            let at = find(p, "core/handle");
+            let value = v(p, point(x, y));
+            p.write(&at, "at", value).unwrap();
+            lay(p);
+        }
+    };
+    let pan = |x: &'static str, y: &'static str| {
+        move |p: &mut Page| {
+            let at = find(p, "core/plane");
+            let value = v(p, point(x, y));
+            p.write(&at, "center", value).unwrap();
+            lay(p);
+        }
+    };
+    let (h1, h2, p1, p2, h3) = (handle("0.5", "0.2"), handle("0.6", "0.1"), pan("20", "10"), pan("40", "-20"), handle("-0.3", "0.9"));
+    let dark = |p: &mut Page| p.set(vec![("dark".into(), v(p, Expr::Bool(true)))]).unwrap();
+    same_with_and_without_reuse(&source, &[&lay, &h1, &h2, &p1, &dark, &p2, &h3]);
+}

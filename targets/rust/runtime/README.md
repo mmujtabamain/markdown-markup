@@ -17,6 +17,11 @@ for every case.
 - **Layout**: `layout(&mut measure)` lays planes out from what the target measured.
 - **No drawing** and no UI dependency. Its tree holds every prop already worked out, so a target
   that draws every frame (egui) only reads it: nothing is evaluated per frame.
+- **Only what read what changed is drawn again** (plan tab 2). Each widget instance and extern
+  call drawn keeps what it read (each `$state` field, channel value, cell and own value, by
+  version), its arguments and the locals around it; a redraw reuses its subtree when none of
+  them changed, and an undo or new supplies drop every memo. A reused node is the very same
+  `Drawn` (`Drawn::same`), so a target skips it without comparing anything.
 
 ## Using it
 
@@ -88,7 +93,7 @@ println!("{}", page.markdown().unwrap());
 | | |
 |---|---|
 | `Page::from_json(json, opts)`, `Page::new(ir::File, opts)`, `Page::from_module` | Mount a page and draw it once. `PageOptions { page, state, externs, fns, supplies, defects }`. |
-| `tree() -> &[Drawn]`, `find(path)`, `revision()`, `on_change(f)` / `off_change(id)` | The drawn extern widgets. `revision()` moves at every redraw: a target that draws every frame rebuilds what it caches when it moves. |
+| `tree() -> &[Drawn]`, `find(path)`, `revision()`, `on_change(f)` / `off_change(id)` | The drawn extern widgets: shared nodes that never change, read through `Deref` as `DrawnNode`s. `revision()` moves at every redraw; `Drawn::same(a, b)` says a node is the one drawn before, reused with everything in it. |
 | `event(path, name, args)`, `write(path, input, value)` | The reader's changes, on a drawn widget by its path. |
 | `set(changes)`, `expose(channel, fn, args)`, `set_extern(channel, values)`, `set_page(PageValues)` | The app's changes: `$state` checked for type, then contract, then rules. |
 | `set_supplies(f)`, `missing()` | Which extern widgets the target draws; one it doesn't shows its Markdown (page 6). |
@@ -102,6 +107,10 @@ println!("{}", page.markdown().unwrap());
 A method returns `Err(Failure)` only for a failure outside any widget or handler, as @mkp/runtime
 throws: a prop of the document's own that can't be worked out. Everything else is contained and
 reported in `take_outcome()`.
+
+`PageOptions { memo: false, .. }` (or `set_memo(false)`) draws every widget anew on every change:
+the same observations, for comparing the two. `examples/drag_bench.rs` times a drag both ways in
+one run (`cargo run --release -p mkp-runtime --example drag_bench -- <page.mkp.md>`).
 
 `fns` are the value fns the target supplies, by full name, each given the page's machine:
 `core/moment.local` reads the reader's time zone, `core/can_draw_tex` says which TeX it draws.
