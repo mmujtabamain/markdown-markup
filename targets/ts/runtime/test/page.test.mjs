@@ -261,3 +261,56 @@ test("a widget in a list slot writes its Markdown with its inputs", () => {
   p.event(press, "click");
   assert.deepEqual(p.observeTree()[press].props.label, { text: "a: 2" });
 });
+
+// ---- reusing what didn't change (plan tab 2: only the bindings that read what changed)
+
+const MEMO_PAGE =
+  'record task {\n    title: text;\n}\n\n$state {\n    n: int = 0;\n    tasks: list<task> = [task { title = "a" }, task { title = "b" }];\n    note: text = "hi";\n}\n\nwidget row(t: task) {\n    mut votes: int = 0;\n    view {\n        @press(label = "\\{t.title}: \\{votes}", click = fn() { votes = votes + 1; });\n    }\n}\n\nwidget board() {\n    view {\n        @label(value = "n is \\{$state.n}");\n        @slider(value = $state.n, label = "N", range = 0..100);\n        mut for (t in $state.tasks) {\n            if (mut x: task = t) {\n                @row(t = x);\n                @press(label = "Drop", click = fn() { $state.tasks.remove(x); });\n            }\n        }\n        @label(value = $state.note);\n    }\n}\n@@@\n# Board\n\n@board;\n';
+
+test("a widget whose reads didn't change is the very same node after a change", () => {
+  const p = page(MEMO_PAGE);
+  const before = new Map(p.tree().flatMap(function all(d) { return [[d.path, d], ...[...d.slots.values()].flat().flatMap(all)]; }));
+  p.write("s1/s1", "value", p.value(num(5)));
+  const after = new Map(p.tree().flatMap(function all(d) { return [[d.path, d], ...[...d.slots.values()].flat().flatMap(all)]; }));
+  // what reads $state.n is drawn anew; the rows and the note are reused as they were
+  assert.notEqual(after.get("s1/s0"), before.get("s1/s0"));
+  assert.deepEqual(p.observeTree()["s1/s0"].props.value, { text: "n is 5" });
+  for (const reused of ["s1/s6", "s1/s2[0]/s4/s0", "s1/s2[1]/s5", "m0"]) {
+    assert.ok(before.get(reused), `${reused} is drawn`);
+    assert.equal(after.get(reused), before.get(reused), `${reused} is reused`);
+  }
+});
+
+test("with and without reuse, every step observes the same tree, $state and Markdown", () => {
+  const on = page(MEMO_PAGE);
+  const off = page(MEMO_PAGE, { memo: false });
+  const same = () => {
+    assert.deepEqual(on.observeTree(), off.observeTree());
+    assert.deepEqual(on.observeState(), off.observeState());
+    assert.equal(on.markdown(), off.markdown());
+  };
+  same();
+  const steps = [
+    (p) => p.write("s1/s1", "value", p.value(num(7))),
+    (p) => p.event("s1/s2[1]/s4/s0", "click"),
+    (p) => p.event("s1/s2[1]/s4/s0", "click"),
+    (p) => p.event("s1/s2[0]/s5", "click"),
+    (p) => p.set({ note: p.value({ text: "there" }) }),
+    (p) => p.event("s1/s2[0]/s4/s0", "click"),
+    (p) => p.set({ n: p.value(num(-1)) }),
+    (p) => p.setPage({ width: "NARROW", theme: "DARK" }),
+    (p) => p.write("s1/s1", "value", p.value(num(3))),
+  ];
+  for (const step of steps) {
+    step(on);
+    step(off);
+    same();
+  }
+});
+
+test("an undone change leaves no reused node behind", () => {
+  const p = page('$state {\n    n: int = 0;\n    total: number = 10;\n}\n\nwidget go() {\n    view {\n        @label(value = "\\{$state.n} of \\{$state.total}");\n        @press(label = "Go", click = fn() { $state.n = $state.n + 1; $state.total = $state.total / 0; });\n    }\n}\n@@@\n@go;\n');
+  p.event("s0/s1", "click");
+  assert.deepEqual(p.observeTree()["s0/s0"].props.value, { text: "0 of 10" });
+  assert.equal(p.takeOutcome().failures.length, 1);
+});

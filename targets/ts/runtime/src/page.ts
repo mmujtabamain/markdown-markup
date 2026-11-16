@@ -29,6 +29,9 @@ export interface PageOptions {
   supplies?: (widget: string) => boolean;
   /** For the test target only: defects to switch on. */
   defects?: string[];
+  /** Reuse a widget's drawn subtree when nothing it read has changed (on by default). Off
+   * draws every widget anew on every change, for comparing the two. */
+  memo?: boolean;
 }
 
 /** Where a node's values are read: its widget instance, the locals around it, its path as
@@ -84,6 +87,36 @@ interface Instance {
   seen: boolean;
 }
 
+/** What a widget's drawing read and made, so a redraw can reuse it while none of it changed. */
+interface Frame {
+  /** Each outside value read, by key (`s:field`, `x:channel.value`, `c:id:cell`, `o:key`), with
+   * its version then. */
+  deps: Map<string, number>;
+  /** The instances drawn inside it, with their paths: seen again when it is reused. */
+  nested: [Instance, string][];
+  own: string[];
+  missed: string[];
+  /** The extern calls drawn inside it, whose memos a reuse keeps. */
+  ext: string[];
+  /** It failed, or asked the app for a value: drawn anew every time. */
+  dirty: boolean;
+}
+
+interface Memo extends Frame {
+  template: string;
+  path: string;
+  owner: number | undefined;
+  args: V[];
+  bindings: [string, Binding][];
+  slots: Record<string, ir.Node[]>;
+  events: Record<string, string>;
+  epoch: number;
+  drawn: Drawn[];
+}
+
+const NO_NODES: Record<string, ir.Node[]> = {};
+const NO_EVENTS: Record<string, string> = {};
+
 function join(path: string, part: string): string {
   return path ? `${path}/${part}` : part;
 }
@@ -123,6 +156,16 @@ export class Page {
   private outcome: Outcome = { refused: [], failures: [] };
   private drawn: Drawn[] = [];
   private readonly listeners = new Set<() => void>();
+  /** Each outside value's version, bumped when it is written, and the epoch, bumped when every
+   * memo must go (an undo, what the target supplies). */
+  private versions = new Map<string, number>();
+  private epoch = 0;
+  private memo = new Map<string, Memo>();
+  private externMemo = new Map<string, Frame & { node: ir.NodeExtern; path: string; owner: number | undefined; bindings: [string, Binding][]; epoch: number; drawn: Drawn[] }>();
+  /** The extern calls drawn this redraw: the memos of the rest are dropped after it. */
+  private externSeen = new Set<string>();
+  private frames: Frame[] = [];
+  private readonly memoOn: boolean;
   /** How many changes came from outside the layout: the reader's, the app's, the page's
    * values. A layout that didn't settle is held until the next one. */
   changes = 0;
@@ -145,6 +188,7 @@ export class Page {
     this.defects = new Set(opts.defects ?? []);
     this.targetFns = opts.fns ?? {};
     this.supplies = opts.supplies ?? (() => true);
+    this.memoOn = opts.memo ?? true;
     this.module = "ir" in ir ? ir.ir : ir;
     this.program = Program.fromModule(this.module);
     for (const t of this.module.templates) {
@@ -312,6 +356,7 @@ export class Page {
       }
       if (!this.own.has(node.key)) this.own.set(node.key, new Map());
       this.own.get(node.key)!.set(input, value);
+      this.bump(`o:${node.key}`);
       this.redraw();
       return;
     }
@@ -361,6 +406,7 @@ export class Page {
         } else {
           if (!this.own.has(node.key)) this.own.set(node.key, new Map());
           this.own.get(node.key)!.set(input, value);
+      this.bump(`o:${node.key}`);
         }
         changed = true;
       } catch {
@@ -419,6 +465,7 @@ export class Page {
         return;
       }
       this.state.set(k, v);
+      this.bump(`s:${k}`);
     }
     const rule = this.defect("unchecked-app-writes") ? undefined : this.stateRuleBroken();
     if (rule) {
@@ -446,7 +493,10 @@ export class Page {
   /** The app giving a channel's values. */
   setExtern(channel: string, values: Record<string, V>): void {
     this.changes++;
-    for (const [k, v] of Object.entries(values)) this.externs.set(`${channel}.${k}`, v);
+    for (const [k, v] of Object.entries(values)) {
+      this.externs.set(`${channel}.${k}`, v);
+      this.bump(`x:${channel}.${k}`);
+    }
     this.redraw();
   }
 
@@ -461,6 +511,7 @@ export class Page {
    * as @mkp/dom does from its registry. The page is drawn again. */
   setSupplies(supplies: (widget: string) => boolean): void {
     this.supplies = supplies;
+    this.epoch++;
     this.missed.clear();
     this.redraw();
   }
@@ -488,8 +539,14 @@ export class Page {
   }
 
   private applyPage(page: PageValues): void {
-    if (page.width) this.externs.set("core/page.width", caseOf("core/width", page.width));
-    if (page.theme) this.externs.set("core/page.theme", caseOf("core/theme", page.theme));
+    if (page.width) {
+      this.externs.set("core/page.width", caseOf("core/width", page.width));
+      this.bump("x:core/page.width");
+    }
+    if (page.theme) {
+      this.externs.set("core/page.theme", caseOf("core/theme", page.theme));
+      this.bump("x:core/page.theme");
+    }
   }
 
   /** Whether a value has a type's shape. The app's values come from outside, so their type is
@@ -544,11 +601,13 @@ export class Page {
       read(m: Machine, what: Outer, owner?: number): V {
         switch (what.kind) {
           case "state": {
+            page.track(`s:${what.name}`);
             const v = page.state.get(what.name);
             if (!v) throw new Failure("Ir", `$state has no field ${what.name}`);
             return v;
           }
           case "extern": {
+            page.track(`x:${what.name}`);
             const v = page.externs.get(what.name);
             if (!v) throw new Failure("NotConstant", `${what.name} is given by the app`);
             return v;
@@ -570,6 +629,7 @@ export class Page {
             return v;
           }
           case "cell": {
+            if (owner !== undefined) page.track(`c:${owner}:${what.name}`);
             const v = owner === undefined ? undefined : page.instances.get(owner)?.cells.get(what.name);
             if (!v) throw new Failure("Ir", `no variable ${what.name}`);
             return v;
@@ -588,6 +648,7 @@ export class Page {
             const f = page.stateDecl?.fields.find((f) => f.name === what.name);
             if (f && !page.defect("unchecked-writes") && !m.fits(value, f.type)) throw new Failure("Rule", `$state.${what.name} is outside its contract`);
             page.state.set(what.name, value);
+            page.bump(`s:${what.name}`);
             return;
           }
           case "cell": {
@@ -596,6 +657,7 @@ export class Page {
             const c = inst.template.cells.find((c) => c.name === what.name);
             if (c && !page.defect("unchecked-writes") && !m.fits(value, c.type)) throw new Failure("Rule", `${what.name} is outside its contract`);
             inst.cells.set(what.name, value);
+            page.bump(`c:${inst.id}:${what.name}`);
             return;
           }
           case "input": {
@@ -613,6 +675,7 @@ export class Page {
         const own = page.targetFns[name];
         if (own) return own(args);
         if (!page.appFns.has(name)) return undefined;
+        for (const f of page.frames) f.dirty = true;
         if (!page.defect("lost-calls")) page.calls.push({ call: { name, args: args.map(toIr) } });
         return null;
       },
@@ -712,6 +775,7 @@ export class Page {
   }
 
   private restore(s: ReturnType<Page["snapshot"]>): void {
+    this.epoch++;
     this.state = s.state;
     for (const [id, cells] of s.cells) {
       const i = this.instances.get(id);
@@ -765,6 +829,7 @@ export class Page {
     this.missed.clear();
     this.atPath = new Map();
     this.ownSeen = new Set();
+    this.externSeen = new Set();
     const doc = this.templates.get("doc");
     this.drawn = doc ? this.drawNodes(doc.view, { owner: undefined, bindings: [], path: "" }) : [];
     // a widget that left the page leaves with its variables
@@ -772,10 +837,14 @@ export class Page {
       if (!i.seen) {
         this.instances.delete(id);
         // a widget of another kind may have taken its key this redraw: that one stays
-        if (this.byPath.get(i.path) === i) this.byPath.delete(i.path);
+        if (this.byPath.get(i.path) === i) {
+          this.byPath.delete(i.path);
+          this.memo.delete(i.path);
+        }
       }
     }
     for (const k of [...this.own.keys()]) if (!this.ownSeen.has(k)) this.own.delete(k);
+    for (const k of [...this.externMemo.keys()]) if (!this.externSeen.has(k)) this.externMemo.delete(k);
     for (const l of this.listeners) l();
   }
 
@@ -847,7 +916,53 @@ export class Page {
     return undefined;
   }
 
+  /** An extern widget's call: reused from the last redraw when it is the same call at the same
+   * place, with the same locals around it, and nothing it read has changed. */
   private drawExtern(x: ir.NodeExtern, env: Env): Drawn[] {
+    const key = join(env.key ?? env.path, x.site);
+    const path = join(env.path, x.site);
+    const m = this.externMemo.get(key);
+    if (this.memoOn && m && m.node === x && m.epoch === this.epoch && m.path === path && m.owner === env.owner && [...m.deps].every(([k, v]) => (this.versions.get(k) ?? 0) === v) && this.sameBindings(m.bindings, env.bindings)) {
+      this.replay(m);
+      this.externSeen.add(key);
+      for (const f of this.frames) f.ext.push(key);
+      return m.drawn;
+    }
+    const frame: Frame = { deps: new Map(), nested: [], own: [], missed: [], ext: [], dirty: false };
+    this.frames.push(frame);
+    let drawn: Drawn[];
+    try {
+      drawn = this.drawExternNow(x, env);
+    } finally {
+      this.frames.pop();
+    }
+    if (this.memoOn && !frame.dirty) this.externMemo.set(key, { ...frame, node: x, path, owner: env.owner, bindings: env.bindings, epoch: this.epoch, drawn });
+    else this.externMemo.delete(key);
+    this.externSeen.add(key);
+    for (const f of this.frames) f.ext.push(key);
+    return drawn;
+  }
+
+  /** What a reused subtree did when it was drawn: its instances are seen again, and every widget
+   * being drawn around it is told what it read. */
+  private replay(m: Frame): void {
+    for (const [inst, p] of m.nested) {
+      inst.seen = true;
+      this.atPath.set(p, inst);
+    }
+    for (const k of m.own) this.ownSeen.add(k);
+    for (const n of m.missed) this.missed.add(n);
+    for (const k of m.ext) this.externSeen.add(k);
+    for (const f of this.frames) {
+      for (const [k, v] of m.deps) if (!f.deps.has(k)) f.deps.set(k, v);
+      f.nested.push(...m.nested);
+      f.own.push(...m.own);
+      f.missed.push(...m.missed);
+      f.ext.push(...m.ext);
+    }
+  }
+
+  private drawExternNow(x: ir.NodeExtern, env: Env): Drawn[] {
     const path = join(env.path, x.site);
     const key = join(env.key ?? env.path, x.site);
     const props = new Map<string, V>();
@@ -865,6 +980,7 @@ export class Page {
     // blocks the target does: its markdown block, in an instance holding its inputs
     if (w && !this.supplies(x.name)) {
       this.missed.add(x.name);
+      for (const f of this.frames) f.missed.push(x.name);
       const inst = this.enterExtern(w, path, props, x.slots ?? {}, env);
       try {
         return this.drawNodes(w.markdown ?? [], { ...inst, path, key });
@@ -873,9 +989,11 @@ export class Page {
       }
     }
     // what it wrote to its own `mut` inputs stands until the caller gives them a variable
+    this.track(`o:${key}`);
     const own = this.own.get(key);
     if (own) {
       this.ownSeen.add(key);
+      for (const f of this.frames) f.own.push(key);
       for (const [k, v] of own) if (!writes.has(k)) props.set(k, v);
     }
     const slots = new Map<string, Drawn[]>();
@@ -892,16 +1010,81 @@ export class Page {
       // an extern widget held as a view value
       return this.drawExtern({ name, site: path.split("/").pop()!, props: args, slots, events, writes: {}, levels, fallback: [] } as ir.NodeExtern, { ...env, path: path.split("/").slice(0, -1).join("/") });
     }
+    const reused = this.reuse(name, path, key, args, slots, events, env);
+    if (reused) return reused;
+    const frame: Frame = { deps: new Map(), nested: [], own: [], missed: [], ext: [], dirty: false };
+    this.frames.push(frame);
+    let drawn: Drawn[];
     try {
       const own = this.enterUse(t, path, args, slots, events, env, key);
-      return this.drawNodes(t.view, own);
+      drawn = this.drawNodes(t.view, own);
     } catch (f) {
-      return [this.failed(name, path, f)];
+      drawn = [this.failed(name, path, f)];
+    } finally {
+      this.frames.pop();
     }
+    const inst = this.byPath.get(key);
+    if (this.memoOn && !frame.dirty && inst) {
+      this.memo.set(key, { ...frame, template: name, path, owner: env.owner, args: this.argValues(args, env), bindings: env.bindings, slots, events, epoch: this.epoch, drawn });
+    } else {
+      this.memo.delete(key);
+    }
+    return drawn;
+  }
+
+  // ---- reusing what a widget drew (plan tab 2: only the bindings that read what changed)
+
+  /** A read of an outside value, for every widget being drawn. */
+  track(key: string): void {
+    if (!this.frames.length) return;
+    const v = this.versions.get(key) ?? 0;
+    for (const f of this.frames) if (!f.deps.has(key)) f.deps.set(key, v);
+  }
+
+  /** An outside value written: every memo that read it is out of date. */
+  bump(key: string): void {
+    this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
+  }
+
+  private argValues(args: Record<string, ir.Expr>, env: Env): V[] {
+    return Object.keys(args)
+      .sort()
+      .map((k) => {
+        const e = args[k];
+        return "place" in e ? this.machine.evalWith(env.bindings, env.owner, e) : this.evalIn(env, e);
+      });
+  }
+
+  /** The widget's subtree from the last redraw, when it is called the same way at the same place
+   * and nothing it read has changed since: its instances, own values and missing widgets are
+   * seen again, and every widget around it is told what it read. */
+  private reuse(name: string, path: string, key: string, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, events: Record<string, string>, env: Env): Drawn[] | undefined {
+    const m = this.memo.get(key);
+    if (!this.memoOn || !m || m.epoch !== this.epoch || m.template !== name || m.path !== path || m.owner !== env.owner) return undefined;
+    if (!sameRecord(m.slots, slots) || !sameRecord(m.events, events)) return undefined;
+    for (const [k, v] of m.deps) if ((this.versions.get(k) ?? 0) !== v) return undefined;
+    if (!this.sameBindings(m.bindings, env.bindings)) return undefined;
+    const now = this.argValues(args, env);
+    if (now.length !== m.args.length || now.some((v, k) => !this.machine.equal(v, m.args[k]))) return undefined;
+    this.replay(m);
+    return m.drawn;
+  }
+
+  private sameBindings(a: [string, Binding][], b: [string, Binding][]): boolean {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    return a.every(([n, x], k) => {
+      const [m, y] = b[k];
+      if (n !== m) return false;
+      if ("value" in x && "value" in y) return x.value === y.value || this.machine.equal(x.value, y.value);
+      if ("ref" in x && "ref" in y) return JSON.stringify(x.ref) === JSON.stringify(y.ref);
+      return false;
+    });
   }
 
   /** A widget that failed: reported once, and a notice in its place (page 6). */
   failed(name: string, path: string, f: unknown): Drawn {
+    for (const fr of this.frames) fr.dirty = true;
     const broken: Broken = f instanceof Failure && f.kind === "Rule" && f.rule ? { rule: f.rule, site: path } : { code: failureCode(f), site: path };
     if (!this.outcome.failures.some((b) => b.site === path && b.code === broken.code && b.rule === broken.rule)) this.outcome.failures.push(broken);
     return { path, key: path, widget: "#notice", props: new Map([["message", { kind: "text", s: `${name.split("/").pop()} failed: ${message(f)}` } as V]]), slots: new Map(), events: new Map(), writes: new Map(), levels: [] };
@@ -921,6 +1104,7 @@ export class Page {
     const it = inst!;
     it.seen = true;
     this.atPath.set(path, it);
+    for (const f of this.frames) f.nested.push([it, path]);
     it.places.clear();
     it.inputs.clear();
     for (const [k, e] of Object.entries(args)) {
@@ -1072,6 +1256,12 @@ function shaderName(f: V): string {
   if (!call) return "";
   const passes = call.args.length === f.params.length && call.args.every((a, k) => (a as { get?: { local?: string } }).get?.local === f.params[k].name);
   return passes ? call.name : "";
+}
+
+function sameRecord<T>(a: Record<string, T>, b: Record<string, T>): boolean {
+  if (a === b) return true;
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
 }
 
 function numOf(n: number) {

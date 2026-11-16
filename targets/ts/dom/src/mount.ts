@@ -116,6 +116,8 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
   }
 
   function update(e: Entry, d: Drawn): void {
+    // the page reused this node: nothing it shows changed, unless the theme its colours follow did
+    if (e.d === d && !restyle) return;
     e.d = d;
     try {
       e.view.update(d);
@@ -187,6 +189,10 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
     }
   }
 
+  /** The theme last drawn with: when it changes, every widget is updated, reused or not. */
+  let theme: string | undefined;
+  let restyle = false;
+
   function render(): void {
     if (!live) return;
     if (rendering) {
@@ -196,6 +202,10 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
     rendering = true;
     const refocus = focusOf(root);
     try {
+      const now = page.externsNow().get("core/page.theme");
+      const name = now?.kind === "case" ? now.name : undefined;
+      restyle = name !== theme;
+      theme = name;
       for (let k = 0; k < 4; k++) {
         again = false;
         tokens.apply(root);
@@ -204,6 +214,7 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
       }
     } finally {
       rendering = false;
+      restyle = false;
     }
     refocus?.();
   }
