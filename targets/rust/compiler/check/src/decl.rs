@@ -23,6 +23,32 @@ pub struct Out {
 }
 
 impl Checker {
+
+    /// Every pack's externs, with the version its pack block says: a target supplies a pack's
+    /// externs from the pack, and checks the list when it mounts the page.
+    fn pack_needs(&self) -> Vec<ir::NeedsPacks> {
+        let mut out = Vec::new();
+        for (name, rec) in &self.packs {
+            if name == "core" || *name == self.module {
+                continue;
+            }
+            let mut externs: Vec<String> = self.defs.iter().filter(|d| &d.pack == name && matches!(d.kind, DefKind::Widget { external: true, .. })).map(|d| d.full.clone()).collect();
+            externs.extend(self.fns.iter().filter(|f| &f.pack == name && f.external).map(|f| f.full.clone()));
+            if externs.is_empty() {
+                continue;
+            }
+            externs.sort();
+            externs.dedup();
+            let version = rec.files.iter().find_map(|&f| {
+                self.files[f].ast.items.iter().find_map(|n| match &n.item {
+                    ast::Item::Decl(ast::Decl { kind: ast::DeclKind::Pack(p), .. }) => p.version.name.parse::<i64>().ok(),
+                    _ => None,
+                })
+            });
+            out.push(ir::NeedsPacks { name: name.clone(), version: version.unwrap_or(1), externs });
+        }
+        out
+    }
     pub(crate) fn decl_of(&self, d: DefId) -> ast::DeclKind {
         let ast = self.files[self.defs[d].file].ast.clone();
         match &ast.items[self.defs[d].item].item {
@@ -552,7 +578,7 @@ impl Checker {
             module: self.module.clone(),
             levels: Vec::new(),
             front_matter: self.front_matter(),
-            needs: ir::Needs { core: core_needs, packs: Vec::new(), app: app_needs },
+            needs: ir::Needs { core: core_needs, packs: self.pack_needs(), app: app_needs },
             declarations: decls,
             templates,
             bindings: Vec::new(),
