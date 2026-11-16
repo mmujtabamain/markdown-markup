@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1
+#
+# The playground for a DevBench preview, whose build context is this folder only
+# (apps/playground). The rest of the repository it needs (core, the compiler, @mkp/runtime,
+# @mkp/dom and the graphs pack) is cloned from GitHub at the same branch; the playground's own
+# files come from the context. Dockerfile beside it does the same from the repository root.
+#
+#   devbench deploy config set markdown-markup/apps/playground --dockerfile Dockerfile.preview --port 8080
+
+ARG REPO=https://github.com/mmujtabamain/markdown-markup
+ARG REF=devbench/dsl-format
+
+# ---- 0. the repository at the branch: the ref is fetched first, so a new push is a new layer
+#         and the clone is never one an earlier build cached
+
+FROM rust:1-bookworm AS source
+ARG REPO
+ARG REF
+ADD https://api.github.com/repos/mmujtabamain/markdown-markup/git/refs/heads/devbench/dsl-format /tmp/ref.json
+RUN git clone --depth 1 --branch "$REF" "$REPO.git" /src
+
+# ---- 1. the compiler: `mkp`, with core embedded in it at build time
+
+FROM rust:1-bookworm AS compiler
+COPY --from=source /src/core /src/core
+COPY --from=source /src/targets/rust /src/targets/rust
+# members of targets/rust's workspace, so cargo can load it
+COPY --from=source /src/targets/android/mkp /src/targets/android/mkp
+WORKDIR /src/targets/rust
+RUN cargo build --release --locked -p mkp-cli \
+ && strip target/release/mkp \
+ && printf '@@@\n# Hello\n' > /tmp/smoke.mkp.md \
+ && ./target/release/mkp check /tmp/smoke.mkp.md
+
+# ---- 2. the UI: @mkp/runtime and @mkp/dom built, then bundled with the playground's own code
+
+FROM node:22-bookworm-slim AS ui
+ENV npm_config_fund=false npm_config_audit=false npm_config_update_notifier=false
+WORKDIR /src
+COPY --from=source /src/targets/ts/runtime ./targets/ts/runtime
+COPY --from=source /src/targets/ts/dom ./targets/ts/dom
+COPY . ./apps/playground
+RUN set -e; \
+    for d in targets/ts/runtime targets/ts/dom apps/playground; do \
+      cd "/src/$d"; \
+      rm -rf node_modules dist; \
+      if [ -f package-lock.json ]; then npm ci; else npm install; fi; \
+    done; \
+    cd /src/targets/ts/runtime && npm run build; \
+    cd /src/targets/ts/dom && npm run build; \
+    cd /src/apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css
+
+# ---- 3. what runs
+
+FROM node:22-bookworm-slim
+ENV NODE_ENV=production \
+    PORT=8080 \
+    MKP_BINARY=/usr/local/bin/mkp
+WORKDIR /app
+COPY --from=compiler /src/targets/rust/target/release/mkp /usr/local/bin/mkp
+# the packs a page may import (server.mjs: PACKS), where they are in the repo
+COPY --from=source /src/examples/graphs ./examples/graphs
+COPY --from=ui /src/apps/playground/server.mjs /src/apps/playground/index.html /src/apps/playground/package.json ./apps/playground/
+COPY --from=ui /src/apps/playground/examples ./apps/playground/examples
+COPY --from=ui /src/apps/playground/dist ./apps/playground/dist
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 8080) + '/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+CMD ["node", "apps/playground/server.mjs"]
