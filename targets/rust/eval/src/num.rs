@@ -255,7 +255,10 @@ impl Num {
         let mut c = cx();
         c.set_rounding(dec::Rounding::HalfUp);
         let quantum = c.parse(format!("1E-{}", places).as_str()).unwrap();
-        let s = Num::plain(c.quantize(self.0, quantum));
+        let q = c.quantize(self.0, quantum);
+        // more than 34 digits up to that place: then every digit it has is above it, so nothing
+        // rounds, and its exact form is the answer (quantize would give NaN)
+        let s = if q.is_nan() { *self } else { Num::plain(q) };
         let mut text = s.show();
         if places > 0 {
             let have = text.split_once('.').map(|(_, f)| f.len()).unwrap_or(0);
@@ -682,6 +685,14 @@ mod tests {
         assert!(n("0").pow(n("-1")).unwrap().is_none());
         assert!(n("-8").pow(n("0.5")).unwrap().is_none());
         assert_eq!(n("-2").pow(n("3")).unwrap().unwrap().show(), "-8");
+    }
+
+    #[test]
+    fn fmt_past_34_digits_writes_the_exact_number() {
+        let big = Num::parse("1000000000000000000000000000000").unwrap();
+        assert_eq!(big.fmt(10), "1000000000000000000000000000000.0000000000");
+        assert_eq!(Num::parse("-12345678901234567890123456789012.5").unwrap().fmt(4), "-12345678901234567890123456789012.5000");
+        assert_eq!(Num::parse("2.345").unwrap().fmt(2), "2.35");
     }
 
     #[test]

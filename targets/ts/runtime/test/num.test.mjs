@@ -137,6 +137,11 @@ describe("34 digits, halves to even", () => {
     assert.equal(n("-2").div(n("3")).show(), "-0.6666666666666666666666666666666667");
   });
 
+  test("fmt past 34 digits writes the exact number, padded, as num.rs now does", () => {
+    assert.equal(n("1000000000000000000000000000000").fmt(10), "1000000000000000000000000000000.0000000000");
+    assert.equal(n("-12345678901234567890123456789012.5").fmt(4), "-12345678901234567890123456789012.5000");
+  });
+
   test("pow rounds its result halves to even, as a product does (page 2)", () => {
     assert.equal(n("100000000000000005").pow(n("2")).show(), "10000000000000001000000000000000020");
     assert.equal(n("100000000000000005").pow(n("2")).show(), n("100000000000000005").mul(n("100000000000000005")).show());
