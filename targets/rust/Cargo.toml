@@ -11,6 +11,7 @@ members = [
     "egui",
     "schemagen",
     "cli",
+    "../android/mkp",
 ]
 
 [workspace.package]

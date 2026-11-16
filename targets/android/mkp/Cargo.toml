@@ -1,0 +1,34 @@
+[package]
+name = "mkp-android"
+description = "MKP's native runtime for Android: mkp-runtime behind a UniFFI interface, from which uniffi-bindgen writes the Kotlin bindings that mkp-android (targets/android/compose) draws with Compose."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+# a member of the Rust workspace in targets/rust, which isn't above this folder
+workspace = "../../rust"
+
+[lib]
+name = "mkp_android"
+# cdylib: libmkp_android.so, for Android's processors and for the host's JVM (Robolectric, through JNA)
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+# the bindings' generator, built only with --features bindgen (README: "The Kotlin bindings")
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+mkp-runtime = { path = "../../rust/runtime" }
+mkp-eval = { path = "../../rust/eval" }
+mkp-ir = { path = "../../rust/compiler/ir" }
+serde.workspace = true
+serde_json.workspace = true
+uniffi = "=0.29.5"
+
+[dev-dependencies]
+mkp-check = { path = "../../rust/compiler/check" }
+mkp-lower = { path = "../../rust/compiler/lower" }
