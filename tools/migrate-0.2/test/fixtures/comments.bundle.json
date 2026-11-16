@@ -1,0 +1,9023 @@
+{
+ "ir": 1,
+ "mkp": "0.2.10",
+ "level": "bundle",
+ "doc": {
+  "file": "comments.mkp.md",
+  "front": {
+   "title": "Comments everywhere"
+  },
+  "body": [
+   {
+    "node": "heading",
+    "def": "core:heading@1",
+    "props": {
+     "level": {
+      "lit": 1
+     },
+     "text": {
+      "text": "Release notes"
+     }
+    },
+    "pos": [
+     5,
+     1
+    ]
+   },
+   {
+    "node": "paragraph",
+    "def": "core:paragraph@1",
+    "props": {
+     "text": {
+      "text": "See the [plan][p] and the [board][]."
+     }
+    },
+    "pos": [
+     9,
+     1
+    ]
+   },
+   {
+    "node": "stats",
+    "def": "devbench:stats@1",
+    "props": {},
+    "pos": [
+     33,
+     1
+    ],
+    "meta": {
+     "summary": "Two numbers from this week.",
+     "block": 0,
+     "place": 0
+    },
+    "records": [
+     {
+      "node": "$record",
+      "record": "stat",
+      "input": "items",
+      "props": {
+       "label": {
+        "text": "Deploys"
+       },
+       "value": {
+        "text": "42"
+       },
+       "change": {
+        "text": "+12%"
+       },
+       "note": {
+        "text": ""
+       },
+       "tone": {
+        "tok": "none",
+        "kind": "color"
+       },
+       "trend": {
+        "lit": []
+       }
+      },
+      "pos": [
+       37,
+       5
+      ]
+     },
+     {
+      "node": "$record",
+      "record": "stat",
+      "input": "items",
+      "props": {
+       "label": {
+        "text": "Rollbacks"
+       },
+       "value": {
+        "text": "1"
+       },
+       "tone": {
+        "tok": "bad",
+        "kind": "color"
+       },
+       "change": {
+        "text": ""
+       },
+       "note": {
+        "text": ""
+       },
+       "trend": {
+        "lit": []
+       }
+      },
+      "pos": [
+       38,
+       5
+      ]
+     }
+    ]
+   },
+   {
+    "node": "rows",
+    "def": "devbench:rows@1",
+    "props": {},
+    "pos": [
+     42,
+     1
+    ],
+    "meta": {
+     "summary": "One row.",
+     "block": 1,
+     "place": 1
+    },
+    "records": [
+     {
+      "node": "$record",
+      "record": "entry",
+      "input": "items",
+      "props": {
+       "title": {
+        "text": "First"
+       },
+       "note": {
+        "text": "Written one field a line"
+       },
+       "state": {
+        "lit": "done"
+       },
+       "icon": {
+        "lit": "none"
+       },
+       "tone": {
+        "tok": "none",
+        "kind": "color"
+       },
+       "badge": {
+        "text": ""
+       },
+       "meta": {
+        "text": ""
+       }
+      },
+      "pos": [
+       44,
+       5
+      ]
+     }
+    ]
+   },
+   {
+    "node": "callout",
+    "def": "devbench:callout@1",
+    "props": {
+     "title": {
+      "text": "Watch out"
+     },
+     "tone": {
+      "tok": "warn",
+      "kind": "color"
+     }
+    },
+    "pos": [
+     51,
+     1
+    ],
+    "children": [
+     {
+      "node": "paragraph",
+      "def": "core:paragraph@1",
+      "props": {
+       "text": {
+        "text": "Inside the callout."
+       }
+      },
+      "pos": [
+       52,
+       1
+      ]
+     }
+    ],
+    "meta": {
+     "place": 2
+    }
+   },
+   {
+    "node": "tile",
+    "def": "$doc:tile@1",
+    "props": {
+     "value": {
+      "text": "7"
+     }
+    },
+    "pos": [
+     60,
+     1
+    ],
+    "meta": {
+     "summary": "A tile.",
+     "block": 2,
+     "place": 3
+    }
+   }
+  ],
+  "digest": "sha256:5a80f70c388b49685a31f547565ed41711ab243c14699013b5f3bfe4397e7d41"
+ },
+ "defs": {
+  "$doc:tile@1": {
+   "ir": 1,
+   "kind": "widget",
+   "id": "$doc:tile@1",
+   "name": "tile",
+   "version": 1,
+   "pack": "$doc",
+   "file": "comments.mkp.md",
+   "about": "One number in a box.",
+   "inputs": [
+    {
+     "name": "value",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      18,
+      3
+     ],
+     "comment": [
+      "the number, as text"
+     ]
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      19,
+      3
+     ],
+     "about": "its tint",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    }
+   ],
+   "pos": [
+    16,
+    1
+   ],
+   "comment": [
+    "what the tile is for, above the definition"
+   ],
+   "values": [
+    {
+     "k": "var",
+     "name": "n",
+     "type": {
+      "t": "int"
+     },
+     "default": {
+      "lit": 0
+     },
+     "pos": [
+      21,
+      3
+     ],
+     "comment": [
+      "how many times it was pressed"
+     ]
+    }
+   ],
+   "view": [
+    {
+     "node": "column",
+     "def": "core:column@1",
+     "props": {
+      "pad": {
+       "tok": "m",
+       "kind": "space"
+      },
+      "stroke": {
+       "tok": "line",
+       "kind": "color"
+      },
+      "radius": {
+       "tok": "card",
+       "kind": "radius"
+      }
+     },
+     "pos": [
+      24,
+      3
+     ],
+     "meta": {
+      "comment": [
+       "the box itself"
+      ]
+     },
+     "children": [
+      {
+       "node": "text",
+       "def": "core:text@1",
+       "props": {
+        "size": {
+         "lit": "large"
+        },
+        "weight": {
+         "lit": "bold"
+        },
+        "value": {
+         "expr": "value",
+         "ast": {
+          "t": "var",
+          "name": "value",
+          "from": "inst"
+         },
+         "type": {
+          "t": "text"
+         },
+         "pos": [
+          26,
+          10
+         ],
+         "static": true
+        }
+       },
+       "pos": [
+        26,
+        5
+       ],
+       "meta": {
+        "comment": [
+         "the number, large"
+        ]
+       }
+      },
+      {
+       "node": "press",
+       "def": "core:press@1",
+       "props": {
+        "label": {
+         "text": "more"
+        }
+       },
+       "pos": [
+        28,
+        5
+       ],
+       "on": {
+        "click": [
+         {
+          "a": "set",
+          "name": "n",
+          "target": "var",
+          "value": {
+           "expr": "n + 1",
+           "ast": {
+            "t": "builtin",
+            "fn": "+",
+            "args": [
+             {
+              "t": "var",
+              "name": "n",
+              "from": "inst"
+             },
+             {
+              "t": "num",
+              "v": 1
+             }
+            ]
+           },
+           "type": {
+            "t": "int"
+           },
+           "pos": [
+            29,
+            18
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "project": {
+    "md": {
+     "expr": "value",
+     "ast": {
+      "t": "var",
+      "name": "value",
+      "from": "inst"
+     },
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      30,
+      3
+     ],
+     "static": true
+    }
+   },
+   "inline": true,
+   "digest": "sha256:8996f2e442d68ca726321bdbdfdd394a8f2ba9b9c2189e139c78332676d1c833"
+  },
+  "core:press@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:press@1",
+   "name": "press",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "Anything clickable and focusable: a button, a tab, an option among others, an on/off toggle or switch, an answer row with a tick (check) or a dot (radio), or its content itself, such as a card (plain).",
+   "inputs": [
+    {
+     "name": "kind",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "button",
+       "tab",
+       "option",
+       "toggle",
+       "switch",
+       "check",
+       "radio",
+       "plain"
+      ]
+     },
+     "pos": [
+      129,
+      3
+     ],
+     "default": {
+      "lit": "button"
+     }
+    },
+    {
+     "name": "selected",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      130,
+      3
+     ],
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "disabled",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      131,
+      3
+     ],
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "label",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      132,
+      3
+     ],
+     "about": "accessible name when the content has no text",
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      133,
+      3
+     ],
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "emphasis",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "low",
+       "normal",
+       "high"
+      ]
+     },
+     "pos": [
+      134,
+      3
+     ],
+     "about": "how much it stands out: low for one of a row of quiet buttons, high for the one to press",
+     "default": {
+      "lit": "normal"
+     }
+    },
+    {
+     "name": "mark",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      135,
+      3
+     ],
+     "about": "an answer row's letter (A, B, C), shown in its tick or dot until it is chosen",
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      136,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    128,
+    1
+   ],
+   "outs": [
+    {
+     "name": "click"
+    },
+    {
+     "name": "enter",
+     "about": "the pointer moved onto it, or it took focus"
+    },
+    {
+     "name": "leave",
+     "about": "the pointer left it, or it lost focus"
+    }
+   ],
+   "digest": "sha256:b0978320d2537aa692f4b2f2a4f9d191058317d6344619bd8c97cc565cc59215"
+  },
+  "core:text@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:text@1",
+   "name": "text",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "A styled run of inline Markdown with inline maths.",
+   "inputs": [
+    {
+     "name": "value",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      110,
+      3
+     ],
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "font",
+     "type": {
+      "t": "token",
+      "kind": "font"
+     },
+     "pos": [
+      111,
+      3
+     ],
+     "default": {
+      "tok": "body",
+      "kind": "font"
+     }
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      112,
+      3
+     ],
+     "about": "its colour; none: the colour around it (a press's, a list's)",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "weight",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "regular",
+       "medium",
+       "bold"
+      ]
+     },
+     "pos": [
+      113,
+      3
+     ],
+     "default": {
+      "lit": "regular"
+     }
+    },
+    {
+     "name": "size",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "small",
+       "normal",
+       "large"
+      ]
+     },
+     "pos": [
+      114,
+      3
+     ],
+     "default": {
+      "lit": "normal"
+     }
+    },
+    {
+     "name": "align",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end"
+      ]
+     },
+     "pos": [
+      115,
+      3
+     ],
+     "default": {
+      "lit": "start"
+     }
+    },
+    {
+     "name": "wrap",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      116,
+      3
+     ],
+     "default": {
+      "lit": true
+     }
+    },
+    {
+     "name": "lines",
+     "type": {
+      "t": "int",
+      "lo": 0,
+      "hi": 24
+     },
+     "pos": [
+      117,
+      3
+     ],
+     "about": "height kept for this many lines, so a shorter text moves nothing below it",
+     "default": {
+      "lit": 0
+     }
+    },
+    {
+     "name": "clip",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      118,
+      3
+     ],
+     "about": "cut it at lines= lines, with an ellipsis",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "literal",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      119,
+      3
+     ],
+     "about": "show the value as it is, not read as inline Markdown",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "caps",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      120,
+      3
+     ],
+     "about": "in spaced capitals: a caption or a label over a column",
+     "default": {
+      "lit": false
+     }
+    }
+   ],
+   "pos": [
+    108,
+    1
+   ],
+   "fields": [
+    "value"
+   ],
+   "digest": "sha256:38079126794bd3259f279b04e6f9ef019c6e560cecaa2fa4bff5847551070d3e"
+  },
+  "core:column@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:column@1",
+   "name": "column",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "Children one below another.",
+   "inputs": [
+    {
+     "name": "align",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch",
+       "baseline"
+      ]
+     },
+     "pos": [
+      7,
+      3
+     ],
+     "about": "how children sit across it; a child's self= overrides",
+     "default": {
+      "lit": "stretch"
+     }
+    },
+    {
+     "name": "justify",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "between",
+       "around"
+      ]
+     },
+     "pos": [
+      8,
+      3
+     ],
+     "about": "where the children sit down it, when it is taller than they are",
+     "default": {
+      "lit": "start"
+     }
+    },
+    {
+     "name": "pad",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      9,
+      3
+     ],
+     "about": "inner padding",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "padx",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      10,
+      3
+     ],
+     "about": "padding at the left and right, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "pady",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      11,
+      3
+     ],
+     "about": "padding at the top and bottom, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "gap",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      12,
+      3
+     ],
+     "about": "space between children",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "width",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "auto",
+       "fit",
+       "fill"
+      ]
+     },
+     "pos": [
+      13,
+      3
+     ],
+     "about": "fit: as wide as its widest child; fill: the whole row",
+     "default": {
+      "lit": "auto"
+     }
+    },
+    {
+     "name": "minwidth",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      14,
+      3
+     ],
+     "about": "never narrower than this; with scroll=x, what doesn't fit scrolls sideways",
+     "default": {
+      "tok": "none",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "scroll",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "none",
+       "x"
+      ]
+     },
+     "pos": [
+      15,
+      3
+     ],
+     "about": "x: scrolls sideways when narrower than its content",
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "fill",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      16,
+      3
+     ],
+     "about": "background",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "tint",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      17,
+      3
+     ],
+     "about": "a wash of this colour behind it: a state, not a surface",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "stroke",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      18,
+      3
+     ],
+     "about": "border",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "line",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "solid",
+       "dashed",
+       "dotted"
+      ]
+     },
+     "pos": [
+      19,
+      3
+     ],
+     "about": "the border's line",
+     "default": {
+      "lit": "solid"
+     }
+    },
+    {
+     "name": "edge",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "all",
+       "top",
+       "right",
+       "bottom",
+       "left",
+       "x",
+       "y"
+      ]
+     },
+     "pos": [
+      20,
+      3
+     ],
+     "about": "which sides the border is drawn on",
+     "default": {
+      "lit": "all"
+     }
+    },
+    {
+     "name": "weight",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "thin",
+       "normal",
+       "thick"
+      ]
+     },
+     "pos": [
+      21,
+      3
+     ],
+     "about": "the border's width",
+     "default": {
+      "lit": "thin"
+     }
+    },
+    {
+     "name": "radius",
+     "type": {
+      "t": "token",
+      "kind": "radius"
+     },
+     "pos": [
+      22,
+      3
+     ],
+     "about": "corner radius",
+     "default": {
+      "tok": "none",
+      "kind": "radius"
+     }
+    },
+    {
+     "name": "shadow",
+     "type": {
+      "t": "token",
+      "kind": "shadow"
+     },
+     "pos": [
+      23,
+      3
+     ],
+     "default": {
+      "tok": "none",
+      "kind": "shadow"
+     }
+    },
+    {
+     "name": "dim",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      24,
+      3
+     ],
+     "about": "faded back, while something else is in focus",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "blur",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      25,
+      3
+     ],
+     "about": "blurred past reading, until it is revealed",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      26,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    6,
+    1
+   ],
+   "outs": [
+    {
+     "name": "click",
+     "about": "a press on its background, not on a child (pointer only)"
+    },
+    {
+     "name": "enter",
+     "about": "the pointer moved onto it (pointer only: a container takes no focus)"
+    },
+    {
+     "name": "leave",
+     "about": "the pointer left it (pointer only)"
+    }
+   ],
+   "digest": "sha256:371107047626bb3fd092ff55b9d94572ffb4947e6b75a475f7f9f162d6fc657f"
+  },
+  "core:paragraph@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:paragraph@1",
+   "name": "paragraph",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "A paragraph of inline Markdown.",
+   "inputs": [
+    {
+     "name": "text",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      202,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    200,
+    1
+   ],
+   "fields": [
+    "text"
+   ],
+   "digest": "sha256:d773eda64d4ea0e7df9559ec0ae9841f5165f26f890c8e4ea385ab29676420e5"
+  },
+  "devbench:callout@1": {
+   "ir": 1,
+   "kind": "widget",
+   "id": "devbench:callout@1",
+   "name": "callout",
+   "version": 1,
+   "pack": "devbench",
+   "file": "devbench/callout.mkp",
+   "about": "A note set off from the text in its tone: a soft wash and a border all round, the icon and title in the tone over the message.",
+   "inputs": [
+    {
+     "name": "title",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      3,
+      3
+     ],
+     "about": "a first line, in the tone, beside the icon; none for a message alone",
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      4,
+      3
+     ],
+     "about": "info, ok, warn, bad or accent",
+     "default": {
+      "tok": "info",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "icon",
+     "type": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "pos": [
+      5,
+      3
+     ],
+     "about": "the symbol; none for the tone's own (info, check, alert, lightbulb)",
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      6,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    2,
+    1
+   ],
+   "values": [
+    {
+     "k": "fn",
+     "name": "glyph",
+     "fn": "local:devbench:callout@1:glyph#0",
+     "params": [
+      {
+       "name": "t",
+       "type": {
+        "t": "token",
+        "kind": "color"
+       }
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": "if(t == ok, check, if(t == warn or t == bad, alert, if(t == accent, lightbulb, info)))",
+     "pos": [
+      7,
+      3
+     ]
+    }
+   ],
+   "view": [
+    {
+     "node": "column",
+     "def": "core:column@1",
+     "props": {
+      "gap": {
+       "tok": "s",
+       "kind": "space"
+      },
+      "padx": {
+       "tok": "l",
+       "kind": "space"
+      },
+      "pady": {
+       "tok": "m",
+       "kind": "space"
+      },
+      "radius": {
+       "tok": "card",
+       "kind": "radius"
+      },
+      "tint": {
+       "expr": "tone",
+       "ast": {
+        "t": "var",
+        "name": "tone",
+        "from": "inst"
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        8,
+        42
+       ],
+       "static": true
+      },
+      "stroke": {
+       "expr": "tone",
+       "ast": {
+        "t": "var",
+        "name": "tone",
+        "from": "inst"
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        8,
+        52
+       ],
+       "static": true
+      }
+     },
+     "pos": [
+      8,
+      3
+     ],
+     "children": [
+      {
+       "node": "row",
+       "def": "core:row@1",
+       "props": {
+        "gap": {
+         "tok": "m",
+         "kind": "space"
+        },
+        "align": {
+         "lit": "center"
+        },
+        "wrap": {
+         "lit": false
+        }
+       },
+       "pos": [
+        9,
+        5
+       ],
+       "meta": {
+        "if": {
+         "expr": "title != \"\"",
+         "ast": {
+          "t": "builtin",
+          "fn": "!=",
+          "args": [
+           {
+            "t": "var",
+            "name": "title",
+            "from": "inst"
+           },
+           {
+            "t": "str",
+            "v": ""
+           }
+          ]
+         },
+         "type": {
+          "t": "bool"
+         },
+         "pos": [
+          9,
+          39
+         ],
+         "static": true
+        }
+       },
+       "children": [
+        {
+         "node": "icon",
+         "def": "core:icon@1",
+         "props": {
+          "name": {
+           "expr": "if(icon == none, glyph(tone), icon)",
+           "ast": {
+            "t": "if",
+            "c": {
+             "t": "builtin",
+             "fn": "==",
+             "args": [
+              {
+               "t": "var",
+               "name": "icon",
+               "from": "inst"
+              },
+              {
+               "t": "str",
+               "v": "none"
+              }
+             ]
+            },
+            "a": {
+             "t": "call",
+             "fn": "local:devbench:callout@1:glyph#0",
+             "args": [
+              {
+               "t": "var",
+               "name": "tone",
+               "from": "inst"
+              }
+             ]
+            },
+            "b": {
+             "t": "var",
+             "name": "icon",
+             "from": "inst"
+            }
+           },
+           "type": {
+            "t": "choice",
+            "opts": [
+             "none",
+             "play",
+             "pause",
+             "prev",
+             "next",
+             "more",
+             "less",
+             "first",
+             "last",
+             "reset",
+             "check",
+             "cross",
+             "plus",
+             "minus",
+             "up",
+             "down",
+             "left",
+             "right",
+             "ban",
+             "alert",
+             "info",
+             "help",
+             "lock",
+             "unlock",
+             "eye",
+             "edit",
+             "search",
+             "user",
+             "users",
+             "file",
+             "folder",
+             "database",
+             "server",
+             "cloud",
+             "mail",
+             "clock",
+             "calendar",
+             "flag",
+             "target",
+             "gauge",
+             "layers",
+             "branch",
+             "box",
+             "square",
+             "circle",
+             "dot",
+             "star",
+             "bolt",
+             "link",
+             "key",
+             "shield",
+             "cart",
+             "chart",
+             "code",
+             "terminal",
+             "bell",
+             "home",
+             "settings",
+             "sliders",
+             "trash",
+             "copy",
+             "download",
+             "upload",
+             "expand",
+             "lightbulb",
+             "book"
+            ]
+           },
+           "pos": [
+            10,
+            12
+           ],
+           "static": true
+          },
+          "tone": {
+           "expr": "tone",
+           "ast": {
+            "t": "var",
+            "name": "tone",
+            "from": "inst"
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            10,
+            55
+           ],
+           "static": true
+          }
+         },
+         "pos": [
+          10,
+          7
+         ]
+        },
+        {
+         "node": "text",
+         "def": "core:text@1",
+         "props": {
+          "weight": {
+           "lit": "medium"
+          },
+          "tone": {
+           "expr": "tone",
+           "ast": {
+            "t": "var",
+            "name": "tone",
+            "from": "inst"
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            11,
+            32
+           ],
+           "static": true
+          },
+          "value": {
+           "expr": "title",
+           "ast": {
+            "t": "var",
+            "name": "title",
+            "from": "inst"
+           },
+           "type": {
+            "t": "text"
+           },
+           "pos": [
+            11,
+            12
+           ],
+           "static": true
+          }
+         },
+         "pos": [
+          11,
+          7
+         ]
+        }
+       ]
+      },
+      {
+       "node": "column",
+       "def": "core:column@1",
+       "props": {
+        "gap": {
+         "tok": "xs",
+         "kind": "space"
+        }
+       },
+       "pos": [
+        12,
+        5
+       ],
+       "meta": {
+        "if": {
+         "expr": "title != \"\"",
+         "ast": {
+          "t": "builtin",
+          "fn": "!=",
+          "args": [
+           {
+            "t": "var",
+            "name": "title",
+            "from": "inst"
+           },
+           {
+            "t": "str",
+            "v": ""
+           }
+          ]
+         },
+         "type": {
+          "t": "bool"
+         },
+         "pos": [
+          12,
+          19
+         ],
+         "static": true
+        }
+       },
+       "children": [
+        {
+         "node": "slot",
+         "value": {
+          "expr": "body",
+          "ast": {
+           "t": "var",
+           "name": "body",
+           "from": "inst"
+          },
+          "type": {
+           "t": "slot"
+          },
+          "pos": [
+           13,
+           12
+          ],
+          "static": true
+         },
+         "pos": [
+          13,
+          7
+         ]
+        }
+       ]
+      },
+      {
+       "node": "row",
+       "def": "core:row@1",
+       "props": {
+        "gap": {
+         "tok": "m",
+         "kind": "space"
+        },
+        "align": {
+         "lit": "start"
+        },
+        "wrap": {
+         "lit": false
+        }
+       },
+       "pos": [
+        14,
+        5
+       ],
+       "meta": {
+        "if": {
+         "expr": "title == \"\"",
+         "ast": {
+          "t": "builtin",
+          "fn": "==",
+          "args": [
+           {
+            "t": "var",
+            "name": "title",
+            "from": "inst"
+           },
+           {
+            "t": "str",
+            "v": ""
+           }
+          ]
+         },
+         "type": {
+          "t": "bool"
+         },
+         "pos": [
+          14,
+          38
+         ],
+         "static": true
+        }
+       },
+       "children": [
+        {
+         "node": "icon",
+         "def": "core:icon@1",
+         "props": {
+          "name": {
+           "expr": "if(icon == none, glyph(tone), icon)",
+           "ast": {
+            "t": "if",
+            "c": {
+             "t": "builtin",
+             "fn": "==",
+             "args": [
+              {
+               "t": "var",
+               "name": "icon",
+               "from": "inst"
+              },
+              {
+               "t": "str",
+               "v": "none"
+              }
+             ]
+            },
+            "a": {
+             "t": "call",
+             "fn": "local:devbench:callout@1:glyph#0",
+             "args": [
+              {
+               "t": "var",
+               "name": "tone",
+               "from": "inst"
+              }
+             ]
+            },
+            "b": {
+             "t": "var",
+             "name": "icon",
+             "from": "inst"
+            }
+           },
+           "type": {
+            "t": "choice",
+            "opts": [
+             "none",
+             "play",
+             "pause",
+             "prev",
+             "next",
+             "more",
+             "less",
+             "first",
+             "last",
+             "reset",
+             "check",
+             "cross",
+             "plus",
+             "minus",
+             "up",
+             "down",
+             "left",
+             "right",
+             "ban",
+             "alert",
+             "info",
+             "help",
+             "lock",
+             "unlock",
+             "eye",
+             "edit",
+             "search",
+             "user",
+             "users",
+             "file",
+             "folder",
+             "database",
+             "server",
+             "cloud",
+             "mail",
+             "clock",
+             "calendar",
+             "flag",
+             "target",
+             "gauge",
+             "layers",
+             "branch",
+             "box",
+             "square",
+             "circle",
+             "dot",
+             "star",
+             "bolt",
+             "link",
+             "key",
+             "shield",
+             "cart",
+             "chart",
+             "code",
+             "terminal",
+             "bell",
+             "home",
+             "settings",
+             "sliders",
+             "trash",
+             "copy",
+             "download",
+             "upload",
+             "expand",
+             "lightbulb",
+             "book"
+            ]
+           },
+           "pos": [
+            15,
+            12
+           ],
+           "static": true
+          },
+          "tone": {
+           "expr": "tone",
+           "ast": {
+            "t": "var",
+            "name": "tone",
+            "from": "inst"
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            15,
+            55
+           ],
+           "static": true
+          }
+         },
+         "pos": [
+          15,
+          7
+         ]
+        },
+        {
+         "node": "column",
+         "def": "core:column@1",
+         "props": {
+          "gap": {
+           "tok": "xs",
+           "kind": "space"
+          }
+         },
+         "pos": [
+          16,
+          7
+         ],
+         "meta": {
+          "grow": true
+         },
+         "children": [
+          {
+           "node": "slot",
+           "value": {
+            "expr": "body",
+            "ast": {
+             "t": "var",
+             "name": "body",
+             "from": "inst"
+            },
+            "type": {
+             "t": "slot"
+            },
+            "pos": [
+             17,
+             14
+            ],
+            "static": true
+           },
+           "pos": [
+            17,
+            9
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "fns": {
+    "local:devbench:callout@1:glyph#0": {
+     "name": "glyph",
+     "params": [
+      "t"
+     ],
+     "types": [
+      {
+       "t": "token",
+       "kind": "color"
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "==",
+       "args": [
+        {
+         "t": "var",
+         "name": "t",
+         "from": "local"
+        },
+        {
+         "t": "str",
+         "v": "ok"
+        }
+       ]
+      },
+      "a": {
+       "t": "str",
+       "v": "check"
+      },
+      "b": {
+       "t": "if",
+       "c": {
+        "t": "or",
+        "a": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "t",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "warn"
+          }
+         ]
+        },
+        "b": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "t",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "bad"
+          }
+         ]
+        }
+       },
+       "a": {
+        "t": "str",
+        "v": "alert"
+       },
+       "b": {
+        "t": "if",
+        "c": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "t",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "accent"
+          }
+         ]
+        },
+        "a": {
+         "t": "str",
+         "v": "lightbulb"
+        },
+        "b": {
+         "t": "str",
+         "v": "info"
+        }
+       }
+      }
+     },
+     "src": "if(t == ok, check, if(t == warn or t == bad, alert, if(t == accent, lightbulb, info)))",
+     "local": true,
+     "pos": [
+      7,
+      3
+     ],
+     "file": "devbench/callout.mkp"
+    }
+   },
+   "digest": "sha256:e77bf5f56e428f60c7c5b491323518ddaa010e7d6a582e70a5474fddad07be4c"
+  },
+  "core:icon@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:icon@1",
+   "name": "icon",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "A symbol from a fixed set, drawn in the provider's own icon style.",
+   "inputs": [
+    {
+     "name": "name",
+     "type": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "pos": [
+      276,
+      3
+     ],
+     "about": "which symbol; none draws nothing"
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      277,
+      3
+     ],
+     "about": "its colour; none: the text's",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "size",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "small",
+       "normal",
+       "large"
+      ]
+     },
+     "pos": [
+      278,
+      3
+     ],
+     "default": {
+      "lit": "normal"
+     }
+    },
+    {
+     "name": "label",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      279,
+      3
+     ],
+     "about": "what it means, when it stands for words",
+     "default": {
+      "text": ""
+     }
+    }
+   ],
+   "pos": [
+    274,
+    1
+   ],
+   "fields": [
+    "name"
+   ],
+   "digest": "sha256:190d44531868c4552ab8931446d3520e3a40844dfc1aefef230389839a7b681b"
+  },
+  "core:row@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:row@1",
+   "name": "row",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "Children side by side, wrapping onto more lines (or scrolling) when they don't fit.",
+   "inputs": [
+    {
+     "name": "align",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch",
+       "baseline"
+      ]
+     },
+     "pos": [
+      32,
+      3
+     ],
+     "about": "how children sit across it; a child's self= overrides",
+     "default": {
+      "lit": "start"
+     }
+    },
+    {
+     "name": "justify",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "between",
+       "around"
+      ]
+     },
+     "pos": [
+      33,
+      3
+     ],
+     "about": "where the children sit along it; center keeps its start in view when it overflows",
+     "default": {
+      "lit": "start"
+     }
+    },
+    {
+     "name": "wrap",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      34,
+      3
+     ],
+     "about": "false: one line, which scrolls with scroll=x",
+     "default": {
+      "lit": true
+     }
+    },
+    {
+     "name": "pad",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      35,
+      3
+     ],
+     "about": "inner padding",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "padx",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      36,
+      3
+     ],
+     "about": "padding at the left and right, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "pady",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      37,
+      3
+     ],
+     "about": "padding at the top and bottom, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "gap",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      38,
+      3
+     ],
+     "about": "space between children",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "width",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "auto",
+       "fit",
+       "fill"
+      ]
+     },
+     "pos": [
+      39,
+      3
+     ],
+     "about": "fit: as wide as its widest child; fill: the whole row",
+     "default": {
+      "lit": "auto"
+     }
+    },
+    {
+     "name": "minwidth",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      40,
+      3
+     ],
+     "about": "never narrower than this; with scroll=x, what doesn't fit scrolls sideways",
+     "default": {
+      "tok": "none",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "scroll",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "none",
+       "x"
+      ]
+     },
+     "pos": [
+      41,
+      3
+     ],
+     "about": "x: scrolls sideways when narrower than its content",
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "fill",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      42,
+      3
+     ],
+     "about": "background",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "tint",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      43,
+      3
+     ],
+     "about": "a wash of this colour behind it: a state, not a surface",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "stroke",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      44,
+      3
+     ],
+     "about": "border",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "line",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "solid",
+       "dashed",
+       "dotted"
+      ]
+     },
+     "pos": [
+      45,
+      3
+     ],
+     "about": "the border's line",
+     "default": {
+      "lit": "solid"
+     }
+    },
+    {
+     "name": "edge",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "all",
+       "top",
+       "right",
+       "bottom",
+       "left",
+       "x",
+       "y"
+      ]
+     },
+     "pos": [
+      46,
+      3
+     ],
+     "about": "which sides the border is drawn on",
+     "default": {
+      "lit": "all"
+     }
+    },
+    {
+     "name": "weight",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "thin",
+       "normal",
+       "thick"
+      ]
+     },
+     "pos": [
+      47,
+      3
+     ],
+     "about": "the border's width",
+     "default": {
+      "lit": "thin"
+     }
+    },
+    {
+     "name": "radius",
+     "type": {
+      "t": "token",
+      "kind": "radius"
+     },
+     "pos": [
+      48,
+      3
+     ],
+     "about": "corner radius",
+     "default": {
+      "tok": "none",
+      "kind": "radius"
+     }
+    },
+    {
+     "name": "shadow",
+     "type": {
+      "t": "token",
+      "kind": "shadow"
+     },
+     "pos": [
+      49,
+      3
+     ],
+     "default": {
+      "tok": "none",
+      "kind": "shadow"
+     }
+    },
+    {
+     "name": "dim",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      50,
+      3
+     ],
+     "about": "faded back, while something else is in focus",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "blur",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      51,
+      3
+     ],
+     "about": "blurred past reading, until it is revealed",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      52,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    31,
+    1
+   ],
+   "outs": [
+    {
+     "name": "click",
+     "about": "a press on its background, not on a child (pointer only)"
+    },
+    {
+     "name": "enter",
+     "about": "the pointer moved onto it (pointer only: a container takes no focus)"
+    },
+    {
+     "name": "leave",
+     "about": "the pointer left it (pointer only)"
+    }
+   ],
+   "digest": "sha256:791d50b1fab7f5db235c3b6fdd96802ebc3c74e63823dff14e6fccf7f702c063"
+  },
+  "devbench:rows@1": {
+   "ir": 1,
+   "kind": "widget",
+   "id": "devbench:rows@1",
+   "name": "rows",
+   "version": 1,
+   "pack": "devbench",
+   "file": "devbench/rows.mkp",
+   "about": "A list of things, one a row: a state or an icon, a title with a badge, a note under it and a detail on the right. Checks, services, files, people, links.",
+   "inputs": [
+    {
+     "name": "items",
+     "type": {
+      "t": "records",
+      "kind": "entry",
+      "fields": [
+       [
+        "title",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "note",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "state",
+        {
+         "t": "named",
+         "name": "state"
+        }
+       ],
+       [
+        "icon",
+        {
+         "t": "named",
+         "name": "iconname"
+        }
+       ],
+       [
+        "tone",
+        {
+         "t": "token",
+         "kind": "color"
+        }
+       ],
+       [
+        "badge",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "meta",
+        {
+         "t": "text"
+        }
+       ]
+      ],
+      "slot": false,
+      "defaults": {
+       "note": "\"\"",
+       "state": "none",
+       "icon": "none",
+       "tone": "none",
+       "badge": "\"\"",
+       "meta": "\"\""
+      }
+     },
+     "pos": [
+      3,
+      3
+     ],
+     "about": "the rows; title and note are inline Markdown, so a title can be a link"
+    }
+   ],
+   "pos": [
+    2,
+    1
+   ],
+   "values": [
+    {
+     "k": "fn",
+     "name": "hue",
+     "fn": "local:devbench:rows@1:hue#0",
+     "params": [
+      {
+       "name": "e",
+       "type": {
+        "t": "named",
+        "name": "entry"
+       }
+      }
+     ],
+     "ret": {
+      "t": "token",
+      "kind": "color"
+     },
+     "body": "if(e.tone != none, e.tone, statetone(e.state))",
+     "pos": [
+      4,
+      3
+     ]
+    },
+    {
+     "k": "fn",
+     "name": "mark",
+     "fn": "local:devbench:rows@1:mark#0",
+     "params": [
+      {
+       "name": "e",
+       "type": {
+        "t": "named",
+        "name": "entry"
+       }
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": "if(e.icon != none, e.icon, stateicon(e.state))",
+     "pos": [
+      5,
+      3
+     ]
+    }
+   ],
+   "view": [
+    {
+     "node": "column",
+     "def": "core:column@1",
+     "props": {
+      "stroke": {
+       "tok": "line",
+       "kind": "color"
+      },
+      "radius": {
+       "tok": "card",
+       "kind": "radius"
+      }
+     },
+     "pos": [
+      6,
+      3
+     ],
+     "children": [
+      {
+       "node": "each",
+       "var": "k",
+       "in": {
+        "range": [
+         {
+          "lit": 0
+         },
+         {
+          "expr": "len(items) - 1",
+          "ast": {
+           "t": "builtin",
+           "fn": "-",
+           "args": [
+            {
+             "t": "builtin",
+             "fn": "len",
+             "args": [
+              {
+               "t": "var",
+               "name": "items",
+               "from": "inst"
+              }
+             ]
+            },
+            {
+             "t": "num",
+             "v": 1
+            }
+           ]
+          },
+          "type": {
+           "t": "int"
+          },
+          "pos": [
+           7,
+           15
+          ],
+          "static": true
+         }
+        ]
+       },
+       "pos": [
+        7,
+        5
+       ],
+       "key": {
+        "expr": "k",
+        "ast": {
+         "t": "var",
+         "name": "k",
+         "from": "local"
+        },
+        "type": {
+         "t": "int"
+        },
+        "pos": [
+         7,
+         35
+        ]
+       },
+       "children": [
+        {
+         "node": "row",
+         "def": "core:row@1",
+         "props": {
+          "gap": {
+           "tok": "m",
+           "kind": "space"
+          },
+          "pad": {
+           "tok": "m",
+           "kind": "space"
+          },
+          "align": {
+           "lit": "center"
+          },
+          "edge": {
+           "lit": "top"
+          },
+          "stroke": {
+           "expr": "if(k == 0, none, line)",
+           "ast": {
+            "t": "if",
+            "c": {
+             "t": "builtin",
+             "fn": "==",
+             "args": [
+              {
+               "t": "var",
+               "name": "k",
+               "from": "local"
+              },
+              {
+               "t": "num",
+               "v": 0
+              }
+             ]
+            },
+            "a": {
+             "t": "str",
+             "v": "none"
+            },
+            "b": {
+             "t": "str",
+             "v": "line"
+            }
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            8,
+            45
+           ]
+          },
+          "wrap": {
+           "lit": false
+          }
+         },
+         "pos": [
+          8,
+          7
+         ],
+         "children": [
+          {
+           "node": "marker",
+           "def": "devbench:marker@1",
+           "props": {
+            "outline": {
+             "lit": false
+            },
+            "icon": {
+             "expr": "mark(items[k])",
+             "ast": {
+              "t": "call",
+              "fn": "local:devbench:rows@1:mark#0",
+              "args": [
+               {
+                "t": "index",
+                "o": {
+                 "t": "var",
+                 "name": "items",
+                 "from": "inst"
+                },
+                "i": {
+                 "t": "var",
+                 "name": "k",
+                 "from": "local"
+                }
+               }
+              ]
+             },
+             "type": {
+              "t": "named",
+              "name": "iconname"
+             },
+             "pos": [
+              9,
+              16
+             ]
+            },
+            "tone": {
+             "expr": "hue(items[k])",
+             "ast": {
+              "t": "call",
+              "fn": "local:devbench:rows@1:hue#0",
+              "args": [
+               {
+                "t": "index",
+                "o": {
+                 "t": "var",
+                 "name": "items",
+                 "from": "inst"
+                },
+                "i": {
+                 "t": "var",
+                 "name": "k",
+                 "from": "local"
+                }
+               }
+              ]
+             },
+             "type": {
+              "t": "token",
+              "kind": "color"
+             },
+             "pos": [
+              9,
+              33
+             ]
+            }
+           },
+           "pos": [
+            9,
+            9
+           ],
+           "meta": {
+            "if": {
+             "expr": "mark(items[k]) != none",
+             "ast": {
+              "t": "builtin",
+              "fn": "!=",
+              "args": [
+               {
+                "t": "call",
+                "fn": "local:devbench:rows@1:mark#0",
+                "args": [
+                 {
+                  "t": "index",
+                  "o": {
+                   "t": "var",
+                   "name": "items",
+                   "from": "inst"
+                  },
+                  "i": {
+                   "t": "var",
+                   "name": "k",
+                   "from": "local"
+                  }
+                 }
+                ]
+               },
+               {
+                "t": "str",
+                "v": "none"
+               }
+              ]
+             },
+             "type": {
+              "t": "bool"
+             },
+             "pos": [
+              9,
+              63
+             ]
+            }
+           }
+          },
+          {
+           "node": "column",
+           "def": "core:column@1",
+           "props": {
+            "gap": {
+             "tok": "none",
+             "kind": "space"
+            }
+           },
+           "pos": [
+            10,
+            9
+           ],
+           "meta": {
+            "grow": true
+           },
+           "children": [
+            {
+             "node": "row",
+             "def": "core:row@1",
+             "props": {
+              "gap": {
+               "tok": "s",
+               "kind": "space"
+              },
+              "align": {
+               "lit": "center"
+              }
+             },
+             "pos": [
+              11,
+              11
+             ],
+             "children": [
+              {
+               "node": "text",
+               "def": "core:text@1",
+               "props": {
+                "weight": {
+                 "lit": "medium"
+                },
+                "value": {
+                 "expr": "items[k].title",
+                 "ast": {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "title"
+                 },
+                 "type": {
+                  "t": "text"
+                 },
+                 "pos": [
+                  12,
+                  18
+                 ]
+                }
+               },
+               "pos": [
+                12,
+                13
+               ]
+              },
+              {
+               "node": "pill",
+               "def": "devbench:pill@1",
+               "props": {
+                "text": {
+                 "expr": "items[k].badge",
+                 "ast": {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "badge"
+                 },
+                 "type": {
+                  "t": "text"
+                 },
+                 "pos": [
+                  13,
+                  18
+                 ]
+                },
+                "tone": {
+                 "expr": "hue(items[k])",
+                 "ast": {
+                  "t": "call",
+                  "fn": "local:devbench:rows@1:hue#0",
+                  "args": [
+                   {
+                    "t": "index",
+                    "o": {
+                     "t": "var",
+                     "name": "items",
+                     "from": "inst"
+                    },
+                    "i": {
+                     "t": "var",
+                     "name": "k",
+                     "from": "local"
+                    }
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "token",
+                  "kind": "color"
+                 },
+                 "pos": [
+                  13,
+                  35
+                 ]
+                }
+               },
+               "pos": [
+                13,
+                13
+               ],
+               "meta": {
+                "if": {
+                 "expr": "items[k].badge != \"\"",
+                 "ast": {
+                  "t": "builtin",
+                  "fn": "!=",
+                  "args": [
+                   {
+                    "t": "field",
+                    "o": {
+                     "t": "index",
+                     "o": {
+                      "t": "var",
+                      "name": "items",
+                      "from": "inst"
+                     },
+                     "i": {
+                      "t": "var",
+                      "name": "k",
+                      "from": "local"
+                     }
+                    },
+                    "name": "badge"
+                   },
+                   {
+                    "t": "str",
+                    "v": ""
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "bool"
+                 },
+                 "pos": [
+                  13,
+                  51
+                 ]
+                }
+               }
+              }
+             ]
+            },
+            {
+             "node": "text",
+             "def": "core:text@1",
+             "props": {
+              "size": {
+               "lit": "small"
+              },
+              "tone": {
+               "tok": "muted",
+               "kind": "color"
+              },
+              "value": {
+               "expr": "items[k].note",
+               "ast": {
+                "t": "field",
+                "o": {
+                 "t": "index",
+                 "o": {
+                  "t": "var",
+                  "name": "items",
+                  "from": "inst"
+                 },
+                 "i": {
+                  "t": "var",
+                  "name": "k",
+                  "from": "local"
+                 }
+                },
+                "name": "note"
+               },
+               "type": {
+                "t": "text"
+               },
+               "pos": [
+                14,
+                16
+               ]
+              }
+             },
+             "pos": [
+              14,
+              11
+             ],
+             "meta": {
+              "if": {
+               "expr": "items[k].note != \"\"",
+               "ast": {
+                "t": "builtin",
+                "fn": "!=",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "note"
+                 },
+                 {
+                  "t": "str",
+                  "v": ""
+                 }
+                ]
+               },
+               "type": {
+                "t": "bool"
+               },
+               "pos": [
+                14,
+                54
+               ]
+              }
+             }
+            }
+           ]
+          },
+          {
+           "node": "text",
+           "def": "core:text@1",
+           "props": {
+            "size": {
+             "lit": "small"
+            },
+            "tone": {
+             "tok": "muted",
+             "kind": "color"
+            },
+            "align": {
+             "lit": "end"
+            },
+            "wrap": {
+             "lit": false
+            },
+            "value": {
+             "expr": "items[k].meta",
+             "ast": {
+              "t": "field",
+              "o": {
+               "t": "index",
+               "o": {
+                "t": "var",
+                "name": "items",
+                "from": "inst"
+               },
+               "i": {
+                "t": "var",
+                "name": "k",
+                "from": "local"
+               }
+              },
+              "name": "meta"
+             },
+             "type": {
+              "t": "text"
+             },
+             "pos": [
+              15,
+              14
+             ]
+            }
+           },
+           "pos": [
+            15,
+            9
+           ],
+           "meta": {
+            "if": {
+             "expr": "items[k].meta != \"\"",
+             "ast": {
+              "t": "builtin",
+              "fn": "!=",
+              "args": [
+               {
+                "t": "field",
+                "o": {
+                 "t": "index",
+                 "o": {
+                  "t": "var",
+                  "name": "items",
+                  "from": "inst"
+                 },
+                 "i": {
+                  "t": "var",
+                  "name": "k",
+                  "from": "local"
+                 }
+                },
+                "name": "meta"
+               },
+               {
+                "t": "str",
+                "v": ""
+               }
+              ]
+             },
+             "type": {
+              "t": "bool"
+             },
+             "pos": [
+              15,
+              73
+             ]
+            }
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "project": {
+    "md": {
+     "expr": "join(map(items, e => \"- **\" + e.title + \"**\" + if(e.state != none, \" (\" + e.state + \")\", \"\") + if(e.badge != \"\", \" `\" + e.badge + \"`\", \"\") + if(e.note != \"\", \": \" + e.note, \"\") + if(e.meta != \"\", \" — \" + e.meta, \"\")), \"\\n\")",
+     "ast": {
+      "t": "builtin",
+      "fn": "join",
+      "args": [
+       {
+        "t": "builtin",
+        "fn": "map",
+        "args": [
+         {
+          "t": "var",
+          "name": "items",
+          "from": "inst"
+         },
+         {
+          "t": "lam",
+          "params": [
+           "e"
+          ],
+          "body": {
+           "t": "builtin",
+           "fn": "cat",
+           "args": [
+            {
+             "t": "builtin",
+             "fn": "cat",
+             "args": [
+              {
+               "t": "builtin",
+               "fn": "cat",
+               "args": [
+                {
+                 "t": "builtin",
+                 "fn": "cat",
+                 "args": [
+                  {
+                   "t": "builtin",
+                   "fn": "cat",
+                   "args": [
+                    {
+                     "t": "builtin",
+                     "fn": "cat",
+                     "args": [
+                      {
+                       "t": "str",
+                       "v": "- **"
+                      },
+                      {
+                       "t": "field",
+                       "o": {
+                        "t": "var",
+                        "name": "e",
+                        "from": "local"
+                       },
+                       "name": "title"
+                      }
+                     ]
+                    },
+                    {
+                     "t": "str",
+                     "v": "**"
+                    }
+                   ]
+                  },
+                  {
+                   "t": "if",
+                   "c": {
+                    "t": "builtin",
+                    "fn": "!=",
+                    "args": [
+                     {
+                      "t": "field",
+                      "o": {
+                       "t": "var",
+                       "name": "e",
+                       "from": "local"
+                      },
+                      "name": "state"
+                     },
+                     {
+                      "t": "str",
+                      "v": "none"
+                     }
+                    ]
+                   },
+                   "a": {
+                    "t": "builtin",
+                    "fn": "cat",
+                    "args": [
+                     {
+                      "t": "builtin",
+                      "fn": "cat",
+                      "args": [
+                       {
+                        "t": "str",
+                        "v": " ("
+                       },
+                       {
+                        "t": "field",
+                        "o": {
+                         "t": "var",
+                         "name": "e",
+                         "from": "local"
+                        },
+                        "name": "state"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "str",
+                      "v": ")"
+                     }
+                    ]
+                   },
+                   "b": {
+                    "t": "str",
+                    "v": ""
+                   }
+                  }
+                 ]
+                },
+                {
+                 "t": "if",
+                 "c": {
+                  "t": "builtin",
+                  "fn": "!=",
+                  "args": [
+                   {
+                    "t": "field",
+                    "o": {
+                     "t": "var",
+                     "name": "e",
+                     "from": "local"
+                    },
+                    "name": "badge"
+                   },
+                   {
+                    "t": "str",
+                    "v": ""
+                   }
+                  ]
+                 },
+                 "a": {
+                  "t": "builtin",
+                  "fn": "cat",
+                  "args": [
+                   {
+                    "t": "builtin",
+                    "fn": "cat",
+                    "args": [
+                     {
+                      "t": "str",
+                      "v": " `"
+                     },
+                     {
+                      "t": "field",
+                      "o": {
+                       "t": "var",
+                       "name": "e",
+                       "from": "local"
+                      },
+                      "name": "badge"
+                     }
+                    ]
+                   },
+                   {
+                    "t": "str",
+                    "v": "`"
+                   }
+                  ]
+                 },
+                 "b": {
+                  "t": "str",
+                  "v": ""
+                 }
+                }
+               ]
+              },
+              {
+               "t": "if",
+               "c": {
+                "t": "builtin",
+                "fn": "!=",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "var",
+                   "name": "e",
+                   "from": "local"
+                  },
+                  "name": "note"
+                 },
+                 {
+                  "t": "str",
+                  "v": ""
+                 }
+                ]
+               },
+               "a": {
+                "t": "builtin",
+                "fn": "cat",
+                "args": [
+                 {
+                  "t": "str",
+                  "v": ": "
+                 },
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "var",
+                   "name": "e",
+                   "from": "local"
+                  },
+                  "name": "note"
+                 }
+                ]
+               },
+               "b": {
+                "t": "str",
+                "v": ""
+               }
+              }
+             ]
+            },
+            {
+             "t": "if",
+             "c": {
+              "t": "builtin",
+              "fn": "!=",
+              "args": [
+               {
+                "t": "field",
+                "o": {
+                 "t": "var",
+                 "name": "e",
+                 "from": "local"
+                },
+                "name": "meta"
+               },
+               {
+                "t": "str",
+                "v": ""
+               }
+              ]
+             },
+             "a": {
+              "t": "builtin",
+              "fn": "cat",
+              "args": [
+               {
+                "t": "str",
+                "v": " — "
+               },
+               {
+                "t": "field",
+                "o": {
+                 "t": "var",
+                 "name": "e",
+                 "from": "local"
+                },
+                "name": "meta"
+               }
+              ]
+             },
+             "b": {
+              "t": "str",
+              "v": ""
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "t": "str",
+        "v": "\n"
+       }
+      ]
+     },
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      16,
+      3
+     ]
+    }
+   },
+   "fns": {
+    "local:devbench:rows@1:hue#0": {
+     "name": "hue",
+     "params": [
+      "e"
+     ],
+     "types": [
+      {
+       "t": "named",
+       "name": "entry"
+      }
+     ],
+     "ret": {
+      "t": "token",
+      "kind": "color"
+     },
+     "body": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "!=",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "e",
+          "from": "local"
+         },
+         "name": "tone"
+        },
+        {
+         "t": "str",
+         "v": "none"
+        }
+       ]
+      },
+      "a": {
+       "t": "field",
+       "o": {
+        "t": "var",
+        "name": "e",
+        "from": "local"
+       },
+       "name": "tone"
+      },
+      "b": {
+       "t": "call",
+       "fn": "devbench:statetone#0",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "e",
+          "from": "local"
+         },
+         "name": "state"
+        }
+       ]
+      }
+     },
+     "src": "if(e.tone != none, e.tone, statetone(e.state))",
+     "local": true,
+     "pos": [
+      4,
+      3
+     ],
+     "file": "devbench/rows.mkp"
+    },
+    "local:devbench:rows@1:mark#0": {
+     "name": "mark",
+     "params": [
+      "e"
+     ],
+     "types": [
+      {
+       "t": "named",
+       "name": "entry"
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "!=",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "e",
+          "from": "local"
+         },
+         "name": "icon"
+        },
+        {
+         "t": "str",
+         "v": "none"
+        }
+       ]
+      },
+      "a": {
+       "t": "field",
+       "o": {
+        "t": "var",
+        "name": "e",
+        "from": "local"
+       },
+       "name": "icon"
+      },
+      "b": {
+       "t": "call",
+       "fn": "devbench:stateicon#0",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "e",
+          "from": "local"
+         },
+         "name": "state"
+        }
+       ]
+      }
+     },
+     "src": "if(e.icon != none, e.icon, stateicon(e.state))",
+     "local": true,
+     "pos": [
+      5,
+      3
+     ],
+     "file": "devbench/rows.mkp"
+    }
+   },
+   "digest": "sha256:dbab10756ab6f246e29bd0947288d89a4f8b4d695fc2c40536276f3429450a59"
+  },
+  "devbench:pill@1": {
+   "ir": 1,
+   "kind": "part",
+   "id": "devbench:pill@1",
+   "name": "pill",
+   "version": 1,
+   "pack": "devbench",
+   "file": "devbench/pill.mkp",
+   "about": "A short label on a pill in a tone, with an optional icon: a state, a version, a platform, a change.",
+   "inputs": [
+    {
+     "name": "text",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      4,
+      3
+     ]
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      5,
+      3
+     ],
+     "default": {
+      "tok": "muted",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "icon",
+     "type": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "pos": [
+      6,
+      3
+     ],
+     "default": {
+      "lit": "none"
+     }
+    }
+   ],
+   "pos": [
+    2,
+    1
+   ],
+   "fields": [
+    "text",
+    "tone"
+   ],
+   "view": [
+    {
+     "node": "row",
+     "def": "core:row@1",
+     "props": {
+      "gap": {
+       "tok": "xs",
+       "kind": "space"
+      },
+      "padx": {
+       "tok": "s",
+       "kind": "space"
+      },
+      "pady": {
+       "tok": "xs",
+       "kind": "space"
+      },
+      "radius": {
+       "tok": "pill",
+       "kind": "radius"
+      },
+      "tint": {
+       "expr": "tone",
+       "ast": {
+        "t": "var",
+        "name": "tone",
+        "from": "inst"
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        7,
+        41
+       ],
+       "static": true
+      },
+      "stroke": {
+       "expr": "tone",
+       "ast": {
+        "t": "var",
+        "name": "tone",
+        "from": "inst"
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        7,
+        51
+       ],
+       "static": true
+      },
+      "align": {
+       "lit": "center"
+      },
+      "width": {
+       "lit": "fit"
+      },
+      "wrap": {
+       "lit": false
+      }
+     },
+     "pos": [
+      7,
+      3
+     ],
+     "children": [
+      {
+       "node": "icon",
+       "def": "core:icon@1",
+       "props": {
+        "name": {
+         "expr": "icon",
+         "ast": {
+          "t": "var",
+          "name": "icon",
+          "from": "inst"
+         },
+         "type": {
+          "t": "named",
+          "name": "iconname"
+         },
+         "pos": [
+          8,
+          10
+         ],
+         "static": true
+        },
+        "size": {
+         "lit": "small"
+        },
+        "tone": {
+         "expr": "if(tone == muted, ink, tone)",
+         "ast": {
+          "t": "if",
+          "c": {
+           "t": "builtin",
+           "fn": "==",
+           "args": [
+            {
+             "t": "var",
+             "name": "tone",
+             "from": "inst"
+            },
+            {
+             "t": "str",
+             "v": "muted"
+            }
+           ]
+          },
+          "a": {
+           "t": "str",
+           "v": "ink"
+          },
+          "b": {
+           "t": "var",
+           "name": "tone",
+           "from": "inst"
+          }
+         },
+         "type": {
+          "t": "token",
+          "kind": "color"
+         },
+         "pos": [
+          8,
+          31
+         ],
+         "static": true
+        }
+       },
+       "pos": [
+        8,
+        5
+       ],
+       "meta": {
+        "if": {
+         "expr": "icon != none",
+         "ast": {
+          "t": "builtin",
+          "fn": "!=",
+          "args": [
+           {
+            "t": "var",
+            "name": "icon",
+            "from": "inst"
+           },
+           {
+            "t": "str",
+            "v": "none"
+           }
+          ]
+         },
+         "type": {
+          "t": "bool"
+         },
+         "pos": [
+          8,
+          67
+         ],
+         "static": true
+        }
+       }
+      },
+      {
+       "node": "text",
+       "def": "core:text@1",
+       "props": {
+        "size": {
+         "lit": "small"
+        },
+        "weight": {
+         "lit": "medium"
+        },
+        "tone": {
+         "expr": "if(tone == muted, ink, tone)",
+         "ast": {
+          "t": "if",
+          "c": {
+           "t": "builtin",
+           "fn": "==",
+           "args": [
+            {
+             "t": "var",
+             "name": "tone",
+             "from": "inst"
+            },
+            {
+             "t": "str",
+             "v": "muted"
+            }
+           ]
+          },
+          "a": {
+           "t": "str",
+           "v": "ink"
+          },
+          "b": {
+           "t": "var",
+           "name": "tone",
+           "from": "inst"
+          }
+         },
+         "type": {
+          "t": "token",
+          "kind": "color"
+         },
+         "pos": [
+          9,
+          40
+         ],
+         "static": true
+        },
+        "wrap": {
+         "lit": false
+        },
+        "value": {
+         "expr": "text",
+         "ast": {
+          "t": "var",
+          "name": "text",
+          "from": "inst"
+         },
+         "type": {
+          "t": "text"
+         },
+         "pos": [
+          9,
+          10
+         ],
+         "static": true
+        }
+       },
+       "pos": [
+        9,
+        5
+       ]
+      }
+     ]
+    }
+   ],
+   "digest": "sha256:252586ffe0552ca9c98cc3f95dbf476f292c8c6fa9b58cc040b556c1bc8f6b64"
+  },
+  "devbench:marker@1": {
+   "ir": 1,
+   "kind": "part",
+   "id": "devbench:marker@1",
+   "name": "marker",
+   "version": 1,
+   "pack": "devbench",
+   "file": "devbench/marker.mkp",
+   "about": "A round marker: an icon, a number or nothing, washed in its tone and outlined, or filled with it, or quiet.",
+   "inputs": [
+    {
+     "name": "icon",
+     "type": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "pos": [
+      4,
+      3
+     ],
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "tone",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      5,
+      3
+     ],
+     "default": {
+      "tok": "muted",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "number",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      6,
+      3
+     ],
+     "about": "a step's number, instead of an icon",
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "solid",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      7,
+      3
+     ],
+     "about": "filled with the tone, the icon or number in the surface colour",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "quiet",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      8,
+      3
+     ],
+     "about": "no wash, a line for an outline, the number muted: a step still to come",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "outline",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      9,
+      3
+     ],
+     "about": "a line round it in its tone",
+     "default": {
+      "lit": true
+     }
+    }
+   ],
+   "pos": [
+    2,
+    1
+   ],
+   "fields": [
+    "icon",
+    "tone"
+   ],
+   "view": [
+    {
+     "node": "grid",
+     "def": "core:grid@1",
+     "props": {
+      "cols": {
+       "lit": [
+        "2.4ch"
+       ]
+      },
+      "justify": {
+       "lit": "center"
+      },
+      "pad": {
+       "tok": "xs",
+       "kind": "space"
+      },
+      "radius": {
+       "tok": "pill",
+       "kind": "radius"
+      },
+      "tint": {
+       "expr": "if(solid or quiet, none, tone)",
+       "ast": {
+        "t": "if",
+        "c": {
+         "t": "or",
+         "a": {
+          "t": "var",
+          "name": "solid",
+          "from": "inst"
+         },
+         "b": {
+          "t": "var",
+          "name": "quiet",
+          "from": "inst"
+         }
+        },
+        "a": {
+         "t": "str",
+         "v": "none"
+        },
+        "b": {
+         "t": "var",
+         "name": "tone",
+         "from": "inst"
+        }
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        10,
+        57
+       ],
+       "static": true
+      },
+      "fill": {
+       "expr": "if(solid, tone, none)",
+       "ast": {
+        "t": "if",
+        "c": {
+         "t": "var",
+         "name": "solid",
+         "from": "inst"
+        },
+        "a": {
+         "t": "var",
+         "name": "tone",
+         "from": "inst"
+        },
+        "b": {
+         "t": "str",
+         "v": "none"
+        }
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        10,
+        95
+       ],
+       "static": true
+      },
+      "stroke": {
+       "expr": "if(quiet, line, if(outline, tone, none))",
+       "ast": {
+        "t": "if",
+        "c": {
+         "t": "var",
+         "name": "quiet",
+         "from": "inst"
+        },
+        "a": {
+         "t": "str",
+         "v": "line"
+        },
+        "b": {
+         "t": "if",
+         "c": {
+          "t": "var",
+          "name": "outline",
+          "from": "inst"
+         },
+         "a": {
+          "t": "var",
+          "name": "tone",
+          "from": "inst"
+         },
+         "b": {
+          "t": "str",
+          "v": "none"
+         }
+        }
+       },
+       "type": {
+        "t": "token",
+        "kind": "color"
+       },
+       "pos": [
+        10,
+        124
+       ],
+       "static": true
+      },
+      "width": {
+       "lit": "fit"
+      }
+     },
+     "pos": [
+      10,
+      3
+     ],
+     "children": [
+      {
+       "node": "stack",
+       "def": "core:stack@1",
+       "props": {
+        "align": {
+         "lit": "center"
+        },
+        "justify": {
+         "lit": "center"
+        }
+       },
+       "pos": [
+        11,
+        5
+       ],
+       "children": [
+        {
+         "node": "text",
+         "def": "core:text@1",
+         "props": {
+          "size": {
+           "lit": "small"
+          },
+          "value": {
+           "text": " "
+          }
+         },
+         "pos": [
+          12,
+          7
+         ]
+        },
+        {
+         "node": "icon",
+         "def": "core:icon@1",
+         "props": {
+          "name": {
+           "expr": "icon",
+           "ast": {
+            "t": "var",
+            "name": "icon",
+            "from": "inst"
+           },
+           "type": {
+            "t": "named",
+            "name": "iconname"
+           },
+           "pos": [
+            13,
+            12
+           ],
+           "static": true
+          },
+          "size": {
+           "lit": "small"
+          },
+          "tone": {
+           "expr": "if(solid, surface, tone)",
+           "ast": {
+            "t": "if",
+            "c": {
+             "t": "var",
+             "name": "solid",
+             "from": "inst"
+            },
+            "a": {
+             "t": "str",
+             "v": "surface"
+            },
+            "b": {
+             "t": "var",
+             "name": "tone",
+             "from": "inst"
+            }
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            13,
+            33
+           ],
+           "static": true
+          }
+         },
+         "pos": [
+          13,
+          7
+         ],
+         "meta": {
+          "if": {
+           "expr": "icon != none",
+           "ast": {
+            "t": "builtin",
+            "fn": "!=",
+            "args": [
+             {
+              "t": "var",
+              "name": "icon",
+              "from": "inst"
+             },
+             {
+              "t": "str",
+              "v": "none"
+             }
+            ]
+           },
+           "type": {
+            "t": "bool"
+           },
+           "pos": [
+            13,
+            65
+           ],
+           "static": true
+          }
+         }
+        },
+        {
+         "node": "text",
+         "def": "core:text@1",
+         "props": {
+          "size": {
+           "lit": "small"
+          },
+          "weight": {
+           "lit": "bold"
+          },
+          "align": {
+           "lit": "center"
+          },
+          "tone": {
+           "expr": "if(solid, surface, if(quiet, muted, tone))",
+           "ast": {
+            "t": "if",
+            "c": {
+             "t": "var",
+             "name": "solid",
+             "from": "inst"
+            },
+            "a": {
+             "t": "str",
+             "v": "surface"
+            },
+            "b": {
+             "t": "if",
+             "c": {
+              "t": "var",
+              "name": "quiet",
+              "from": "inst"
+             },
+             "a": {
+              "t": "str",
+              "v": "muted"
+             },
+             "b": {
+              "t": "var",
+              "name": "tone",
+              "from": "inst"
+             }
+            }
+           },
+           "type": {
+            "t": "token",
+            "kind": "color"
+           },
+           "pos": [
+            14,
+            55
+           ],
+           "static": true
+          },
+          "wrap": {
+           "lit": false
+          },
+          "value": {
+           "expr": "number",
+           "ast": {
+            "t": "var",
+            "name": "number",
+            "from": "inst"
+           },
+           "type": {
+            "t": "text"
+           },
+           "pos": [
+            14,
+            12
+           ],
+           "static": true
+          }
+         },
+         "pos": [
+          14,
+          7
+         ],
+         "meta": {
+          "if": {
+           "expr": "number != \"\"",
+           "ast": {
+            "t": "builtin",
+            "fn": "!=",
+            "args": [
+             {
+              "t": "var",
+              "name": "number",
+              "from": "inst"
+             },
+             {
+              "t": "str",
+              "v": ""
+             }
+            ]
+           },
+           "type": {
+            "t": "bool"
+           },
+           "pos": [
+            14,
+            116
+           ],
+           "static": true
+          }
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "digest": "sha256:55d3bda537bfe2c4b18df3bf999267f20fe83d8464710f63122ff87c092b2927"
+  },
+  "core:stack@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:stack@1",
+   "name": "stack",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "Children drawn one over another, in the order written: the last is on top. As big as its biggest child.",
+   "inputs": [
+    {
+     "name": "align",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     },
+     "pos": [
+      84,
+      3
+     ],
+     "about": "where children sit down it; a child's self= overrides",
+     "default": {
+      "lit": "stretch"
+     }
+    },
+    {
+     "name": "justify",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     },
+     "pos": [
+      85,
+      3
+     ],
+     "about": "where children sit across it",
+     "default": {
+      "lit": "stretch"
+     }
+    },
+    {
+     "name": "pad",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      86,
+      3
+     ],
+     "about": "inner padding",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "padx",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      87,
+      3
+     ],
+     "about": "padding at the left and right, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "pady",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      88,
+      3
+     ],
+     "about": "padding at the top and bottom, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "gap",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      89,
+      3
+     ],
+     "about": "space between children",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "width",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "auto",
+       "fit",
+       "fill"
+      ]
+     },
+     "pos": [
+      90,
+      3
+     ],
+     "about": "fit: as wide as its widest child; fill: the whole row",
+     "default": {
+      "lit": "auto"
+     }
+    },
+    {
+     "name": "minwidth",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      91,
+      3
+     ],
+     "about": "never narrower than this; with scroll=x, what doesn't fit scrolls sideways",
+     "default": {
+      "tok": "none",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "scroll",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "none",
+       "x"
+      ]
+     },
+     "pos": [
+      92,
+      3
+     ],
+     "about": "x: scrolls sideways when narrower than its content",
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "fill",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      93,
+      3
+     ],
+     "about": "background",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "tint",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      94,
+      3
+     ],
+     "about": "a wash of this colour behind it: a state, not a surface",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "stroke",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      95,
+      3
+     ],
+     "about": "border",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "line",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "solid",
+       "dashed",
+       "dotted"
+      ]
+     },
+     "pos": [
+      96,
+      3
+     ],
+     "about": "the border's line",
+     "default": {
+      "lit": "solid"
+     }
+    },
+    {
+     "name": "edge",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "all",
+       "top",
+       "right",
+       "bottom",
+       "left",
+       "x",
+       "y"
+      ]
+     },
+     "pos": [
+      97,
+      3
+     ],
+     "about": "which sides the border is drawn on",
+     "default": {
+      "lit": "all"
+     }
+    },
+    {
+     "name": "weight",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "thin",
+       "normal",
+       "thick"
+      ]
+     },
+     "pos": [
+      98,
+      3
+     ],
+     "about": "the border's width",
+     "default": {
+      "lit": "thin"
+     }
+    },
+    {
+     "name": "radius",
+     "type": {
+      "t": "token",
+      "kind": "radius"
+     },
+     "pos": [
+      99,
+      3
+     ],
+     "about": "corner radius",
+     "default": {
+      "tok": "none",
+      "kind": "radius"
+     }
+    },
+    {
+     "name": "shadow",
+     "type": {
+      "t": "token",
+      "kind": "shadow"
+     },
+     "pos": [
+      100,
+      3
+     ],
+     "default": {
+      "tok": "none",
+      "kind": "shadow"
+     }
+    },
+    {
+     "name": "dim",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      101,
+      3
+     ],
+     "about": "faded back, while something else is in focus",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "blur",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      102,
+      3
+     ],
+     "about": "blurred past reading, until it is revealed",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      103,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    83,
+    1
+   ],
+   "outs": [
+    {
+     "name": "click",
+     "about": "a press on its background, not on a child (pointer only)"
+    },
+    {
+     "name": "enter",
+     "about": "the pointer moved onto it (pointer only: a container takes no focus)"
+    },
+    {
+     "name": "leave",
+     "about": "the pointer left it (pointer only)"
+    }
+   ],
+   "digest": "sha256:53431139f3cdf18e897c6b1d809dec0ef2a1ca7f3b9e2ce43c42f8932dbacd8b"
+  },
+  "core:grid@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:grid@1",
+   "name": "grid",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "Children in columns: a number of equal columns, or tracks such as [auto, 1fr, 6ch].",
+   "inputs": [
+    {
+     "name": "cols",
+     "type": {
+      "t": "list",
+      "of": {
+       "t": "named",
+       "name": "track"
+      }
+     },
+     "pos": [
+      58,
+      3
+     ],
+     "about": "the column tracks: auto (its content), Nfr (a share), Nch (characters), or a size token; a number n is n equal shares",
+     "default": {
+      "lit": [
+       "1fr",
+       "1fr"
+      ]
+     }
+    },
+    {
+     "name": "align",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch",
+       "baseline"
+      ]
+     },
+     "pos": [
+      59,
+      3
+     ],
+     "default": {
+      "lit": "stretch"
+     }
+    },
+    {
+     "name": "justify",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     },
+     "pos": [
+      60,
+      3
+     ],
+     "about": "how a child sits in its cell, across",
+     "default": {
+      "lit": "stretch"
+     }
+    },
+    {
+     "name": "pad",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      61,
+      3
+     ],
+     "about": "inner padding",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "padx",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      62,
+      3
+     ],
+     "about": "padding at the left and right, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "pady",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      63,
+      3
+     ],
+     "about": "padding at the top and bottom, in place of pad there",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "gap",
+     "type": {
+      "t": "token",
+      "kind": "space"
+     },
+     "pos": [
+      64,
+      3
+     ],
+     "about": "space between children",
+     "default": {
+      "tok": "none",
+      "kind": "space"
+     }
+    },
+    {
+     "name": "width",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "auto",
+       "fit",
+       "fill"
+      ]
+     },
+     "pos": [
+      65,
+      3
+     ],
+     "about": "fit: as wide as its widest child; fill: the whole row",
+     "default": {
+      "lit": "auto"
+     }
+    },
+    {
+     "name": "minwidth",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      66,
+      3
+     ],
+     "about": "never narrower than this; with scroll=x, what doesn't fit scrolls sideways",
+     "default": {
+      "tok": "none",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "scroll",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "none",
+       "x"
+      ]
+     },
+     "pos": [
+      67,
+      3
+     ],
+     "about": "x: scrolls sideways when narrower than its content",
+     "default": {
+      "lit": "none"
+     }
+    },
+    {
+     "name": "fill",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      68,
+      3
+     ],
+     "about": "background",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "tint",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      69,
+      3
+     ],
+     "about": "a wash of this colour behind it: a state, not a surface",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "stroke",
+     "type": {
+      "t": "token",
+      "kind": "color"
+     },
+     "pos": [
+      70,
+      3
+     ],
+     "about": "border",
+     "default": {
+      "tok": "none",
+      "kind": "color"
+     }
+    },
+    {
+     "name": "line",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "solid",
+       "dashed",
+       "dotted"
+      ]
+     },
+     "pos": [
+      71,
+      3
+     ],
+     "about": "the border's line",
+     "default": {
+      "lit": "solid"
+     }
+    },
+    {
+     "name": "edge",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "all",
+       "top",
+       "right",
+       "bottom",
+       "left",
+       "x",
+       "y"
+      ]
+     },
+     "pos": [
+      72,
+      3
+     ],
+     "about": "which sides the border is drawn on",
+     "default": {
+      "lit": "all"
+     }
+    },
+    {
+     "name": "weight",
+     "type": {
+      "t": "choice",
+      "opts": [
+       "thin",
+       "normal",
+       "thick"
+      ]
+     },
+     "pos": [
+      73,
+      3
+     ],
+     "about": "the border's width",
+     "default": {
+      "lit": "thin"
+     }
+    },
+    {
+     "name": "radius",
+     "type": {
+      "t": "token",
+      "kind": "radius"
+     },
+     "pos": [
+      74,
+      3
+     ],
+     "about": "corner radius",
+     "default": {
+      "tok": "none",
+      "kind": "radius"
+     }
+    },
+    {
+     "name": "shadow",
+     "type": {
+      "t": "token",
+      "kind": "shadow"
+     },
+     "pos": [
+      75,
+      3
+     ],
+     "default": {
+      "tok": "none",
+      "kind": "shadow"
+     }
+    },
+    {
+     "name": "dim",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      76,
+      3
+     ],
+     "about": "faded back, while something else is in focus",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "blur",
+     "type": {
+      "t": "bool"
+     },
+     "pos": [
+      77,
+      3
+     ],
+     "about": "blurred past reading, until it is revealed",
+     "default": {
+      "lit": false
+     }
+    },
+    {
+     "name": "body",
+     "type": {
+      "t": "slot"
+     },
+     "pos": [
+      78,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    57,
+    1
+   ],
+   "outs": [
+    {
+     "name": "click",
+     "about": "a press on its background, not on a child (pointer only)"
+    },
+    {
+     "name": "enter",
+     "about": "the pointer moved onto it (pointer only: a container takes no focus)"
+    },
+    {
+     "name": "leave",
+     "about": "the pointer left it (pointer only)"
+    }
+   ],
+   "digest": "sha256:c2b0a671edd1706ead5523c3142f50a5f8624a2651eb16edf221aa6f23af92b5"
+  },
+  "devbench:stats@1": {
+   "ir": 1,
+   "kind": "widget",
+   "id": "devbench:stats@1",
+   "name": "stats",
+   "version": 1,
+   "pack": "devbench",
+   "file": "devbench/stats.mkp",
+   "about": "Key numbers in tiles: a label, the number large, how it changed, and a sparkline of its trend.",
+   "inputs": [
+    {
+     "name": "items",
+     "type": {
+      "t": "records",
+      "kind": "stat",
+      "fields": [
+       [
+        "label",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "value",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "change",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "note",
+        {
+         "t": "text"
+        }
+       ],
+       [
+        "tone",
+        {
+         "t": "token",
+         "kind": "color"
+        }
+       ],
+       [
+        "trend",
+        {
+         "t": "list",
+         "of": {
+          "t": "num"
+         }
+        }
+       ]
+      ],
+      "slot": false,
+      "defaults": {
+       "change": "\"\"",
+       "note": "\"\"",
+       "tone": "none",
+       "trend": "[]"
+      }
+     },
+     "pos": [
+      3,
+      3
+     ],
+     "about": "the tiles, in order; change is signed (+12%, -3); trend draws a sparkline"
+    }
+   ],
+   "pos": [
+    2,
+    1
+   ],
+   "values": [
+    {
+     "k": "fn",
+     "name": "moved",
+     "fn": "local:devbench:stats@1:moved#0",
+     "params": [
+      {
+       "name": "s",
+       "type": {
+        "t": "named",
+        "name": "stat"
+       }
+      }
+     ],
+     "ret": {
+      "t": "token",
+      "kind": "color"
+     },
+     "body": "if(s.tone != none, s.tone, if(startswith(s.change, \"+\"), ok, if(startswith(s.change, \"-\") or startswith(s.change, \"−\"), bad, muted)))",
+     "pos": [
+      4,
+      3
+     ]
+    },
+    {
+     "k": "fn",
+     "name": "arrow",
+     "fn": "local:devbench:stats@1:arrow#0",
+     "params": [
+      {
+       "name": "s",
+       "type": {
+        "t": "named",
+        "name": "stat"
+       }
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": "if(startswith(s.change, \"+\"), up, if(startswith(s.change, \"-\") or startswith(s.change, \"−\"), down, none))",
+     "pos": [
+      5,
+      3
+     ]
+    },
+    {
+     "k": "fn",
+     "name": "lo",
+     "fn": "local:devbench:stats@1:lo#0",
+     "params": [
+      {
+       "name": "xs",
+       "type": {
+        "t": "list",
+        "of": {
+         "t": "num"
+        }
+       }
+      }
+     ],
+     "ret": {
+      "t": "num"
+     },
+     "body": "fold(xs, at(xs, 0, 0), (a, v) => min(a, v))",
+     "pos": [
+      6,
+      3
+     ]
+    },
+    {
+     "k": "fn",
+     "name": "hi",
+     "fn": "local:devbench:stats@1:hi#0",
+     "params": [
+      {
+       "name": "xs",
+       "type": {
+        "t": "list",
+        "of": {
+         "t": "num"
+        }
+       }
+      }
+     ],
+     "ret": {
+      "t": "num"
+     },
+     "body": "max(fold(xs, at(xs, 0, 0), (a, v) => max(a, v)), lo(xs) + 0.000001)",
+     "pos": [
+      7,
+      3
+     ]
+    },
+    {
+     "k": "fn",
+     "name": "spark",
+     "fn": "local:devbench:stats@1:spark#0",
+     "params": [
+      {
+       "name": "xs",
+       "type": {
+        "t": "list",
+        "of": {
+         "t": "num"
+        }
+       }
+      }
+     ],
+     "ret": {
+      "t": "list",
+      "of": {
+       "t": "point"
+      }
+     },
+     "body": "map(range(0, len(xs) - 1), i => (i, xs[i]))",
+     "pos": [
+      8,
+      3
+     ]
+    }
+   ],
+   "view": [
+    {
+     "node": "grid",
+     "def": "core:grid@1",
+     "props": {
+      "cols": {
+       "expr": "if(width == narrow, min(len(items), 2), min(len(items), 4))",
+       "ast": {
+        "t": "builtin",
+        "fn": "map",
+        "args": [
+         {
+          "t": "builtin",
+          "fn": "range",
+          "args": [
+           {
+            "t": "num",
+            "v": 1
+           },
+           {
+            "t": "if",
+            "c": {
+             "t": "builtin",
+             "fn": "==",
+             "args": [
+              {
+               "t": "var",
+               "name": "$width",
+               "from": "inst"
+              },
+              {
+               "t": "str",
+               "v": "narrow"
+              }
+             ]
+            },
+            "a": {
+             "t": "builtin",
+             "fn": "min",
+             "args": [
+              {
+               "t": "builtin",
+               "fn": "len",
+               "args": [
+                {
+                 "t": "var",
+                 "name": "items",
+                 "from": "inst"
+                }
+               ]
+              },
+              {
+               "t": "num",
+               "v": 2
+              }
+             ]
+            },
+            "b": {
+             "t": "builtin",
+             "fn": "min",
+             "args": [
+              {
+               "t": "builtin",
+               "fn": "len",
+               "args": [
+                {
+                 "t": "var",
+                 "name": "items",
+                 "from": "inst"
+                }
+               ]
+              },
+              {
+               "t": "num",
+               "v": 4
+              }
+             ]
+            }
+           }
+          ]
+         },
+         {
+          "t": "lam",
+          "params": [
+           "_c"
+          ],
+          "body": {
+           "t": "str",
+           "v": "1fr"
+          }
+         }
+        ]
+       },
+       "type": {
+        "t": "list",
+        "of": {
+         "t": "text"
+        }
+       },
+       "pos": [
+        9,
+        8
+       ]
+      },
+      "gap": {
+       "tok": "s",
+       "kind": "space"
+      }
+     },
+     "pos": [
+      9,
+      3
+     ],
+     "children": [
+      {
+       "node": "each",
+       "var": "k",
+       "in": {
+        "range": [
+         {
+          "lit": 0
+         },
+         {
+          "expr": "len(items) - 1",
+          "ast": {
+           "t": "builtin",
+           "fn": "-",
+           "args": [
+            {
+             "t": "builtin",
+             "fn": "len",
+             "args": [
+              {
+               "t": "var",
+               "name": "items",
+               "from": "inst"
+              }
+             ]
+            },
+            {
+             "t": "num",
+             "v": 1
+            }
+           ]
+          },
+          "type": {
+           "t": "int"
+          },
+          "pos": [
+           10,
+           15
+          ],
+          "static": true
+         }
+        ]
+       },
+       "pos": [
+        10,
+        5
+       ],
+       "key": {
+        "expr": "k",
+        "ast": {
+         "t": "var",
+         "name": "k",
+         "from": "local"
+        },
+        "type": {
+         "t": "int"
+        },
+        "pos": [
+         10,
+         35
+        ]
+       },
+       "children": [
+        {
+         "node": "column",
+         "def": "core:column@1",
+         "props": {
+          "gap": {
+           "tok": "xs",
+           "kind": "space"
+          },
+          "pad": {
+           "tok": "m",
+           "kind": "space"
+          },
+          "stroke": {
+           "tok": "line",
+           "kind": "color"
+          },
+          "radius": {
+           "tok": "card",
+           "kind": "radius"
+          }
+         },
+         "pos": [
+          11,
+          7
+         ],
+         "children": [
+          {
+           "node": "text",
+           "def": "core:text@1",
+           "props": {
+            "size": {
+             "lit": "small"
+            },
+            "tone": {
+             "tok": "muted",
+             "kind": "color"
+            },
+            "clip": {
+             "lit": true
+            },
+            "value": {
+             "expr": "items[k].label",
+             "ast": {
+              "t": "field",
+              "o": {
+               "t": "index",
+               "o": {
+                "t": "var",
+                "name": "items",
+                "from": "inst"
+               },
+               "i": {
+                "t": "var",
+                "name": "k",
+                "from": "local"
+               }
+              },
+              "name": "label"
+             },
+             "type": {
+              "t": "text"
+             },
+             "pos": [
+              12,
+              14
+             ]
+            }
+           },
+           "pos": [
+            12,
+            9
+           ]
+          },
+          {
+           "node": "row",
+           "def": "core:row@1",
+           "props": {
+            "gap": {
+             "tok": "s",
+             "kind": "space"
+            },
+            "align": {
+             "lit": "baseline"
+            },
+            "wrap": {
+             "lit": true
+            }
+           },
+           "pos": [
+            13,
+            9
+           ],
+           "children": [
+            {
+             "node": "text",
+             "def": "core:text@1",
+             "props": {
+              "size": {
+               "lit": "large"
+              },
+              "weight": {
+               "lit": "bold"
+              },
+              "wrap": {
+               "lit": false
+              },
+              "value": {
+               "expr": "items[k].value",
+               "ast": {
+                "t": "field",
+                "o": {
+                 "t": "index",
+                 "o": {
+                  "t": "var",
+                  "name": "items",
+                  "from": "inst"
+                 },
+                 "i": {
+                  "t": "var",
+                  "name": "k",
+                  "from": "local"
+                 }
+                },
+                "name": "value"
+               },
+               "type": {
+                "t": "text"
+               },
+               "pos": [
+                14,
+                16
+               ]
+              }
+             },
+             "pos": [
+              14,
+              11
+             ]
+            },
+            {
+             "node": "pill",
+             "def": "devbench:pill@1",
+             "props": {
+              "icon": {
+               "expr": "arrow(items[k])",
+               "ast": {
+                "t": "call",
+                "fn": "local:devbench:stats@1:arrow#0",
+                "args": [
+                 {
+                  "t": "index",
+                  "o": {
+                   "t": "var",
+                   "name": "items",
+                   "from": "inst"
+                  },
+                  "i": {
+                   "t": "var",
+                   "name": "k",
+                   "from": "local"
+                  }
+                 }
+                ]
+               },
+               "type": {
+                "t": "named",
+                "name": "iconname"
+               },
+               "pos": [
+                15,
+                52
+               ]
+              },
+              "text": {
+               "expr": "items[k].change",
+               "ast": {
+                "t": "field",
+                "o": {
+                 "t": "index",
+                 "o": {
+                  "t": "var",
+                  "name": "items",
+                  "from": "inst"
+                 },
+                 "i": {
+                  "t": "var",
+                  "name": "k",
+                  "from": "local"
+                 }
+                },
+                "name": "change"
+               },
+               "type": {
+                "t": "text"
+               },
+               "pos": [
+                15,
+                16
+               ]
+              },
+              "tone": {
+               "expr": "moved(items[k])",
+               "ast": {
+                "t": "call",
+                "fn": "local:devbench:stats@1:moved#0",
+                "args": [
+                 {
+                  "t": "index",
+                  "o": {
+                   "t": "var",
+                   "name": "items",
+                   "from": "inst"
+                  },
+                  "i": {
+                   "t": "var",
+                   "name": "k",
+                   "from": "local"
+                  }
+                 }
+                ]
+               },
+               "type": {
+                "t": "token",
+                "kind": "color"
+               },
+               "pos": [
+                15,
+                34
+               ]
+              }
+             },
+             "pos": [
+              15,
+              11
+             ],
+             "meta": {
+              "if": {
+               "expr": "items[k].change != \"\"",
+               "ast": {
+                "t": "builtin",
+                "fn": "!=",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "change"
+                 },
+                 {
+                  "t": "str",
+                  "v": ""
+                 }
+                ]
+               },
+               "type": {
+                "t": "bool"
+               },
+               "pos": [
+                15,
+                75
+               ]
+              }
+             }
+            }
+           ]
+          },
+          {
+           "node": "text",
+           "def": "core:text@1",
+           "props": {
+            "size": {
+             "lit": "small"
+            },
+            "tone": {
+             "tok": "muted",
+             "kind": "color"
+            },
+            "value": {
+             "expr": "items[k].note",
+             "ast": {
+              "t": "field",
+              "o": {
+               "t": "index",
+               "o": {
+                "t": "var",
+                "name": "items",
+                "from": "inst"
+               },
+               "i": {
+                "t": "var",
+                "name": "k",
+                "from": "local"
+               }
+              },
+              "name": "note"
+             },
+             "type": {
+              "t": "text"
+             },
+             "pos": [
+              16,
+              14
+             ]
+            }
+           },
+           "pos": [
+            16,
+            9
+           ],
+           "meta": {
+            "if": {
+             "expr": "items[k].note != \"\"",
+             "ast": {
+              "t": "builtin",
+              "fn": "!=",
+              "args": [
+               {
+                "t": "field",
+                "o": {
+                 "t": "index",
+                 "o": {
+                  "t": "var",
+                  "name": "items",
+                  "from": "inst"
+                 },
+                 "i": {
+                  "t": "var",
+                  "name": "k",
+                  "from": "local"
+                 }
+                },
+                "name": "note"
+               },
+               {
+                "t": "str",
+                "v": ""
+               }
+              ]
+             },
+             "type": {
+              "t": "bool"
+             },
+             "pos": [
+              16,
+              52
+             ]
+            }
+           }
+          },
+          {
+           "node": "column",
+           "def": "core:column@1",
+           "props": {},
+           "pos": [
+            17,
+            9
+           ],
+           "meta": {
+            "if": {
+             "expr": "len(items[k].trend) > 1",
+             "ast": {
+              "t": "builtin",
+              "fn": ">",
+              "args": [
+               {
+                "t": "builtin",
+                "fn": "len",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "trend"
+                 }
+                ]
+               },
+               {
+                "t": "num",
+                "v": 1
+               }
+              ]
+             },
+             "type": {
+              "t": "bool"
+             },
+             "pos": [
+              17,
+              16
+             ]
+            }
+           },
+           "children": [
+            {
+             "node": "canvas",
+             "def": "core:canvas@1",
+             "props": {
+              "x": {
+               "range": [
+                {
+                 "expr": "-0.02 * (len(items[k].trend) - 1)",
+                 "ast": {
+                  "t": "builtin",
+                  "fn": "*",
+                  "args": [
+                   {
+                    "t": "builtin",
+                    "fn": "neg",
+                    "args": [
+                     {
+                      "t": "num",
+                      "v": 0.02
+                     }
+                    ]
+                   },
+                   {
+                    "t": "builtin",
+                    "fn": "-",
+                    "args": [
+                     {
+                      "t": "builtin",
+                      "fn": "len",
+                      "args": [
+                       {
+                        "t": "field",
+                        "o": {
+                         "t": "index",
+                         "o": {
+                          "t": "var",
+                          "name": "items",
+                          "from": "inst"
+                         },
+                         "i": {
+                          "t": "var",
+                          "name": "k",
+                          "from": "local"
+                         }
+                        },
+                        "name": "trend"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "num",
+                      "v": 1
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "num"
+                 },
+                 "pos": [
+                  18,
+                  18
+                 ]
+                },
+                {
+                 "expr": "1.02 * (len(items[k].trend) - 1)",
+                 "ast": {
+                  "t": "builtin",
+                  "fn": "*",
+                  "args": [
+                   {
+                    "t": "num",
+                    "v": 1.02
+                   },
+                   {
+                    "t": "builtin",
+                    "fn": "-",
+                    "args": [
+                     {
+                      "t": "builtin",
+                      "fn": "len",
+                      "args": [
+                       {
+                        "t": "field",
+                        "o": {
+                         "t": "index",
+                         "o": {
+                          "t": "var",
+                          "name": "items",
+                          "from": "inst"
+                         },
+                         "i": {
+                          "t": "var",
+                          "name": "k",
+                          "from": "local"
+                         }
+                        },
+                        "name": "trend"
+                       }
+                      ]
+                     },
+                     {
+                      "t": "num",
+                      "v": 1
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "num"
+                 },
+                 "pos": [
+                  18,
+                  18
+                 ]
+                }
+               ]
+              },
+              "y": {
+               "range": [
+                {
+                 "expr": "lo(items[k].trend) - 0.15 * (hi(items[k].trend) - lo(items[k].trend))",
+                 "ast": {
+                  "t": "builtin",
+                  "fn": "-",
+                  "args": [
+                   {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:lo#0",
+                    "args": [
+                     {
+                      "t": "field",
+                      "o": {
+                       "t": "index",
+                       "o": {
+                        "t": "var",
+                        "name": "items",
+                        "from": "inst"
+                       },
+                       "i": {
+                        "t": "var",
+                        "name": "k",
+                        "from": "local"
+                       }
+                      },
+                      "name": "trend"
+                     }
+                    ]
+                   },
+                   {
+                    "t": "builtin",
+                    "fn": "*",
+                    "args": [
+                     {
+                      "t": "num",
+                      "v": 0.15
+                     },
+                     {
+                      "t": "builtin",
+                      "fn": "-",
+                      "args": [
+                       {
+                        "t": "call",
+                        "fn": "local:devbench:stats@1:hi#0",
+                        "args": [
+                         {
+                          "t": "field",
+                          "o": {
+                           "t": "index",
+                           "o": {
+                            "t": "var",
+                            "name": "items",
+                            "from": "inst"
+                           },
+                           "i": {
+                            "t": "var",
+                            "name": "k",
+                            "from": "local"
+                           }
+                          },
+                          "name": "trend"
+                         }
+                        ]
+                       },
+                       {
+                        "t": "call",
+                        "fn": "local:devbench:stats@1:lo#0",
+                        "args": [
+                         {
+                          "t": "field",
+                          "o": {
+                           "t": "index",
+                           "o": {
+                            "t": "var",
+                            "name": "items",
+                            "from": "inst"
+                           },
+                           "i": {
+                            "t": "var",
+                            "name": "k",
+                            "from": "local"
+                           }
+                          },
+                          "name": "trend"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "num"
+                 },
+                 "pos": [
+                  18,
+                  92
+                 ]
+                },
+                {
+                 "expr": "hi(items[k].trend) + 0.15 * (hi(items[k].trend) - lo(items[k].trend))",
+                 "ast": {
+                  "t": "builtin",
+                  "fn": "+",
+                  "args": [
+                   {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:hi#0",
+                    "args": [
+                     {
+                      "t": "field",
+                      "o": {
+                       "t": "index",
+                       "o": {
+                        "t": "var",
+                        "name": "items",
+                        "from": "inst"
+                       },
+                       "i": {
+                        "t": "var",
+                        "name": "k",
+                        "from": "local"
+                       }
+                      },
+                      "name": "trend"
+                     }
+                    ]
+                   },
+                   {
+                    "t": "builtin",
+                    "fn": "*",
+                    "args": [
+                     {
+                      "t": "num",
+                      "v": 0.15
+                     },
+                     {
+                      "t": "builtin",
+                      "fn": "-",
+                      "args": [
+                       {
+                        "t": "call",
+                        "fn": "local:devbench:stats@1:hi#0",
+                        "args": [
+                         {
+                          "t": "field",
+                          "o": {
+                           "t": "index",
+                           "o": {
+                            "t": "var",
+                            "name": "items",
+                            "from": "inst"
+                           },
+                           "i": {
+                            "t": "var",
+                            "name": "k",
+                            "from": "local"
+                           }
+                          },
+                          "name": "trend"
+                         }
+                        ]
+                       },
+                       {
+                        "t": "call",
+                        "fn": "local:devbench:stats@1:lo#0",
+                        "args": [
+                         {
+                          "t": "field",
+                          "o": {
+                           "t": "index",
+                           "o": {
+                            "t": "var",
+                            "name": "items",
+                            "from": "inst"
+                           },
+                           "i": {
+                            "t": "var",
+                            "name": "k",
+                            "from": "local"
+                           }
+                          },
+                          "name": "trend"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 "type": {
+                  "t": "num"
+                 },
+                 "pos": [
+                  18,
+                  92
+                 ]
+                }
+               ]
+              },
+              "aspect": {
+               "lit": 5
+              },
+              "size": {
+               "tok": "fill",
+               "kind": "size"
+              },
+              "label": {
+               "expr": "items[k].label + \" trend\"",
+               "ast": {
+                "t": "builtin",
+                "fn": "cat",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "index",
+                   "o": {
+                    "t": "var",
+                    "name": "items",
+                    "from": "inst"
+                   },
+                   "i": {
+                    "t": "var",
+                    "name": "k",
+                    "from": "local"
+                   }
+                  },
+                  "name": "label"
+                 },
+                 {
+                  "t": "str",
+                  "v": " trend"
+                 }
+                ]
+               },
+               "type": {
+                "t": "text"
+               },
+               "pos": [
+                18,
+                258
+               ]
+              }
+             },
+             "pos": [
+              18,
+              11
+             ],
+             "records": [
+              {
+               "node": "$record",
+               "record": "layer",
+               "input": "layers",
+               "props": {
+                "opacity": {
+                 "lit": 1
+                },
+                "clip": {
+                 "lit": []
+                }
+               },
+               "pos": [
+                19,
+                13
+               ],
+               "records": [
+                {
+                 "node": "$record",
+                 "record": "path",
+                 "input": "paths",
+                 "props": {
+                  "closed": {
+                   "lit": true
+                  },
+                  "fill": {
+                   "expr": "moved(items[k])",
+                   "ast": {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:moved#0",
+                    "args": [
+                     {
+                      "t": "index",
+                      "o": {
+                       "t": "var",
+                       "name": "items",
+                       "from": "inst"
+                      },
+                      "i": {
+                       "t": "var",
+                       "name": "k",
+                       "from": "local"
+                      }
+                     }
+                    ]
+                   },
+                   "type": {
+                    "t": "token",
+                    "kind": "color"
+                   },
+                   "pos": [
+                    20,
+                    235
+                   ]
+                  },
+                  "stroke": {
+                   "tok": "none",
+                   "kind": "color"
+                  },
+                  "opacity": {
+                   "lit": 0.12
+                  },
+                  "pts": {
+                   "expr": "[((0), lo(items[k].trend) - 0.15 * (hi(items[k].trend) - lo(items[k].trend)))] + spark(items[k].trend) + [((len(items[k].trend) - 1), lo(items[k].trend) - 0.15 * (hi(items[k].trend) - lo(items[k].trend)))]",
+                   "ast": {
+                    "t": "builtin",
+                    "fn": "lcat",
+                    "args": [
+                     {
+                      "t": "builtin",
+                      "fn": "lcat",
+                      "args": [
+                       {
+                        "t": "list",
+                        "items": [
+                         {
+                          "t": "point",
+                          "x": {
+                           "t": "num",
+                           "v": 0
+                          },
+                          "y": {
+                           "t": "builtin",
+                           "fn": "-",
+                           "args": [
+                            {
+                             "t": "call",
+                             "fn": "local:devbench:stats@1:lo#0",
+                             "args": [
+                              {
+                               "t": "field",
+                               "o": {
+                                "t": "index",
+                                "o": {
+                                 "t": "var",
+                                 "name": "items",
+                                 "from": "inst"
+                                },
+                                "i": {
+                                 "t": "var",
+                                 "name": "k",
+                                 "from": "local"
+                                }
+                               },
+                               "name": "trend"
+                              }
+                             ]
+                            },
+                            {
+                             "t": "builtin",
+                             "fn": "*",
+                             "args": [
+                              {
+                               "t": "num",
+                               "v": 0.15
+                              },
+                              {
+                               "t": "builtin",
+                               "fn": "-",
+                               "args": [
+                                {
+                                 "t": "call",
+                                 "fn": "local:devbench:stats@1:hi#0",
+                                 "args": [
+                                  {
+                                   "t": "field",
+                                   "o": {
+                                    "t": "index",
+                                    "o": {
+                                     "t": "var",
+                                     "name": "items",
+                                     "from": "inst"
+                                    },
+                                    "i": {
+                                     "t": "var",
+                                     "name": "k",
+                                     "from": "local"
+                                    }
+                                   },
+                                   "name": "trend"
+                                  }
+                                 ]
+                                },
+                                {
+                                 "t": "call",
+                                 "fn": "local:devbench:stats@1:lo#0",
+                                 "args": [
+                                  {
+                                   "t": "field",
+                                   "o": {
+                                    "t": "index",
+                                    "o": {
+                                     "t": "var",
+                                     "name": "items",
+                                     "from": "inst"
+                                    },
+                                    "i": {
+                                     "t": "var",
+                                     "name": "k",
+                                     "from": "local"
+                                    }
+                                   },
+                                   "name": "trend"
+                                  }
+                                 ]
+                                }
+                               ]
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         }
+                        ]
+                       },
+                       {
+                        "t": "call",
+                        "fn": "local:devbench:stats@1:spark#0",
+                        "args": [
+                         {
+                          "t": "field",
+                          "o": {
+                           "t": "index",
+                           "o": {
+                            "t": "var",
+                            "name": "items",
+                            "from": "inst"
+                           },
+                           "i": {
+                            "t": "var",
+                            "name": "k",
+                            "from": "local"
+                           }
+                          },
+                          "name": "trend"
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "t": "list",
+                      "items": [
+                       {
+                        "t": "point",
+                        "x": {
+                         "t": "builtin",
+                         "fn": "-",
+                         "args": [
+                          {
+                           "t": "builtin",
+                           "fn": "len",
+                           "args": [
+                            {
+                             "t": "field",
+                             "o": {
+                              "t": "index",
+                              "o": {
+                               "t": "var",
+                               "name": "items",
+                               "from": "inst"
+                              },
+                              "i": {
+                               "t": "var",
+                               "name": "k",
+                               "from": "local"
+                              }
+                             },
+                             "name": "trend"
+                            }
+                           ]
+                          },
+                          {
+                           "t": "num",
+                           "v": 1
+                          }
+                         ]
+                        },
+                        "y": {
+                         "t": "builtin",
+                         "fn": "-",
+                         "args": [
+                          {
+                           "t": "call",
+                           "fn": "local:devbench:stats@1:lo#0",
+                           "args": [
+                            {
+                             "t": "field",
+                             "o": {
+                              "t": "index",
+                              "o": {
+                               "t": "var",
+                               "name": "items",
+                               "from": "inst"
+                              },
+                              "i": {
+                               "t": "var",
+                               "name": "k",
+                               "from": "local"
+                              }
+                             },
+                             "name": "trend"
+                            }
+                           ]
+                          },
+                          {
+                           "t": "builtin",
+                           "fn": "*",
+                           "args": [
+                            {
+                             "t": "num",
+                             "v": 0.15
+                            },
+                            {
+                             "t": "builtin",
+                             "fn": "-",
+                             "args": [
+                              {
+                               "t": "call",
+                               "fn": "local:devbench:stats@1:hi#0",
+                               "args": [
+                                {
+                                 "t": "field",
+                                 "o": {
+                                  "t": "index",
+                                  "o": {
+                                   "t": "var",
+                                   "name": "items",
+                                   "from": "inst"
+                                  },
+                                  "i": {
+                                   "t": "var",
+                                   "name": "k",
+                                   "from": "local"
+                                  }
+                                 },
+                                 "name": "trend"
+                                }
+                               ]
+                              },
+                              {
+                               "t": "call",
+                               "fn": "local:devbench:stats@1:lo#0",
+                               "args": [
+                                {
+                                 "t": "field",
+                                 "o": {
+                                  "t": "index",
+                                  "o": {
+                                   "t": "var",
+                                   "name": "items",
+                                   "from": "inst"
+                                  },
+                                  "i": {
+                                   "t": "var",
+                                   "name": "k",
+                                   "from": "local"
+                                  }
+                                 },
+                                 "name": "trend"
+                                }
+                               ]
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   "type": {
+                    "t": "list",
+                    "of": {
+                     "t": "point"
+                    }
+                   },
+                   "pos": [
+                    20,
+                    20
+                   ]
+                  },
+                  "width": {
+                   "lit": 1
+                  },
+                  "dash": {
+                   "lit": false
+                  },
+                  "head": {
+                   "lit": "none"
+                  },
+                  "label": {
+                   "text": ""
+                  }
+                 },
+                 "pos": [
+                  20,
+                  15
+                 ]
+                },
+                {
+                 "node": "$record",
+                 "record": "path",
+                 "input": "paths",
+                 "props": {
+                  "stroke": {
+                   "expr": "moved(items[k])",
+                   "ast": {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:moved#0",
+                    "args": [
+                     {
+                      "t": "index",
+                      "o": {
+                       "t": "var",
+                       "name": "items",
+                       "from": "inst"
+                      },
+                      "i": {
+                       "t": "var",
+                       "name": "k",
+                       "from": "local"
+                      }
+                     }
+                    ]
+                   },
+                   "type": {
+                    "t": "token",
+                    "kind": "color"
+                   },
+                   "pos": [
+                    21,
+                    44
+                   ]
+                  },
+                  "width": {
+                   "lit": 1.75
+                  },
+                  "pts": {
+                   "expr": "spark(items[k].trend)",
+                   "ast": {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:spark#0",
+                    "args": [
+                     {
+                      "t": "field",
+                      "o": {
+                       "t": "index",
+                       "o": {
+                        "t": "var",
+                        "name": "items",
+                        "from": "inst"
+                       },
+                       "i": {
+                        "t": "var",
+                        "name": "k",
+                        "from": "local"
+                       }
+                      },
+                      "name": "trend"
+                     }
+                    ]
+                   },
+                   "type": {
+                    "t": "list",
+                    "of": {
+                     "t": "point"
+                    }
+                   },
+                   "pos": [
+                    21,
+                    20
+                   ]
+                  },
+                  "closed": {
+                   "lit": false
+                  },
+                  "fill": {
+                   "tok": "none",
+                   "kind": "color"
+                  },
+                  "dash": {
+                   "lit": false
+                  },
+                  "head": {
+                   "lit": "none"
+                  },
+                  "opacity": {
+                   "lit": 1
+                  },
+                  "label": {
+                   "text": ""
+                  }
+                 },
+                 "pos": [
+                  21,
+                  15
+                 ]
+                },
+                {
+                 "node": "$record",
+                 "record": "circle",
+                 "input": "circles",
+                 "props": {
+                  "px": {
+                   "lit": 3
+                  },
+                  "fill": {
+                   "expr": "moved(items[k])",
+                   "ast": {
+                    "t": "call",
+                    "fn": "local:devbench:stats@1:moved#0",
+                    "args": [
+                     {
+                      "t": "index",
+                      "o": {
+                       "t": "var",
+                       "name": "items",
+                       "from": "inst"
+                      },
+                      "i": {
+                       "t": "var",
+                       "name": "k",
+                       "from": "local"
+                      }
+                     }
+                    ]
+                   },
+                   "type": {
+                    "t": "token",
+                    "kind": "color"
+                   },
+                   "pos": [
+                    22,
+                    79
+                   ]
+                  },
+                  "c": {
+                   "expr": "(len(items[k].trend) - 1, last(items[k].trend))",
+                   "ast": {
+                    "t": "point",
+                    "x": {
+                     "t": "builtin",
+                     "fn": "-",
+                     "args": [
+                      {
+                       "t": "builtin",
+                       "fn": "len",
+                       "args": [
+                        {
+                         "t": "field",
+                         "o": {
+                          "t": "index",
+                          "o": {
+                           "t": "var",
+                           "name": "items",
+                           "from": "inst"
+                          },
+                          "i": {
+                           "t": "var",
+                           "name": "k",
+                           "from": "local"
+                          }
+                         },
+                         "name": "trend"
+                        }
+                       ]
+                      },
+                      {
+                       "t": "num",
+                       "v": 1
+                      }
+                     ]
+                    },
+                    "y": {
+                     "t": "builtin",
+                     "fn": "last1",
+                     "args": [
+                      {
+                       "t": "field",
+                       "o": {
+                        "t": "index",
+                        "o": {
+                         "t": "var",
+                         "name": "items",
+                         "from": "inst"
+                        },
+                        "i": {
+                         "t": "var",
+                         "name": "k",
+                         "from": "local"
+                        }
+                       },
+                       "name": "trend"
+                      }
+                     ]
+                    }
+                   },
+                   "type": {
+                    "t": "point"
+                   },
+                   "pos": [
+                    22,
+                    22
+                   ]
+                  },
+                  "r": {
+                   "lit": 0
+                  },
+                  "stroke": {
+                   "tok": "none",
+                   "kind": "color"
+                  },
+                  "width": {
+                   "lit": 1
+                  },
+                  "opacity": {
+                   "lit": 1
+                  },
+                  "label": {
+                   "text": ""
+                  }
+                 },
+                 "pos": [
+                  22,
+                  15
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "project": {
+    "md": {
+     "expr": "join(map(items, s => \"- **\" + s.label + \"**: \" + s.value + if(s.change != \"\", \" (\" + s.change + \")\", \"\") + if(s.note != \"\", \" — \" + s.note, \"\")), \"\\n\")",
+     "ast": {
+      "t": "builtin",
+      "fn": "join",
+      "args": [
+       {
+        "t": "builtin",
+        "fn": "map",
+        "args": [
+         {
+          "t": "var",
+          "name": "items",
+          "from": "inst"
+         },
+         {
+          "t": "lam",
+          "params": [
+           "s"
+          ],
+          "body": {
+           "t": "builtin",
+           "fn": "cat",
+           "args": [
+            {
+             "t": "builtin",
+             "fn": "cat",
+             "args": [
+              {
+               "t": "builtin",
+               "fn": "cat",
+               "args": [
+                {
+                 "t": "builtin",
+                 "fn": "cat",
+                 "args": [
+                  {
+                   "t": "builtin",
+                   "fn": "cat",
+                   "args": [
+                    {
+                     "t": "str",
+                     "v": "- **"
+                    },
+                    {
+                     "t": "field",
+                     "o": {
+                      "t": "var",
+                      "name": "s",
+                      "from": "local"
+                     },
+                     "name": "label"
+                    }
+                   ]
+                  },
+                  {
+                   "t": "str",
+                   "v": "**: "
+                  }
+                 ]
+                },
+                {
+                 "t": "field",
+                 "o": {
+                  "t": "var",
+                  "name": "s",
+                  "from": "local"
+                 },
+                 "name": "value"
+                }
+               ]
+              },
+              {
+               "t": "if",
+               "c": {
+                "t": "builtin",
+                "fn": "!=",
+                "args": [
+                 {
+                  "t": "field",
+                  "o": {
+                   "t": "var",
+                   "name": "s",
+                   "from": "local"
+                  },
+                  "name": "change"
+                 },
+                 {
+                  "t": "str",
+                  "v": ""
+                 }
+                ]
+               },
+               "a": {
+                "t": "builtin",
+                "fn": "cat",
+                "args": [
+                 {
+                  "t": "builtin",
+                  "fn": "cat",
+                  "args": [
+                   {
+                    "t": "str",
+                    "v": " ("
+                   },
+                   {
+                    "t": "field",
+                    "o": {
+                     "t": "var",
+                     "name": "s",
+                     "from": "local"
+                    },
+                    "name": "change"
+                   }
+                  ]
+                 },
+                 {
+                  "t": "str",
+                  "v": ")"
+                 }
+                ]
+               },
+               "b": {
+                "t": "str",
+                "v": ""
+               }
+              }
+             ]
+            },
+            {
+             "t": "if",
+             "c": {
+              "t": "builtin",
+              "fn": "!=",
+              "args": [
+               {
+                "t": "field",
+                "o": {
+                 "t": "var",
+                 "name": "s",
+                 "from": "local"
+                },
+                "name": "note"
+               },
+               {
+                "t": "str",
+                "v": ""
+               }
+              ]
+             },
+             "a": {
+              "t": "builtin",
+              "fn": "cat",
+              "args": [
+               {
+                "t": "str",
+                "v": " — "
+               },
+               {
+                "t": "field",
+                "o": {
+                 "t": "var",
+                 "name": "s",
+                 "from": "local"
+                },
+                "name": "note"
+               }
+              ]
+             },
+             "b": {
+              "t": "str",
+              "v": ""
+             }
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "t": "str",
+        "v": "\n"
+       }
+      ]
+     },
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      23,
+      3
+     ]
+    }
+   },
+   "fns": {
+    "local:devbench:stats@1:moved#0": {
+     "name": "moved",
+     "params": [
+      "s"
+     ],
+     "types": [
+      {
+       "t": "named",
+       "name": "stat"
+      }
+     ],
+     "ret": {
+      "t": "token",
+      "kind": "color"
+     },
+     "body": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "!=",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "s",
+          "from": "local"
+         },
+         "name": "tone"
+        },
+        {
+         "t": "str",
+         "v": "none"
+        }
+       ]
+      },
+      "a": {
+       "t": "field",
+       "o": {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       "name": "tone"
+      },
+      "b": {
+       "t": "if",
+       "c": {
+        "t": "builtin",
+        "fn": "startswith",
+        "args": [
+         {
+          "t": "field",
+          "o": {
+           "t": "var",
+           "name": "s",
+           "from": "local"
+          },
+          "name": "change"
+         },
+         {
+          "t": "str",
+          "v": "+"
+         }
+        ]
+       },
+       "a": {
+        "t": "str",
+        "v": "ok"
+       },
+       "b": {
+        "t": "if",
+        "c": {
+         "t": "or",
+         "a": {
+          "t": "builtin",
+          "fn": "startswith",
+          "args": [
+           {
+            "t": "field",
+            "o": {
+             "t": "var",
+             "name": "s",
+             "from": "local"
+            },
+            "name": "change"
+           },
+           {
+            "t": "str",
+            "v": "-"
+           }
+          ]
+         },
+         "b": {
+          "t": "builtin",
+          "fn": "startswith",
+          "args": [
+           {
+            "t": "field",
+            "o": {
+             "t": "var",
+             "name": "s",
+             "from": "local"
+            },
+            "name": "change"
+           },
+           {
+            "t": "str",
+            "v": "−"
+           }
+          ]
+         }
+        },
+        "a": {
+         "t": "str",
+         "v": "bad"
+        },
+        "b": {
+         "t": "str",
+         "v": "muted"
+        }
+       }
+      }
+     },
+     "src": "if(s.tone != none, s.tone, if(startswith(s.change, \"+\"), ok, if(startswith(s.change, \"-\") or startswith(s.change, \"−\"), bad, muted)))",
+     "local": true,
+     "pos": [
+      4,
+      3
+     ],
+     "file": "devbench/stats.mkp"
+    },
+    "local:devbench:stats@1:arrow#0": {
+     "name": "arrow",
+     "params": [
+      "s"
+     ],
+     "types": [
+      {
+       "t": "named",
+       "name": "stat"
+      }
+     ],
+     "ret": {
+      "t": "named",
+      "name": "iconname"
+     },
+     "body": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "startswith",
+       "args": [
+        {
+         "t": "field",
+         "o": {
+          "t": "var",
+          "name": "s",
+          "from": "local"
+         },
+         "name": "change"
+        },
+        {
+         "t": "str",
+         "v": "+"
+        }
+       ]
+      },
+      "a": {
+       "t": "str",
+       "v": "up"
+      },
+      "b": {
+       "t": "if",
+       "c": {
+        "t": "or",
+        "a": {
+         "t": "builtin",
+         "fn": "startswith",
+         "args": [
+          {
+           "t": "field",
+           "o": {
+            "t": "var",
+            "name": "s",
+            "from": "local"
+           },
+           "name": "change"
+          },
+          {
+           "t": "str",
+           "v": "-"
+          }
+         ]
+        },
+        "b": {
+         "t": "builtin",
+         "fn": "startswith",
+         "args": [
+          {
+           "t": "field",
+           "o": {
+            "t": "var",
+            "name": "s",
+            "from": "local"
+           },
+           "name": "change"
+          },
+          {
+           "t": "str",
+           "v": "−"
+          }
+         ]
+        }
+       },
+       "a": {
+        "t": "str",
+        "v": "down"
+       },
+       "b": {
+        "t": "str",
+        "v": "none"
+       }
+      }
+     },
+     "src": "if(startswith(s.change, \"+\"), up, if(startswith(s.change, \"-\") or startswith(s.change, \"−\"), down, none))",
+     "local": true,
+     "pos": [
+      5,
+      3
+     ],
+     "file": "devbench/stats.mkp"
+    },
+    "local:devbench:stats@1:lo#0": {
+     "name": "lo",
+     "params": [
+      "xs"
+     ],
+     "types": [
+      {
+       "t": "list",
+       "of": {
+        "t": "num"
+       }
+      }
+     ],
+     "ret": {
+      "t": "num"
+     },
+     "body": {
+      "t": "builtin",
+      "fn": "fold",
+      "args": [
+       {
+        "t": "var",
+        "name": "xs",
+        "from": "local"
+       },
+       {
+        "t": "builtin",
+        "fn": "at",
+        "args": [
+         {
+          "t": "var",
+          "name": "xs",
+          "from": "local"
+         },
+         {
+          "t": "num",
+          "v": 0
+         },
+         {
+          "t": "num",
+          "v": 0
+         }
+        ]
+       },
+       {
+        "t": "lam",
+        "params": [
+         "a",
+         "v"
+        ],
+        "body": {
+         "t": "builtin",
+         "fn": "min",
+         "args": [
+          {
+           "t": "var",
+           "name": "a",
+           "from": "local"
+          },
+          {
+           "t": "var",
+           "name": "v",
+           "from": "local"
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "src": "fold(xs, at(xs, 0, 0), (a, v) => min(a, v))",
+     "local": true,
+     "pos": [
+      6,
+      3
+     ],
+     "file": "devbench/stats.mkp"
+    },
+    "local:devbench:stats@1:hi#0": {
+     "name": "hi",
+     "params": [
+      "xs"
+     ],
+     "types": [
+      {
+       "t": "list",
+       "of": {
+        "t": "num"
+       }
+      }
+     ],
+     "ret": {
+      "t": "num"
+     },
+     "body": {
+      "t": "builtin",
+      "fn": "max",
+      "args": [
+       {
+        "t": "builtin",
+        "fn": "fold",
+        "args": [
+         {
+          "t": "var",
+          "name": "xs",
+          "from": "local"
+         },
+         {
+          "t": "builtin",
+          "fn": "at",
+          "args": [
+           {
+            "t": "var",
+            "name": "xs",
+            "from": "local"
+           },
+           {
+            "t": "num",
+            "v": 0
+           },
+           {
+            "t": "num",
+            "v": 0
+           }
+          ]
+         },
+         {
+          "t": "lam",
+          "params": [
+           "a",
+           "v"
+          ],
+          "body": {
+           "t": "builtin",
+           "fn": "max",
+           "args": [
+            {
+             "t": "var",
+             "name": "a",
+             "from": "local"
+            },
+            {
+             "t": "var",
+             "name": "v",
+             "from": "local"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "t": "builtin",
+        "fn": "+",
+        "args": [
+         {
+          "t": "call",
+          "fn": "local:devbench:stats@1:lo#0",
+          "args": [
+           {
+            "t": "var",
+            "name": "xs",
+            "from": "local"
+           }
+          ]
+         },
+         {
+          "t": "num",
+          "v": 0.000001
+         }
+        ]
+       }
+      ]
+     },
+     "src": "max(fold(xs, at(xs, 0, 0), (a, v) => max(a, v)), lo(xs) + 0.000001)",
+     "local": true,
+     "pos": [
+      7,
+      3
+     ],
+     "file": "devbench/stats.mkp"
+    },
+    "local:devbench:stats@1:spark#0": {
+     "name": "spark",
+     "params": [
+      "xs"
+     ],
+     "types": [
+      {
+       "t": "list",
+       "of": {
+        "t": "num"
+       }
+      }
+     ],
+     "ret": {
+      "t": "list",
+      "of": {
+       "t": "point"
+      }
+     },
+     "body": {
+      "t": "builtin",
+      "fn": "map",
+      "args": [
+       {
+        "t": "builtin",
+        "fn": "range",
+        "args": [
+         {
+          "t": "num",
+          "v": 0
+         },
+         {
+          "t": "builtin",
+          "fn": "-",
+          "args": [
+           {
+            "t": "builtin",
+            "fn": "len",
+            "args": [
+             {
+              "t": "var",
+              "name": "xs",
+              "from": "local"
+             }
+            ]
+           },
+           {
+            "t": "num",
+            "v": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "t": "lam",
+        "params": [
+         "i"
+        ],
+        "body": {
+         "t": "point",
+         "x": {
+          "t": "var",
+          "name": "i",
+          "from": "local"
+         },
+         "y": {
+          "t": "index",
+          "o": {
+           "t": "var",
+           "name": "xs",
+           "from": "local"
+          },
+          "i": {
+           "t": "var",
+           "name": "i",
+           "from": "local"
+          }
+         }
+        }
+       }
+      ]
+     },
+     "src": "map(range(0, len(xs) - 1), i => (i, xs[i]))",
+     "local": true,
+     "pos": [
+      8,
+      3
+     ],
+     "file": "devbench/stats.mkp"
+    }
+   },
+   "digest": "sha256:52b9ca48ac58638814c1e394317a822b198926b75e158a1699e3019e31ff1fc8"
+  },
+  "core:canvas@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:canvas@1",
+   "name": "canvas",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "A 2D coordinate space with layers drawn in the order written. Lines, rectangles and curves are paths.",
+   "inputs": [
+    {
+     "name": "x",
+     "type": {
+      "t": "range"
+     },
+     "pos": [
+      181,
+      3
+     ],
+     "default": {
+      "range": [
+       {
+        "lit": -1
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    },
+    {
+     "name": "y",
+     "type": {
+      "t": "range"
+     },
+     "pos": [
+      182,
+      3
+     ],
+     "default": {
+      "range": [
+       {
+        "lit": -1
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    },
+    {
+     "name": "z",
+     "type": {
+      "t": "range"
+     },
+     "pos": [
+      183,
+      3
+     ],
+     "about": "3D only",
+     "default": {
+      "range": [
+       {
+        "lit": -1
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    },
+    {
+     "name": "aspect",
+     "type": {
+      "t": "num"
+     },
+     "pos": [
+      184,
+      3
+     ],
+     "about": "width over height; 0 means from the ranges",
+     "default": {
+      "lit": 0
+     }
+    },
+    {
+     "name": "size",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      185,
+      3
+     ],
+     "about": "its width",
+     "default": {
+      "tok": "m",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "height",
+     "type": {
+      "t": "token",
+      "kind": "size"
+     },
+     "pos": [
+      186,
+      3
+     ],
+     "about": "a fixed height, so it fills a stage of that height; none: from the aspect",
+     "default": {
+      "tok": "none",
+      "kind": "size"
+     }
+    },
+    {
+     "name": "dims",
+     "type": {
+      "t": "int",
+      "lo": 2,
+      "hi": 3
+     },
+     "pos": [
+      187,
+      3
+     ],
+     "about": "3 needs gfx@1",
+     "default": {
+      "lit": 2
+     }
+    },
+    {
+     "name": "view",
+     "type": {
+      "t": "point"
+     },
+     "pos": [
+      188,
+      3
+     ],
+     "about": "3D camera: azimuth and elevation in degrees",
+     "default": {
+      "expr": "(35, 25)",
+      "ast": {
+       "t": "point",
+       "x": {
+        "t": "num",
+        "v": 35
+       },
+       "y": {
+        "t": "num",
+        "v": 25
+       }
+      },
+      "type": {
+       "t": "point"
+      },
+      "pos": [
+       188,
+       3
+      ],
+      "static": true
+     }
+    },
+    {
+     "name": "label",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      189,
+      3
+     ],
+     "default": {
+      "text": ""
+     }
+    },
+    {
+     "name": "layers",
+     "type": {
+      "t": "records",
+      "kind": "layer",
+      "fields": [
+       [
+        "opacity",
+        {
+         "t": "num"
+        }
+       ],
+       [
+        "clip",
+        {
+         "t": "list",
+         "of": {
+          "t": "point"
+         }
+        }
+       ],
+       [
+        "circles",
+        {
+         "t": "records",
+         "kind": "circle",
+         "fields": [
+          [
+           "c",
+           {
+            "t": "point"
+           }
+          ],
+          [
+           "r",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "px",
+           {
+            "t": "int"
+           }
+          ],
+          [
+           "fill",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ],
+          [
+           "stroke",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ],
+          [
+           "width",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "opacity",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "label",
+           {
+            "t": "text"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "px": "0",
+          "fill": "none",
+          "stroke": "none",
+          "width": "1",
+          "opacity": "1",
+          "label": "\"\""
+         }
+        }
+       ],
+       [
+        "paths",
+        {
+         "t": "records",
+         "kind": "path",
+         "fields": [
+          [
+           "pts",
+           {
+            "t": "list",
+            "of": {
+             "t": "point"
+            }
+           }
+          ],
+          [
+           "closed",
+           {
+            "t": "bool"
+           }
+          ],
+          [
+           "fill",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ],
+          [
+           "stroke",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ],
+          [
+           "width",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "dash",
+           {
+            "t": "bool"
+           }
+          ],
+          [
+           "head",
+           {
+            "t": "choice",
+            "opts": [
+             "none",
+             "arrow",
+             "dot"
+            ]
+           }
+          ],
+          [
+           "opacity",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "label",
+           {
+            "t": "text"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "closed": "false",
+          "fill": "none",
+          "stroke": "ink",
+          "width": "1",
+          "dash": "false",
+          "head": "none",
+          "opacity": "1",
+          "label": "\"\""
+         }
+        }
+       ],
+       [
+        "labels",
+        {
+         "t": "records",
+         "kind": "label",
+         "fields": [
+          [
+           "at",
+           {
+            "t": "point"
+           }
+          ],
+          [
+           "text",
+           {
+            "t": "text"
+           }
+          ],
+          [
+           "tone",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ],
+          [
+           "anchor",
+           {
+            "t": "choice",
+            "opts": [
+             "center",
+             "n",
+             "s",
+             "e",
+             "w",
+             "ne",
+             "nw",
+             "se",
+             "sw"
+            ]
+           }
+          ],
+          [
+           "chip",
+           {
+            "t": "bool"
+           }
+          ],
+          [
+           "size",
+           {
+            "t": "choice",
+            "opts": [
+             "small",
+             "normal",
+             "large"
+            ]
+           }
+          ],
+          [
+           "halo",
+           {
+            "t": "bool"
+           }
+          ],
+          [
+           "dx",
+           {
+            "t": "int"
+           }
+          ],
+          [
+           "dy",
+           {
+            "t": "int"
+           }
+          ],
+          [
+           "opacity",
+           {
+            "t": "num"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "tone": "ink",
+          "anchor": "center",
+          "chip": "false",
+          "size": "normal",
+          "halo": "false",
+          "dx": "0",
+          "dy": "0",
+          "opacity": "1"
+         }
+        }
+       ],
+       [
+        "images",
+        {
+         "t": "records",
+         "kind": "image",
+         "fields": [
+          [
+           "src",
+           {
+            "t": "text"
+           }
+          ],
+          [
+           "at",
+           {
+            "t": "point"
+           }
+          ],
+          [
+           "w",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "h",
+           {
+            "t": "num"
+           }
+          ],
+          [
+           "alt",
+           {
+            "t": "text"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "h": "0",
+          "alt": "\"\""
+         }
+        }
+       ],
+       [
+        "places",
+        {
+         "t": "records",
+         "kind": "place",
+         "fields": [
+          [
+           "at",
+           {
+            "t": "point"
+           }
+          ]
+         ],
+         "slot": true
+        }
+       ],
+       [
+        "handles",
+        {
+         "t": "records",
+         "kind": "handle",
+         "fields": [
+          [
+           "p",
+           {
+            "t": "ref",
+            "of": {
+             "t": "point"
+            }
+           }
+          ],
+          [
+           "tone",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "tone": "accent"
+         }
+        }
+       ],
+       [
+        "pixels",
+        {
+         "t": "records",
+         "kind": "pixels",
+         "fields": [
+          [
+           "f",
+           {
+            "t": "expr",
+            "vars": [
+             [
+              "x",
+              {
+               "t": "num"
+              }
+             ],
+             [
+              "y",
+              {
+               "t": "num"
+              }
+             ]
+            ],
+            "ret": {
+             "t": "named",
+             "name": "rgb"
+            }
+           }
+          ],
+          [
+           "res",
+           {
+            "t": "int",
+            "lo": 16,
+            "hi": 1024
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "res": "256"
+         }
+        }
+       ],
+       [
+        "meshes",
+        {
+         "t": "records",
+         "kind": "mesh",
+         "fields": [
+          [
+           "f",
+           {
+            "t": "expr",
+            "vars": [
+             [
+              "x",
+              {
+               "t": "num"
+              }
+             ],
+             [
+              "y",
+              {
+               "t": "num"
+              }
+             ]
+            ],
+            "ret": {
+             "t": "num"
+            }
+           }
+          ],
+          [
+           "n",
+           {
+            "t": "int",
+            "lo": 4,
+            "hi": 200
+           }
+          ],
+          [
+           "fill",
+           {
+            "t": "token",
+            "kind": "color"
+           }
+          ]
+         ],
+         "slot": false,
+         "defaults": {
+          "n": "40",
+          "fill": "accent"
+         }
+        }
+       ]
+      ],
+      "slot": false,
+      "defaults": {
+       "opacity": "1",
+       "clip": "[]"
+      }
+     },
+     "pos": [
+      190,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    179,
+    1
+   ],
+   "fields": [
+    "x",
+    "y"
+   ],
+   "digest": "sha256:03d79534a74aaae74ec4acd6f7b3a2c60e1b5a98e7de2126d7089e274aadbf30"
+  },
+  "core:heading@1": {
+   "ir": 1,
+   "kind": "extern",
+   "id": "core:heading@1",
+   "name": "heading",
+   "version": 1,
+   "pack": "core",
+   "file": "core/core.mkp",
+   "about": "A heading.",
+   "inputs": [
+    {
+     "name": "level",
+     "type": {
+      "t": "int",
+      "lo": 1,
+      "hi": 6
+     },
+     "pos": [
+      206,
+      3
+     ],
+     "default": {
+      "lit": 2
+     }
+    },
+    {
+     "name": "text",
+     "type": {
+      "t": "text"
+     },
+     "pos": [
+      207,
+      3
+     ]
+    }
+   ],
+   "pos": [
+    204,
+    1
+   ],
+   "fields": [
+    "level",
+    "text"
+   ],
+   "digest": "sha256:6751348292b1b5da8b927ce763e71f06720e4aa8e96c8243a2c0477ea3a5f50d"
+  },
+  "$doc:document@1": {
+   "ir": 1,
+   "kind": "widget",
+   "id": "$doc:document@1",
+   "name": "document",
+   "version": 1,
+   "pack": "$doc",
+   "file": "comments.mkp.md",
+   "about": "the document",
+   "inputs": [],
+   "pos": [
+    1,
+    1
+   ]
+  }
+ },
+ "fns": {
+  "devbench:statetone#0": {
+   "name": "statetone",
+   "params": [
+    "s"
+   ],
+   "types": [
+    {
+     "t": "named",
+     "name": "state"
+    }
+   ],
+   "ret": {
+    "t": "token",
+    "kind": "color"
+   },
+   "body": {
+    "t": "if",
+    "c": {
+     "t": "or",
+     "a": {
+      "t": "builtin",
+      "fn": "==",
+      "args": [
+       {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       {
+        "t": "str",
+        "v": "done"
+       }
+      ]
+     },
+     "b": {
+      "t": "builtin",
+      "fn": "==",
+      "args": [
+       {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       {
+        "t": "str",
+        "v": "pass"
+       }
+      ]
+     }
+    },
+    "a": {
+     "t": "str",
+     "v": "ok"
+    },
+    "b": {
+     "t": "if",
+     "c": {
+      "t": "or",
+      "a": {
+       "t": "builtin",
+       "fn": "==",
+       "args": [
+        {
+         "t": "var",
+         "name": "s",
+         "from": "local"
+        },
+        {
+         "t": "str",
+         "v": "fail"
+        }
+       ]
+      },
+      "b": {
+       "t": "builtin",
+       "fn": "==",
+       "args": [
+        {
+         "t": "var",
+         "name": "s",
+         "from": "local"
+        },
+        {
+         "t": "str",
+         "v": "blocked"
+        }
+       ]
+      }
+     },
+     "a": {
+      "t": "str",
+      "v": "bad"
+     },
+     "b": {
+      "t": "if",
+      "c": {
+       "t": "builtin",
+       "fn": "==",
+       "args": [
+        {
+         "t": "var",
+         "name": "s",
+         "from": "local"
+        },
+        {
+         "t": "str",
+         "v": "warn"
+        }
+       ]
+      },
+      "a": {
+       "t": "str",
+       "v": "warn"
+      },
+      "b": {
+       "t": "if",
+       "c": {
+        "t": "builtin",
+        "fn": "==",
+        "args": [
+         {
+          "t": "var",
+          "name": "s",
+          "from": "local"
+         },
+         {
+          "t": "str",
+          "v": "running"
+         }
+        ]
+       },
+       "a": {
+        "t": "str",
+        "v": "info"
+       },
+       "b": {
+        "t": "if",
+        "c": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "s",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "active"
+          }
+         ]
+        },
+        "a": {
+         "t": "str",
+         "v": "accent"
+        },
+        "b": {
+         "t": "str",
+         "v": "muted"
+        }
+       }
+      }
+     }
+    }
+   },
+   "src": "if(s == done or s == pass, ok, if(s == fail or s == blocked, bad, if(s == warn, warn, if(s == running, info, if(s == active, accent, muted)))))",
+   "pos": [
+    7,
+    1
+   ],
+   "file": "devbench/state.mkp"
+  },
+  "devbench:stateicon#0": {
+   "name": "stateicon",
+   "params": [
+    "s"
+   ],
+   "types": [
+    {
+     "t": "named",
+     "name": "state"
+    }
+   ],
+   "ret": {
+    "t": "named",
+    "name": "iconname"
+   },
+   "body": {
+    "t": "if",
+    "c": {
+     "t": "or",
+     "a": {
+      "t": "builtin",
+      "fn": "==",
+      "args": [
+       {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       {
+        "t": "str",
+        "v": "done"
+       }
+      ]
+     },
+     "b": {
+      "t": "builtin",
+      "fn": "==",
+      "args": [
+       {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       {
+        "t": "str",
+        "v": "pass"
+       }
+      ]
+     }
+    },
+    "a": {
+     "t": "str",
+     "v": "check"
+    },
+    "b": {
+     "t": "if",
+     "c": {
+      "t": "builtin",
+      "fn": "==",
+      "args": [
+       {
+        "t": "var",
+        "name": "s",
+        "from": "local"
+       },
+       {
+        "t": "str",
+        "v": "fail"
+       }
+      ]
+     },
+     "a": {
+      "t": "str",
+      "v": "cross"
+     },
+     "b": {
+      "t": "if",
+      "c": {
+       "t": "or",
+       "a": {
+        "t": "builtin",
+        "fn": "==",
+        "args": [
+         {
+          "t": "var",
+          "name": "s",
+          "from": "local"
+         },
+         {
+          "t": "str",
+          "v": "warn"
+         }
+        ]
+       },
+       "b": {
+        "t": "builtin",
+        "fn": "==",
+        "args": [
+         {
+          "t": "var",
+          "name": "s",
+          "from": "local"
+         },
+         {
+          "t": "str",
+          "v": "blocked"
+         }
+        ]
+       }
+      },
+      "a": {
+       "t": "str",
+       "v": "alert"
+      },
+      "b": {
+       "t": "if",
+       "c": {
+        "t": "or",
+        "a": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "s",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "active"
+          }
+         ]
+        },
+        "b": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "s",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "running"
+          }
+         ]
+        }
+       },
+       "a": {
+        "t": "str",
+        "v": "play"
+       },
+       "b": {
+        "t": "if",
+        "c": {
+         "t": "builtin",
+         "fn": "==",
+         "args": [
+          {
+           "t": "var",
+           "name": "s",
+           "from": "local"
+          },
+          {
+           "t": "str",
+           "v": "skipped"
+          }
+         ]
+        },
+        "a": {
+         "t": "str",
+         "v": "minus"
+        },
+        "b": {
+         "t": "if",
+         "c": {
+          "t": "builtin",
+          "fn": "==",
+          "args": [
+           {
+            "t": "var",
+            "name": "s",
+            "from": "local"
+           },
+           {
+            "t": "str",
+            "v": "todo"
+           }
+          ]
+         },
+         "a": {
+          "t": "str",
+          "v": "circle"
+         },
+         "b": {
+          "t": "str",
+          "v": "none"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "src": "if(s == done or s == pass, check, if(s == fail, cross, if(s == warn or s == blocked, alert, if(s == active or s == running, play, if(s == skipped, minus, if(s == todo, circle, none))))))",
+   "pos": [
+    6,
+    1
+   ],
+   "file": "devbench/state.mkp"
+  }
+ },
+ "consts": {},
+ "types": {
+  "core:rgb": {
+   "t": "rec",
+   "fields": [
+    [
+     "r",
+     {
+      "t": "num"
+     }
+    ],
+    [
+     "g",
+     {
+      "t": "num"
+     }
+    ],
+    [
+     "b",
+     {
+      "t": "num"
+     }
+    ]
+   ],
+   "name": "rgb"
+  },
+  "core:iconname": {
+   "t": "choice",
+   "opts": [
+    "none",
+    "play",
+    "pause",
+    "prev",
+    "next",
+    "more",
+    "less",
+    "first",
+    "last",
+    "reset",
+    "check",
+    "cross",
+    "plus",
+    "minus",
+    "up",
+    "down",
+    "left",
+    "right",
+    "ban",
+    "alert",
+    "info",
+    "help",
+    "lock",
+    "unlock",
+    "eye",
+    "edit",
+    "search",
+    "user",
+    "users",
+    "file",
+    "folder",
+    "database",
+    "server",
+    "cloud",
+    "mail",
+    "clock",
+    "calendar",
+    "flag",
+    "target",
+    "gauge",
+    "layers",
+    "branch",
+    "box",
+    "square",
+    "circle",
+    "dot",
+    "star",
+    "bolt",
+    "link",
+    "key",
+    "shield",
+    "cart",
+    "chart",
+    "code",
+    "terminal",
+    "bell",
+    "home",
+    "settings",
+    "sliders",
+    "trash",
+    "copy",
+    "download",
+    "upload",
+    "expand",
+    "lightbulb",
+    "book"
+   ]
+  },
+  "core:track": {
+   "t": "text"
+  },
+  "devbench:state": {
+   "t": "choice",
+   "opts": [
+    "none",
+    "done",
+    "pass",
+    "active",
+    "running",
+    "todo",
+    "warn",
+    "blocked",
+    "fail",
+    "skipped"
+   ]
+  }
+ },
+ "tokens": [
+  {
+   "name": "core",
+   "version": 1,
+   "pack": "core",
+   "about": "Default tokens: every required name (spec 7).",
+   "tokens": {
+    "color": {
+     "surface": {
+      "value": "#ffffff",
+      "dark": "#15171a"
+     },
+     "ink": {
+      "value": "#1a1c1f",
+      "dark": "#eceef1"
+     },
+     "muted": {
+      "value": "#6b7280",
+      "dark": "#9aa3ae"
+     },
+     "line": {
+      "value": "#d4d7dc",
+      "dark": "#3a3f46"
+     },
+     "accent": {
+      "value": "#2563eb",
+      "dark": "#7aa7ff"
+     },
+     "info": {
+      "value": "#0284c7",
+      "dark": "#38bdf8"
+     },
+     "ok": {
+      "value": "#15803d",
+      "dark": "#4ade80"
+     },
+     "warn": {
+      "value": "#b45309",
+      "dark": "#fbbf24"
+     },
+     "bad": {
+      "value": "#dc2626",
+      "dark": "#f87171"
+     },
+     "c1": {
+      "value": "#2563eb",
+      "dark": "#7aa7ff"
+     },
+     "c2": {
+      "value": "#d97706",
+      "dark": "#fbbf24"
+     },
+     "c3": {
+      "value": "#059669",
+      "dark": "#34d399"
+     },
+     "c4": {
+      "value": "#9333ea",
+      "dark": "#c084fc"
+     },
+     "c5": {
+      "value": "#db2777",
+      "dark": "#f472b6"
+     },
+     "c6": {
+      "value": "#0891b2",
+      "dark": "#22d3ee"
+     }
+    },
+    "font": {
+     "body": {
+      "value": "system-ui, sans-serif",
+      "size": 16,
+      "weight": 400,
+      "line": 1.5
+     },
+     "heading": {
+      "value": "system-ui, sans-serif",
+      "size": 22,
+      "weight": 650,
+      "line": 1.25
+     },
+     "mono": {
+      "value": "ui-monospace, monospace",
+      "size": 14,
+      "weight": 400,
+      "line": 1.45
+     }
+    },
+    "space": {
+     "xs": {
+      "value": 2
+     },
+     "s": {
+      "value": 4
+     },
+     "m": {
+      "value": 8
+     },
+     "l": {
+      "value": 16
+     },
+     "xl": {
+      "value": 32
+     }
+    },
+    "size": {
+     "s": {
+      "value": 160
+     },
+     "m": {
+      "value": 320
+     },
+     "l": {
+      "value": 480
+     }
+    },
+    "radius": {
+     "card": {
+      "value": 8
+     },
+     "pill": {
+      "value": 999
+     }
+    },
+    "shadow": {
+     "raised": {
+      "y": 1,
+      "blur": 3,
+      "color": "#0000001f"
+     }
+    }
+   }
+  }
+ ],
+ "macros": {},
+ "capabilities": [
+  "core@1"
+ ],
+ "interface": {
+  "signals": [],
+  "hosts": [],
+  "commands": [],
+  "implements": []
+ },
+ "lock": {
+  "mkp": "0.2.10",
+  "packs": [
+   {
+    "pack": "core",
+    "version": 1,
+    "digest": "sha256:371888c7c9b32b01fe72eb83d79674e0e3e66e6a1e0a70f533d592bcead7692f"
+   },
+   {
+    "pack": "devbench",
+    "version": 1,
+    "digest": "sha256:bda3257618fe4f3c5cb58d51976d60d159035344b8093edeb7d790630e1537d9"
+   }
+  ],
+  "defs": {
+   "core:press@1": "sha256:b0978320d2537aa692f4b2f2a4f9d191058317d6344619bd8c97cc565cc59215",
+   "core:text@1": "sha256:38079126794bd3259f279b04e6f9ef019c6e560cecaa2fa4bff5847551070d3e",
+   "core:column@1": "sha256:371107047626bb3fd092ff55b9d94572ffb4947e6b75a475f7f9f162d6fc657f",
+   "core:paragraph@1": "sha256:d773eda64d4ea0e7df9559ec0ae9841f5165f26f890c8e4ea385ab29676420e5",
+   "devbench:callout@1": "sha256:e77bf5f56e428f60c7c5b491323518ddaa010e7d6a582e70a5474fddad07be4c",
+   "core:icon@1": "sha256:190d44531868c4552ab8931446d3520e3a40844dfc1aefef230389839a7b681b",
+   "core:row@1": "sha256:791d50b1fab7f5db235c3b6fdd96802ebc3c74e63823dff14e6fccf7f702c063",
+   "devbench:rows@1": "sha256:dbab10756ab6f246e29bd0947288d89a4f8b4d695fc2c40536276f3429450a59",
+   "devbench:pill@1": "sha256:252586ffe0552ca9c98cc3f95dbf476f292c8c6fa9b58cc040b556c1bc8f6b64",
+   "devbench:marker@1": "sha256:55d3bda537bfe2c4b18df3bf999267f20fe83d8464710f63122ff87c092b2927",
+   "core:stack@1": "sha256:53431139f3cdf18e897c6b1d809dec0ef2a1ca7f3b9e2ce43c42f8932dbacd8b",
+   "core:grid@1": "sha256:c2b0a671edd1706ead5523c3142f50a5f8624a2651eb16edf221aa6f23af92b5",
+   "devbench:stats@1": "sha256:52b9ca48ac58638814c1e394317a822b198926b75e158a1699e3019e31ff1fc8",
+   "core:canvas@1": "sha256:03d79534a74aaae74ec4acd6f7b3a2c60e1b5a98e7de2126d7089e274aadbf30",
+   "core:heading@1": "sha256:6751348292b1b5da8b927ce763e71f06720e4aa8e96c8243a2c0477ea3a5f50d"
+  }
+ }
+}

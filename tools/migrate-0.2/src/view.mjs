@@ -68,14 +68,24 @@ export class DefWriter {
       }
       const f = this.decls.field(inp.name, inp.type, inp.default, { ...this.at(inp.pos), hint: `${name}_${inp.name}` });
       if (inp.about) f.about = inp.about;
+      if (inp.comment?.length) f.comments = inp.comment;
       params.push(f);
       scope.inst.set(inp.name, E.name(f.name));
       scope.types.set(inp.name, inp.type);
     }
     for (const o of d.outs ?? []) {
       if (o.payload) throw new Unsupported(`the out ${o.name} carries a payload`);
-      body.push({ k: 'event', name: m.safe(o.name) });
+      body.push({ k: 'event', name: m.safe(o.name), comments: o.comment });
     }
+    // a value's comments go above it; a gap in the 0.2 source between two values stays a blank line
+    let last = null;
+    const place = (v, stmtsOf) => {
+      const first = (v.pos?.[0] ?? 0) - (v.comment?.length ?? 0);
+      if (last !== null && first - last > 1) body.push(S.blank());
+      if (v.comment?.length) body.push(S.comment(v.comment.join('\n')));
+      body.push(...stmtsOf);
+      last = v.pos?.[0] ?? last;
+    };
     if (d.signals?.length || d.commands?.length) throw new Unsupported('signals and commands (an extern channel in 0.3)');
     for (const v of d.values ?? []) {
       const n = m.safe(v.name);
@@ -83,11 +93,11 @@ export class DefWriter {
       if (v.k === 'var' || (v.k === 'state' && v.control === 'slider')) {
         const t = typeOf(m, v.type, { ...at, hint: `${name}_${v.name}` });
         const init = 'ast' in (v.default ?? {}) ? expr(m, v.default.ast, scope, at, v.type) : value(m, v.default, v.type, at, scope);
-        body.push(S.mut(n, t.none ? `opt<${t.src}>` : t.src, init));
+        place(v, [S.mut(n, t.none ? `opt<${t.src}>` : t.src, init)]);
         if (v.k === 'state') m.todo(at.line, `${v.name}'s slider in the widget's control bar has no 0.3 bar: place @slider(value = ${n}, …) in the view`);
       } else if (v.k === 'derived') {
         const t = typeOf(m, v.value.type, { ...at, hint: `${name}_${v.name}` });
-        body.push(S.let(n, t.src, expr(m, v.value.ast, scope, at, v.value.type)));
+        place(v, [S.let(n, t.src, expr(m, v.value.ast, scope, at, v.value.type))]);
       } else if (v.k === 'fn') {
         continue; // its body is in the definition's fn table, written below
       } else throw new Unsupported(`a widget's ${v.k}${v.control ? ' ' + v.control : ''} value`);
@@ -96,17 +106,21 @@ export class DefWriter {
     }
     scope.fnDefs = new Map(Object.entries(d.fns ?? {}));
     for (const [id, f] of Object.entries(d.fns ?? {})) scope.fns.set(id, m.safe(f.name));
-    const fns = Object.entries(d.fns ?? {}).map(([id, f]) => this.fn(f, scope));
+    // a fn's comments are on its value line (fn name(…) = …)
+    const fnComments = new Map((d.values ?? []).filter((v) => v.k === 'fn').map((v) => [v.fn, v.comment]));
+    const fns = Object.entries(d.fns ?? {}).map(([id, f]) => ({ ...this.fn(f, scope), comments: fnComments.get(id) }));
     const view = this.nodes(d.view ?? [], scope);
     const markdown = d.project?.md ? this.markdown(d.project.md, scope, d) : null;
-    const events = body.filter((b) => b.k === 'event').map((b) => b.name);
+    const events = body.filter((b) => b.k === 'event').map((b) => (b.comments?.length ? { name: b.name, comments: b.comments } : b.name));
+    const own = body.filter((b) => b.k !== 'event');
     return {
       name,
+      comments: d.comment,
       about: d.about,
       params,
       slots,
       events,
-      body: [...body.filter((b) => b.k !== 'event'), ...fns],
+      body: fns.length && own.length ? [...own, S.blank(), ...fns] : [...own, ...fns],
       view,
       markdown,
     };
@@ -154,8 +168,19 @@ export class DefWriter {
     }
   }
 
+  /** Sibling view nodes, with their comments, and a blank line wherever the 0.2 source had one. */
   nodes(ns, scope) {
-    return ns.flatMap((n) => this.node(n, scope));
+    const out = [];
+    let last = null;
+    for (const n of ns) {
+      const comments = n.meta?.comment ?? [];
+      const first = (n.pos?.[0] ?? 0) - comments.length;
+      if (last !== null && n.pos && first - last > 1) out.push(S.blank());
+      if (comments.length) out.push(S.comment(comments.join('\n')));
+      out.push(...this.node(n, scope));
+      last = lastLine(n) ?? last;
+    }
+    return out;
   }
 
   /** One 0.2 view node as 0.3 view statements. */
@@ -461,4 +486,16 @@ function fnDeclsOnce(m, sink, pack, scope) {
 /** A 0.2 type that had `none` is an opt in 0.3. */
 function optOf(t) {
   return t.none ? `opt<${t.src}>` : t.src;
+}
+
+/** The last 0.2 source line a view node or its children start on. */
+function lastLine(n) {
+  let l = n.pos?.[0] ?? null;
+  const kids = [...(n.children ?? []), ...(n.records ?? []), ...(n.else ?? []), ...(n.cases ?? []).flatMap((c) => c.children), ...Object.values(n.fills ?? {}).flat()];
+  for (const k of kids) {
+    const x = lastLine(k);
+    if (x !== null && (l === null || x > l)) l = x;
+  }
+  for (const a of Object.values(n.on ?? {}).flat()) if (a.value?.pos?.[0] > (l ?? 0)) l = a.value.pos[0];
+  return l;
 }

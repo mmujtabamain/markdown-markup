@@ -58,8 +58,21 @@ node probe/roundtrip.mjs <corpus work dir>
 npm test   # node --test test/
 ```
 
-`--source` is optional. Without it, the migration reads only the IR. With it, a definition the
-migration can't write keeps its 0.2 source, quoted in comments above its stand-in.
+`--source` is optional. Without it, the migration reads only the IR. With it, `src/source.mjs` reads
+the 0.2 document beside the IR for what the IR drops, and places each item by the IR's own line
+numbers:
+
+| In the 0.2 source | In the 0.3 output |
+|---|---|
+| `# comments` in ```` ```mkp ```` fences (on a definition, an input, a value, an element) | `//` comments in the same place. These come from the IR itself, which keeps them |
+| blank lines between a definition's values and elements | blank lines in the same places |
+| `# comments` in a YAML block, on a line of their own or at a line's end | `//` comments on the argument or record item they described, in the call's argument list |
+| the order the YAML wrote its keys and fields in | the same order of arguments and record fields (canonical form allows any order) |
+| link reference definitions (`[p]: https://…`) | kept in place. 0.3 reads them, so `[text][p]` is now a link, where 0.2 showed it as text (noted as CHANGED) |
+| HTML comments in prose | in the header, each with where it stood. 0.3 prose shows `<!-- … -->` as text (spec page 1, "Raw HTML is shown as text"), so it can't stay in place unseen. `--html-comments inline` keeps it in place, visible |
+| front matter, its comments included | copied as written |
+
+A definition the migration can't write keeps its 0.2 source, quoted in comments above its stand-in.
 
 ## What it does
 
@@ -100,11 +113,12 @@ src/view.mjs             definitions: inputs, values, fns, the view tree, projec
 src/values.mjs           types, values and expressions, typed by what the context expects
 src/decls.mjs            the enums and records a document or pack needs, each declared once
 src/packs.mjs            a 0.2 pack as a 0.3 pack: a shim of externs, or views (--pack-widgets)
+src/source.mjs           the 0.2 source beside the IR: comments, link definitions, YAML key order
 src/tree.mjs             the 0.3 syntax tree's mirror, and its printer
 corpus/run.mjs           the corpus run and its table (RESULTS.md, RESULTS-pack-widgets.md)
 probe/ir3-source.mjs     the probe: 0.3 IR → canonical source
 probe/roundtrip.mjs      the probe's test: IR → source → fmt --check → check → IR, compared
-test/                    node --test, on two real 0.2 bundles
+test/                    node --test, on three real 0.2 bundles (one written to hold every kind of comment)
 ```
 
 ## Limits
@@ -120,8 +134,11 @@ test/                    node --test, on two real 0.2 bundles
 - **Inline Markdown in `text`**: 0.2's `text` drew its value as inline Markdown. The shim keeps the
   meaning with `rich_text` fields, but a widget written with `--pack-widgets` hands plain `text` to
   `label`, so the formatting shows as written.
-- **Lost on the way through the IR**: HTML comments, link reference definitions, YAML comments, the
-  spelling of list markers, and the per-use `summary:` of a document's own widgets. 0.3 builds such a
-  widget's Markdown from the widget, so a per-use summary has no home.
+- **Lost on the way through the IR**: without `--source`, HTML comments, link reference definitions
+  and YAML comments. With it or without it, the spelling of list markers, and the per-use `summary:`
+  of a document's own widgets: 0.3 builds such a widget's Markdown from the widget, so a per-use
+  summary has no home.
+- **Comments in prose have no home in 0.3**: an HTML comment would show as text, so they move to the
+  header. Keeping them in place needs 0.3 prose to drop a `<!-- … -->` block, as 0.2 and GitHub do.
 - **`$`**: maths is paired again by 0.3's rule (no digit after the closing `$`), and the tool doesn't
   check whether 0.2's micromark paired it differently.

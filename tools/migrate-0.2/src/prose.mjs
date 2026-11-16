@@ -98,13 +98,41 @@ export function tex(s) {
 
 /** The document's body as prose nodes. `widgets` writes widget blocks (migrate.mjs). */
 export class ProseWriter {
-  constructor(m, widgets) {
+  /** `src` is what readSource found in the 0.2 source: comments and link definitions to put back. */
+  constructor(m, widgets, src = null) {
     this.m = m;
     this.widgets = widgets;
+    this.pending = src ? [...src.prose] : [];
+    /** HTML comments, which 0.3 prose would show as text: they go to the header, with their place */
+    this.moved = [];
   }
 
-  blocks(nodes) {
-    return nodes.flatMap((n) => this.block(n));
+  /**
+   * What the source held before line `before` and the IR dropped: a link reference definition goes
+   * back where it was (0.3 reads it), an HTML comment to the header (or in place, with htmlComments: 'inline').
+   */
+  flush(before, next) {
+    const out = [];
+    while (this.pending.length && this.pending[0].line < before) {
+      const it = this.pending.shift();
+      if (it.kind === 'linkref') {
+        out.push(P.md(it.text));
+        this.m.lossy(it.line, `the link reference definition ${it.text.split(':')[0]} is kept: 0.3 reads it, so a link written [text]${it.text.split(':')[0]} is a link now, where 0.2 showed it as text`);
+      } else if (this.m.opts.htmlComments === 'inline') out.push(P.md(it.text));
+      else this.moved.push({ ...it, before: next ? describe(next) : 'at the end' });
+    }
+    return out;
+  }
+
+  /** Sibling blocks; `end` is the line their container closes on, so what sits before it stays inside. */
+  blocks(nodes, end = null, owner = null) {
+    const out = [];
+    for (const n of nodes) {
+      if (n.pos) out.push(...this.flush(n.pos[0], n));
+      out.push(...this.block(n));
+    }
+    if (end) out.push(...this.flush(end, owner ? { end: owner } : null));
+    return out;
   }
 
   /** Markdown text of a run of Markdown-only nodes (for lists and quotes), or null if one is a widget. */
@@ -228,4 +256,16 @@ function yaml(v, ind = '') {
   return Object.entries(v)
     .map(([k, x]) => (Array.isArray(x) && x.some((y) => y && typeof y === 'object') ? `${ind}${k}:\n${yaml(x, ind + '  ')}` : `${ind}${k}: ${JSON.stringify(x)}`))
     .join('\n');
+}
+
+/** A block, in a few words, to say where a moved comment stood. */
+function describe(n) {
+  if (n.end) return `at the end of the ${n.end.node}${n.end.record ? ` ${n.end.record}` : ''} block`;
+  const words = (t) => {
+    const w = String(t ?? '').replace(/\s+/g, ' ').trim();
+    return w.length > 40 ? w.slice(0, 37) + '…' : w;
+  };
+  if (n.node === 'heading') return `before the heading "${words(n.props?.text?.text)}"`;
+  if (n.node === 'paragraph') return `before "${words(n.props?.text?.text)}"`;
+  return `before the ${n.node} block`;
 }

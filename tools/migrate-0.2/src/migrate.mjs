@@ -2,7 +2,8 @@
 // document and the 0.3 pack shims it imports. It reads only the IR. Optionally it is given the 0.2
 // source, so that a definition it can't migrate is kept, commented out, beside its stand-in.
 
-import { D, E, P, S, document, packFile, expr as printExpr } from './tree.mjs';
+import { D, E, P, S, document, packFile, noted, expr as printExpr } from './tree.mjs';
+import { readSource } from './source.mjs';
 import { Migration, Unsupported, CORE_NAMES } from './context.mjs';
 import { Decls } from './decls.mjs';
 import { PackShim } from './packs.mjs';
@@ -12,13 +13,16 @@ import { resolve, typeOf, value, expr, scopeOf, child } from './values.mjs';
 
 /**
  * @param bundle a 0.2 IR bundle (level "bundle")
- * @param opts { source?: string (the 0.2 .mkp.md, for quoting definitions it can't migrate),
- *               packWidgets?: boolean (write each pack widget with a view where it migrates, not as an extern) }
+ * @param opts { source?: string (the 0.2 .mkp.md: its comments, link definitions, YAML key order and
+ *                 front matter, which the IR drops, and the source of definitions that can't migrate),
+ *               packWidgets?: boolean (write each pack widget with a view where it migrates, not as an extern),
+ *               htmlComments?: 'header' | 'inline' (where an HTML comment in prose goes; 0.3 would show it as text) }
  * @returns { doc, packs: Map<packName, text>, notes, counts }
  */
 export function migrate(bundle, opts = {}) {
   if (bundle.ir !== 1 || bundle.level !== 'bundle') throw new Error(`expected a 0.2 bundle (ir 1, level bundle); found ir ${bundle.ir}, level ${bundle.level}`);
   const m = new Migration(bundle, opts);
+  m.src = opts.source ? readSource(opts.source) : null;
   const doc = new Decls(m, '$doc');
   const counts = { blocks: 0, widgets: 0, fallbacks: 0, defs: 0, defsMigrated: 0 };
 
@@ -71,7 +75,7 @@ export function migrate(bundle, opts = {}) {
         const init = value(m, v.default, v.type, at, docScope);
         const step = v.k === 'state' && v.args?.step && 'lit' in v.args.step ? ` step ${v.args.step.lit}` : '';
         const range = v.control === 'slider' && v.args?.min && v.args?.max ? ` ${v.args.min.lit}..${v.args.max.lit}` : '';
-        stateFields.push({ name: m.safe(v.name), type: t.src + (t.src === 'number' ? range + step : ''), default: init, comment: v.label });
+        stateFields.push({ name: m.safe(v.name), type: t.src + (t.src === 'number' ? range + step : ''), default: init, comments: [...(v.comment ?? []), ...(v.label ? [v.label] : [])] });
         docScope.inst.set(v.name, E.state(m.safe(v.name)));
         docScope.types.set(v.name, v.type);
       } else if (v.k === 'derived') {
@@ -98,10 +102,11 @@ export function migrate(bundle, opts = {}) {
       counts.fallbacks++;
       return fallbackBlock(m, n, e.what, (ns) => pw.blocks(ns));
     }
-  });
+  }, m.src);
   const body = [];
   for (const n of bundle.doc.body) {
     try {
+      if (n.pos) body.push(...pw.flush(n.pos[0], n));
       body.push(...pw.block(n));
     } catch (e) {
       if (!(e instanceof Unsupported)) throw e;
@@ -109,6 +114,9 @@ export function migrate(bundle, opts = {}) {
       body.push(...fallbackBlock(m, n, e.what, (ns) => pw.blocks(ns)));
     }
   }
+
+  body.push(...pw.flush(Infinity, null));
+  m.moved = pw.moved;
 
   // the header: what to finish by hand, then the declarations
   const decls = [];
@@ -118,11 +126,24 @@ export function migrate(bundle, opts = {}) {
   if (stateFields.length) decls.push(D.state(stateFields));
   decls.push(...top, ...lets, ...widgets);
 
-  const front = Object.keys(bundle.doc.front ?? {}).length ? frontMatter(opts.source, bundle.doc.front) : null;
+  const front = dropStamp(m, m.src?.front ?? (Object.keys(bundle.doc.front ?? {}).length ? frontMatter(null, bundle.doc.front) : null));
   const packs = new Map([...m.packs].map(([name, shim]) => [name, packFile(name, shim.file())]));
   counts.packWidgets = [...m.packs.values()].reduce((n, s) => n + s.widgets.size, 0);
   counts.packWidgetsWritten = [...m.packs.values()].reduce((n, s) => n + s.written, 0);
   return { doc: document({ front, decls, body }), packs, notes: m.notes, counts };
+}
+
+/**
+ * 0.2's stamp (mkp: and ir: lines in the front matter) says what the file was written for; in 0.3
+ * the front matter is the app's, passed on untouched, so the stamp comes out. A front matter left
+ * with nothing in it goes too.
+ */
+function dropStamp(m, front) {
+  if (!front) return front;
+  const lines = front.split('\n');
+  const kept = lines.filter((l, i) => i === 0 || !/^(mkp|ir):\s/.test(l));
+  if (kept.length !== lines.length) m.lossy(1, `0.2's stamp (${lines.filter((l) => /^(mkp|ir):\s/.test(l)).map((l) => l.trim()).join(', ')}) was taken out of the front matter: 0.3 passes front matter to the app untouched`);
+  return kept.filter((l) => l.trim()).length <= 2 ? null : kept.join('\n');
 }
 
 /** The front matter as written, when the source is at hand; otherwise each key as JSON. */
@@ -138,6 +159,11 @@ function header(m) {
   const notes = [...m.notes].sort((a, b) => order[a.kind] - order[b.kind] || (a.line ?? 0) - (b.line ?? 0));
   if (!notes.length) lines.push('Nothing to finish by hand.');
   for (const n of notes) lines.push(`${n.kind === 'todo' ? 'TODO' : n.kind === 'fallback' ? 'TODO (kept as Markdown)' : n.kind === 'lossy' ? 'CHANGED' : 'NOTE'}${n.line ? ` line ${n.line}` : ''}: ${n.what}`);
+  if (m.moved?.length) {
+    // 0.3 prose shows an HTML comment as text, so the comments the prose held are kept here, with their place
+    lines.push('', 'Comments from the 0.2 prose (0.3 would show them as text), each with where it stood:');
+    for (const c of m.moved) lines.push(`line ${c.line}, ${c.before}:`, ...c.text.split('\n').map((l) => `    ${l}`));
+  }
   return lines.join('\n');
 }
 
@@ -164,7 +190,7 @@ function standIn(m, doc, d, name, why, source) {
     w: { name, params, slots },
     decl: D.widget({
       name,
-      comments: [`TODO: ${d.name} was not migrated: ${why}.`, 'Its 0.2 definition:', ...src.split('\n').map((l) => `    ${l}`)],
+      comments: [...(d.comment ?? []), `TODO: ${d.name} was not migrated: ${why}.`, 'Its 0.2 definition:', ...src.split('\n').map((l) => `    ${l}`)],
       about: d.about,
       params,
       slots,
@@ -204,7 +230,7 @@ function widgetBlock(m, n, ctx) {
 function coreBlock(m, n, ctx) {
   const s = ctx.writer.node({ ...n, children: [] }, ctx.docScope);
   if (s.length !== 1 || s[0].k !== 'call') throw new Unsupported(`the base widget ${n.node} as a document block`);
-  const body = n.children?.length ? ctx.pw.blocks(n.children) : null;
+  const body = n.children?.length ? ctx.pw.blocks(n.children, end(m, n), n) : null;
   return [P.call(s[0].name, s[0].args, body)];
 }
 
@@ -221,7 +247,7 @@ function docUse(m, n, ctx) {
     if (!inp || !f) throw new Unsupported(`${d.name} has no input ${k}`);
     const e = docValue(m, v, inp.type, { line: n.pos?.[0], pack: '$doc', sink: ctx.doc });
     if (f.default && printExpr(f.default) === printExpr(e)) continue;
-    args.push([f.name, e]);
+    args.push([f.name, e, k]);
   }
   if (n.records?.length) {
     const groups = new Map();
@@ -230,22 +256,32 @@ function docUse(m, n, ctx) {
       const inp = d.inputs.find((i) => i.name === input);
       const t = resolve(m, inp.type, '$doc');
       if (t.t !== 'records' || t.slot) throw new Unsupported(`${d.name}'s ${input} records with content`);
-      args.push([m.safe(input), records(m, rs, t, ctx.doc, '$doc', n.pos?.[0])]);
+      args.push([m.safe(input), records(m, rs, t, ctx.doc, '$doc', n.pos?.[0], yamlOf(m, n), input), input]);
     }
   }
   if (n.meta?.summary) m.lossy(n.pos?.[0], `the summary of this ${d.name} block was dropped: 0.3 builds a document widget's Markdown from the widget ("${n.meta.summary.slice(0, 60)}")`);
-  const body = n.children?.length ? ctx.pw.blocks(n.children) : null;
+  const body = n.children?.length ? ctx.pw.blocks(n.children, end(m, n), n) : null;
   if (body && !w.slots.length) throw new Unsupported(`content for ${d.name}, which has no slot`);
-  return [P.call(entry.name, args, body)];
+  return [P.call(entry.name, withNotes(m, n, args), body)];
 }
 
-/** A list of 0.2 record values (YAML items) as a 0.3 list of record literals, defaults left out. */
-function records(m, rs, t, sink, pack, line) {
+/**
+ * A list of 0.2 record values (YAML items) as a 0.3 list of record literals, defaults left out, each
+ * record's fields in the order the YAML wrote them, and the YAML's comments on each item kept.
+ */
+function records(m, rs, t, sink, pack, line, y = null, key = null) {
   const name = sink.recordFor(t.kind, t.fields, t.defaults, { line, pack, sink, rich: !!sink.rich });
   const decl = sink.records.get(name);
-  const items = rs.map((r) => {
+  const types = new Map(t.fields);
+  const notes = y?.items.get(key) ?? [];
+  const fieldNotes = y?.fields.get(key) ?? [];
+  const items = rs.map((r, i) => {
     const fields = [];
-    for (const [f, ft] of t.fields) {
+    // the IR keeps the YAML's order, then the defaults it filled in; nested records come after
+    const order = [...Object.keys(r.props ?? {}), ...t.fields.map(([f]) => f).filter((f) => !(f in (r.props ?? {})))];
+    for (const f of order) {
+      const ft = types.get(f);
+      if (!ft) continue;
       const fd = decl.fields.find((x) => x.name === m.safe(f));
       const rt = resolve(m, ft, pack);
       let e;
@@ -262,9 +298,35 @@ function records(m, rs, t, sink, pack, line) {
       if (e.k === 'case' && e.type === 'opt' && !fd?.default) continue;
       fields.push([fd?.name ?? m.safe(f), e]);
     }
-    return E.rec(name, fields);
+    const n = notes[i];
+    // a comment on a field of a record written one field a line goes above the record, naming the field
+    const fieldLines = [...(fieldNotes[i] ?? new Map())].flatMap(([f, x]) => [...x.before.map((c) => `${f}: ${c}`), ...(x.after ? [`${f}: ${x.after}`] : [])]);
+    return noted(E.rec(name, fields), [...(n?.before ?? []), ...fieldLines], n?.after ?? null);
   });
   return E.list(items, true);
+}
+
+/** The YAML block's comments and key order, when the source was given. */
+function yamlOf(m, n) {
+  return n.pos ? m.src?.yaml.get(n.pos[0]) ?? null : null;
+}
+
+/** Where a ::: container closes in the source, so a comment before its end stays inside it. */
+function end(m, n) {
+  return n.pos ? m.src?.ends.get(n.pos[0]) ?? null : null;
+}
+
+/** Arguments in the order the YAML wrote their keys, each with the YAML's comments on it. */
+function withNotes(m, n, args) {
+  const y = yamlOf(m, n);
+  if (!y) return args.map(([a, b]) => [a, b]);
+  const at = (k) => (y.order.includes(k) ? y.order.indexOf(k) : y.order.length);
+  return [...args]
+    .sort((a, b) => at(a[2]) - at(b[2]))
+    .map(([name, e, k]) => {
+      const note = y.keys.get(k);
+      return [name, note ? noted(e, note.before, note.after) : e];
+    });
 }
 
 /** A use of a pack's widget (devbench@1's stats, callout, tabs…), through the pack's 0.3 shim. */
@@ -284,7 +346,7 @@ function packUse(m, n, d, ctx) {
     const e = docValue(m, v, inp.t, { ...at, hint: `${w.name}_${k}` });
     if (inp.f.default && printExpr(inp.f.default) === printExpr(e)) continue;
     if (e.k === 'case' && e.type === 'opt') continue;
-    args.push([inp.f.name, e]);
+    args.push([inp.f.name, e, k]);
   }
   // record lines: data (a list literal) or content (one child widget each)
   const groups = new Map();
@@ -295,26 +357,27 @@ function packUse(m, n, d, ctx) {
     const t = resolve(m, inp.type, d.pack);
     if (t.t === 'records' && t.slot) {
       const kid = w.kids.get(t.kind);
-      kidCalls.set(input, rs.map((r) => P.call(kid.name, kidArgs(m, r, kid, at), ctx.pw.blocks(r.children ?? []))));
+      kidCalls.set(input, rs.map((r) => P.call(kid.name, kidArgs(m, r, kid, at), ctx.pw.blocks(r.children ?? [], end(m, r), r))));
       continue;
     }
     const f = w.inputs.get(input)?.f;
-    args.push([f?.name ?? m.safe(input), records(m, rs, t, shim, d.pack, line)]);
+    args.push([f?.name ?? m.safe(input), records(m, rs, t, shim, d.pack, line, yamlOf(m, n), input), input]);
   }
-  if (n.meta?.summary) args.push(['summary', E.text(n.meta.summary)]);
+  if (n.meta?.summary) args.push(['summary', E.text(n.meta.summary), 'summary']);
   // slots: one view slot takes the block; several take @slot blocks
   const slotBodies = [];
   for (const [sname, stype, input02] of w.slots) {
     if (stype === 'view') {
       const firstView = w.slots.find(([, t]) => t === 'view')[0] === sname;
       const content = n.fills?.[input02] ?? (firstView ? n.children : null);
-      if (content?.length) slotBodies.push([sname, ctx.pw.blocks(content)]);
+      if (content?.length) slotBodies.push([sname, ctx.pw.blocks(content, end(m, n), n)]);
     } else if (kidCalls.has(input02)) slotBodies.push([sname, kidCalls.get(input02)]);
   }
   if (n.fills) for (const k of Object.keys(n.fills)) if (!w.slots.some(([, , i]) => i === k)) throw new Unsupported(`:::fill ${k} names no slot of ${d.name}`);
   if (!w.slots.length && n.children?.length) throw new Unsupported(`content inside ${d.name}, which has no slot`);
-  if (w.slots.length === 1) return [P.call(w.name, args, slotBodies[0]?.[1] ?? (w.slots[0][1] === 'view' && n.children ? [] : null))];
-  return [P.call(w.name, args, null, slotBodies.length ? slotBodies : null)];
+  const a = withNotes(m, n, args);
+  if (w.slots.length === 1) return [P.call(w.name, a, slotBodies[0]?.[1] ?? (w.slots[0][1] === 'view' && n.children ? [] : null))];
+  return [P.call(w.name, a, null, slotBodies.length ? slotBodies : null)];
 }
 
 function kidArgs(m, r, kid, at) {

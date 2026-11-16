@@ -38,6 +38,19 @@ export const E = {
   view: (call) => ({ k: 'view', call }),
 };
 
+/**
+ * Comments that go with an item of a list, an argument or a parameter: `before` on lines of their
+ * own above it, `after` at the end of its line. A noted item makes its list print one item a line.
+ */
+export function noted(e, before = [], after = null) {
+  return before.length || after ? { k: 'noted', e, before, after } : e;
+}
+
+const commentLines = (lines, ind) => lines.map((l) => `${ind}// ${l}`.trimEnd()).join('\n') + (lines.length ? '\n' : '');
+const afterOf = (x) => (x?.k === 'noted' && x.after ? ` // ${x.after}` : '');
+const bare = (x) => (x?.k === 'noted' ? x.e : x);
+const isNoted = (x) => x?.k === 'noted';
+
 const PREC = { '||': 2, '&&': 3, '==': 4, '!=': 4, '<': 5, '<=': 5, '>': 5, '>=': 5, in: 5, '+': 6, '-': 6, '*': 7, '/': 7, '%': 7 };
 // equality and comparisons don't chain, so their operands sit one level tighter
 const NONASSOC = new Set(['==', '!=', '<', '<=', '>', '>=', 'in']);
@@ -94,8 +107,11 @@ export function expr(e, ind = '') {
       return `${e.type ? e.type + ' ' : ''}{ ${e.fields.map(([n, v]) => `${n} = ${expr(v, ind)}`).join(', ')}${e.fields.length ? ' ' : ''}}`;
     case 'list':
       if (!e.items.length) return '[]';
-      if (e.multiline) return `[\n${e.items.map((x) => `${ind}${IND}${expr(x, ind + IND)},\n`).join('')}${ind}]`;
+      if (e.multiline || e.items.some(isNoted))
+        return `[\n${e.items.map((x) => `${isNoted(x) ? commentLines(x.before, ind + IND) : ''}${ind}${IND}${expr(bare(x), ind + IND)},${afterOf(x)}\n`).join('')}${ind}]`;
       return `[${e.items.map((x) => expr(x, ind)).join(', ')}]`;
+    case 'noted':
+      return expr(e.e, ind);
     case 'field':
       return `${wrap(e.o, 9)}.${e.n}`;
     case 'index':
@@ -145,14 +161,17 @@ export const S = {
   ret: (e) => ({ k: 'return', e }),
   invoke: (name, args = []) => ({ k: 'invoke', name, args }),
   comment: (text) => ({ k: 'comment', text }),
+  /** a blank line, kept where the author grouped statements */
+  blank: () => ({ k: 'blank' }),
 };
 
 function callHead(c, ind) {
-  const args = c.args.map(([n, v]) => `${n} = ${expr(v, ind + IND)}`);
+  const args = c.args.map(([n, v]) => `${n} = ${expr(bare(v), ind + IND)}`);
   const one = args.join(', ');
   if (!args.length) return `@${c.name}`;
-  if (!one.includes('\n') && one.length + ind.length + c.name.length < 100) return `@${c.name}(${one})`;
-  return `@${c.name}(\n${args.map((a) => `${ind}${IND}${a},\n`).join('')}${ind})`;
+  const noted = c.args.some(([, v]) => isNoted(v));
+  if (!noted && !one.includes('\n') && one.length + ind.length + c.name.length < 100) return `@${c.name}(${one})`;
+  return `@${c.name}(\n${c.args.map(([, v], i) => `${isNoted(v) ? commentLines(v.before, ind + IND) : ''}${ind}${IND}${args[i]},${afterOf(v)}\n`).join('')}${ind})`;
 }
 
 function stmtLine(s, ind) {
@@ -171,6 +190,8 @@ function stmtLine(s, ind) {
       return `${ind}invoke ${s.name}(${s.args.map((a) => expr(a, ind)).join(', ')});`;
     case 'comment':
       return s.text.split('\n').map((l) => `${ind}// ${l}`.trimEnd()).join('\n');
+    case 'blank':
+      return '';
   }
   return stmt(s, ind).replace(/\n$/, '');
 }
@@ -202,7 +223,7 @@ export function stmt(s, ind) {
 }
 
 export function stmts(list, ind) {
-  return list.map((s) => stmt(s, ind)).join('');
+  return list.map((s) => (s.k === 'blank' ? '\n' : stmt(s, ind))).join('');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -238,6 +259,13 @@ function field(f, ind) {
   return `${f.mut ? 'mut ' : ''}${f.name}: ${f.type}${f.default ? ` = ${expr(f.default, ind)}` : ''}`;
 }
 
+/** A parameter list: on one line when it fits and holds no comments, one parameter a line otherwise. */
+function params(ps, head) {
+  const one = ps.map((p) => field(p, IND)).join(', ');
+  if (one.length + head.length < 96 && !ps.some((p) => p.comments?.length || p.trailing)) return `${head}(${one})`;
+  return `${head}(\n${ps.map((p) => `${commentLines(p.comments ?? [], IND)}${IND}${field(p, IND)},${p.trailing ? ` // ${p.trailing}` : ''}\n`).join('')})`;
+}
+
 export function decl(d) {
   switch (d.k) {
     case 'import':
@@ -249,7 +277,7 @@ export function decl(d) {
     case 'record':
       return [...docLines(d.about), `record ${d.name} {`, ...d.fields.map((f) => `${IND}${field(f, IND)};`), '}'].join('\n');
     case 'state':
-      return ['$state {', ...d.fields.flatMap((f) => [...(f.comment ? [`${IND}// ${f.comment}`] : []), `${IND}${field(f, IND)};`]), '}'].join('\n');
+      return ['$state {', ...d.fields.flatMap((f) => [...(f.comments ?? []).map((c) => `${IND}// ${c}`.trimEnd()), `${IND}${field(f, IND)};`]), '}'].join('\n');
     case 'let':
       return [...docLines(d.about), `let ${d.name}: ${d.type} = ${expr(d.value, '')};`].join('\n');
     case 'fn':
@@ -264,14 +292,16 @@ export function decl(d) {
 
 function widget(w) {
   const lines = [...(w.comments ?? []).map((c) => `// ${c}`.trimEnd()), ...docLines(w.about, w.params)];
-  const ps = w.params.map((p) => field(p, IND));
-  const sig = ps.join(', ');
-  const head = `${w.extern ? 'extern ' : ''}widget ${w.name}`;
-  const open = sig.length + head.length < 96 ? `${head}(${sig})` : `${head}(\n${ps.map((p) => `${IND}${p},\n`).join('')})`;
+  const open = params(w.params, `${w.extern ? 'extern ' : ''}widget ${w.name}`);
   const body = [];
   if (w.slots?.length) body.push(w.slots.map(([n, t]) => `${IND}slot ${n}: ${t};`).join('\n'));
-  if (w.events?.length) body.push(w.events.map((n) => `${IND}event ${n}();`).join('\n'));
-  for (const b of w.body ?? []) body.push(b.k === 'fndecl' ? fnDecl(b, IND) : stmt(b, IND).trimEnd());
+  if (w.events?.length) body.push(w.events.map((e) => (typeof e === 'string' ? `${IND}event ${e}();` : `${commentLines(e.comments ?? [], IND)}${IND}event ${e.name}();`)).join('\n'));
+  // the widget's own variables and fns, grouped as the author grouped them (S.blank between groups)
+  if (w.body?.length) {
+    const groups = [[]];
+    for (const b of w.body) b.k === 'blank' ? groups.push([]) : groups[groups.length - 1].push(b.k === 'fndecl' ? fnDecl(b, IND) : stmt(b, IND).trimEnd());
+    for (const g of groups) if (g.length) body.push(g.join('\n'));
+  }
   if (w.view) body.push(`${IND}view {\n${stmts(w.view, IND + IND)}${IND}}`);
   if (w.markdown) body.push(`${IND}markdown {\n${prose(w.markdown, IND + IND)}\n${IND}}`);
   if (!body.length) return [...lines, `${open};`].join('\n');
@@ -280,7 +310,7 @@ function widget(w) {
 
 export function fnDecl(f, ind) {
   const ps = f.params.map(([n, t]) => `${n}: ${t}`).join(', ');
-  return [...(f.about ? [`${ind}//@about ${f.about}`] : []), `${ind}fn ${f.name}(${ps})${f.ret ? `: ${f.ret}` : ''} {`, stmts(f.body, ind + IND).trimEnd(), `${ind}}`].join('\n');
+  return [...(f.comments ?? []).map((c) => `${ind}// ${c}`.trimEnd()), ...(f.about ? [`${ind}//@about ${f.about}`] : []), `${ind}fn ${f.name}(${ps})${f.ret ? `: ${f.ret}` : ''} {`, stmts(f.body, ind + IND).trimEnd(), `${ind}}`].join('\n');
 }
 
 // ---------------------------------------------------------------------------------------------

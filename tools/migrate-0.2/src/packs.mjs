@@ -58,6 +58,7 @@ export class PackShim extends Decls {
       try {
         const f = this.field(inp.name, inp.type, inp.default, { ...at, hint: `${name}_${inp.name}` });
         if (inp.about) f.about = inp.about;
+        if (inp.comment?.length) f.comments = inp.comment;
         w.params.push(f);
         w.inputs.set(inp.name, { f, t: inp.type });
         if (t.t === 'records') listsOfRecords.push([f.name, t]);
@@ -69,7 +70,7 @@ export class PackShim extends Decls {
     // every 0.2 block had a summary; it keeps a home here, and the markdown block writes it
     if (!w.inputs.has('summary')) w.params.push({ name: 'summary', type: 'text', default: E.text(''), about: "the 0.2 block's summary: one sentence for readers without the widget" });
     const markdown = this.markdown(w, listsOfRecords);
-    w.decl = D.widget({ name, extern: true, about: d.about ?? undefined, params: w.params, slots: w.slots.map(([n, t]) => [n, t]), markdown });
+    w.decl = D.widget({ name, extern: true, comments: d.comment, about: d.about ?? undefined, params: w.params, slots: w.slots.map(([n, t]) => [n, t]), markdown });
     if (this.real && d.kind !== 'extern') {
       try {
         const v = new DefWriter(m, this, this.defNames).widget(d);

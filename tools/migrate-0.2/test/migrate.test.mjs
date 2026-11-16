@@ -75,3 +75,22 @@ test('the pack widgets mode writes a view where the definition migrates', () => 
   const c = check03(r);
   if (c) assert.deepEqual([c.fmt, c.check], [0, 0], c.out);
 });
+
+test('with the 0.2 source beside the IR, every comment and link definition is kept', async () => {
+  const { sourceComments, kept } = await import('../src/source.mjs');
+  const source = readFileSync(join(here, 'fixtures', 'comments.mkp.md'), 'utf8');
+  const r = migrate(bundle('comments.bundle.json'), { source });
+  const cs = sourceComments(source);
+  assert.equal(cs.length, 16);
+  assert.deepEqual(cs.filter((c) => !kept(c, [r.doc, ...r.packs.values()])), []);
+  // YAML comments sit beside what they described, in the author's key order
+  assert.match(r.doc, /\/\/ deploys first\n\s+stat \{ label = "Deploys", value = "42", change = "\+12%" \}, \/\/ up from 37/);
+  assert.match(r.doc, /summary = "Two numbers from this week\.", \/\/ the alt text/);
+  // link definitions stay in the prose; HTML comments go to the header, with where they stood
+  assert.match(r.doc, /\n\[p\]: https:\/\/example\.com\/plan\n/);
+  assert.match(r.doc, /\/\/ line 54, at the end of the callout block:/);
+  // code comments come from the IR itself
+  assert.match(r.doc, /\/\/ what the tile is for, above the definition\n\/\/@about One number in a box\./);
+  const c = check03(r);
+  if (c) assert.deepEqual([c.fmt, c.check], [0, 0], c.out);
+});
