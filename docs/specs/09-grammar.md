@@ -29,7 +29,7 @@ A text with holes is a template literal: its pieces, the text between the holes,
 ### Files and declarations
 
 ```txt
-file      = "package" name ";" { import } { decl }               a pack's file
+file      = "package" name [ "@" number ] ";" { import } { decl }   a pack's file; with a version, a surface
 document  = [ frontmatter ] [ definitions divider ] prose
 definitions = { import } { decl | state | expose }       no package and no pack; at most one state
 divider   = a line that holds only "@@@"
@@ -37,6 +37,7 @@ frontmatter = a line "---", YAML lines, a line "---", at the very top
 import    = "import" name [ "." name ] [ "as" name ] ";"
 
 decl      = enum | record | token | alias | interface | fn | widget | extern | pack | tokens | let
+          | migration | migfn                                      only in a pack's file
 enum      = "enum" name [ generics ] "{" case { "," case } [ "," ] "}"
 case      = CAPS [ "(" name ":" type { "," name ":" type } ")" ]
 record    = "record" name [ generics ] [ implements ] "{" { field ";" | require } "}"
@@ -76,6 +77,11 @@ pack      = "pack" name "@" number "{" { packline ";" } "}"
 packline  = "uses" pref { "," pref } | "provides" name { "," name }
           | "implements" name "." name "@" number { "," name "." name "@" number }
 pref      = name "@" number                                 a pack at a version
+migration = "migration" pref "to" pref "{" { fn | mblock } "}"   in a pack's file
+mblock    = mkind name [ "." name ] "{" { mstmt } "}"              a kit@1 declaration's uses
+mkind     = "widget" | "record" | "enum" | "token" | "fn" | "type" | "let" | "interface"
+mstmt     = "execute" block | "event" name "{" { mstmt } "}" | stmt
+migfn     = "migration" fnsig "{" { mstmt } "}"                   a migration fn
 tokens    = "tokens" name "{" { name "." CAPS "=" expr ";" } "}"
 ```
 
@@ -84,6 +90,8 @@ There are no variables at the top of a file or a document. A document's shared v
 `expose` declares no name of its own: it answers the `extern` block of its name, or starts that channel when there is none, and only the app calls its fns.
 
 A token is an enum whose cases stand for values of the type after its colon. A case that carries values is written as an enum's is, such as `PX(px: number 0.25..16)`, and one that carries a single value of the token's type needs no line in a `tokens` block. A line in a `tokens` block gives a named case its value, and a line for a name the token doesn't declare adds a case, which is why a `match` on a token needs `case else`.
+
+A file whose `package` line carries a version is a surface (page 6). It holds only enum, record, token, `tokens`, alias, interface, `extern` and `let` declarations, with no `require` blocks: its widgets and fns are `extern` signatures. A migration's statements are calls with named arguments, such as `rename(input = color, to = tone);`: core declares them, and where a parameter takes a name, a bare name is that name. `migration`, `to` and `execute` are words only where a migration is written.
 
 `provides` may list `let` constants as well as declarations. A fn a pack adds to a type comes with any import of the pack, and `as` can rename one: `import b.slug as b_slug;` brings `b`'s `text.slug` in as `text.b_slug`.
 

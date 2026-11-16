@@ -71,3 +71,28 @@ fn a_file_that_does_not_read_is_not_printed() {
     let err = format("package t;\n\nlet a = 1;\n", Entry::Mkp).unwrap_err();
     assert_eq!(err.last().unwrap().code, "syntax.missing-type");
 }
+
+#[test]
+fn a_migration_reads_and_prints_back_as_written() {
+    let src = "package kit;\n\nmigration fn color_to_tone() {\n    rename(input = color, to = tone);\n    set(input = tone, value = color.BAD, when = tone == color.WARN);\n}\n\nmigration kit@1 to kit@2 {\n    fn tone_of(kind: text): tone {\n        return tone.INFO;\n    }\n\n    widget chart {\n        rename(to = plot);   // a plot now\n        color_to_tone();\n        drop(input = shadow, why = \"no shadows\");\n    }\n\n    widget button {\n        event click {\n            add(arg = at);\n        }\n    }\n\n    widget status {\n        execute {\n            return @status(label = label, tone = tone_of(kind));\n        }\n    }\n\n    fn text.slug {\n        rename(to = slugify);\n    }\n\n    enum state {\n        rename(from = state.LATE, to = state.OVERDUE);\n    }\n}\n";
+    assert_eq!(fmt(src), src);
+    let loose = "package kit;\nmigration kit@1 to kit@2 { widget chart { rename(to = plot); } }\n";
+    assert_eq!(fmt(loose), "package kit;\nmigration kit@1 to kit@2 {\n    widget chart {\n        rename(to = plot);\n    }\n}\n");
+}
+
+#[test]
+fn a_migration_holds_blocks_headed_by_a_kind_and_an_old_name() {
+    let err = |src: &str| format(src, Entry::Mkp).unwrap_err()[0].code;
+    assert_eq!(err("package kit;\nmigration kit@1 to kit@2 { rename(to = plot); }\n"), "syntax.migration-line");
+    assert_eq!(err("package kit;\nmigration kit@1 kit@2 { }\n"), "syntax.expected");
+    assert_eq!(format("migration kit@1 to kit@2 { }\n@@@\nHi\n", Entry::Document).unwrap_err()[0].code, "syntax.migration-line");
+    // `migration` is a word only at the start of one
+    assert_eq!(fmt("package t;\n\nlet migration: number = 1;\n"), "package t;\n\nlet migration: number = 1;\n");
+}
+
+#[test]
+fn a_surface_has_a_version_on_its_package_line() {
+    let src = "package kit@1;\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\n";
+    assert_eq!(fmt(src), src);
+    assert_eq!(fmt("package   kit @ 1 ;\n"), "package kit@1;\n");
+}

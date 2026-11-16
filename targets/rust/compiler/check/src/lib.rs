@@ -95,6 +95,7 @@ pub mod codes {
     pub const SHADE_MKP_FN: &str = "views.shade-given-an-mkp-fn";
     pub const SPOT_OUTSIDE: &str = "views.spot-outside-bounds";
     pub const HTML_COMMENT: &str = "prose.html-comment";
+    pub const SURFACE: &str = "pack.surface";
     pub const REMOVED_USED: &str = "effects.removed-item-used";
     pub const SIZING_TWICE: &str = "views.sizing-set-twice";
     pub const FN_CLASH: &str = "names.fn-clash";
@@ -410,6 +411,23 @@ impl Checker {
             self.diags.push(Found { file: src.path.clone(), diagnostic: d });
         }
         let file = parsed.file?;
+        if let Some(v) = &file.surface {
+            // `package kit@1;`: what an earlier version provided, read only against migrate blocks.
+            // It holds signatures, and none of its names join the pack's scope.
+            let pack = file.package.as_ref().map(|p| p.item.name.clone()).unwrap_or_default();
+            for n in &file.items {
+                let Item::Decl(d) = &n.item else { continue };
+                let what = match &d.kind {
+                    ast::DeclKind::Fn(_) => "a fn with a body: write it as `extern fn …;`",
+                    ast::DeclKind::Widget(_) => "a widget with a body: write it as `extern widget …;`",
+                    ast::DeclKind::Pack(_) => "a pack block: a surface belongs to the pack block of a later version",
+                    _ => continue,
+                };
+                let msg = format!("{}@{} is a surface, which holds signatures only; found {}", pack, v.name, what);
+                self.diags.push(Found { file: src.path.clone(), diagnostic: Diagnostic::error(codes::SURFACE, d.kind.name().span, msg) });
+            }
+            return None;
+        }
         let pack = match &file.package {
             Some(p) => p.item.name.clone(),
             None => self.module.clone(),
@@ -625,6 +643,8 @@ impl Checker {
                 rec.provides.get_or_insert_with(HashSet::new).extend(names);
             }
             K::Tokens(_) => {}
+            // read against the surfaces when the pack is checked, never part of a page
+            K::Migration(_) | K::MigrationFn(_) => {}
         }
     }
 

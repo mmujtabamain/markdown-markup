@@ -93,6 +93,7 @@ pub mod codes {
     pub const NEGATIVE_NAME_BOUND: &str = "syntax.negative-name-bound";
     pub const CASE_VALUE: &str = "syntax.case-value-is-plain";
     pub const OLD_PACK_LINE: &str = "syntax.old-pack-line";
+    pub const MIGRATION_LINE: &str = "syntax.migration-line";
     pub const NO_TESTS: &str = "syntax.no-tests-in-the-language";
     pub const TOKEN_SHAPE: &str = "syntax.token-shape";
     pub const INTERFACE_AS_TYPE: &str = "syntax.implements-is-not-a-type";

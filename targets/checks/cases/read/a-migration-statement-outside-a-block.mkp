@@ -1,0 +1,5 @@
+package kit;
+
+migration kit@1 to kit@2 {
+    rename(to = plot);
+}

@@ -6,7 +6,7 @@
     "03-widgets.md": ["java file", "java body", "java body", "java file", "java body", "java decls", "java file", "java body", "java body"],
     "04-interfaces.md": ["java file", "java body", "java decls", "java decls", "java decls", "java body", "java decls", "java file"],
     "05-standard-library.md": ["java file", "java file", "java sigs", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file", "java file"],
-    "06-apps-packs-implementers.md": ["java file", "markdown doc", "java file"],
+    "06-apps-packs-implementers.md": ["java file", "java file", "java file", "markdown doc", "java file"],
     "07-examples.md": ["java file", "java file", "java file", "java file", "markdown fragment", "java file", "java file", "java file", "markdown doc"],
     "08-open-questions.md": [],
     "09-grammar.md": []

@@ -105,6 +105,8 @@ pub struct File {
     /// The YAML front matter, `---` lines included, passed on untouched.
     pub front_matter: Option<Span>,
     pub package: Option<Node<Ident>>,
+    /// The version on the package line, `package kit@1;`: the file is that version's surface.
+    pub surface: Option<Ident>,
     pub items: Vec<Node<Item>>,
     /// Comments after the last item.
     pub dangling: Vec<Leading>,
@@ -158,6 +160,8 @@ pub enum DeclKind {
     Pack(PackDecl),
     Tokens(TokensDecl),
     Let(Var),
+    Migration(MigrationDecl),
+    MigrationFn(MigrationFn),
 }
 
 impl DeclKind {
@@ -175,6 +179,8 @@ impl DeclKind {
             DeclKind::Pack(d) => &d.name,
             DeclKind::Tokens(d) => &d.name,
             DeclKind::Let(d) => &d.name,
+            DeclKind::Migration(d) => &d.to.name,
+            DeclKind::MigrationFn(d) => &d.sig.name,
         }
     }
 }
@@ -392,6 +398,48 @@ pub enum PackLine {
     Uses(Vec<PackRef>),
     Provides(Vec<Ident>),
     Implements(Vec<LevelRef>),
+}
+
+/// `migration kit@1 to kit@2 { … }`: how a use of one version becomes a use of the next.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct MigrationDecl {
+    pub from: PackRef,
+    pub to: PackRef,
+    pub items: Body<MigrationItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum MigrationItem {
+    /// A fn that works out values for the statements, run only when migrating.
+    Fn(FnDecl),
+    Block(MigrationBlock),
+}
+
+/// `widget chart { … }`: what happens to each use of one kit@1 declaration.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct MigrationBlock {
+    /// `widget`, `record`, `enum`, `token`, `fn`, `type`, `let` or `interface`.
+    pub kind: Ident,
+    /// The declaration's kit@1 name; `text.slug` for a fn on a type.
+    pub path: Vec<Ident>,
+    pub body: Body<MigrationStmt>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum MigrationStmt {
+    /// An operation, `rename(to = plot);`, a migration fn's call, or `if`, `for` and `let`.
+    Stmt(Stmt),
+    /// `execute { … }`: a fn body from the kit@1 use to the kit@2 one.
+    Execute(Block),
+    /// `event click { … }`, inside a widget's block.
+    Event { name: Ident, body: Body<MigrationStmt> },
+}
+
+/// `migration fn nest(inputs: list<input>, into: input) { … }`: a migration to reuse.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct MigrationFn {
+    pub sig: FnSig,
+    pub body: Body<MigrationStmt>,
 }
 
 /// `charts@2`

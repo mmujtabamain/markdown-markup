@@ -1,0 +1,5 @@
+package kit@1;
+
+fn f(): number {
+    return 1;
+}

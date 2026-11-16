@@ -55,14 +55,14 @@ pub fn parse(src: &str, entry: Entry) -> Parsed {
         match entry {
             Entry::Document => p.document(),
             Entry::Mkp => {
-                let package = p.parse_package()?;
+                let (package, surface) = p.parse_package()?;
                 let (items, dangling) = p.parse_items(src.len())?;
-                Ok(File { kind: FileKind::Mkp, front_matter: None, package, items, dangling, divider: None, prose: None })
+                Ok(File { kind: FileKind::Mkp, front_matter: None, package, surface, items, dangling, divider: None, prose: None })
             }
             _ => {
                 let (items, dangling) = p.parse_items(src.len())?;
                 let kind = if entry == Entry::Decls { FileKind::Document } else { FileKind::Mkp };
-                Ok(File { kind, front_matter: None, package: None, items, dangling, divider: None, prose: None })
+                Ok(File { kind, front_matter: None, package: None, surface: None, items, dangling, divider: None, prose: None })
             }
         }
     })();

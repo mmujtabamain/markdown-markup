@@ -1,6 +1,6 @@
 # Apps, packs and implementers
 
-Page 6 of 9. Packs and imports, tokens, talking to the app, what implementing MKP means, failures, warnings and limits.
+Page 6 of 9. Packs and imports, versions and migrations, tokens, talking to the app, what implementing MKP means, failures, warnings and limits.
 
 ### Packs and imports
 
@@ -34,6 +34,91 @@ tokens brand {
 - **A pack has no state.** It holds no variables outside its widgets and no `expose` block: those belong to a document (below). Its widgets share values through `mut` inputs.
 - **A document** has no `package` line and no `pack` block. It imports above its `@@@` line and writes no versions: `import kit;`. Whoever builds the page decides which version of each pack it gets, by the packs it builds it with.
 - **`@` followed by a digit** names a version, and never starts a view, because a view's `@` is always followed by a name.
+
+### Versions and migrations
+
+A pack's version is a promise: a use that compiles against a release of `kit@1` compiles against every later release of `kit@1`. A change that could break a use makes a new version, `kit@2`, and the new version ships a **migration**: statements that say how each use of `kit@1` becomes a use of `kit@2`. The tools apply it to the documents and packs that use `kit`. A migration is MKP that runs when migrating, never on a page, and the compiler checks it like any other code.
+
+```java
+package kit;
+
+migration kit@1 to kit@2 {
+    widget chart {
+        rename(to = plot);
+        rename(input = color, to = tone);
+        set(input = values, value = values.map(fn(v) { return point { x = 0, y = v }; }));
+    }
+
+    widget badge {
+        drop(input = shadow, why = "badges have no shadow in kit@2");
+        set(input = size, value = size.S, when = !given(size));
+        notify(input = label, why = "a label over 20 characters is cut short now", when = label.length() > 20);
+    }
+
+    widget button {
+        event click {
+            rename(to = press);
+            add(arg = at);
+        }
+    }
+
+    enum state {
+        rename(from = state.LATE, to = state.OVERDUE);
+    }
+}
+```
+
+- **A migration** belongs to the pack of the version it moves to, as one of its files, by convention `migrations/kit@2.mkp`. `kit@3` holds `migration kit@1 to kit@2` and `migration kit@2 to kit@3`, so a use written for `kit@1` moves through each in turn. A pack may drop its oldest migrations, and a use older than them is then left for a person.
+- **A block** says what happens to the uses of one declaration. It is headed by the declaration's kind and its `kit@1` name: `widget chart`, `record stat`, `enum state`, `token color`, `fn text.slug`. A widget's event has a block of its own inside the widget's, `event click { … }`.
+- **Statements apply in order**, each to what the one before it left: after `rename(to = plot)`, the block is working on `plot`.
+- **A statement is a call with named arguments.** Where a parameter takes a name, the argument is written bare and checked: `input = color` is an input `chart` had in `kit@1`, and `to = tone` one `plot` has in `kit@2`. Anywhere else a name is the value the use gave, so in `set(input = values, value = values.map(…))` the first `values` is the input and the second its value. A case is written in full, `state.LATE`.
+- **`why`** is a text any statement takes. It is shown to whoever migrates, beside each change, and leaving it out is a warning.
+- **`when`** is a condition some statements take, over the use: its inputs by name, `given(name)`, constants, and `&&`, `||` and `!`. The statement applies to the uses where it holds.
+- **The words** `migration`, `to` and `execute` mean something only where a migration is written, so they stay free as names.
+
+| Statement | What it does to each use |
+|---|---|
+| `rename(to = …)` | The declaration has a new name. Every reference changes: calls, imports, types, record literals and `match` cases. With `input =`, `slot =`, `field =` or `arg =`, a member has one, and with `from =`, a case. The new name may be one a pack `kit@2` uses provides; a file that then needs an import is given it |
+| `move(from = …, to = …)` | What the use gives moves to another place: an input, a field of a record input (`style.color`), a slot, or, after a `wrap`, an input or slot of the widget around it (`frame.title`). The two places' types decide the conversion: a text moved into a slot becomes prose, a variable becomes a hole, and a slot moves into a text only where it holds plain text. A use that gives nothing moves nothing |
+| `set(input = …, value = …, when = …)` | The value is written where `when` holds, or into every use without it. The value may read the use's inputs, so `set` also converts. `field =` and `arg =` name a record's field and a fn's argument |
+| `drop(…)` | A member, or with no member the declaration, is gone. A value the use gives it is taken out. Code written into it, such as a slot's view or a whole use of a dropped widget, stays as a comment that names the migration and why |
+| `wrap(parent = …)` | Each use is put inside a new widget |
+| `notify(why = …, when = …)` | Nothing changes. Whoever migrates is told, beside each use where `when` holds |
+| `execute { … }` | Any change. A fn body from the `kit@1` use to the `kit@2` one |
+
+- **`execute`** sees the `kit@1` use's inputs, slots and events by name. An input the use left out reads as `kit@1`'s default, and `given(name)` says whether the use wrote it. It returns the `kit@2` use, or nothing to remove the use. Every other statement is shorthand for an `execute`, and `notify`, `ask` and `confirm` can be called in one.
+- **On a fn and on an event**, `rename`, `add` and `drop` work from both sides of the call. A fn's use is a call: `add(arg = sep, value = "-")` writes the argument into every call. An event's use is a handler: `add(arg = at)` gives every handler the parameter, which the widget supplies. A handler written in place changes in place, and one given by name is wrapped in a fn that calls it.
+- **A value is worked out when migrating** where the use gives a constant. Anything else passes through as the code it is, so `values.map(…)` is written as `sales.map(…)`. A decision about a value that isn't a constant can't be made then, so that use is put to the person, as `ask` does.
+- **`ask(why = …, options = […])`** is a choice about one use, made by whoever migrates. **`confirm(why = …)`** is one yes or no for the whole migration. Where no one can be asked, the answers come from a file, and a use with no answer is left as it was and reported.
+- **A migration fn**, `migration fn name(…) { … }`, is a migration to reuse. Its parameters are names, such as an `input` or a `list<input>`, or values; its body is statements, `for`, `if` and other migration fns. Called in a block, it works on that block's declaration, and it is checked there, against that declaration. Core declares the statements and four helpers written as migration fns: `add`, a `set` for a member `kit@1` didn't have; `nest` and `flatten`, `move`s into a record and out of one; and `split`, which puts each use of one case to the person, with the cases it may become.
+- **A fn in a migration** works out values for its statements, and runs only when migrating. A use that gives a variable can't have it written in, so that use is asked, unless the fn calls one that `kit@2` provides.
+- **`example(before = …, after = …)`** is a test. The compiler runs `before` through its block, and an `after` that doesn't match is a compile error.
+
+**A surface** is what a released version provided, kept beside the later ones: a file in the pack's folder whose `package` line carries the version. It holds declarations only, each widget and fn as an `extern` signature, and records, enums, token types, `tokens` blocks, aliases, interfaces and `let` constants as they were, without `require` blocks. The tools write it from the pack when a version is released, and nobody edits it. Its names are never in the pack's scope and can't be imported; it is read only against the pack and its migrations.
+
+```java
+package kit@1;
+
+extern widget chart(values: list<number>, color: color = color.ACCENT);
+extern widget badge(label: text, shadow: bool = false);
+
+record stat {
+    label: text;
+    value: text;
+}
+
+enum state { DONE, TODO, LATE }
+```
+
+What the compiler checks, when it compiles the pack:
+
+- **The promise.** A pack is compared with the surface of its own version, when it has one. A change that could break a use is a compile error that says to make a new version: a name, input, slot, event, field, case or fn that is gone; a new input or field with no default; a new case in an enum, since a `match` that lists every case no longer does; a type that accepts less than it did; a changed default, since it changes every use that leaves the input out; a fn or an event whose arguments or result changed. A new declaration, a new input or field with a default, a new token case and a type that accepts more are not breaks. A new name can still clash with a name a document declares when the document imports the whole pack; importing single names avoids that.
+- **Each migration against the version it starts from.** `migration kit@1 to kit@2` needs the surface `package kit@1;`. Each block type-checks as a fn from a `kit@1` use to a `kit@2` use, so a name that isn't there, a value of the wrong type and a required input left out are compile errors where they are written.
+- **And complete.** Applied to `kit@1`'s surface, the blocks must give exactly what `kit@2` provides. A declaration or a member they leave unaccounted for is a compile error.
+
+A use moves exactly, never by searching the text. Each file is compiled against the surfaces of the versions it was written for, so every reference to the pack is known, including through `import kit.chart as c` and in a record literal whose type comes from where it stands, and only those references change. A word in prose and a file's own declaration of the same name stay as they are. Each change is an edit where the reference is, so the rest of the file, comments included, stays as it was. Before anything is written, whoever migrates is shown every deletion a `drop` makes, each with its file and line. After the last migration, the file is compiled against the pack as it is now; a file that doesn't compile is left unchanged and reported with its errors. A pack that uses `kit` moves the same way, and its `uses kit@1` becomes `kit@2`. A document writes no versions, so the version it was written for is kept by whatever builds it, beside it.
+
+Migrations and surfaces never reach a page: the IR has neither, and building a document never reads them.
 
 ### Tokens
 

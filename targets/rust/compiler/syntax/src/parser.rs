@@ -402,7 +402,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_package(&mut self) -> R<Option<Node<Ident>>> {
+    pub fn parse_package(&mut self) -> R<(Option<Node<Ident>>, Option<Ident>)> {
         if !self.at_kw(Kw::Package)? {
             let at = self.here()?;
             return Err(Diagnostic::error(
@@ -414,9 +414,11 @@ impl<'a> Parser<'a> {
         let leading = self.take_leading()?;
         self.bump()?;
         let name = self.ident("a package name")?;
+        // `package kit@1;`: an earlier version's surface
+        let surface = if self.at(P::At)? { Some(self.version()?) } else { None };
         self.semi()?;
         let trailing = self.take_trailing()?;
-        Ok(Some(Node { leading, item: name, trailing, newline: true }))
+        Ok((Some(Node { leading, item: name, trailing, newline: true }), surface))
     }
 
     fn item(&mut self) -> R<Item> {
@@ -472,6 +474,18 @@ impl<'a> Parser<'a> {
                 t.span,
                 "there are no fixtures in the language for now: core's tests are target checks",
             )),
+            Tok::Name if self.text_of(t.span) == "migration" && self.starts_migration()? => {
+                if !self.in_pack() {
+                    return Err(Diagnostic::error(
+                        codes::MIGRATION_LINE,
+                        t.span,
+                        "a document has no migration: a migration belongs to the pack whose new version it moves uses to",
+                    ));
+                }
+                let start = self.here()?;
+                let kind = if self.kind_at(1)? == Tok::Kw(Kw::Fn) { DeclKind::MigrationFn(self.migration_fn()?) } else { DeclKind::Migration(self.migration_decl()?) };
+                Ok(Item::Decl(Decl { kind, span: start.to(Span::at(self.prev_end)) }))
+            }
             Tok::Kw(Kw::Pack) if !self.in_pack() && self.entry != Entry::Body => Err(Diagnostic::error(
                 codes::PACK_IN_DOCUMENT,
                 t.span,
@@ -998,6 +1012,98 @@ impl<'a> Parser<'a> {
             return Err(self.unexpected("a version, a whole number"));
         }
         self.token_ident()
+    }
+
+    /// `migration kit@1 to …` or `migration fn …`: `migration` is a word only there.
+    fn starts_migration(&mut self) -> R<bool> {
+        Ok(self.kind_at(1)? == Tok::Kw(Kw::Fn) || (self.kind_at(1)? == Tok::Name && self.kind_at(2)? == Tok::P(P::At)))
+    }
+
+    /// `migration kit@1 to kit@2 { widget chart { … } … }`
+    fn migration_decl(&mut self) -> R<MigrationDecl> {
+        self.bump()?;
+        let pref = |p: &mut Self| -> R<PackRef> {
+            let name = p.ident("a pack's name")?;
+            let version = p.version()?;
+            Ok(PackRef { name, version })
+        };
+        let from = pref(self)?;
+        self.word_to("`migration kit@1 to kit@2 {`")?;
+        let to = pref(self)?;
+        let open = self.expect(P::LBrace)?;
+        let items = self.body(open, |p| {
+            let t = p.peek()?.clone();
+            // `fn name(…)` is a fn of the migration's own; `fn text.slug {` is a fn's block
+            if t.kind == Tok::Kw(Kw::Fn) {
+                let block = (p.kind_at(1)? == Tok::Name && p.kind_at(2)? == Tok::P(P::LBrace))
+                    || (p.kind_at(1)? == Tok::Name && p.kind_at(2)? == Tok::P(P::Dot) && p.kind_at(4)? == Tok::P(P::LBrace));
+                if !block {
+                    return Ok(MigrationItem::Fn(p.fn_decl(false)?));
+                }
+            }
+            Ok(MigrationItem::Block(p.migration_block()?))
+        })?;
+        Ok(MigrationDecl { from, to, items })
+    }
+
+    /// `widget chart { rename(to = plot); … }`, headed by the declaration's kit@1 name.
+    fn migration_block(&mut self) -> R<MigrationBlock> {
+        let t = self.peek()?.clone();
+        let word = self.text_of(t.span).to_string();
+        if !matches!(t.kind, Tok::Kw(Kw::Widget | Kw::Record | Kw::Enum | Kw::Token | Kw::Fn | Kw::Type | Kw::Let | Kw::Interface)) {
+            return Err(Diagnostic::error(
+                codes::MIGRATION_LINE,
+                t.span,
+                format!("a migration holds a block for each changed declaration, headed by its kind and its old name, such as `widget chart {{`, and fns of its own; found {}", describe(self.src, &t)),
+            ));
+        }
+        self.bump()?;
+        let kind = Ident { name: word, span: t.span };
+        let mut path = vec![self.ident("the declaration's old name")?];
+        if self.eat(P::Dot)? {
+            path.push(self.ident("a fn's name")?);
+        }
+        let open = self.expect(P::LBrace)?;
+        let body = self.migration_body(open)?;
+        Ok(MigrationBlock { kind, path, body })
+    }
+
+    /// A block's or a migration fn's statements, after its `{`.
+    fn migration_body(&mut self, open: Span) -> R<Body<MigrationStmt>> {
+        self.body(open, |p| {
+            let t = p.peek()?.clone();
+            if t.kind == Tok::Name && p.text_of(t.span) == "execute" && p.kind_at(1)? == Tok::P(P::LBrace) {
+                p.bump()?;
+                return Ok(MigrationStmt::Execute(p.block(BlockKind::Code)?));
+            }
+            if t.kind == Tok::Kw(Kw::Event) {
+                p.bump()?;
+                let name = p.ident("the event's old name")?;
+                let open = p.expect(P::LBrace)?;
+                let body = p.migration_body(open)?;
+                return Ok(MigrationStmt::Event { name, body });
+            }
+            Ok(MigrationStmt::Stmt(p.stmt(BlockKind::Code)?))
+        })
+    }
+
+    /// `migration fn nest(inputs: list<input>, into: input) { … }`
+    fn migration_fn(&mut self) -> R<MigrationFn> {
+        self.bump()?;
+        let sig = self.fn_sig(true)?;
+        let open = self.expect(P::LBrace)?;
+        let body = self.migration_body(open)?;
+        Ok(MigrationFn { sig, body })
+    }
+
+    /// The word `to` in a migration's first line, which is a name everywhere else.
+    fn word_to(&mut self, example: &str) -> R<()> {
+        let t = self.peek()?.clone();
+        if t.kind == Tok::Name && self.text_of(t.span) == "to" {
+            self.bump()?;
+            return Ok(());
+        }
+        Err(self.unexpected(&format!("`to`, as in {}", example)))
     }
 
     fn pack_decl(&mut self) -> R<PackDecl> {

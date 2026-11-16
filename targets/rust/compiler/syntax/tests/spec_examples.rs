@@ -100,6 +100,6 @@ fn every_spec_example_reads_and_prints_back_unchanged() {
             }
         }
     }
-    assert_eq!(count, 56, "the spec has 56 MKP code blocks");
+    assert_eq!(count, 58, "the spec has 58 MKP code blocks");
     assert!(failures.is_empty(), "{} of {} examples failed:\n{}", failures.len(), count, failures.join("\n"));
 }

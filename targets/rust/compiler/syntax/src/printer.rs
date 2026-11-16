@@ -212,6 +212,10 @@ impl<'a> Printer<'a> {
             self.leading(&pkg.leading);
             self.w("package ");
             self.w(&pkg.item.name);
+            if let Some(v) = &f.surface {
+                self.w("@");
+                self.w(&v.name);
+            }
             self.w(";");
             self.trailing(&pkg.trailing);
             self.nl();
@@ -314,6 +318,23 @@ impl<'a> Printer<'a> {
                 });
             }
             DeclKind::Fn(f) => self.fn_decl(f),
+            DeclKind::Migration(m) => {
+                self.w(&format!("migration {}@{} to {}@{} ", m.from.name.name, m.from.version.name, m.to.name.name, m.to.version.name));
+                self.body(&m.items, |p, item| match item {
+                    MigrationItem::Fn(f) => p.fn_decl(f),
+                    MigrationItem::Block(b) => {
+                        let path: Vec<&str> = b.path.iter().map(|i| i.name.as_str()).collect();
+                        p.w(&format!("{} {} ", b.kind.name, path.join(".")));
+                        p.migration_body(&b.body);
+                    }
+                });
+            }
+            DeclKind::MigrationFn(m) => {
+                self.w("migration ");
+                self.fn_sig(&m.sig);
+                self.w(" ");
+                self.migration_body(&m.body);
+            }
             DeclKind::ExternFn(f) => {
                 self.w("extern ");
                 self.fn_sig(&f.sig);
@@ -431,6 +452,22 @@ impl<'a> Printer<'a> {
         self.w(" = ");
         self.expr(&v.value);
         self.w(";");
+    }
+
+    fn migration_body(&mut self, b: &Body<MigrationStmt>) {
+        self.body(b, |p, st| match st {
+            MigrationStmt::Stmt(s) => p.stmt(s),
+            MigrationStmt::Execute(block) => {
+                p.w("execute ");
+                p.block(block);
+            }
+            MigrationStmt::Event { name, body } => {
+                p.w("event ");
+                p.w(&name.name);
+                p.w(" ");
+                p.migration_body(body);
+            }
+        });
     }
 
     fn fn_decl(&mut self, f: &FnDecl) {

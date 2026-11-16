@@ -41,7 +41,7 @@ void any param slot try with self true false
 as token $state
 ```
 
-A keyword can never be a name, after a dot included. `$state` is one word: `$` is not a prefix, so `$` on its own and `$abc` are neither keywords nor names, and in code each is a compile error whose message names `$state`. No name starts with `$`, so `$state` never meets a variable, an input or a field, and `state` stays free as a name: `$state.state` reads a field called `state`. `uses` and `provides` are words only inside a `pack` block, so they stay free as ordinary names.
+A keyword can never be a name, after a dot included. `$state` is one word: `$` is not a prefix, so `$` on its own and `$abc` are neither keywords nor names, and in code each is a compile error whose message names `$state`. No name starts with `$`, so `$state` never meets a variable, an input or a field, and `state` stays free as a name: `$state.state` reads a field called `state`. `uses` and `provides` are words only inside a `pack` block, and `migration` and `execute` only where a migration is written, so all four stay free as ordinary names.
 
 ### Names
 

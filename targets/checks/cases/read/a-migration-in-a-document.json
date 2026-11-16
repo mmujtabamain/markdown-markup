@@ -1,0 +1,10 @@
+{
+  "id": "read.a-migration-in-a-document",
+  "about": "a migration in a document, which has no versions to move between",
+  "source": "a-migration-in-a-document.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "syntax.migration-line", "line": 1, "column": 1}
+    ]
+  }
+}

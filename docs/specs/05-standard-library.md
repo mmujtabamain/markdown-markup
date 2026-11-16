@@ -1,6 +1,6 @@
 # The standard library
 
-Page 5 of 9. What is built in, and all of `core`: interfaces and native fns, types, ranges, lists, text, dates and moments, maths and Markdown, tokens, options, `page` and the 43 base widgets.
+Page 5 of 9. What is built in, and all of `core`: interfaces and native fns, types, ranges, lists, text, dates and moments, maths and Markdown, tokens, options, `page`, the statements a migration is written with, and the 43 base widgets.
 
 Only the syntax is built in: literals, operators, holes, prose and `@`. A number literal has to be some type, and so do `"…"`, `[a, b]`, `a..b` and `@name(…)`, so those types are built in. Everything else is declared in `core`, a pack imported by every file without saying so, in the same way any pack declares its own, with no exceptions for core: the six interfaces the syntax works through, the operations an implementer has to do natively, as `extern fn`, everything that can be written in MKP, and the look: tokens, options, `page` and the base widgets.
 
@@ -1245,6 +1245,26 @@ extern page {
 ```
 
 `page` is an `extern` block like the ones on page 6. The defaults are what a target that supplies nothing gets.
+
+#### migrations
+
+The statements a migration is written with (page 6), and the fns it decides with. They run only when migrating, never on a page. Where a parameter takes a name, it is the name of something in the version the migration starts from, except `to` and `parent`, which name something in the version it moves to.
+
+| Statement | Parameters | Written as |
+|---|---|---|
+| `rename` | `input`, `slot`, `field`, `arg` or `from`; `to`; `why` | extern |
+| `move` | `from`, `to`, `why` | extern |
+| `set` | `input`, `field` or `arg`; `value`, `when`, `why` | extern |
+| `drop` | `input`, `slot`, `field` or `arg`, or none for the declaration; `why` | extern |
+| `wrap` | `parent`, `why` | extern |
+| `notify` | `input`, `why`, `when` | extern |
+| `add` | `input`, `field` or `arg`; `value`, `why` | a migration fn: a `set` for a member the old version didn't have |
+| `nest` | `inputs`, `into`, `why` | a migration fn: a `move` of each input into the record input, field by field and by name |
+| `flatten` | `input`, `why` | a migration fn: a `move` of each of the record's fields out to the input of its name |
+| `split` | `from`, `to`, `why` | a migration fn: each use of the case is asked about, with the cases it may become |
+| `example` | `before`, `after` | extern: a test the compiler runs |
+
+`given(name)` says whether the use wrote a member. `ask(why, options)` is a choice about one use, and `confirm(why)` one yes or no for the whole migration, both made by whoever migrates.
 
 #### widgets
 

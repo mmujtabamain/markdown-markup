@@ -201,6 +201,7 @@ impl<'a> Parser<'a> {
             kind: FileKind::Document,
             front_matter,
             package: None,
+            surface: None,
             items: Vec::new(),
             dangling: Vec::new(),
             divider,
