@@ -1,0 +1,98 @@
+{
+  "id": "views.prose-fills-named-slots",
+  "about": "in prose, a widget with several slots fills each from its own `@slot name {` block (page 1)",
+  "source": "prose-fills-named-slots.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "Details"
+                }
+              }
+            ],
+            "level": 1
+          }
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "More"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "The rest, "
+              }
+            },
+            {
+              "text": {
+                "bold": true,
+                "value": "written in prose"
+              }
+            },
+            {
+              "text": {
+                "value": "."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "write": {
+          "site": "s1",
+          "input": "open",
+          "value": {
+            "bool": true
+          }
+        }
+      },
+      "expect": {
+        "state": {
+          "open": {
+            "bool": true
+          }
+        },
+        "tree": {
+          "s1": {
+            "widget": "core/overlay",
+            "slots": {
+              "anchor": [
+                "m2"
+              ],
+              "body": [
+                "m3"
+              ]
+            }
+          },
+          "m2": {
+            "widget": "core/paragraph"
+          },
+          "m3": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -615,6 +615,18 @@ impl Checker {
                         ProseNode::Call(c) => {
                             let mut call = c.call.clone();
                             if let Some((body, _)) = &c.block {
+                                if body.nodes.iter().any(|n| matches!(n, ProseNode::Slot { .. })) {
+                                    // `@slot name {` blocks fill the slots they name (page 1)
+                                    let mut n = self.view_call_node(cx, &call);
+                                    let named = self.prose_slots(cx, &c.call, body);
+                                    if let Some(ir::Node::Extern(e)) = n.first_mut() {
+                                        e.slots.extend(named);
+                                    } else if let Some(ir::Node::Use(u)) = n.first_mut() {
+                                        u.slots.extend(named);
+                                    }
+                                    out.extend(n);
+                                    continue;
+                                }
                                 // a call's block of prose fills its one slot
                                 let nodes = self.prose_nodes(cx, body);
                                 let mut n = self.view_call_node(cx, &call);
@@ -836,6 +848,40 @@ impl Checker {
     pub(crate) fn is_view_type(&self, t: &Ty) -> bool {
         let t = self.vars.resolve(t);
         matches!(t, Ty::View | Ty::Any(..)) || matches!(&t, Ty::Def(d, _) if matches!(self.defs[*d].kind, DefKind::Widget { .. }))
+    }
+
+    /// A prose call's `@slot name {` blocks, each filling the slot it names. Anything else in the
+    /// block but blank lines is an error: a widget with several slots fills each by its name.
+    fn prose_slots(&mut self, cx: &mut Cx, call: &ast::ViewCall, body: &ast::Prose) -> BTreeMap<String, Vec<ir::Node>> {
+        let file = cx.file;
+        let src = self.files[file].src.clone();
+        let wname = call.name.name.clone();
+        let names: Vec<String> = self
+            .widget_of(cx, &call.name.name)
+            .and_then(|d| match &self.defs[d].kind {
+                DefKind::Widget { slots, .. } => Some(slots.iter().map(|s| s.name.clone()).collect()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let mut out = BTreeMap::new();
+        for node in &body.nodes {
+            match node {
+                ProseNode::Slot { name, body, .. } => {
+                    if !names.iter().any(|n| *n == name.name) {
+                        self.error(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name));
+                        continue;
+                    }
+                    let nodes = self.prose_nodes(cx, body);
+                    out.insert(name.name.clone(), nodes);
+                }
+                ProseNode::Text(line) if src[line.span.range()].trim().is_empty() => {}
+                _ => {
+                    self.error(file, codes::CHILDREN_ONE_SLOT, call.name.span, format!("`{}` takes `@slot name {{` blocks here: put this inside one of them", wname));
+                    break;
+                }
+            }
+        }
+        out
     }
 
     fn fill_one_slot(&mut self, widget: &str, slots: &mut BTreeMap<String, Vec<ir::Node>>, nodes: Vec<ir::Node>) {
