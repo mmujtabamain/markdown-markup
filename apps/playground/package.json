@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@mkp/dom": "file:../../targets/ts/dom",
-    "@mkp/runtime": "file:../../targets/ts/runtime"
+    "@mkp/runtime": "file:../../targets/ts/runtime",
+    "monaco-editor": "0.57.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

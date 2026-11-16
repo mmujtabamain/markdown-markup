@@ -1,7 +1,6 @@
-// A light highlighter for `.mkp.md` sources, for the editor's colour layer. It is not a parser:
-// it colours code before the `@@@` divider, and in the prose after it the Markdown, the `@calls`
-// (with their arguments, across lines while a bracket is open) and the `\{holes}`. A wrong colour
-// costs nothing, so it errs on the side of simple.
+// A light highlighter for the Markdown tab: Markdown, with the `@calls` (and their arguments,
+// across lines while a bracket is open) and the `\{holes}` a page's Markdown may hold. The editor
+// colours its source with Monaco and MKP's own tokenizer (language.ts) in the same colours.
 
 const KEYWORDS = new Set(
   "package import enum record type interface implements widget extern expose fn pack tokens mut let event invoke view markdown require if else for in match case return only step void any param slot try with self true false as token".split(
@@ -126,14 +125,4 @@ export function proseLines(lines: string[]): string[] {
     out.push(inlineHtml(line));
   }
   return out;
-}
-
-/** The whole source as HTML, line for line. */
-export function highlight(src: string): string {
-  const lines = src.split("\n");
-  const divider = lines.findIndex((l) => l === "@@@");
-  if (divider < 0) return proseLines(lines).join("\n");
-  const code = codeHtml(lines.slice(0, divider).join("\n"));
-  const prose = proseLines(lines.slice(divider + 1));
-  return [code, span("divider", "@@@"), ...prose].join("\n");
 }

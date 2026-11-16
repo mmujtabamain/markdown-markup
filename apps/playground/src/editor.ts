@@ -1,8 +1,10 @@
-// The source editor: a plain textarea, so typing, undo, selection and the browser's own editing
-// all work as they always do, over two layers drawn in the same font: the colours, and the
-// diagnostics' underlines. A gutter numbers the lines and marks the ones with problems.
+// The source editor: Monaco, with MKP's language and the playground's colours. Monaco draws the
+// text, the caret and the selection itself, measured from what it draws, so they stay together
+// whatever the font. The compiler's diagnostics are its markers.
 
-import { escapeHtml, highlight } from "./highlight.js";
+import { monaco } from "./monaco.js";
+import { MKP, languageFor, registerMkp } from "./language.js";
+import { defineThemes, themeFor } from "./themes.js";
 
 export interface Diagnostic {
   line: number;
@@ -21,273 +23,210 @@ export interface EditorEvents {
   run(): void;
 }
 
-const INDENT = "    ";
+/** Whose markers these are, in Monaco's marker service. */
+export const MARKER_OWNER = "mkp";
+
+const FONT = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace';
+/** Where the gutter's border is, past the line numbers' right edge (style.css draws it). */
+const GUTTER_PAD = 13;
+
+let registered = false;
 
 export class Editor {
-  readonly textarea: HTMLTextAreaElement;
-  private readonly layers: HTMLElement;
-  private readonly code: HTMLElement;
-  private readonly marks: HTMLElement;
-  private readonly gutter: HTMLElement;
-  private readonly band: HTMLElement;
-  private lines = 0;
-  private diagnostics: Diagnostic[] = [];
-  /** The text the diagnostics belong to: they are shown only while the text is still that. */
-  private diagnosed = "";
-  private painted = false;
+  readonly view: monaco.editor.IStandaloneCodeEditor;
+  readonly model: monaco.editor.ITextModel;
+  /** The text is being replaced whole, as loading an example does: not the reader's edit. */
+  private replacing = false;
+  private readonly lineMarks: monaco.editor.IEditorDecorationsCollection;
+  private readonly flash: monaco.editor.IEditorDecorationsCollection;
+  private flashTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(frame: HTMLElement, private readonly on: EditorEvents) {
-    this.textarea = frame.querySelector("textarea")!;
-    this.layers = frame.querySelector(".layers")!;
-    this.code = frame.querySelector(".hl code")!;
-    this.marks = frame.querySelector(".marks")!;
-    this.gutter = frame.querySelector(".gutter-lines")!;
-    this.band = frame.querySelector(".active-line")!;
-    const ta = this.textarea;
-    ta.addEventListener("input", () => {
-      this.schedulePaint();
-      this.on.change();
+  constructor(host: HTMLElement, on: EditorEvents) {
+    if (!registered) {
+      registerMkp(monaco);
+      defineThemes(monaco);
+      registered = true;
+    }
+    const dark = matchMedia("(prefers-color-scheme: dark)");
+    this.model = monaco.editor.createModel("", MKP, monaco.Uri.parse("inmemory://playground/page.mkp.md"));
+    // the model is ours, so its own options: four spaces, and brackets in the text's colour
+    this.model.updateOptions({ tabSize: 4, indentSize: 4, insertSpaces: true, bracketColorizationOptions: { enabled: false, independentColorPoolPerBracketType: false } });
+    this.view = monaco.editor.create(host, {
+      model: this.model,
+      theme: themeFor(dark.matches),
+      ariaLabel: "The page's MKP source",
+      automaticLayout: true,
+      fixedOverflowWidgets: true,
+      // the look the editor had: the font, its size and lines, the gutter, no minimap or rulers
+      fontFamily: FONT,
+      // the size the old editor's text was drawn at (0.92em of 13px, from style.css's `code`); its
+      // textarea, holding the caret, was 13px, and that difference was the caret drifting off
+      fontSize: 11.96,
+      lineHeight: 20,
+      letterSpacing: 0,
+      fontLigatures: false,
+      padding: { top: 12, bottom: 52 },
+      scrollBeyondLastLine: false,
+      renderFinalNewline: "on",
+      lineNumbersMinChars: 5,
+      lineDecorationsWidth: GUTTER_PAD + 14,
+      glyphMargin: false,
+      folding: false,
+      minimap: { enabled: false },
+      overviewRulerLanes: 0,
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: true,
+      // the current line's band from the gutter's border on, as before (style.css clips it)
+      renderLineHighlight: "all",
+      renderLineHighlightOnlyWhenFocus: true,
+      renderWhitespace: "none",
+      guides: { indentation: false, bracketPairs: false, highlightActiveIndentation: false },
+      bracketPairColorization: { enabled: false },
+      matchBrackets: "near",
+      occurrencesHighlight: "off",
+      selectionHighlight: false,
+      wordWrap: "off",
+      scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10, useShadows: false, alwaysConsumeMouseWheel: false },
+      // typing: Tab is four spaces, Enter keeps the line's indent, pairs close and are stepped over
+      tabSize: 4,
+      insertSpaces: true,
+      detectIndentation: false,
+      useTabStops: false,
+      autoIndent: "keep",
+      autoClosingBrackets: "languageDefined",
+      autoClosingQuotes: "languageDefined",
+      autoClosingOvertype: "auto",
+      autoClosingDelete: "auto",
+      autoSurround: "languageDefined",
+      // nothing pops up while typing: Enter is always a new line
+      quickSuggestions: false,
+      suggestOnTriggerCharacters: false,
+      wordBasedSuggestions: "off",
+      acceptSuggestionOnEnter: "off",
+      tabCompletion: "off",
     });
-    ta.addEventListener("scroll", () => this.syncScroll());
-    ta.addEventListener("keydown", (e) => this.key(e));
-    document.addEventListener("selectionchange", () => {
-      if (document.activeElement === ta) this.moveBand();
+    // again now: creating the editor applies the configuration's default to every model
+    this.model.updateOptions({ bracketColorizationOptions: { enabled: false, independentColorPoolPerBracketType: false } });
+    this.lineMarks = this.view.createDecorationsCollection();
+    this.flash = this.view.createDecorationsCollection();
+
+    dark.addEventListener("change", () => monaco.editor.setTheme(themeFor(dark.matches)));
+    this.model.onDidChangeContent(() => {
+      this.syncLanguage();
+      if (!this.replacing) on.change();
     });
-    ta.addEventListener("focus", () => {
-      this.band.hidden = false;
-      this.moveBand();
+    this.view.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => on.run());
+    this.view.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => on.run());
+    // the gutter ends a little past the line numbers, wherever Monaco puts them
+    const gutter = () => {
+      const info = this.view.getLayoutInfo();
+      host.style.setProperty("--gutter-edge", `${info.decorationsLeft + GUTTER_PAD}px`);
+      host.style.setProperty("--content-left", `${info.contentLeft}px`);
+    };
+    this.view.onDidLayoutChange(gutter);
+    gutter();
+    // a problem's message as the tooltip of its squiggle, with no hover widget to load
+    this.view.onMouseMove((e) => {
+      const at = e.target.position;
+      const found = at && e.target.type === monaco.editor.MouseTargetType.CONTENT_TEXT ? this.markers().find((m) => new monaco.Range(m.line, m.col, m.endLine, m.endCol).containsPosition(at)) : undefined;
+      const title = found ? `${found.message} (${found.code})` : "";
+      if (host.title !== title) host.title = title;
     });
-    ta.addEventListener("blur", () => (this.band.hidden = true));
-    new ResizeObserver(() => this.syncScroll()).observe(ta);
+    this.view.onMouseLeave(() => (host.title = ""));
   }
 
   get value(): string {
-    return this.textarea.value;
+    return this.model.getValue();
   }
 
   /** Replaces the whole text, as loading an example does: not an edit to undo. The caret goes to
-   * the end, so focusing the editor and typing adds to the page's prose; the view stays at the top. */
+   * the end, so clicking in and typing adds to the page's prose; the view stays at the top. */
   set value(text: string) {
-    this.textarea.value = text;
-    this.textarea.setSelectionRange(text.length, text.length);
-    this.textarea.scrollTop = 0;
-    this.textarea.scrollLeft = 0;
-    this.diagnostics = [];
-    this.paint();
-  }
-
-  /** Shows the diagnostics of a compile of `source`, while the text is still that source. */
-  setDiagnostics(diagnostics: Diagnostic[], source: string): void {
-    this.diagnostics = diagnostics.filter((d) => !d.file);
-    this.diagnosed = source;
-    this.paint();
-  }
-
-  /** Puts the caret at a line and column (both from 1), and brings it into view. */
-  goTo(line: number, col: number): void {
-    const ta = this.textarea;
-    const text = ta.value;
-    let at = 0;
-    for (let l = 1; l < line; l++) {
-      const nl = text.indexOf("\n", at);
-      if (nl < 0) break;
-      at = nl + 1;
+    this.replacing = true;
+    try {
+      this.model.setValue(text);
+    } finally {
+      this.replacing = false;
     }
-    const lineEnd = text.indexOf("\n", at);
-    const offset = Math.min(at + Math.max(0, col - 1), lineEnd < 0 ? text.length : lineEnd);
-    ta.focus({ preventScroll: true });
-    ta.setSelectionRange(offset, offset);
-    const lh = this.lineHeight();
-    const top = (line - 1) * lh;
-    if (top < ta.scrollTop || top > ta.scrollTop + ta.clientHeight - lh * 2) ta.scrollTop = Math.max(0, top - ta.clientHeight / 3);
-    const cw = this.charWidth();
-    const left = (col - 1) * cw;
-    if (left < ta.scrollLeft || left > ta.scrollLeft + ta.clientWidth - cw * 4) ta.scrollLeft = Math.max(0, left - ta.clientWidth / 2);
-    ta.scrollIntoView({ block: "nearest" });
-    this.syncScroll();
-    this.moveBand();
-    this.band.classList.remove("flash");
-    void this.band.offsetWidth;
-    this.band.classList.add("flash");
+    this.syncLanguage();
+    this.setDiagnostics([], text);
+    const last = this.model.getLineCount();
+    this.view.setPosition({ lineNumber: last, column: this.model.getLineMaxColumn(last) });
+    this.view.setScrollTop(0);
+    this.view.setScrollLeft(0);
+  }
+
+  /** The compiler's diagnostics for `source`, as markers. Markers move with later edits; a result
+   * for a text that has changed since is left for the next compile. */
+  setDiagnostics(diagnostics: Diagnostic[], source: string): void {
+    if (source !== this.model.getValue()) return;
+    const mine = diagnostics.filter((d) => !d.file);
+    monaco.editor.setModelMarkers(
+      this.model,
+      MARKER_OWNER,
+      mine.map((d) => ({
+        severity: d.severity === "error" ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+        startLineNumber: d.line,
+        startColumn: d.col,
+        endLineNumber: d.end?.line ?? d.line,
+        endColumn: d.end?.col ?? d.col,
+        message: d.message,
+        code: d.code,
+        source: "mkp",
+      })),
+    );
+    // and the gutter's numbers on their lines, red or amber, as before
+    const worst = new Map<number, "error" | "warning">();
+    for (const d of mine) if (worst.get(d.line) !== "error") worst.set(d.line, d.severity === "error" ? "error" : "warning");
+    this.lineMarks.set(
+      [...worst].map(([line, sev]) => ({
+        range: new monaco.Range(line, 1, line, 1),
+        options: { lineNumberClassName: `has-${sev}`, stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges },
+      })),
+    );
+  }
+
+  /** Puts the caret at a line and column (both from 1), brings it into view, and flashes the line. */
+  goTo(line: number, col: number): void {
+    const pos = this.model.validatePosition({ lineNumber: line, column: col });
+    this.view.setPosition(pos);
+    this.view.revealPositionInCenterIfOutsideViewport(pos, monaco.editor.ScrollType.Smooth);
+    this.view.focus();
+    this.flash.set([{ range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, 1), options: { isWholeLine: true, className: "line-flash" } }]);
+    clearTimeout(this.flashTimer);
+    this.flashTimer = setTimeout(() => this.flash.clear(), 1300);
   }
 
   focus(): void {
-    this.textarea.focus();
+    this.view.focus();
   }
 
-  // ---- drawing
-
-  private schedulePaint(): void {
-    if (this.painted) return;
-    this.painted = true;
-    requestAnimationFrame(() => {
-      this.painted = false;
-      this.paint();
-    });
+  /** The source's language follows whether it has a `@@@` line (language.ts). */
+  private syncLanguage(): void {
+    const want = languageFor(this.model.getValue());
+    if (this.model.getLanguageId() !== want) monaco.editor.setModelLanguage(this.model, want);
   }
 
-  private paint(): void {
-    const text = this.textarea.value;
-    // a trailing space keeps the last line's height when the text ends in a newline
-    this.code.innerHTML = highlight(text) + " ";
-    const current = text === this.diagnosed ? this.diagnostics : [];
-    this.marks.innerHTML = marksHtml(text, current) + " ";
-    const count = text.split("\n").length;
-    const byLine = new Map<number, string>();
-    for (const d of current) {
-      const was = byLine.get(d.line);
-      if (was !== "error") byLine.set(d.line, d.severity === "error" ? "error" : "warning");
-    }
-    if (count !== this.lines || byLine.size || this.gutter.querySelector(".has-error, .has-warning")) {
-      let html = "";
-      for (let l = 1; l <= count; l++) {
-        const s = byLine.get(l);
-        html += s ? `<div class="has-${s}">${l}</div>` : `<div>${l}</div>`;
-      }
-      this.gutter.innerHTML = html;
-      this.lines = count;
-    }
-    this.syncScroll();
+  // ---- for the tests and the video: what the editor holds, read only
+
+  /** The markers on the source now. */
+  markers(): { line: number; col: number; endLine: number; endCol: number; severity: string; code: string; message: string }[] {
+    return monaco.editor.getModelMarkers({ owner: MARKER_OWNER, resource: this.model.uri }).map((m) => ({
+      line: m.startLineNumber,
+      col: m.startColumn,
+      endLine: m.endLineNumber,
+      endCol: m.endColumn,
+      severity: m.severity === monaco.MarkerSeverity.Error ? "error" : "warning",
+      code: typeof m.code === "string" ? m.code : (m.code?.value ?? ""),
+      message: m.message,
+    }));
   }
 
-  private syncScroll(): void {
-    const ta = this.textarea;
-    this.layers.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
-    this.gutter.style.transform = `translateY(${-ta.scrollTop}px)`;
+  /** A line's tokens as MKP's tokenizer reads it, with their text. */
+  tokens(line: number): { text: string; type: string }[] {
+    const lines = monaco.editor.tokenize(this.model.getValue(), this.model.getLanguageId());
+    const text = this.model.getLineContent(line);
+    const row = lines[line - 1] ?? [];
+    return row.map((t, k) => ({ text: text.slice(t.offset, row[k + 1]?.offset ?? text.length), type: t.type }));
   }
-
-  private lineHeight(): number {
-    return parseFloat(getComputedStyle(this.textarea).lineHeight) || 20;
-  }
-
-  private charWidth(): number {
-    const probe = this.code.ownerDocument.createElement("span");
-    probe.textContent = "0".repeat(10);
-    probe.style.visibility = "hidden";
-    this.code.append(probe);
-    const w = probe.getBoundingClientRect().width / 10;
-    probe.remove();
-    return w || 8;
-  }
-
-  private moveBand(): void {
-    const ta = this.textarea;
-    const line = ta.value.slice(0, ta.selectionStart).split("\n").length;
-    this.band.style.top = `${(line - 1) * this.lineHeight()}px`;
-  }
-
-  // ---- keys
-
-  private key(e: KeyboardEvent): void {
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && (e.key === "s" || e.key === "Enter")) {
-      e.preventDefault();
-      this.on.run();
-      return;
-    }
-    if (e.key === "Tab" && !mod && !e.altKey) {
-      e.preventDefault();
-      if (e.shiftKey) this.outdent();
-      else this.indent();
-      return;
-    }
-    if (e.key === "Enter" && !mod && !e.shiftKey && !e.altKey && !e.isComposing) {
-      // a new line keeps the indent of the one it breaks
-      const ta = this.textarea;
-      const start = ta.value.lastIndexOf("\n", ta.selectionStart - 1) + 1;
-      const indent = /^[ \t]*/.exec(ta.value.slice(start, ta.selectionStart))![0];
-      if (indent) {
-        e.preventDefault();
-        this.insert("\n" + indent);
-      }
-    }
-  }
-
-  /** Inserts text as the reader typing it would: one step for undo. */
-  private insert(text: string): void {
-    const ta = this.textarea;
-    if (!document.execCommand("insertText", false, text)) {
-      ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
-      ta.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  }
-
-  private selectedLines(): { start: number; end: number } {
-    const ta = this.textarea;
-    const v = ta.value;
-    const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
-    let end = v.indexOf("\n", ta.selectionEnd - (ta.selectionEnd > ta.selectionStart && v[ta.selectionEnd - 1] === "\n" ? 1 : 0));
-    if (end < 0) end = v.length;
-    return { start, end };
-  }
-
-  private indent(): void {
-    const ta = this.textarea;
-    const v = ta.value;
-    if (!v.slice(ta.selectionStart, ta.selectionEnd).includes("\n")) {
-      this.insert(INDENT);
-      return;
-    }
-    const { start, end } = this.selectedLines();
-    const block = v.slice(start, end);
-    const lines = block.split("\n");
-    ta.setSelectionRange(start, end);
-    this.insert(lines.map((l) => (l ? INDENT + l : l)).join("\n"));
-    ta.setSelectionRange(start, start + block.length + INDENT.length * lines.filter(Boolean).length);
-  }
-
-  private outdent(): void {
-    const ta = this.textarea;
-    const v = ta.value;
-    const { start, end } = this.selectedLines();
-    const block = v.slice(start, end);
-    const caret = ta.selectionStart;
-    const out = block
-      .split("\n")
-      .map((l) => l.replace(/^ {1,4}|^\t/, ""))
-      .join("\n");
-    if (out === block) return;
-    ta.setSelectionRange(start, end);
-    this.insert(out);
-    if (!block.includes("\n")) {
-      const back = block.length - out.length;
-      const at = Math.max(start, caret - back);
-      ta.setSelectionRange(at, at);
-    } else {
-      ta.setSelectionRange(start, start + out.length);
-    }
-  }
-}
-
-/** The text, transparent, with each diagnostic's range in a mark that draws its underline. */
-function marksHtml(text: string, diagnostics: Diagnostic[]): string {
-  if (!diagnostics.length) return escapeHtml(text);
-  const starts: number[] = [0];
-  for (let i = 0; i < text.length; i++) if (text[i] === "\n") starts.push(i + 1);
-  const offset = (line: number, col: number) => {
-    const s = starts[Math.min(Math.max(line, 1), starts.length) - 1];
-    const e = line < starts.length ? starts[line] - 1 : text.length;
-    return Math.min(s + Math.max(col, 1) - 1, e);
-  };
-  type Range = { from: number; to: number; severity: string };
-  const ranges: Range[] = diagnostics
-    .map((d) => {
-      const from = offset(d.line, d.col);
-      let to = d.end ? offset(d.end.line, d.end.col) : from;
-      if (to <= from) to = Math.min(from + 1, text.length);
-      // a range at the end of a line marks the place after it
-      if (text[from] === "\n" || from >= text.length) to = from;
-      return { from, to, severity: d.severity === "error" ? "error" : "warning" };
-    })
-    .sort((a, b) => a.from - b.from);
-  let out = "";
-  let at = 0;
-  for (const r of ranges) {
-    if (r.from < at) continue; // overlapping: the first one wins
-    out += escapeHtml(text.slice(at, r.from));
-    if (r.to === r.from) out += `<mark class="${r.severity} point"></mark>`;
-    else out += `<mark class="${r.severity}">${escapeHtml(text.slice(r.from, r.to))}</mark>`;
-    at = Math.max(r.to, r.from);
-  }
-  return out + escapeHtml(text.slice(at));
 }

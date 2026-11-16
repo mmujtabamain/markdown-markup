@@ -191,6 +191,45 @@ describe("with the real compiler", { skip: binary ? false : "no mkp binary: buil
     }
   });
 
+  test("serves the bundle's files from dist/: types, gzip, ETags, and nothing outside it", async () => {
+    const dist = await mkdtemp(join(tmpdir(), "pg-dist-"));
+    const js = "export const monaco = 1;\n".repeat(400);
+    await writeFile(join(dist, "app.js"), js);
+    await writeFile(join(dist, "editor.worker.js"), "self.onmessage = () => {};\n");
+    await writeFile(join(dist, "codicon-ABCD1234.ttf"), Buffer.from([0, 1, 0, 0, 0, 10, 0, 128]));
+    const t = await startServer({ port: 0, host: "127.0.0.1", buildBundle: false, log: memoryLog(), distDir: dist, notifyUrl: "", notifyToken: "" });
+    try {
+      const app = await fetch(`${t.url}/app.js`, { headers: { "accept-encoding": "gzip" } });
+      assert.equal(app.status, 200);
+      assert.match(app.headers.get("content-type"), /^text\/javascript/);
+      assert.equal(app.headers.get("content-encoding"), "gzip");
+      assert.equal(app.headers.get("cache-control"), "no-cache");
+      assert.equal(await app.text(), js);
+      const etag = app.headers.get("etag");
+      assert.ok(etag);
+      assert.equal((await fetch(`${t.url}/app.js`, { headers: { "if-none-match": etag } })).status, 304, "an unchanged file is not sent again");
+
+      const worker = await fetch(`${t.url}/editor.worker.js`);
+      assert.equal(worker.status, 200);
+      assert.match(worker.headers.get("content-type"), /^text\/javascript/);
+
+      const font = await fetch(`${t.url}/codicon-ABCD1234.ttf`);
+      assert.equal(font.status, 200);
+      assert.equal(font.headers.get("content-type"), "font/ttf");
+      assert.match(font.headers.get("cache-control"), /immutable/, "a hashed name never changes");
+      assert.deepEqual([...new Uint8Array(await font.arrayBuffer())], [0, 1, 0, 0, 0, 10, 0, 128]);
+
+      for (const path of ["/../server.mjs", "/%2e%2e/server.mjs", "/%2e%2e%2fserver.mjs", "/sub/app.js", "/.hidden", "/server.mjs"]) {
+        const res = await fetch(`${t.url}${path}`);
+        assert.equal(res.status, 404, `${path} is not served`);
+      }
+      assert.equal((await fetch(`${t.url}/app.css`)).status, 503, "a missing bundle says so");
+    } finally {
+      await t.close();
+      await rm(dist, { recursive: true, force: true });
+    }
+  });
+
   test("removes every temp dir it made", async () => {
     await compile(s.url, { source: await example("list.mkp.md") });
     await compile(s.url, { source: "@@@\n@press(;\n" });

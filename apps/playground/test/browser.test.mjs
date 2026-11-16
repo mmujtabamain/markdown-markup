@@ -31,8 +31,9 @@ describe("the playground in Chromium", { skip }, () => {
   const pageErrors = [];
 
   before(async () => {
+    // the bundle as it ships: minified, Monaco and its worker included
     const { buildBundle } = await import("../build.mjs");
-    await buildBundle({ minify: false });
+    await buildBundle();
     server = await startServer({ port: 0, host: "127.0.0.1", buildBundle: false, log: quiet, notifyUrl: "", notifyToken: "" });
     const { chromium } = await import("playwright-core");
     browser = await chromium.launch({ executablePath: chromiumPath, headless: true });
@@ -59,12 +60,19 @@ describe("the playground in Chromium", { skip }, () => {
     assert.equal(await status().getAttribute("data-state"), state, `status: ${await status().textContent()}`);
   }
 
-  /** Types at the end of the editor, as a reader would. */
+  /** Types at the end of the editor as a reader would, and as the video's take does: a real
+   * click in the editor, Control+End, then the keys. */
   async function typeAtEnd(text) {
-    await tab.getByTestId("editor").click();
-    await tab.keyboard.press("Control+End");
+    const editor = tab.getByTestId("editor");
+    await editor.click();
+    await editor.press("Control+End");
     await tab.keyboard.type(text);
   }
+
+  /** What the editor holds, read through the playground's read-only window.playground. */
+  const source = () => tab.evaluate(() => window.playground.source());
+  const caret = () => tab.evaluate(() => window.playground.caret());
+  const markers = () => tab.evaluate(() => window.playground.markers());
 
   test("loads the first example and draws it", async () => {
     await tab.goto(server.url);
@@ -74,6 +82,43 @@ describe("the playground in Chromium", { skip }, () => {
     assert.match(await preview().textContent(), /Count/);
     assert.match(await markdown().textContent(), /Count: \*\*0\*\*/);
     assert.equal(await tab.locator("#preview-pane").getAttribute("data-stale"), "false");
+  });
+
+  test("the editor colours MKP: $state and a Markdown heading get their tokens and colours", async () => {
+    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp");
+    const lines = (await source()).split("\n");
+    const state = await tab.evaluate(() => window.playground.tokens(1));
+    assert.deepEqual(state[0], { text: "$state", type: "state.mkp" });
+    const headingLine = lines.indexOf("# A counter") + 1;
+    assert.ok(headingLine > 0);
+    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), headingLine), [{ text: "# A counter", type: "heading.mkp" }]);
+    const divider = await tab.evaluate((n) => window.playground.tokens(n), lines.indexOf("@@@") + 1);
+    assert.deepEqual(divider, [{ text: "@@@", type: "divider.mkp" }]);
+    const call = await tab.evaluate((n) => window.playground.tokens(n), lines.indexOf("@counter;") + 1);
+    assert.equal(call[0].type, "call.mkp");
+    // and Monaco draws them with the playground's colours: a class of its own for each. It
+    // draws only the lines in view, so the heading's line is brought into view first
+    assert.equal(await tab.evaluate(() => window.playground.select("# A counter")), true);
+    await tab.waitForSelector("[data-testid=editor] .view-lines >> text=# A counter");
+    const drawn = await tab.evaluate(() => {
+      const spans = [...document.querySelectorAll("[data-testid=editor] .view-lines span span")];
+      const look = (text) => {
+        // Monaco draws a space as a no-break space
+        const s = spans.find((x) => x.textContent.replace(/\u00a0/g, " ") === text);
+        if (!s) return null;
+        const cs = getComputedStyle(s);
+        return { cls: s.className, color: cs.color, weight: cs.fontWeight };
+      };
+      return { state: look("$state"), heading: look("# A counter"), number: look("0") };
+    });
+    assert.match(drawn.state.cls, /\bmtk\d+\b/);
+    assert.equal(drawn.state.color, "rgb(11, 122, 135)", "$state in --tok-state");
+    assert.equal(drawn.state.weight, "700");
+    assert.match(drawn.heading.cls, /\bmtk\d+\b/);
+    assert.notEqual(drawn.heading.cls, drawn.state.cls);
+    assert.equal(drawn.heading.color, "rgb(26, 33, 48)", "a heading in the text colour, bold");
+    assert.equal(drawn.heading.weight, "700");
+    assert.equal(drawn.number.color, "rgb(180, 80, 26)", "a number in --tok-number");
   });
 
   test("typing into the editor redraws the page", async () => {
@@ -111,24 +156,60 @@ describe("the playground in Chromium", { skip }, () => {
     await tab.getByTestId("tab-diagnostics").click();
     const first = tab.getByTestId("diagnostic").first();
     const line = Number(await first.getAttribute("data-line"));
-    const source = await tab.getByTestId("editor").inputValue();
-    assert.equal(source.split("\n")[line - 1], "@nowhere;", "the diagnostic is on the line typed");
+    assert.equal((await source()).split("\n")[line - 1], "@nowhere;", "the diagnostic is on the line typed");
     assert.match(await first.textContent(), new RegExp(`${line}:\\d+`));
+  });
 
-    // clicking it puts the caret on its line
-    await tab.getByTestId("editor").evaluate((t) => t.setSelectionRange(0, 0));
+  test("clicking a diagnostic moves Monaco's caret there and reveals it", async () => {
+    const first = tab.getByTestId("diagnostic").first();
+    const line = Number(await first.getAttribute("data-line"));
+    const col = Number(await first.getAttribute("data-col"));
+    // to the top first: the error's line is out of view
+    const editor = tab.getByTestId("editor");
+    await editor.click();
+    await editor.press("Control+Home");
+    await tab.waitForFunction((l) => window.playground.visibleLines().last < l, line);
     await first.click();
-    const caretLine = await tab.getByTestId("editor").evaluate((t) => t.value.slice(0, t.selectionStart).split("\n").length);
-    assert.equal(caretLine, line);
-    assert.equal(await tab.evaluate(() => document.activeElement?.id), "editor");
+    assert.deepEqual(await caret(), { line, col });
+    await tab.waitForFunction((l) => { const v = window.playground.visibleLines(); return v.first <= l && l <= v.last; }, line);
+    assert.equal(await tab.evaluate(() => window.playground.hasFocus()), true, "the editor has the focus, to fix it there");
 
-    // fix it: the page is fresh again
+    // fix it there: the page is fresh again
     await tab.keyboard.press("Home");
     await tab.keyboard.press("Shift+End");
     await tab.keyboard.press("Backspace");
     await tab.waitForSelector("[data-testid=status][data-state=ok]");
     assert.equal(await tab.locator("#preview-pane").getAttribute("data-stale"), "false");
     assert.equal(await tab.getByTestId("diagnostic").count(), 0);
+  });
+
+  test("markers: a mistake is underlined where it is, and taking it out clears it", async () => {
+    // as the video types it: auto-closed pairs are stepped over, so the text is exactly this
+    const mistake = '@counter(by = "five");';
+    await typeAtEnd(mistake);
+    assert.ok((await source()).endsWith("\n" + mistake), JSON.stringify((await source()).slice(-40)));
+    await tab.waitForSelector("[data-testid=status][data-state=errors]");
+    const line = (await source()).split("\n").length;
+    await tab.waitForFunction(() => window.playground.markers().length > 0);
+    const found = await markers();
+    assert.ok(found.length >= 1);
+    for (const m of found) {
+      assert.equal(m.line, line, `on the line typed: ${JSON.stringify(m)}`);
+      assert.equal(m.severity, "error");
+      assert.ok(m.code && m.message, "with the compiler's code and message");
+      assert.ok(m.endLine > m.line || m.endCol >= m.col);
+    }
+    await tab.waitForSelector("[data-testid=editor] .squiggly-error");
+    assert.equal(await tab.locator("[data-testid=editor] .line-numbers.has-error").count(), 1, "the line's number is marked too");
+
+    const editor = tab.getByTestId("editor");
+    await editor.click();
+    await editor.press("Control+End");
+    for (let k = 0; k < mistake.length; k++) await tab.keyboard.press("Backspace");
+    await tab.waitForSelector("[data-testid=status][data-state=ok]");
+    assert.deepEqual(await markers(), []);
+    assert.equal(await tab.locator("[data-testid=editor] .squiggly-error").count(), 0);
+    assert.equal(await tab.locator("[data-testid=editor] .line-numbers.has-error").count(), 0);
   });
 
   test("an example from the picker, and a $state write refused by its rule", async () => {
@@ -161,11 +242,7 @@ describe("the playground in Chromium", { skip }, () => {
     await level.press("Enter");
     await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("Level **6**"));
     // the field now allows 0..5: 6 doesn't fit, so level is 4 again; limit keeps its 7
-    await tab.getByTestId("editor").evaluate((t) => {
-      const at = t.value.indexOf("level: int 0..10 = 4;");
-      t.focus();
-      t.setSelectionRange(at, at + "level: int 0..10 = 4;".length);
-    });
+    assert.equal(await tab.evaluate(() => window.playground.select("level: int 0..10 = 4;")), true);
     await tab.keyboard.insertText("level: int 0..5 = 4;");
     await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("Level **4**, limit **7**"));
     await compiled("ok");
@@ -215,10 +292,17 @@ describe("the playground in Chromium", { skip }, () => {
 
   test("on a narrow screen the panes stack", async () => {
     await tab.setViewportSize({ width: 420, height: 860 });
-    const editor = await tab.locator("#editor-frame").boundingBox();
+    const editor = await tab.getByTestId("editor").boundingBox();
     const page = await tab.locator("#preview-pane").boundingBox();
     assert.ok(page.y >= editor.y + editor.height - 1, "the page is under the editor");
     assert.ok(page.width > 380, "and as wide as the screen");
+    // Monaco lays itself out again to the editor's new size
+    await tab.waitForFunction(() => {
+      const host = document.querySelector("[data-testid=editor]");
+      const inner = host?.querySelector(".monaco-editor");
+      return inner && Math.abs(inner.getBoundingClientRect().width - host.getBoundingClientRect().width) < 2;
+    });
+    assert.ok(editor.width > 380 && editor.width < 420 && editor.height >= 300, JSON.stringify(editor));
     await tab.setViewportSize({ width: 1440, height: 900 });
   });
 
@@ -230,10 +314,53 @@ describe("the playground in Chromium", { skip }, () => {
     await tab.getByTestId("brand").click();
     await compiled("ok");
     assert.equal(await tab.getByTestId("example-picker").inputValue(), "counter");
-    assert.doesNotMatch(await tab.getByTestId("editor").inputValue(), /An edit to throw away/);
+    assert.doesNotMatch(await source(), /An edit to throw away/);
+    assert.deepEqual(await caret(), { line: (await source()).split("\n").length, col: 1 }, "the caret starts at the end");
     await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("Count: **0**"));
     assert.match(await tab.getByTestId("notice").textContent(), /Started again with A counter/);
     assert.equal(await tab.getByTestId("notice").isVisible(), true);
+  });
+
+  test("Tab inserts four spaces, and Ctrl+S compiles now", async () => {
+    await typeAtEnd("\n");
+    await tab.keyboard.press("Tab");
+    assert.ok((await source()).endsWith("\n    "), JSON.stringify((await source()).slice(-10)));
+    await tab.keyboard.press("Tab");
+    assert.ok((await source()).endsWith("\n        "));
+    await tab.keyboard.press("Shift+Home");
+    await tab.keyboard.press("Backspace");
+    await tab.keyboard.press("Backspace");
+    await compiled("ok");
+    // no edit now, so only Ctrl+S can start a compile
+    const compiles = [];
+    const seen = (r) => r.url().endsWith("/api/compile") && compiles.push(r);
+    tab.on("request", seen);
+    await tab.keyboard.press("Control+s");
+    await tab.waitForTimeout(800);
+    tab.off("request", seen);
+    assert.equal(compiles.length, 1, "one compile, straight away");
+    await compiled("ok");
+  });
+
+  test("a source with no @@@ is prose; one with only code is code", async () => {
+    const editor = tab.getByTestId("editor");
+    await editor.click();
+    await editor.press("Control+a");
+    await tab.keyboard.type("# Just prose\n\nSome *words* and `code`.\n");
+    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp-prose");
+    assert.deepEqual(await tab.evaluate(() => window.playground.tokens(1)), [{ text: "# Just prose", type: "heading.mkp" }]);
+    const types = (await tab.evaluate(() => window.playground.tokens(3))).map((t) => t.type);
+    assert.ok(types.includes("emphasis.mkp") && types.includes("code.mkp"), types.join(" "));
+    await compiled("ok");
+    await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("# Just prose"));
+
+    await editor.press("Control+a");
+    await tab.keyboard.type("$state {\n");
+    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp");
+    assert.equal((await tab.evaluate(() => window.playground.tokens(1)))[0].type, "state.mkp");
+    // back to an example, for the tests after this one
+    await tab.getByTestId("example-picker").selectOption("counter");
+    await compiled("ok");
   });
 
   test("no errors in the browser's console", () => {

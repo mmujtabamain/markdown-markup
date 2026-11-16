@@ -45,7 +45,7 @@ RUN cd targets/ts/runtime && npm run build
 COPY targets/ts/dom ./targets/ts/dom
 RUN cd targets/ts/dom && npm run build
 COPY apps/playground ./apps/playground
-RUN cd apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css
+RUN cd apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && ls dist/codicon-*.ttf
 
 # ---- 3. what runs
 

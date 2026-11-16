@@ -48,7 +48,7 @@ RUN set -e; \
     done; \
     cd /src/targets/ts/runtime && npm run build; \
     cd /src/targets/ts/dom && npm run build; \
-    cd /src/apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css
+    cd /src/apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && ls dist/codicon-*.ttf
 
 # ---- 3. what runs
 

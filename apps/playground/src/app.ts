@@ -66,10 +66,51 @@ const diagCount = el("diagnostics-count");
 const stateBody = el("state-body");
 const exampleNote = el("example-note");
 
-const editor = new Editor(el("editor-frame"), {
+const editor = new Editor(el("editor"), {
   change: () => scheduleCompile(),
   run: () => void compileNow(),
 });
+
+/** What the playground holds, read only, for the tests and the video's take. */
+declare global {
+  interface Window {
+    playground: {
+      source(): string;
+      caret(): { line: number; col: number } | null;
+      hasFocus(): boolean;
+      visibleLines(): { first: number; last: number };
+      markers(): ReturnType<Editor["markers"]>;
+      tokens(line: number): ReturnType<Editor["tokens"]>;
+      language(): string;
+      /** Selects the first place `text` is: a test's way to point at something before typing. */
+      select(text: string): boolean;
+    };
+  }
+}
+
+window.playground = {
+  source: () => editor.value,
+  caret: () => {
+    const p = editor.view.getPosition();
+    return p ? { line: p.lineNumber, col: p.column } : null;
+  },
+  hasFocus: () => editor.view.hasTextFocus(),
+  visibleLines: () => {
+    const r = editor.view.getVisibleRanges();
+    return { first: r[0]?.startLineNumber ?? 0, last: r[r.length - 1]?.endLineNumber ?? 0 };
+  },
+  markers: () => editor.markers(),
+  tokens: (line) => editor.tokens(line),
+  language: () => editor.model.getLanguageId(),
+  select: (text) => {
+    const [found] = editor.model.findMatches(text, false, false, true, null, false, 1);
+    if (!found) return false;
+    editor.view.setSelection(found.range);
+    editor.view.revealRangeInCenterIfOutsideViewport(found.range);
+    editor.focus();
+    return true;
+  },
+};
 
 // ---- what the playground holds
 

@@ -1,0 +1,4 @@
+# For Dockerfile.preview, whose context is this folder: installs and builds are made in the image.
+# (Dockerfile builds from the repository root, where the root .dockerignore applies.)
+node_modules
+dist

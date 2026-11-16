@@ -15,9 +15,9 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { constants as fsc, existsSync } from "node:fs";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { availableParallelism, hostname, tmpdir } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { gzip } from "node:zlib";
@@ -39,14 +39,23 @@ const SERVICE = "mkp-playground";
 /** The packs a page may import, by the name it imports them by. */
 export const PACKS = { graphs: join(repo, "examples/graphs") };
 
-const STATIC = {
-  "/": { file: join(here, "index.html"), type: "text/html; charset=utf-8" },
-  "/index.html": { file: join(here, "index.html"), type: "text/html; charset=utf-8" },
-  "/app.js": { file: join(here, "dist/app.js"), type: "text/javascript; charset=utf-8" },
-  "/app.js.map": { file: join(here, "dist/app.js.map"), type: "application/json; charset=utf-8" },
-  "/app.css": { file: join(here, "dist/app.css"), type: "text/css; charset=utf-8" },
-  "/app.css.map": { file: join(here, "dist/app.css.map"), type: "application/json; charset=utf-8" },
+/** The page itself; everything else the UI loads is a file in dist/ (build.mjs). */
+const PAGES = { "/": "index.html", "/index.html": "index.html" };
+
+const TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".map": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".ttf": "font/ttf",
+  ".woff2": "font/woff2",
 };
+
+/** A file in dist/ is named by one path segment: no slashes, so nothing outside it is reachable. */
+const DIST_NAME = /^\/([A-Za-z0-9][A-Za-z0-9._-]*)$/;
+/** esbuild's `[name]-[hash]` assets (the font) never change under their name. */
+const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
 
 // ---- logging and alerts
 
@@ -386,6 +395,54 @@ async function send(req, res, status, body, headers = {}) {
   res.end(data);
 }
 
+/**
+ * The UI's files, read once and kept with their gzip and an ETag, until the file changes on disk:
+ * app.js is a few MB with Monaco in it, too much to read and compress for every request.
+ */
+function fileCache() {
+  const cache = new Map();
+  return {
+    async get(file) {
+      let st;
+      try {
+        st = await stat(file);
+      } catch {
+        return undefined;
+      }
+      if (!st.isFile()) return undefined;
+      const hit = cache.get(file);
+      if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) return hit;
+      const body = await readFile(file);
+      const type = TYPES[extname(file)] ?? "application/octet-stream";
+      const entry = {
+        mtimeMs: st.mtimeMs,
+        size: st.size,
+        body,
+        type,
+        etag: `"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`,
+        gz: body.length > 2048 ? await gzipAsync(body, { level: 9 }) : undefined,
+      };
+      cache.set(file, entry);
+      return entry;
+    },
+  };
+}
+
+function sendFile(req, res, f, cacheControl) {
+  const h = { "content-type": f.type, "cache-control": cacheControl, etag: f.etag, "x-content-type-options": "nosniff", vary: "accept-encoding" };
+  if (req.headers["if-none-match"] === f.etag) {
+    res.writeHead(304, h);
+    res.end();
+    return;
+  }
+  const gz = f.gz && /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""));
+  const body = gz ? f.gz : f.body;
+  if (gz) h["content-encoding"] = "gzip";
+  h["content-length"] = body.length;
+  res.writeHead(200, h);
+  res.end(req.method === "HEAD" ? undefined : body);
+}
+
 /** A tiny counting semaphore: at most `n` compiles at once, the rest wait their turn. */
 function limiter(n, maxWaiting) {
   let running = 0;
@@ -421,8 +478,8 @@ async function listExamples(dir) {
 }
 
 /** Makes the bundle when it isn't there: dev convenience; `npm run build` makes it ahead of time. */
-async function ensureBundle(log) {
-  if (existsSync(join(here, "dist/app.js"))) return;
+async function ensureBundle(log, distDir) {
+  if (existsSync(join(distDir, "app.js"))) return;
   log.info("bundle missing: building it with esbuild");
   try {
     const { buildBundle } = await import("./build.mjs");
@@ -445,13 +502,15 @@ export async function startServer(options = {}) {
   const host = options.host ?? env.HOST ?? "0.0.0.0";
   const timeoutMs = options.timeoutMs ?? Number(env.MKP_TIMEOUT_MS ?? 10000);
   const examplesDir = options.examplesDir ?? join(here, "examples");
+  const distDir = options.distDir ?? join(here, "dist");
+  const files = fileCache();
   const alerter =
     options.alerter ??
     makeAlerter({ url: options.notifyUrl ?? env.DEVBENCH_NOTIFY_URL, token: options.notifyToken ?? env.DEVBENCH_NOTIFY_TOKEN, log, intervalMs: options.alertIntervalMs });
   const compiles = limiter(options.maxCompiles ?? Math.max(2, Math.min(8, availableParallelism())), 32);
   const where = hostname();
 
-  if (options.buildBundle !== false) await ensureBundle(log);
+  if (options.buildBundle !== false) await ensureBundle(log, distDir);
   if (!binary) log.error("no mkp binary found: set MKP_BINARY or build targets/rust; every compile will fail");
   else log.info("compiler", { binary: relative(repo, binary).startsWith("..") ? binary : relative(repo, binary) });
   log.info("alerts", { enabled: alerter.enabled ? "yes" : "no (DEVBENCH_NOTIFY_URL and DEVBENCH_NOTIFY_TOKEN not both set)" });
@@ -536,15 +595,16 @@ export async function startServer(options = {}) {
         await send(req, res, 200, { examples, packs: Object.keys(PACKS) });
         return;
       }
-      const file = STATIC[path];
-      if (file) {
-        let data;
-        try {
-          data = await readFile(file.file, "utf8");
-        } catch {
-          throw new HttpError(path === "/app.js" || path === "/app.css" ? 503 : 404, path.startsWith("/app.") ? "the bundle is not built: run npm run build" : "not found");
+      const page = PAGES[path];
+      const name = page ? undefined : DIST_NAME.exec(path)?.[1];
+      if (page || name) {
+        const file = page ? join(here, page) : join(distDir, name);
+        const found = await files.get(file);
+        if (!found) {
+          const bundle = ["/app.js", "/app.css", "/editor.worker.js"].includes(path);
+          throw new HttpError(bundle ? 503 : 404, bundle ? "the bundle is not built: run npm run build" : "not found");
         }
-        await send(req, res, 200, data, { "content-type": file.type, "cache-control": "no-cache" });
+        sendFile(req, res, found, name && HASHED.test(name) ? "public, max-age=31536000, immutable" : "no-cache");
         return;
       }
       throw new HttpError(404, "not found");
