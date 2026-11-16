@@ -1,0 +1,8 @@
+package kit;
+
+pack kit@1 {
+    uses core@1;
+    provides chart;
+}
+
+extern widget chart(values: list<number>, tone: color = color.ACCENT);

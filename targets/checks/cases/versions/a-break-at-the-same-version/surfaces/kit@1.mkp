@@ -1,0 +1,3 @@
+package kit@1;
+
+extern widget chart(values: list<number>, color: color = color.ACCENT);

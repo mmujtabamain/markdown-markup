@@ -1,0 +1,11 @@
+{
+  "id": "versions.a-break-at-the-same-version",
+  "about": "an input renamed while the version stays, against that version's surface",
+  "source": "a-break-at-the-same-version.mkp",
+  "packs": ["a-break-at-the-same-version"],
+  "expect": {
+    "diagnostics": [
+      {"code": "pack.version-break", "line": 8, "column": 15}
+    ]
+  }
+}

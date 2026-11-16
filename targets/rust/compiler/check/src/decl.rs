@@ -29,7 +29,8 @@ impl Checker {
     fn pack_needs(&self) -> Vec<ir::NeedsPacks> {
         let mut out = Vec::new();
         for (name, rec) in &self.packs {
-            if name == "core" || *name == self.module {
+            // a surface supplies nothing: it only says what a version provided
+            if name == "core" || *name == self.module || name.contains('@') {
                 continue;
             }
             let mut externs: Vec<String> = self.defs.iter().filter(|d| &d.pack == name && matches!(d.kind, DefKind::Widget { external: true, .. })).map(|d| d.full.clone()).collect();
@@ -373,6 +374,10 @@ impl Checker {
             .collect();
         let mut added: HashMap<(DefId, String), String> = HashMap::new();
         for file in self.from.files..self.files.len() {
+            // a surface's tokens blocks say what it added, and give no values
+            if self.files[file].pack.contains('@') {
+                continue;
+            }
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
                 let Item::Decl(ast::Decl { kind: ast::DeclKind::Tokens(t), .. }) = &node.item else { continue };
@@ -455,6 +460,10 @@ impl Checker {
         let mut decls = Vec::new();
         let decl = |d: ir::Decl| ir::Declaration { declare: d };
         for (d, def) in self.defs.iter().enumerate() {
+            // a surface's declarations never reach a page
+            if def.pack.contains('@') {
+                continue;
+            }
             match &def.kind {
                 DefKind::Record { fields } => {
                     let same = self.methods.get(&Recv::Def(d)).and_then(|m| m.get("same")).and_then(|f| f.first()).map(|f| self.fns[*f].full.clone());
@@ -519,7 +528,7 @@ impl Checker {
             }
         }
         for (k, f) in self.fns.iter().enumerate() {
-            if f.sig.is_none() || (f.body.is_none() && !f.external) {
+            if f.sig.is_none() || (f.body.is_none() && !f.external) || f.pack.contains('@') {
                 continue;
             }
             if f.external && matches!(f.on, Some(Recv::Iface(_))) && f.body.is_none() && self.is_member(k) {
@@ -548,6 +557,9 @@ impl Checker {
             }
         }
         for (k, c) in self.channels.iter().enumerate() {
+            if c.pack.contains('@') {
+                continue;
+            }
             decls.push(decl(ir::Decl::Extern(ir::Extern::Channel(ir::ExternChannel {
                 name: c.full.clone(),
                 values: self.ir_fields(&c.values, |n| out.channel_defaults.get(&(k, n.to_string())).cloned()),
@@ -556,6 +568,9 @@ impl Checker {
             }))));
         }
         for (k, l) in self.lets.iter().enumerate() {
+            if l.pack.contains('@') {
+                continue;
+            }
             if let Some(v) = out.let_values.get(&k) {
                 decls.push(decl(ir::Decl::Let(ir::LetDecl { name: l.full.clone(), ty: l.ir.clone(), value: v.clone(), reads: Vec::new() })));
             }

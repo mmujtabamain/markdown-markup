@@ -34,3 +34,39 @@ fn a_surface_holds_signatures_only() {
     let c = compile(&core_sources(), &[vec![src("kit/kit.mkp", PACK), src("kit/surfaces/kit@1.mkp", bad)]], &[], "main");
     assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "pack.surface" && d.diagnostic.message.contains("extern fn")));
 }
+
+const KIT1: &str = "package kit;\n\npack kit@1 {\n    uses core@1;\n    provides chart, stat, state;\n}\n\nrecord stat {\n    label: text[1...];\n    value: text;\n}\n\nenum state { DONE, LATE }\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\n";
+const KIT1_SURFACE: &str = "package kit@1;\n\nrecord stat {\n    label: text[1...];\n    value: text;\n}\n\nenum state { DONE, LATE }\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\n";
+
+fn promise(pack: &str) -> Vec<String> {
+    let c = compile(&core_sources(), &[vec![src("kit/surfaces/kit@1.mkp", KIT1_SURFACE)]], &[src("kit/kit.mkp", pack)], "main");
+    c.diagnostics.iter().filter(|d| d.diagnostic.code == "pack.version-break").map(|d| d.diagnostic.message.clone()).collect()
+}
+
+#[test]
+fn a_version_keeps_what_its_surface_says() {
+    assert_eq!(promise(KIT1), Vec::<String>::new());
+    // more is fine: a new widget, an input with a default, a type that takes more
+    let more = KIT1.replace("provides chart, stat, state;", "provides chart, stat, state, badge;").replace("label: text[1...];", "label: text;").replace("color: color = color.ACCENT)", "color: color = color.ACCENT, small: bool = false)") + "extern widget badge(label: text);\n";
+    assert_eq!(promise(&more), Vec::<String>::new());
+}
+
+#[test]
+fn a_break_without_a_new_version_is_a_compile_error() {
+    let broken = KIT1.replace("color: color = color.ACCENT", "tone: color = color.ACCENT").replace("enum state { DONE, LATE }", "enum state { DONE, LATE, LOST }").replace("value: text;", "value: text;\n    unit: text;");
+    let found = promise(&broken);
+    assert_eq!(found.len(), 3, "{:?}", found);
+    assert!(found.iter().any(|m| m.contains("`chart` has no input `color` now")));
+    assert!(found.iter().any(|m| m.contains("`state` has a new case `LOST`")));
+    assert!(found.iter().any(|m| m.contains("`stat` has a new field `unit` with no default")));
+    assert!(found.iter().all(|m| m.contains("write `pack kit@2`")));
+    let default = KIT1.replace("color: color = color.ACCENT", "color: color = color.OK");
+    assert!(promise(&default)[0].contains("default was `color.ACCENT` and is `color.OK` now"));
+}
+
+#[test]
+fn a_surface_never_reaches_the_ir() {
+    let c = compile(&core_sources(), &[vec![src("kit/kit.mkp", KIT1), src("kit/surfaces/kit@1.mkp", KIT1_SURFACE)]], &[src("doc.mkp.md", "import kit;\n@@@\n@chart(values = [1]);\n")], "doc");
+    let json = serde_json::to_string(&c.module.expect("compiles")).unwrap();
+    assert!(!json.contains("kit@1"), "a surface's names are in the IR");
+}

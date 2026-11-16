@@ -14,6 +14,7 @@ pub mod levels;
 mod passes;
 pub mod proof;
 pub mod ty;
+mod versions;
 mod view;
 
 use mkp_ir::ir;
@@ -96,6 +97,7 @@ pub mod codes {
     pub const SPOT_OUTSIDE: &str = "views.spot-outside-bounds";
     pub const HTML_COMMENT: &str = "prose.html-comment";
     pub const SURFACE: &str = "pack.surface";
+    pub const VERSION_BREAK: &str = "pack.version-break";
     pub const REMOVED_USED: &str = "effects.removed-item-used";
     pub const SIZING_TWICE: &str = "views.sizing-set-twice";
     pub const FN_CLASH: &str = "names.fn-clash";
@@ -411,9 +413,11 @@ impl Checker {
             self.diags.push(Found { file: src.path.clone(), diagnostic: d });
         }
         let file = parsed.file?;
+        let mut surface = None;
         if let Some(v) = &file.surface {
-            // `package kit@1;`: what an earlier version provided, read only against migrate blocks.
-            // It holds signatures, and none of its names join the pack's scope.
+            // `package kit@1;`: what an earlier version provided. It compiles as a pack of its own,
+            // `kit@1`, which nothing can import and no IR holds, read only against kit and its
+            // migrations. It holds signatures.
             let pack = file.package.as_ref().map(|p| p.item.name.clone()).unwrap_or_default();
             for n in &file.items {
                 let Item::Decl(d) = &n.item else { continue };
@@ -426,11 +430,12 @@ impl Checker {
                 let msg = format!("{}@{} is a surface, which holds signatures only; found {}", pack, v.name, what);
                 self.diags.push(Found { file: src.path.clone(), diagnostic: Diagnostic::error(codes::SURFACE, d.kind.name().span, msg) });
             }
-            return None;
+            surface = Some(format!("{}@{}", pack, v.name));
         }
-        let pack = match &file.package {
-            Some(p) => p.item.name.clone(),
-            None => self.module.clone(),
+        let pack = match (&surface, &file.package) {
+            (Some(s), _) => s.clone(),
+            (None, Some(p)) => p.item.name.clone(),
+            (None, None) => self.module.clone(),
         };
         let id = self.files.len();
         self.files.push(FileRec { path: src.path.clone(), src: Rc::from(src.text.as_str()), ast: Rc::new(file), pack: pack.clone(), scope: Scope::default() });
@@ -1067,6 +1072,9 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
     c.signatures();
     c.check_declarations();
     c.bodies();
+    if module != "doc" {
+        c.check_versions();
+    }
     let failed = c.diags.iter().any(|d| d.diagnostic.is_error());
     let module = if failed { None } else { Some(c.module_ir()) };
     Compiled { module, diagnostics: c.diags, texts, constants: c.constants }

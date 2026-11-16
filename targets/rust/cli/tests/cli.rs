@@ -96,3 +96,28 @@ fn a_required_capability_a_target_leaves_out_fails_the_run() {
     let (code, err) = run(&["target", "check", "--require", "tiny"]);
     assert_eq!(code, 2, "{}", err);
 }
+
+#[test]
+fn surface_writes_what_a_version_provides_and_then_holds_the_pack_to_it() {
+    let pack = "package kit;\n\npack kit@1 {\n    provides chart, stat;\n}\n\nrecord stat {\n    label: text;\n    require \"a label\" {\n        return label != \"\";\n    }\n}\n\nrecord inner {\n    n: number;\n}\n\n//@about A chart.\nwidget chart(values: list<number>, color: color = color.ACCENT) {\n    view {\n        @label(value = \"chart\");\n    }\n    markdown {\n        A chart.\n    }\n}\n\nfn stat.first(self): inner {\n    return inner { n = 1 };\n}\n";
+    let dir = scratch("surface", &[("kit/kit.mkp", pack)]);
+    let kit = dir.join("kit");
+    let (code, out, err) = mkp(&["surface", kit.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(out.contains("wrote kit@1's surface"), "{}", out);
+    let written = std::fs::read_to_string(kit.join("surfaces/kit@1.mkp")).unwrap();
+    assert_eq!(written, "package kit@1;\n\nrecord stat {\n    label: text;\n}\n\nrecord inner {\n    n: number;\n}\n\n//@about A chart.\nextern widget chart(values: list<number>, color: color = color.ACCENT);\n\nextern fn stat.first(self): inner;\n");
+    // a second run changes nothing, and --check agrees
+    assert_eq!(mkp(&["surface", kit.to_str().unwrap()]).0, 0);
+    assert_eq!(mkp(&["surface", kit.to_str().unwrap(), "--check"]).0, 0);
+    // the pack compiles beside it, and a break at the same version doesn't
+    assert_eq!(mkp(&["check", "--pack", kit.to_str().unwrap(), kit.join("kit.mkp").to_str().unwrap()]).0, 0);
+    std::fs::write(kit.join("kit.mkp"), pack.replace("color: color = color.ACCENT", "tone: color = color.ACCENT")).unwrap();
+    let (code, _, err) = mkp(&["check", "--pack", kit.to_str().unwrap(), kit.join("kit.mkp").to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(err.contains("error[pack.version-break]") && err.contains("`chart` has no input `color` now"), "{}", err);
+    // and a changed surface isn't written over without --force
+    let (code, _, err) = mkp(&["surface", kit.to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(err.contains("doesn't compile") || err.contains("already written"), "{}", err);
+}
