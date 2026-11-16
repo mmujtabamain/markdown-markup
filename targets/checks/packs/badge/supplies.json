@@ -1,0 +1,8 @@
+{
+  "about": "Which of this pack's extern widgets it supplies on each target. Headless targets draw nothing, so for them this list is the whole implementation; the web's is web.mjs. badge/seal is supplied nowhere, so every target shows its Markdown.",
+  "test": ["badge/badge"],
+  "native": ["badge/badge"],
+  "web": ["badge/badge"],
+  "egui": ["badge/badge"],
+  "android": ["badge/badge"]
+}

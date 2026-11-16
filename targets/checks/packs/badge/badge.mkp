@@ -1,0 +1,22 @@
+package badge;
+
+//@about The check pack: externs a pack supplies for each target itself, and one that nobody
+//@about supplies, which shows its Markdown instead.
+pack badge@1 {
+    uses core@1;
+    provides badge, seal;
+}
+
+//@about A count with its label, drawn by the pack's own widget on each target it supports.
+extern widget badge(label: text, count: int = 0) {
+    markdown {
+        **\{label}**: \{count}
+    }
+}
+
+//@about A seal nobody supplies: every target shows its Markdown instead.
+extern widget seal(text: text) {
+    markdown {
+        > \{text}
+    }
+}

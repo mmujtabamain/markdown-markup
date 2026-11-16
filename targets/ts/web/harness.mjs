@@ -8,6 +8,8 @@ import { mount } from "@mkp/dom";
 import { regionOf, toIr } from "@mkp/runtime";
 // the checks' fixed sizes, so boxes agree with every other target (README: "Boxes")
 import { measure, targetFns } from "../test/sizes.mjs";
+// the check packs' externs for the web, registered as an app registers a pack's
+import badge from "../../checks/packs/badge/web.mjs";
 
 let mounted;
 
@@ -52,7 +54,7 @@ window.mkpCheck = {
     document.body.append(root);
     let p;
     p = new Page(JSON.parse(irText), { page, state, externs, fns: targetFns(() => p) });
-    mounted = mount(p, root, { measure: measure(p) });
+    mounted = mount(p, root, { measure: measure(p), widgets: { ...badge } });
     await settle();
   },
   async event(site, name, args) {
@@ -85,6 +87,8 @@ window.mkpCheck = {
     const o = { tree, state: p.observeState(), calls: p.takeCalls(), outcome: p.takeOutcome(), markdown: p.markdown() };
     const found = boxes(p.tree());
     if (Object.keys(found).length) o.boxes = found;
+    const shaded = p.observeShaded();
+    if (Object.keys(shaded).length) o.shaded = shaded;
     return o;
   },
 };

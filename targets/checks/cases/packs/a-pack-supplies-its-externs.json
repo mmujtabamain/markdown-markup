@@ -1,0 +1,183 @@
+{
+  "id": "packs.a-pack-supplies-its-externs",
+  "about": "a pack supplies its own externs on each target it supports; an extern nobody supplies shows its Markdown instead, drawn with core's blocks; both write their Markdown",
+  "source": "a-pack-supplies-its-externs.mkp.md",
+  "packs": [
+    "../../packs/badge"
+  ],
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "Votes"
+                }
+              }
+            ],
+            "level": 1
+          }
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "bold": true,
+                "value": "Votes"
+              }
+            },
+            {
+              "text": {
+                "value": ": 2"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Vote"
+              }
+            }
+          ]
+        },
+        {
+          "quote": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Checked by nobody"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "page": {
+          "width": "WIDE"
+        }
+      },
+      "expect": {
+        "tree": {
+          "s1/s0": {
+            "widget": "badge/badge",
+            "props": {
+              "label": {
+                "text": "Votes"
+              },
+              "count": {
+                "num": "2"
+              }
+            }
+          },
+          "s1/s2/m0": {
+            "widget": "core/quote",
+            "slots": {
+              "body": [
+                "s1/s2/m1"
+              ]
+            }
+          },
+          "s1/s2/m1": {
+            "widget": "core/paragraph"
+          }
+        }
+      }
+    },
+    {
+      "do": {
+        "event": {
+          "site": "s1/s1",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "count": {
+            "num": "3"
+          }
+        },
+        "tree": {
+          "s1/s0": {
+            "widget": "badge/badge",
+            "props": {
+              "count": {
+                "num": "3"
+              }
+            }
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "heading": {
+                "inline": [
+                  {
+                    "text": {
+                      "value": "Votes"
+                    }
+                  }
+                ],
+                "level": 1
+              }
+            },
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "bold": true,
+                    "value": "Votes"
+                  }
+                },
+                {
+                  "text": {
+                    "value": ": 3"
+                  }
+                }
+              ]
+            },
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Vote"
+                  }
+                }
+              ]
+            },
+            {
+              "quote": [
+                {
+                  "paragraph": [
+                    {
+                      "text": {
+                        "value": "Checked by nobody"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

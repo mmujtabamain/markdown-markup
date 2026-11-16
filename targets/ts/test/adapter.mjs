@@ -7,7 +7,9 @@
 // say exactly which boxes a plane's spots must write, and MKP_TEST_DEFECT switches on defects, so
 // each check is shown to catch a broken target.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
 import { Page, layout, regionOf, toIr } from "@mkp/runtime";
 import { measure, targetFns } from "./sizes.mjs";
@@ -23,6 +25,16 @@ for (const d of defects) {
 }
 
 let page;
+
+/** The check packs' externs this target draws: each pack's supplies.json, under "test". */
+const packs = join(dirname(fileURLToPath(import.meta.url)), "../../checks/packs");
+const fromPacks = new Set(
+  (existsSync(packs) ? readdirSync(packs) : []).flatMap((p) => {
+    const f = join(packs, p, "supplies.json");
+    return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")).test ?? [] : [];
+  }),
+);
+const supplies = (w) => w.startsWith("core/") || fromPacks.has(w);
 
 /** Lays the planes out after every change, as a screen would after drawing. */
 function settle() {
@@ -59,7 +71,7 @@ const methods = {
   },
   load({ ir, page: values = {}, state, externs }) {
     const file = JSON.parse(readFileSync(ir, "utf8"));
-    page = new Page(file, { page: defects.includes("ignores-page") ? {} : values, state, externs, fns: targetFns(() => page), defects });
+    page = new Page(file, { page: defects.includes("ignores-page") ? {} : values, state, externs, fns: targetFns(() => page), supplies, defects });
     settle();
     return {};
   },
@@ -97,6 +109,9 @@ const methods = {
     const found = boxes(page.tree());
     const o = { tree: page.observeTree(), state: page.observeState(), calls: page.takeCalls(), outcome: page.takeOutcome(), markdown: page.markdown() };
     if (Object.keys(found).length) o.boxes = found;
+    // a shade's fn and arguments, and on the test target the colour at a few points too
+    const shaded = page.observeShaded(true);
+    if (Object.keys(shaded).length) o.shaded = shaded;
     return o;
   },
   quit() {
