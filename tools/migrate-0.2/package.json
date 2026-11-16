@@ -1,0 +1,12 @@
+{
+  "name": "mkp-migrate-0.2",
+  "private": true,
+  "type": "module",
+  "description": "A prototype: MKP 0.2 documents to MKP 0.3, from 0.2's IR to 0.3's syntax tree.",
+  "bin": { "mkp-migrate-0.2": "bin/migrate.mjs" },
+  "scripts": {
+    "test": "node --test test/",
+    "corpus": "node corpus/run.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
