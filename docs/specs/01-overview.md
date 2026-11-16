@@ -148,9 +148,9 @@ Prose is view code in another notation. The Markdown MKP extends is CommonMark, 
 
 - **Inline Markdown is parsed by core**, in MKP, when the page is compiled. Bold, italics, strikethrough, links, code spans, inline maths, pictures and footnote marks become `rich_text`: a list of segments, each a `part` with its `marks` (page 5). Each paragraph reaches `paragraph` with its text and its holes kept apart, so a hole's value is always a segment of its own, plain text or a view, and can never turn into formatting. No implementer parses Markdown.
 - **Markdown out** keeps the meaning in one spelling for each block and mark, listed below. The source isn't kept byte for byte.
-- **Raw HTML** is shown as text, never run.
+- **Raw HTML** is shown as text, never run. An HTML comment is raw HTML too, so it shows, with a warning that says to write `@//`, prose's own comment.
 
-MKP reads five things in prose and leaves the rest to Markdown.
+MKP reads six things in prose and leaves the rest to Markdown.
 
 | What | Written | The rule |
 |---|---|---|
@@ -159,11 +159,13 @@ MKP reads five things in prose and leaves the rest to Markdown.
 | A named slot | `@slot actions {` | Only directly inside a call's block, for a widget with several slots. |
 | A hole | `\{$state.tries}` | Anywhere in a line, except in a code span or a fenced or indented code block. |
 | Maths | `$x^2$`, or a `$$` line | Inline maths sits between two `$` on one line, paired as Escapes below says. A line that holds only `$$` opens a maths block, drawn by `math`, and the next such line closes it. |
+| A comment | `@// for whoever edits the file` | `@//` to the end of its line. Nothing draws it and Markdown out leaves it out. It ends no paragraph: the lines around it read as if it weren't there. |
 
 - **A line that starts with `@` and a small letter is always MKP**: a call, a control line or a named slot. If the name is none of those, it is a compile error that says to write `\@`, so a typing mistake is never shown as text.
+- **A line that starts with `@//` is a comment**, and `\@//` shows one as text. It is prose's only comment: `//` on its own is text, as in any Markdown.
 - **`\@` is a literal @** anywhere in prose outside code. Plain Markdown shows `\@` as @ too, so the file reads the same without MKP. An `@` that does not start a line is text, so email addresses and mentions in a sentence need nothing.
-- **Indentation**: A call or a control line may be indented by up to three spaces. Four or more make it a Markdown code block, which is literal.
-- **Quotes and list items**: A call, a control line or a closing `}` can't start inside a Markdown quote or list item. It is a compile error that says to put the call in `@quote`, or in `@bullets` and `@item`, instead. Inside a quote or a list item, an `@` at the start is written `\@`: `> \@ops is the team on call this week.`
+- **Indentation**: A call, a control line or a comment may be indented by up to three spaces. Four or more make it a Markdown code block, which is literal.
+- **Quotes and list items**: A call, a control line, a comment or a closing `}` can't start inside a Markdown quote or list item. It is a compile error that says to put the call in `@quote`, or in `@bullets` and `@item`, instead. Inside a quote or a list item, an `@` at the start is written `\@`: `> \@ops is the team on call this week.`
 - **Where a block ends**: At the next line that holds only `}`, counting the blocks opened in between. A fenced code block inside it is skipped whole. To show a line that holds only a brace, write `\}`.
 - **What a block holds**: A call's block is prose, and it fills the widget's only slot. A widget with several slots gets one `@slot name {` block per slot. Inputs go in the parentheses only.
 - **Within a sentence**: A call is always a block of its own. To put a view inside a sentence, put it in a hole: `Status: \{@icon(name = glyph.CHECK)} done`.
@@ -172,6 +174,7 @@ MKP reads five things in prose and leaves the rest to Markdown.
 
 ````markdown
 @box(title = "Build") {
+@// the build's own buttons go first
 @slot actions {
 @press(label = "Retry", click = retry);
 }
