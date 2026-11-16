@@ -1,0 +1,25 @@
+# targets/checks/targets/android/target.yaml: omnicui's target for MKP's widget contracts
+# (targets/checks/contracts/), on Android: mkp-runtime through mkp-android's Kotlin bindings, and
+# mkp-android's Compose and Material 3 widgets, under Robolectric on a plain JVM (no emulator).
+#
+# This is an omnicui target, not an MKP one: it has no `check_adapter:`, so `mkp target check`
+# skips it (MKP's own Android target is targets/android/compose/target.yaml).
+#
+# omnicui runs both commands with /bin/sh -c in this folder. Gradle isn't started here: build the
+# adapter first (targets/android/compose/README.md), which writes the classpath it runs with:
+#   targets/android/mkp/build.sh host && (cd targets/android/compose && ./gradlew :mkp-android:checkAdapterArgs)
+# `stubs:` keeps every contract (JSON, from standard input) where page.mjs reads each one's prop
+# defaults, as the web's does; page.mjs writes and builds each mount's page with the web's own
+# page source (targets/ts/web/omnicui/source.mjs), so both targets mount the same page.
+name: android
+language: kotlin
+stubs: node ../../../ts/web/omnicui/stubs.mjs ../../.omnicui/android-contracts.json
+adapter: exec java @../../../android/compose/build/check_adapter.args mkp.android.OmnicuiAdapter --contracts ../../.omnicui/android-contracts.json
+platform: [mobile]
+os: android
+design: material
+# a JVM with a 2 GB heap and Robolectric's Android: on a box with a few GB, run it with no other
+# target alongside (Chromium and it together have been killed for memory)
+exclusive: true
+stepTimeout: 30s
+startTimeout: 180s

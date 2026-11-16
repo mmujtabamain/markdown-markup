@@ -32,7 +32,7 @@ tests:
       - { action: press, part: press, times: 2 }
     expect:
       - { event: click, times: 2 }
-      - { part: press, focused: true }
+      - { part: press, focused: { default: true, android: false }, why: "Android moves the focus to a control only from the keyboard: a finger's or a mouse's press leaves it where it was (touch mode)" }
 
   - name: Enter and Space press it from the keyboard
     steps:

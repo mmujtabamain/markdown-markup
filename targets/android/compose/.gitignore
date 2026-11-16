@@ -1,0 +1,6 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+# written by ../mkp/build.sh: the native libraries and the generated bindings
+mkp-android/native/

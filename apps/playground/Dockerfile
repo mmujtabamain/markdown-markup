@@ -17,6 +17,8 @@ WORKDIR /src
 # cli/build.rs embeds ../../../core, and the syntax crate includes core/entities.mkp
 COPY core ./core
 COPY targets/rust ./targets/rust
+# a member of targets/rust's workspace, so cargo can load the workspace
+COPY targets/android/mkp ./targets/android/mkp
 WORKDIR /src/targets/rust
 RUN cargo build --release --locked -p mkp-cli \
  && strip target/release/mkp \
