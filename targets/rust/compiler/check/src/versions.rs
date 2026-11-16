@@ -40,6 +40,8 @@ pub(crate) struct Member {
 pub(crate) struct Break {
     pub item: String,
     pub member: Option<String>,
+    /// gone, kind, whole, type, shape, default, required or case
+    pub kind: &'static str,
     pub what: String,
 }
 
@@ -178,6 +180,7 @@ impl Checker {
                     self.error(*file, codes::SURFACE, span, format!("{} is a surface of a version {}@{} hasn't reached: a surface keeps what a released version provided", name, pack, version));
                 }
             }
+            self.check_migrations(&pack, version);
             let own = format!("{}@{}", pack, version);
             if !self.packs.contains_key(&own) {
                 continue;
@@ -203,40 +206,40 @@ impl Checker {
 /// Every change from `old` to `new` that can break a use of `old`.
 pub(crate) fn breaks(old: &Api, new: &Api) -> Vec<Break> {
     let mut out = Vec::new();
-    let mut push = |item: &str, member: Option<&str>, what: String| out.push(Break { item: item.to_string(), member: member.map(str::to_string), what });
+    let mut push = |item: &str, member: Option<&str>, kind: &'static str, what: String| out.push(Break { item: item.to_string(), member: member.map(str::to_string), kind, what });
     for (name, o) in &old.items {
         let Some(n) = new.items.get(name) else {
-            push(name, None, format!("`{}` is gone", name));
+            push(name, None, "gone", format!("`{}` is gone", name));
             continue;
         };
         if o.kind != n.kind {
-            push(name, None, format!("`{}` was a {} and is now a {}", name, o.kind, n.kind));
+            push(name, None, "kind", format!("`{}` was a {} and is now a {}", name, o.kind, n.kind));
             continue;
         }
         if o.whole != n.whole {
-            push(name, None, format!("`{}` was `{}` and is now `{}`", name, o.whole.clone().unwrap_or_default(), n.whole.clone().unwrap_or_default()));
+            push(name, None, "whole", format!("`{}` was `{}` and is now `{}`", name, o.whole.clone().unwrap_or_default(), n.whole.clone().unwrap_or_default()));
         }
         for (m, om) in &o.members {
             let Some(nm) = n.members.get(m) else {
-                push(name, Some(m), format!("`{}` has no {} `{}` now", name, om.kind, m));
+                push(name, Some(m), "gone", format!("`{}` has no {} `{}` now", name, om.kind, m));
                 continue;
             };
             if om.kind != nm.kind {
-                push(name, Some(m), format!("`{}.{}` was a {} and is now a {}", name, m, om.kind, nm.kind));
+                push(name, Some(m), "kind", format!("`{}.{}` was a {} and is now a {}", name, m, om.kind, nm.kind));
                 continue;
             }
             if let (Some(ot), Some(nt)) = (&om.ty, &nm.ty) {
                 if !accepts(nt, ot) {
-                    push(name, Some(m), format!("`{}.{}` took `{}` and takes `{}` now", name, m, show_ty(ot), show_ty(nt)));
+                    push(name, Some(m), "type", format!("`{}.{}` took `{}` and takes `{}` now", name, m, show_ty(ot), show_ty(nt)));
                 }
             }
             if om.shape != nm.shape {
-                push(name, Some(m), format!("`{}.{}` was `{}` and is now `{}`", name, m, om.shape, nm.shape));
+                push(name, Some(m), "shape", format!("`{}.{}` was `{}` and is now `{}`", name, m, om.shape, nm.shape));
             }
             let squash = |d: &Option<String>| d.as_ref().map(|t| t.split_whitespace().collect::<String>());
             if om.default.is_some() && squash(&om.default) != squash(&nm.default) {
                 let now = nm.default.clone().map(|d| format!("`{}`", d)).unwrap_or_else(|| "nothing".into());
-                push(name, Some(m), format!("`{}.{}`'s default was `{}` and is {} now, which changes every use that leaves it out", name, m, om.default.clone().unwrap_or_default(), now));
+                push(name, Some(m), "default", format!("`{}.{}`'s default was `{}` and is {} now, which changes every use that leaves it out", name, m, om.default.clone().unwrap_or_default(), now));
             }
         }
         for (m, nm) in &n.members {
@@ -244,10 +247,10 @@ pub(crate) fn breaks(old: &Api, new: &Api) -> Vec<Break> {
                 continue;
             }
             if nm.required && (nm.kind == "input" || nm.kind == "field") {
-                push(name, Some(m), format!("`{}` has a new {} `{}` with no default", name, nm.kind, m));
+                push(name, Some(m), "required", format!("`{}` has a new {} `{}` with no default", name, nm.kind, m));
             }
             if nm.kind == "case" && n.kind == "enum" {
-                push(name, Some(m), format!("`{}` has a new case `{}`, so a `match` that listed every case no longer does", name, m));
+                push(name, Some(m), "case", format!("`{}` has a new case `{}`, so a `match` that listed every case no longer does", name, m));
             }
         }
     }

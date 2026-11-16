@@ -70,3 +70,47 @@ fn a_surface_never_reaches_the_ir() {
     let json = serde_json::to_string(&c.module.expect("compiles")).unwrap();
     assert!(!json.contains("kit@1"), "a surface's names are in the IR");
 }
+
+const KIT2: &str = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides plot, stat, state;\n}\n\nrecord stat {\n    title: text[1...];\n    value: text;\n    unit: text;\n}\n\nenum state { DONE, OVERDUE }\n\nextern widget plot(values: list<number>, tone: color = color.ACCENT);\n";
+
+fn migrate(migration: &str) -> Vec<(String, String)> {
+    let c = compile(&core_sources(), &[vec![src("kit/kit.mkp", KIT2), src("kit/surfaces/kit@1.mkp", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.mkp", migration)], "main");
+    c.diagnostics.iter().filter(|d| d.diagnostic.code.starts_with("pack.")).map(|d| (d.diagnostic.code.to_string(), d.diagnostic.message.clone())).collect()
+}
+
+const COMPLETE: &str = "package kit;\n\nmigration fn color_to_tone() {\n    rename(input = color, to = tone);\n}\n\nmigration kit@1 to kit@2 {\n    widget chart {\n        rename(to = plot);\n        color_to_tone();\n    }\n\n    record stat {\n        rename(field = label, to = title);\n        add(field = unit, value = \"\", why = \"a stat names its unit\");\n    }\n\n    enum state {\n        rename(from = state.LATE, to = state.OVERDUE);\n    }\n}\n";
+
+#[test]
+fn a_complete_migration_compiles() {
+    assert_eq!(migrate(COMPLETE), Vec::<(String, String)>::new());
+    // execute says everything about its declaration
+    let executed = COMPLETE.replace("        rename(to = plot);\n        color_to_tone();\n", "        rename(to = plot);\n        execute {\n            return @plot(values = values, tone = color);\n        }\n");
+    assert_eq!(migrate(&executed), Vec::<(String, String)>::new());
+}
+
+#[test]
+fn a_migration_names_only_what_is_there() {
+    let found = migrate(&COMPLETE.replace("rename(field = label, to = title)", "rename(field = lable, to = title)").replace("enum state {", "enum stage {").replace("add(field = unit,", "add(field = units,"));
+    let messages: Vec<&str> = found.iter().filter(|(c, _)| c == "pack.migration").map(|(_, m)| m.as_str()).collect();
+    assert!(messages.iter().any(|m| m.contains("`stat` has no field `lable` at this point; it has `label`, `value`")), "{:?}", messages);
+    assert!(messages.iter().any(|m| m.contains("kit@1 had no enum `stage`; its enums are `state`")), "{:?}", messages);
+    assert!(messages.iter().any(|m| m.contains("has no field `units`")), "{:?}", messages);
+    assert!(migrate(&COMPLETE.replace("rename(to = plot);", "shrink(to = plot);")).iter().any(|(_, m)| m.contains("`shrink` isn't a migration statement or a migration fn")));
+}
+
+#[test]
+fn a_migration_that_leaves_a_change_unsaid_is_incomplete() {
+    let found = migrate(&COMPLETE.replace("        add(field = unit, value = \"\", why = \"a stat names its unit\");\n", "").replace("    enum state {\n        rename(from = state.LATE, to = state.OVERDUE);\n    }\n", ""));
+    let incomplete: Vec<&str> = found.iter().filter(|(c, _)| c == "pack.migration-incomplete").map(|(_, m)| m.as_str()).collect();
+    assert_eq!(incomplete.len(), 2, "{:?}", incomplete);
+    assert!(incomplete.iter().any(|m| m.contains("`stat` has a new field `unit` with no default") && m.contains("add(")));
+    assert!(incomplete.iter().any(|m| m.contains("`state` has no case `LATE` now")));
+}
+
+#[test]
+fn migrations_form_a_chain_from_a_surface() {
+    let found = migrate(&COMPLETE.replace("migration kit@1 to kit@2 {", "migration kit@0 to kit@2 {"));
+    assert!(found.iter().any(|(_, m)| m.contains("needs kit@0's surface")), "{:?}", found);
+    let found = migrate(&COMPLETE.replace("migration kit@1 to kit@2 {", "migration kit@1 to kit@3 {"));
+    assert!(found.iter().any(|(_, m)| m.contains("a migration moves uses to a later version, and kit is at kit@2")), "{:?}", found);
+}

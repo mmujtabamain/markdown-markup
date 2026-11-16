@@ -72,7 +72,7 @@ migration kit@1 to kit@2 {
 - **A block** says what happens to the uses of one declaration. It is headed by the declaration's kind and its `kit@1` name: `widget chart`, `record stat`, `enum state`, `token color`, `fn text.slug`. A widget's event has a block of its own inside the widget's, `event click { … }`.
 - **Statements apply in order**, each to what the one before it left: after `rename(to = plot)`, the block is working on `plot`.
 - **A statement is a call with named arguments.** Where a parameter takes a name, the argument is written bare and checked: `input = color` is an input `chart` had in `kit@1`, and `to = tone` one `plot` has in `kit@2`. Anywhere else a name is the value the use gave, so in `set(input = values, value = values.map(…))` the first `values` is the input and the second its value. A case is written in full, `state.LATE`.
-- **`why`** is a text any statement takes. It is shown to whoever migrates, beside each change, and leaving it out is a warning.
+- **`why`** is a text any statement takes. It is shown to whoever migrates, beside each change. Leaving it out of a statement that changes a use is a warning, `rename` aside, whose new name says what changed; `notify` says nothing without it, so there it is a compile error.
 - **`when`** is a condition some statements take, over the use: its inputs by name, `given(name)`, constants, and `&&`, `||` and `!`. The statement applies to the uses where it holds.
 - **The words** `migration`, `to` and `execute` mean something only where a migration is written, so they stay free as names.
 

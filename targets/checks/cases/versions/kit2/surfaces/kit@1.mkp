@@ -1,0 +1,4 @@
+package kit@1;
+
+extern widget chart(values: list<number>, color: color = color.ACCENT);
+extern widget badge(label: text, shadow: bool = false);

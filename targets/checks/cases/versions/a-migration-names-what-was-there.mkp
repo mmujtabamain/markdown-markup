@@ -1,0 +1,12 @@
+package kit;
+
+migration kit@1 to kit@2 {
+    widget chart {
+        rename(to = plot);
+        rename(input = colour, to = tone);
+    }
+
+    widget badge {
+        drop(input = shadow, why = "badges have no shadow");
+    }
+}

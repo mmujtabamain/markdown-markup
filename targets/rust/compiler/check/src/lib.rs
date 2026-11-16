@@ -14,6 +14,7 @@ pub mod levels;
 mod passes;
 pub mod proof;
 pub mod ty;
+mod migrations;
 mod versions;
 mod view;
 
@@ -98,6 +99,9 @@ pub mod codes {
     pub const HTML_COMMENT: &str = "prose.html-comment";
     pub const SURFACE: &str = "pack.surface";
     pub const VERSION_BREAK: &str = "pack.version-break";
+    pub const MIGRATION: &str = "pack.migration";
+    pub const MIGRATION_INCOMPLETE: &str = "pack.migration-incomplete";
+    pub const MIGRATION_WHY: &str = "pack.migration-why";
     pub const REMOVED_USED: &str = "effects.removed-item-used";
     pub const SIZING_TWICE: &str = "views.sizing-set-twice";
     pub const FN_CLASH: &str = "names.fn-clash";

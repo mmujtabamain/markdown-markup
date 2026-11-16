@@ -1,0 +1,9 @@
+package kit;
+
+pack kit@2 {
+    uses core@1;
+    provides plot, badge;
+}
+
+extern widget plot(values: list<number>, tone: color = color.ACCENT);
+extern widget badge(label: text);

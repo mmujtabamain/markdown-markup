@@ -45,7 +45,7 @@ fn examples(page: &str) -> Vec<Example> {
 
 fn entry(tag: &str) -> Entry {
     match tag {
-        "java file" => Entry::Mkp,
+        "java file" | "java later" => Entry::Mkp,
         "java decls" => Entry::Decls,
         "java body" => Entry::Body,
         "java fields" => Entry::Fields,

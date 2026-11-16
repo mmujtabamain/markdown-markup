@@ -1,0 +1,8 @@
+package kit;
+
+migration kit@1 to kit@2 {
+    widget chart {
+        rename(to = plot);
+        rename(input = color, to = tone);
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "versions.a-migration-names-what-was-there",
+  "about": "a migration statement naming an input the older version didn't have",
+  "source": "a-migration-names-what-was-there.mkp",
+  "packs": ["kit2"],
+  "expect": {
+    "diagnostics": [
+      {"code": "pack.migration", "line": 6, "column": 24},
+      {"code": "pack.migration-incomplete", "line": 3, "column": 11}
+    ]
+  }
+}
