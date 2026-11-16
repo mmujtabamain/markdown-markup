@@ -2,8 +2,9 @@
 // plane's spots land:
 //
 // - Text is 8 wide per character and 20 high: a label, a paragraph, a button's label.
-// - A column stacks its children, a row lines them up, each with its `gap` between them and its
-//   `pad` on every side (core's space tokens).
+// - A flex lines its children up along its axis (a row's is X, a column's Y); a grid, a cell, a
+//   sizing and a spot stack theirs. Each has its `gap` between children and its `pad` on every
+//   side (core's space tokens).
 // - Anything else is 80 by 20.
 // - A plane given no width is 640 wide, the test page's width.
 
@@ -31,9 +32,10 @@ function textOf(v) {
   }
 }
 
-/** A token case's number, or 0. */
+/** A token case's number, or 0. An `opt` gives its value's. */
 function tokenOf(page, v) {
   if (!v) return 0;
+  if (v.kind === "opt") return v.value ? tokenOf(page, v.value) : 0;
   if (v.kind === "num") return v.n.toNumber();
   if (v.kind === "case") {
     const n = page.machine.defaultTokenValue(v);
@@ -42,15 +44,20 @@ function tokenOf(page, v) {
   return 0;
 }
 
+/** Widgets that hold others: their size is their children's, with their gap and pad. */
+const CONTAINERS = new Set(["core/flex", "core/grid", "core/cell", "core/sizing", "core/spot"]);
+
 /** A drawn widget's size: [width, height]. */
 export function sizeOf(page, d) {
   const kids = [...d.slots.values()].flat();
   const pad = tokenOf(page, d.props.get("pad"));
   const gap = tokenOf(page, d.props.get("gap"));
-  if (d.widget === "core/column" || d.widget === "core/row" || d.widget === "core/spot") {
+  const axis = d.props.get("axis");
+  if (CONTAINERS.has(d.widget)) {
     const sizes = kids.map((k) => sizeOf(page, k));
     const between = gap * Math.max(0, sizes.length - 1);
-    const across = d.widget === "core/row";
+    // a flex lines its children up along its axis; everything else here stacks them
+    const across = d.widget === "core/flex" && axis?.kind === "case" && axis.name === "X";
     const w = across ? sizes.reduce((a, [x]) => a + x, 0) + between : Math.max(0, ...sizes.map(([x]) => x));
     const h = across ? Math.max(0, ...sizes.map(([, y]) => y)) : sizes.reduce((a, [, y]) => a + y, 0) + between;
     return [w + 2 * pad, h + 2 * pad];
