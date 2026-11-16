@@ -222,6 +222,20 @@ describe("the playground in Chromium", { skip }, () => {
     await tab.setViewportSize({ width: 1440, height: 900 });
   });
 
+  test("the name in the bar starts again: the first example, its starting $state, and a note", async () => {
+    await tab.getByTestId("example-picker").selectOption("slider");
+    await compiled("ok");
+    await typeAtEnd("\nAn edit to throw away.\n");
+    await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("An edit to throw away."));
+    await tab.getByTestId("brand").click();
+    await compiled("ok");
+    assert.equal(await tab.getByTestId("example-picker").inputValue(), "counter");
+    assert.doesNotMatch(await tab.getByTestId("editor").inputValue(), /An edit to throw away/);
+    await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("Count: **0**"));
+    assert.match(await tab.getByTestId("notice").textContent(), /Started again with A counter/);
+    assert.equal(await tab.getByTestId("notice").isVisible(), true);
+  });
+
   test("no errors in the browser's console", () => {
     assert.deepEqual(
       pageErrors.map((e) => e.message),

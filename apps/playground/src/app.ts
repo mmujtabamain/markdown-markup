@@ -705,6 +705,18 @@ function loadExample(id: string): void {
 
 picker.addEventListener("change", () => loadExample(picker.value));
 
+// The name in the bar starts again, visibly: the first example as written, with its $state as it
+// first was, and a note saying so. A plain link to "/" only reloaded the page, which on a fresh
+// page changes nothing a reader can see. A new tab or window still opens the start as a link.
+el<HTMLAnchorElement>("brand").addEventListener("click", (e) => {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  const first = examples[0];
+  if (!first) return;
+  loadExample(first.id);
+  showNotice("info", `Started again with <strong>${escapeHtml(first.title)}</strong>: its source and its <code>$state</code> as they first were.`);
+});
+
 async function init(): Promise<void> {
   setStatus("loading", "Loading…");
   try {
