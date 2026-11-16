@@ -171,6 +171,12 @@ fn migrate_finds_the_version_a_document_compiles_against_and_writes_nothing_brok
     assert_eq!(code, 1);
     assert!(out.contains("not written") && out.contains("only a person knows which this one is"), "{}", out);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+    // answered in a file, as CI would: the run writes it
+    let key = format!("{}:4 LATE", docs.join("report.mkp.md").display());
+    std::fs::write(dir.join("answers.toml"), format!("[split]\n\"{}\" = \"DONE\"\n", key)).unwrap();
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--answers", dir.join("answers.toml").to_str().unwrap()]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap().contains("s: state = state.DONE;"));
 }
 
 #[test]
@@ -204,4 +210,17 @@ fn migrate_renames_fn_calls_and_changes_handlers_for_an_events_new_arguments() {
         std::fs::read_to_string(docs.join("a.mkp.md")).unwrap(),
         "import kit;\n\n$state {\n    n: number = 0;\n}\n\nfn id_of(t: text): text {\n    return t.slugify(\"-\");\n}\n@@@\n@button(label = \"Add\", press = fn(at: point) { $state.n = $state.n + 1; });\n"
     );
+}
+
+#[test]
+fn migrate_moves_a_pack_that_uses_a_migrated_pack_and_its_uses_line() {
+    let report = "package report;\n\nimport kit;\n\npack report@1 {\n    uses core@1, kit@1;\n    provides summary;\n}\n\nwidget summary(n: number) {\n    view {\n        @chart(values = [n], color = color.OK);\n    }\n    markdown {\n        A summary.\n    }\n}\n";
+    let doc = "import report;\n@@@\n@summary(n = 3);\n";
+    let dir = scratch("migrate-pack", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", MIGRATION), ("report/report.mkp", report), ("mkp.toml", "packs = [\"kit\", \"report\"]\n"), ("docs/a.mkp.md", doc)]);
+    let (code, out, err) = mkp(&["migrate", dir.join("docs").to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.contains("report.mkp  kit@1 → kit@2"), "{}", out);
+    let moved = std::fs::read_to_string(dir.join("report/report.mkp")).unwrap();
+    assert!(moved.contains("    uses core@1, kit@2;\n") && moved.contains("        @plot(values = [n], tone = color.OK);\n"), "{}", moved);
+    assert_eq!(mkp(&["check", "--pack", &format!("{},{}", dir.join("kit").display(), dir.join("report").display()), dir.join("docs/a.mkp.md").to_str().unwrap()]).0, 0);
 }

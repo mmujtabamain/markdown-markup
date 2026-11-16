@@ -13,7 +13,7 @@ use mkp_syntax::ast::{self, DeclKind, Item};
 use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
-                  [--dry-run | --check | --diff] [--yes] [--allow-dirty]
+                  [--dry-run | --check | --diff] [--yes] [--allow-dirty] [--answers answers.toml]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
   --dry-run and --diff show what would change, --check fails if anything would.";
@@ -48,6 +48,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let flag = |f: &str| args.iter().any(|a| a == f);
     let (dry, check, diff, yes, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--yes") || flag("-y"), flag("--allow-dirty"));
     let mut from: BTreeMap<String, u32> = BTreeMap::new();
+    let mut answers: Option<PathBuf> = None;
     let mut rest = Vec::new();
     let mut k = 0;
     while k < args.len() {
@@ -58,6 +59,20 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                     return ExitCode::from(2);
                 };
                 from.insert(v.0, v.1);
+                k += 2;
+            }
+            "--answers" => {
+                let Some(f) = args.get(k + 1) else {
+                    eprintln!("--answers takes a file: --answers answers.toml");
+                    return ExitCode::from(2);
+                };
+                if let Ok(text) = std::fs::read_to_string(f) {
+                    if let Err(e) = crate::migrate_step::load_answers(&text) {
+                        eprintln!("{}: {}", f, e);
+                        return ExitCode::from(2);
+                    }
+                }
+                answers = Some(PathBuf::from(f));
                 k += 2;
             }
             "--dry-run" | "--check" | "--diff" | "--yes" | "-y" | "--allow-dirty" => k += 1,
@@ -97,15 +112,33 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let base = mkp_check::compile_core(&core);
 
     let mut results: Vec<(PathBuf, String, Outcome)> = Vec::new();
+    // packs that use a migrated pack go first, so documents are checked against them as they end
+    let mut now = sources.clone();
+    for p in &packs {
+        for (path, old, o) in migrate_pack(&base, &packs, &sources, p) {
+            if o.refused.is_empty() {
+                if let Some(s) = now.iter_mut().find(|s| s.path == path.display().to_string()) {
+                    s.text = o.text.clone();
+                }
+            }
+            results.push((path, old, o));
+        }
+    }
     for d in &docs {
         let Ok(text) = std::fs::read_to_string(d) else {
             eprintln!("{}: can't be read", d.display());
             return ExitCode::from(2);
         };
-        let o = migrate_doc(&base, &packs, &sources, d, &text, &from, &uses);
+        let o = migrate_doc(&base, &packs, &sources, &now, d, &text, &from, &uses);
         results.push((d.clone(), text, o));
     }
 
+    // what was answered in a terminal, kept for the next run
+    if let (Some(f), Some(text)) = (&answers, crate::migrate_step::answers_text()) {
+        if let Err(e) = std::fs::write(f, text) {
+            eprintln!("{}: {}", f.display(), e);
+        }
+    }
     // the summary
     let width = results.iter().map(|(p, _, _)| p.display().to_string().len()).max().unwrap_or(0);
     let (mut to_write, mut need, mut fine) = (Vec::new(), 0, 0);
@@ -329,7 +362,8 @@ fn stamp(text: &str) -> BTreeMap<String, u32> {
     out
 }
 
-fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>) -> Outcome {
+#[allow(clippy::too_many_arguments)]
+fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>) -> Outcome {
     let mut o = Outcome { text: text.to_string(), ..Outcome::default() };
     let doc_path = path.display().to_string();
     let stamped = stamp(text);
@@ -378,7 +412,7 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], pa
                 Some(s) if v + 1 < pack.version => vec![s.clone()],
                 _ => pack.files.clone(),
             };
-            let done = crate::migrate_step::Step { text: &current, doc: &doc_path, refs: &refs, pack: &pack.name, step, label: &label, fns: &pack.fns, old: &old_world, new: &new_world }.run();
+            let done = crate::migrate_step::Step { text: &current, doc: &doc_path, refs: &refs, pack: &pack.name, step, label: &label, fns: &pack.fns, old: &old_world, new: &new_world, prose: true }.run();
             let _ = step_src;
             o.deletions.extend(done.deletions);
             o.notices.extend(done.notices);
@@ -395,13 +429,132 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], pa
     }
     // what it says it is written for, now
     o.text = restamp(&o.text, &stamped, packs);
-    let c = mkp_check::compile_on(base, &[sources.to_vec()], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
+    let c = mkp_check::compile_on(base, &[now.to_vec()], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
     if c.module.is_none() {
         let lines = Lines::new(&o.text);
         let errs: Vec<String> = c.errors().filter(|d| d.file == doc_path).take(3).map(|d| format!("line {}: {}", lines.place(d.diagnostic.span.start).line, d.diagnostic.message)).collect();
         o.refused.push(format!("it doesn't compile afterwards ({})", if errs.is_empty() { "an error in a pack".to_string() } else { errs.join("; ") }));
     }
     o
+}
+
+/// A pack written for an earlier version of a pack it uses: its files moved as documents are,
+/// and its `uses` line brought up to the version it now uses.
+fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p: &Pack) -> Vec<(PathBuf, String, Outcome)> {
+    let mut out: Vec<(PathBuf, String, Outcome)> = Vec::new();
+    let mut texts: Vec<(String, String)> = p.files.iter().map(|f| (f.path.clone(), f.text.clone())).collect();
+    let mut outcomes: BTreeMap<String, Outcome> = texts.iter().map(|(path, t)| (path.clone(), Outcome { text: t.clone(), ..Outcome::default() })).collect();
+    let uses = uses_line(&p.files);
+    let mut moved = Vec::new();
+    for used in packs.iter().filter(|u| u.name != p.name) {
+        let Some(&from) = uses.get(&used.name) else { continue };
+        if from >= used.version {
+            continue;
+        }
+        moved.push(format!("{}@{} → {}@{}", used.name, from, used.name, used.version));
+        for v in from..used.version {
+            let Some((step, _)) = used.steps.get(&v) else {
+                for o in outcomes.values_mut() {
+                    o.refused.push(format!("{} has no migration from {}@{}", used.name, used.name, v));
+                }
+                break;
+            };
+            let own: std::collections::HashSet<&str> = p.files.iter().map(|f| f.path.as_str()).collect();
+            let world: Vec<Source> = world_at(sources, used, v).into_iter().filter(|s| !own.contains(s.path.as_str())).collect();
+            let main: Vec<Source> = texts.iter().map(|(path, t)| Source { path: path.clone(), text: t.clone() }).collect();
+            let (compiled, refs) = mkp_check::compile_refs(base, &[world], &main, "main");
+            if compiled.module.is_none() {
+                for o in outcomes.values_mut() {
+                    o.refused.push(format!("{} doesn't compile against {}@{}, the version it uses", p.name, used.name, v));
+                }
+                break;
+            }
+            let old_world: Vec<Source> = used.surfaces.get(&v).cloned().into_iter().collect();
+            let new_world: Vec<Source> = match used.surfaces.get(&(v + 1)) {
+                Some(s) if v + 1 < used.version => vec![s.clone()],
+                _ => used.files.clone(),
+            };
+            let label = format!("{}@{}", used.name, v + 1);
+            for (path, text) in texts.iter_mut() {
+                let mine: Vec<mkp_check::FoundRef> = refs.iter().filter(|r| r.file == *path).cloned().collect();
+                let done = crate::migrate_step::Step { text, doc: path, refs: &mine, pack: &used.name, step, label: &label, fns: &used.fns, old: &old_world, new: &new_world, prose: false }.run();
+                let o = outcomes.get_mut(path).unwrap();
+                o.deletions.extend(done.deletions);
+                o.notices.extend(done.notices);
+                o.refused.extend(done.refused);
+                o.changes += done.changes;
+                *text = crate::migrate_step::apply(text, &done.edits);
+            }
+        }
+    }
+    if moved.is_empty() {
+        return out;
+    }
+    // the uses line, and the pack as it now is, compiled with what it uses
+    for (_, text) in texts.iter_mut() {
+        let mut t = String::new();
+        for line in text.split_inclusive('\n') {
+            if line.trim_start().starts_with("uses ") {
+                let mut l = line.to_string();
+                for used in packs {
+                    if let Some(v) = uses.get(&used.name) {
+                        l = l.replace(&format!("{}@{}", used.name, v), &format!("{}@{}", used.name, used.version));
+                    }
+                }
+                t.push_str(&l);
+            } else {
+                t.push_str(line);
+            }
+        }
+        *text = t;
+    }
+    let own: std::collections::HashSet<&str> = p.files.iter().map(|f| f.path.as_str()).collect();
+    let world: Vec<Source> = sources.iter().filter(|s| !own.contains(s.path.as_str())).cloned().collect();
+    let main: Vec<Source> = texts.iter().map(|(path, t)| Source { path: path.clone(), text: t.clone() }).collect();
+    let c = mkp_check::compile_on(base, &[world], &main, "main");
+    let errors: Vec<String> = c.errors().take(3).map(|d| format!("{}: {}", d.file, d.diagnostic.message)).collect();
+    for (path, text) in texts {
+        let mut o = outcomes.remove(&path).unwrap();
+        o.text = text;
+        o.moved = moved.clone();
+        if !errors.is_empty() && o.refused.is_empty() {
+            o.refused.push(format!("the pack doesn't compile afterwards ({})", errors.join("; ")));
+        }
+        let old = p.files.iter().find(|f| f.path == path).map(|f| f.text.clone()).unwrap_or_default();
+        out.push((PathBuf::from(path), old, o));
+    }
+    // a pack is written whole or not at all
+    if out.iter().any(|(_, _, o)| !o.refused.is_empty()) {
+        let why: Vec<String> = out.iter().flat_map(|(_, _, o)| o.refused.clone()).collect();
+        for (_, _, o) in out.iter_mut() {
+            if o.refused.is_empty() {
+                o.refused.push(format!("another file of {} can't be moved: {}", p.name, why.first().cloned().unwrap_or_default()));
+            }
+        }
+    }
+    out
+}
+
+/// The versions a pack's `uses` line asks for.
+fn uses_line(files: &[Source]) -> BTreeMap<String, u32> {
+    let mut out = BTreeMap::new();
+    for f in files {
+        let Some(file) = parse(&f.text, Entry::Mkp).file else { continue };
+        for n in &file.items {
+            if let Item::Decl(ast::Decl { kind: DeclKind::Pack(b), .. }) = &n.item {
+                for l in b.lines.iter() {
+                    if let ast::PackLine::Uses(refs) = l {
+                        for r in refs {
+                            if let Ok(v) = r.version.name.parse() {
+                                out.insert(r.name.name.clone(), v);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 fn mentions(text: &str, pack: &str) -> bool {

@@ -55,6 +55,8 @@ pub(crate) struct Step<'a> {
     /// The surface the file is written for, and the pack's files at the version it moves to.
     pub old: &'a [Source],
     pub new: &'a [Source],
+    /// A document, whose calls below `@@@` are prose; a pack's file has none.
+    pub prose: bool,
 }
 
 #[derive(Default)]
@@ -137,7 +139,7 @@ impl<'a> Step<'a> {
         let mut done = Done::default();
         let lines = Lines::new(self.text);
         let line_of = |at: usize| lines.place(at as u32).line as usize;
-        let prose_from = self.text.find("\n@@@\n").map(|i| i + 5).or_else(|| self.text.starts_with("@@@\n").then_some(4)).unwrap_or(0);
+        let prose_from = if self.prose { self.text.find("\n@@@\n").map(|i| i + 5).or_else(|| self.text.starts_with("@@@\n").then_some(4)).unwrap_or(0) } else { usize::MAX };
         // point edits (renames where a name is), then each use rewritten, innermost first
         let mut edits: Vec<Edit> = Vec::new();
         let mut uses_done: Vec<(usize, usize, String)> = Vec::new();
@@ -280,10 +282,11 @@ impl<'a> Step<'a> {
                         _ => Vec::new(),
                     };
                     let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).unwrap_or_default();
-                    match ask(&format!("{}:{} uses {}, which {} replaces{}", self.doc, line_of(at), case, self.label, if why.is_empty() { String::new() } else { format!(": {}", why) }), &options) {
+                    let key = format!("{}:{} {}", self.doc, line_of(at), case);
+                    match ask(&key, &format!("{}:{} uses {}, which {} replaces{}", self.doc, line_of(at), case, self.label, if why.is_empty() { String::new() } else { format!(": {}", why) }), &options) {
                         Some(pick) => return Some(pick),
                         None => {
-                            done.refused.push(format!("line {}: {} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal to answer", line_of(at), self.label, case, options.join(", ")));
+                            done.refused.push(format!("line {}: {} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", line_of(at), self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default()));
                             return None;
                         }
                     }
@@ -1125,12 +1128,51 @@ fn first_line(s: &str) -> &str {
     s.lines().next().unwrap_or("")
 }
 
-/// A yes or no for the whole run: asked once in a terminal; `None` where nobody can be asked.
+/// The answers to the questions a migration asks: read from `--answers`, and kept there when
+/// someone answers one in a terminal.
+#[derive(Default)]
+pub(crate) struct Answers {
+    pub confirm: BTreeMap<String, bool>,
+    pub split: BTreeMap<String, String>,
+    pub changed: bool,
+}
+
+pub(crate) static ANSWERS: std::sync::Mutex<Option<Answers>> = std::sync::Mutex::new(None);
+
+pub(crate) fn load_answers(text: &str) -> Result<(), String> {
+    let v: toml::Value = text.parse().map_err(|e: toml::de::Error| e.message().to_string())?;
+    let mut a = Answers::default();
+    for (k, x) in v.get("confirm").and_then(|t| t.as_table()).into_iter().flatten() {
+        a.confirm.insert(k.clone(), x.as_bool().ok_or_else(|| format!("[confirm] \"{}\" is true or false", k))?);
+    }
+    for (k, x) in v.get("split").and_then(|t| t.as_table()).into_iter().flatten() {
+        a.split.insert(k.clone(), x.as_str().ok_or_else(|| format!("[split] \"{}\" names a case, such as \"OVERDUE\"", k))?.to_string());
+    }
+    *ANSWERS.lock().unwrap() = Some(a);
+    Ok(())
+}
+
+/// The answers as a file, when someone answered something new in a terminal.
+pub(crate) fn answers_text() -> Option<String> {
+    let guard = ANSWERS.lock().unwrap();
+    let a = guard.as_ref().filter(|a| a.changed)?;
+    let q = |k: &str| format!("\"{}\"", k.replace('\\', "\\\\").replace('"', "\\\""));
+    let mut out = String::from("# mkp migrate's answers: kept so a run without a terminal answers the same\n\n[confirm]\n");
+    for (k, v) in &a.confirm {
+        out.push_str(&format!("{} = {}\n", q(k), v));
+    }
+    out.push_str("\n[split]\n");
+    for (k, v) in &a.split {
+        out.push_str(&format!("{} = {}\n", q(k), q(v)));
+    }
+    Some(out)
+}
+
+/// A yes or no for the whole run: from the answers, else asked once in a terminal, else no.
 fn confirm(question: &str) -> Option<bool> {
-    use std::sync::Mutex;
-    static ANSWERS: Mutex<Vec<(String, bool)>> = Mutex::new(Vec::new());
-    let mut answers = ANSWERS.lock().unwrap();
-    if let Some((_, a)) = answers.iter().find(|(q, _)| q == question) {
+    let mut guard = ANSWERS.lock().unwrap();
+    let answers = guard.get_or_insert_with(Answers::default);
+    if let Some(a) = answers.confirm.get(question) {
         return Some(*a);
     }
     if !std::io::stdin().is_terminal() {
@@ -1141,12 +1183,19 @@ fn confirm(question: &str) -> Option<bool> {
     let mut s = String::new();
     let _ = std::io::stdin().read_line(&mut s);
     let a = matches!(s.trim(), "y" | "Y" | "yes");
-    answers.push((question.to_string(), a));
+    answers.confirm.insert(question.to_string(), a);
+    answers.changed = true;
     Some(a)
 }
 
-/// A choice about one use, asked in a terminal; `None` where nobody can be asked.
-fn ask(question: &str, options: &[String]) -> Option<String> {
+/// A choice about one use: from the answers, by `key`, else asked in a terminal; `None` where
+/// nobody can be asked and the answers don't say.
+fn ask(key: &str, question: &str, options: &[String]) -> Option<String> {
+    let mut guard = ANSWERS.lock().unwrap();
+    let answers = guard.get_or_insert_with(Answers::default);
+    if let Some(a) = answers.split.get(key) {
+        return options.iter().find(|o| *o == a).cloned();
+    }
     if !std::io::stdin().is_terminal() || options.is_empty() {
         return None;
     }
@@ -1158,5 +1207,8 @@ fn ask(question: &str, options: &[String]) -> Option<String> {
     let _ = std::io::stdout().flush();
     let mut s = String::new();
     let _ = std::io::stdin().read_line(&mut s);
-    s.trim().parse::<usize>().ok().filter(|k| *k >= 1 && *k <= options.len()).map(|k| options[k - 1].clone())
+    let pick = s.trim().parse::<usize>().ok().filter(|k| *k >= 1 && *k <= options.len()).map(|k| options[k - 1].clone())?;
+    answers.split.insert(key.to_string(), pick.clone());
+    answers.changed = true;
+    Some(pick)
 }
