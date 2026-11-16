@@ -129,9 +129,12 @@ export function planeWrites(page: Page, plane: Drawn, measure: Measure): LayoutW
   const writes: LayoutWrite[] = [];
   const boxes: Region[] = [];
   const zero: Pt = { x: Num.zero(), y: Num.zero() };
+  const given = regionOf(plane.props.get("bounds"));
   for (const s of plane.slots.get("items") ?? []) {
     if (s.widget !== "core/spot") continue;
     const at = ptOf(s.props.get("at")) ?? zero;
+    // a spot outside bounds the caller gave is a warning, and is clipped where it is drawn
+    if (given) page.spotInside(s.path, !at.x.lt(given.from.x) && !at.x.gt(given.to.x) && !at.y.lt(given.from.y) && !at.y.gt(given.to.y));
     const anchor = s.props.get("anchor");
     const nudge = ptOf(s.props.get("nudge")) ?? zero;
     let box = place(at, anchor?.kind === "case" ? anchor.name : "CENTER", nudge, measure.spot(s));

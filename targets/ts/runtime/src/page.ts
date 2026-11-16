@@ -126,6 +126,10 @@ export class Page {
   /** How many changes came from outside the layout: the reader's, the app's, the page's
    * values. A layout that didn't settle is held until the next one. */
   changes = 0;
+  /** Warnings for the app, since it last took them: not failures, the page carries on. */
+  private warnings: Broken[] = [];
+  /** The spots outside their plane's bounds now, so each is reported once as it moves out. */
+  private outside = new Set<string>();
   /** Every failure caught, with its message and stack, for a host's log. */
   readonly errors: unknown[] = [];
   /** Defects switched on, for the test target: each must be caught by a check. */
@@ -376,6 +380,24 @@ export class Page {
     }
     this.redraw();
     return shared;
+  }
+
+  /** The warnings since the app last took them: a spot outside its plane's bounds (page 5,
+   * plane), reported when the page runs as it can't be known when it is compiled. */
+  takeWarnings(): Broken[] {
+    const w = this.warnings;
+    this.warnings = [];
+    return w;
+  }
+
+  /** Where a spot is, against its plane's bounds: a warning when it moves outside them. */
+  spotInside(path: string, inside: boolean): void {
+    if (inside) {
+      this.outside.delete(path);
+    } else if (!this.outside.has(path)) {
+      this.outside.add(path);
+      this.warnings.push({ code: "views.spot-outside-bounds", site: path });
+    }
   }
 
   /** A plane whose layout didn't settle (page 6, failures). */

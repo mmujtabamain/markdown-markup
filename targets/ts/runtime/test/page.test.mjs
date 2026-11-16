@@ -208,3 +208,25 @@ test("an extern widget the target doesn't supply shows its Markdown, and is repo
   assert.deepEqual(p.missing(), []);
   assert.equal(p.observeTree().s2.widget, "badge/seal");
 });
+
+test("a spot outside its plane's bounds is a warning for the app when the page runs, once as it moves out", () => {
+  const p = page(
+    '$state {\n    x: number = 5;\n}\n\nwidget map() {\n    view {\n        @plane(label = "Map", bounds = region { from = point { x = 0, y = 0 }, to = point { x = 10, y = 10 } }) {\n            items {\n                @spot(at = point { x = $state.x, y = 5 }) {\n                    @label(value = "here");\n                }\n            }\n        }\n    }\n}\n@@@\n@map;\n',
+  );
+  const measure = { spot: () => ({ width: N(8), height: N(8) }), planeWidth: () => N(100) };
+  layout(p, measure);
+  assert.deepEqual(p.takeWarnings(), []);
+  p.set({ x: p.value(num(20)) });
+  layout(p, measure);
+  assert.deepEqual(p.takeWarnings(), [{ code: "views.spot-outside-bounds", site: "s0/s1" }]);
+  // still outside: not reported again; back inside and out again: reported again
+  p.set({ x: p.value(num(30)) });
+  layout(p, measure);
+  assert.deepEqual(p.takeWarnings(), []);
+  p.set({ x: p.value(num(3)) });
+  layout(p, measure);
+  p.set({ x: p.value(num(-1)) });
+  layout(p, measure);
+  assert.deepEqual(p.takeWarnings(), [{ code: "views.spot-outside-bounds", site: "s0/s1" }]);
+  assert.deepEqual(p.takeOutcome().failures, []);
+});
