@@ -2,6 +2,7 @@
 
 use std::process::ExitCode;
 
+mod migrate;
 mod surface;
 mod target;
 
@@ -55,6 +56,14 @@ fn pack_sources(list: &str) -> Result<Vec<mkp_check::Source>, String> {
 struct Config {
     #[serde(default)]
     packs: Vec<String>,
+    /// The release of MKP the tree is written for.
+    #[serde(default)]
+    #[allow(dead_code)]
+    mkp: Option<String>,
+    /// The version of each pack the tree is written for, as `mkp migrate` reads it.
+    #[serde(default)]
+    #[allow(dead_code)]
+    uses: std::collections::BTreeMap<String, u32>,
 }
 
 /// The `mkp.toml` named, or else the one beside the document or in a folder above it.
@@ -161,6 +170,8 @@ const USAGE: &str = "usage:
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
   mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
   mkp surface <pack> [--pack a,b] [-o file] [--check] [--force]   write what this version of the pack provides
+  mkp migrate [<file|folder>…] [--pack a,b] [--from kit@1] [--dry-run|--check|--diff] [--yes]
+                                    bring documents up to the versions of the packs they are built with
   mkp target check [target…] [--cases dir] [--defect name] [--expect-failures]
                                     run the target checks on targets, through their check adapters
   (--pack takes a comma-separated list of folders and .mkp files; --config/-c names an mkp.toml,
@@ -362,6 +373,7 @@ fn main() -> ExitCode {
         Some("build") => build(&args[1..]),
         Some("md") => md(&args[1..]),
         Some("surface") => surface::surface_cmd(&args[1..]),
+        Some("migrate") => migrate::migrate_cmd(&args[1..]),
         Some("target") if args.get(1).map(String::as_str) == Some("check") => target::target_check(&args[2..]),
         _ => {
             eprintln!("{}", USAGE);

@@ -303,6 +303,26 @@ pub struct From {
     pub tokens: usize,
 }
 
+/// A name in a file and what the checker read it as: kept, when asked for, by `mkp migrate`,
+/// which edits a reference only where the checker found one.
+#[derive(Clone, Debug)]
+pub struct Ref {
+    pub file: usize,
+    /// The name itself.
+    pub at: Span,
+    /// What a deletion takes out: a named argument or a record field with its value.
+    pub whole: Span,
+    pub target: RefTarget,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RefTarget {
+    Decl(DefId),
+    /// An input, a slot, an event or a field of the declaration, by its name.
+    Member(DefId, String),
+    Case(DefId, String),
+}
+
 #[derive(Clone)]
 pub struct Checker {
     pub files: Vec<FileRec>,
@@ -335,6 +355,8 @@ pub struct Checker {
     pub from: From,
     /// Proofs wanted where values meet contracts, settled with the constants.
     pub proofs: Vec<proof::Proof>,
+    /// The references found, when asked for (`Some`).
+    pub refs: Option<Vec<Ref>>,
     /// What is known of each expression checked so far, by file and span.
     pub known_at: HashMap<(usize, u32, u32), proof::Known>,
     /// Contract bounds that name a constant or work one out, checked with the constants.
@@ -386,6 +408,7 @@ impl Checker {
             prose_span: Span::default(),
             from: From::default(),
             proofs: Vec::new(),
+            refs: None,
             known_at: HashMap::new(),
             bound_checks: Vec::new(),
             effects: effects::Effects::default(),
@@ -402,6 +425,13 @@ impl Checker {
     pub fn error(&mut self, file: usize, code: &'static str, span: Span, message: impl Into<String>) {
         let path = self.files[file].path.clone();
         self.diags.push(Found { file: path, diagnostic: Diagnostic::error(code, span, message) });
+    }
+
+    /// A reference, logged when the log is on.
+    pub(crate) fn note_ref(&mut self, file: usize, at: Span, whole: Span, target: RefTarget) {
+        if let Some(r) = self.refs.as_mut() {
+            r.push(Ref { file, at, whole, target });
+        }
     }
 
     pub fn warning(&mut self, file: usize, code: &'static str, span: Span, message: impl Into<String>) {
@@ -702,7 +732,11 @@ impl Checker {
                             continue;
                         }
                         let name = imp.alias.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| one.name.clone());
-                        add.push((name, other.types.get(&one.name).copied(), other.values.get(&one.name).copied()));
+                        let (t, v) = (other.types.get(&one.name).copied(), other.values.get(&one.name).copied());
+                        if let Some(TypeSym::Def(d)) = t {
+                            self.note_ref(file, one.span, one.span, RefTarget::Decl(d));
+                        }
+                        add.push((name, t, v));
                     }
                 }
                 for (n, t, v) in add {
@@ -763,6 +797,7 @@ impl Checker {
                         }
                     }
                     Some(TypeSym::Def(d)) => {
+                        self.note_ref(file, name.span, name.span, RefTarget::Decl(d));
                         self.warn_deprecated(file, self.defs[d].file, self.defs[d].span, name.span);
                         if let DefKind::Alias { .. } = self.defs[d].kind {
                             return self.alias_target(d).0;
@@ -1055,7 +1090,10 @@ pub fn compile_core(core: &[Source]) -> Checker {
 
 /// Compiles packs and a document (or a pack) on top of a compiled core, into one IR module.
 pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> Compiled {
-    let mut c = base.clone();
+    compile_with(base.clone(), packs, main, module).0
+}
+
+fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> (Compiled, Checker) {
     c.module = module.to_string();
     c.from = From { files: c.files.len(), defs: c.defs.len(), fns: c.fns.len(), lets: c.lets.len(), channels: c.channels.len(), tokens: c.token_values.len() };
     let before = c.diags.len();
@@ -1068,7 +1106,8 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
         texts.entry(s.path.clone()).or_insert_with(|| s.text.clone());
     }
     if c.diags[before..].iter().any(|d| d.diagnostic.is_error()) {
-        return Compiled { module: None, diagnostics: c.diags, texts, constants: HashMap::new() };
+        let diagnostics = std::mem::take(&mut c.diags);
+        return (Compiled { module: None, diagnostics, texts, constants: HashMap::new() }, c);
     }
     c.collect();
     c.scopes();
@@ -1081,7 +1120,46 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
     }
     let failed = c.diags.iter().any(|d| d.diagnostic.is_error());
     let module = if failed { None } else { Some(c.module_ir()) };
-    Compiled { module, diagnostics: c.diags, texts, constants: c.constants }
+    let diagnostics = std::mem::take(&mut c.diags);
+    let constants = std::mem::take(&mut c.constants);
+    (Compiled { module, diagnostics, texts, constants }, c)
+}
+
+/// A reference in a file, as `mkp migrate` reads it: the declaration's full name (`kit/chart`),
+/// and the member or case it names.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FoundRef {
+    pub file: String,
+    pub at: Span,
+    pub whole: Span,
+    pub decl: String,
+    pub member: Option<String>,
+    pub case: bool,
+}
+
+/// As `compile_on`, keeping every reference the checker finds in `main`'s files.
+pub fn compile_refs(base: &Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> (Compiled, Vec<FoundRef>) {
+    let mut c = base.clone();
+    c.refs = Some(Vec::new());
+    let (compiled, c) = compile_with(c, packs, main, module);
+    let mains: std::collections::HashSet<&str> = main.iter().map(|s| s.path.as_str()).collect();
+    let mut out: Vec<FoundRef> = Vec::new();
+    for r in c.refs.clone().unwrap_or_default() {
+        let file = c.files[r.file].path.clone();
+        if !mains.contains(file.as_str()) {
+            continue;
+        }
+        let (d, member, case) = match &r.target {
+            RefTarget::Decl(d) => (*d, None, false),
+            RefTarget::Member(d, m) => (*d, Some(m.clone()), false),
+            RefTarget::Case(d, m) => (*d, Some(m.clone()), true),
+        };
+        let found = FoundRef { file, at: r.at, whole: r.whole, decl: c.defs[d].full.clone(), member, case };
+        if !out.contains(&found) {
+            out.push(found);
+        }
+    }
+    (compiled, out)
 }
 
 /// Compiles core, the packs and the document (or a pack) into one IR module.

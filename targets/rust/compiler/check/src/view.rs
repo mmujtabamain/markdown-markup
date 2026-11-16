@@ -235,6 +235,7 @@ impl Checker {
         let file = cx.file;
         let DefKind::Widget { inputs, slots, events, .. } = self.defs[d].kind.clone() else { unreachable!() };
         let wname = self.defs[d].name.clone();
+        self.note_ref(file, call.name.span, call.span, crate::RefTarget::Decl(d));
         let mut parts = Parts::default();
         let mut given: HashSet<String> = HashSet::new();
         let mut named: Vec<(ast::Ident, ast::Expr)> = Vec::new();
@@ -262,6 +263,7 @@ impl Checker {
                         ast::NamedEntry::Input { name, value } => named.push((name.clone(), value.clone())),
                         ast::NamedEntry::Slot { name, block } => {
                             if slots.iter().any(|s| s.name == name.name) {
+                                self.note_ref(file, name.span, name.span.to(block.span), crate::RefTarget::Member(d, name.name.clone()));
                                 slot_blocks.push((name.name.clone(), block.clone(), name.span));
                             } else {
                                 self.error(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name));
@@ -274,6 +276,7 @@ impl Checker {
         let map: HashMap<String, Ty> = self.defs[d].generics.clone().iter().map(|g| (g.name.clone(), self.vars.fresh())).collect();
         let bounds = cx.bounds.clone();
         for (n, value) in &named {
+            self.note_ref(file, n.span, n.span.to(value.span), crate::RefTarget::Member(d, n.name.clone()));
             given.insert(n.name.clone());
             if let Some(input) = inputs.iter().find(|i| i.name == n.name) {
                 let it = input.ty.subst(&map);

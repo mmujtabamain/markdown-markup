@@ -121,3 +121,54 @@ fn surface_writes_what_a_version_provides_and_then_holds_the_pack_to_it() {
     assert_eq!(code, 1);
     assert!(err.contains("doesn't compile") || err.contains("already written"), "{}", err);
 }
+
+const KIT1_SURFACE: &str = "package kit@1;\n\nrecord stat {\n    label: text;\n    value: text;\n}\n\nenum state { DONE, LATE }\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\nextern widget badge(label: text, shadow: bool = false);\nextern widget sparkline(values: list<number>);\nextern widget stats(items: list<stat>);\n";
+const KIT2: &str = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides plot, badge, stat, state, stats;\n}\n\nrecord stat {\n    title: text;\n    value: text;\n    unit: text;\n}\n\nenum state { DONE, OVERDUE }\n\nextern widget plot(values: list<number>, tone: color = color.ACCENT);\nextern widget badge(label: text, size: size = size.M);\nextern widget stats(items: list<stat>);\n";
+const MIGRATION: &str = "package kit;\n\nmigration kit@1 to kit@2 {\n    widget chart {\n        rename(to = plot);\n        rename(input = color, to = tone);\n    }\n\n    widget badge {\n        drop(input = shadow, why = \"badges have no shadow\");\n        set(input = size, value = size.S, when = !given(size), why = \"kit@1's badges were small\");\n    }\n\n    widget sparkline {\n        drop(why = \"use plot\");\n    }\n\n    record stat {\n        rename(field = label, to = title);\n        add(field = unit, value = \"\", why = \"a stat names its unit\");\n    }\n\n    enum state {\n        rename(from = state.LATE, to = state.OVERDUE);\n    }\n}\n";
+const OLD_DOC: &str = "import kit;\n\n$state {\n    s: state = state.LATE;\n}\n@@@\n# Report\n\n@chart(values = [1, 2], color = color.OK);\n\n@badge(label = \"Beta\", shadow = true);\n\n@sparkline(values = [3]);\n\n@stats(items = [stat { label = \"Deploys\", value = \"42\" }]);\n";
+
+fn kit_tree(name: &str, config: &str) -> PathBuf {
+    scratch(name, &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", MIGRATION), ("mkp.toml", config), ("docs/report.mkp.md", OLD_DOC)])
+}
+
+#[test]
+fn migrate_moves_a_document_to_the_packs_version_and_then_leaves_it_alone() {
+    let dir = kit_tree("migrate", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("kit@1 → kit@2") && out.contains("2 deletions"), "{}", out);
+    assert!(out.contains("shadow = true: badges have no shadow") && out.contains("@sparkline(values = [3]) (kept as a comment): use plot"), "{}", out);
+    // no terminal and no --yes: nothing is written
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(out.contains("Pass --yes to write"), "{}", out);
+    assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(
+        std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(),
+        "import kit;\n\n$state {\n    s: state = state.OVERDUE;\n}\n@@@\n# Report\n\n@plot(values = [1, 2], tone = color.OK);\n\n@badge(label = \"Beta\", size = size.S);\n\n@// kit@2 dropped sparkline: use plot\n@// @sparkline(values = [3]);\n\n@stats(items = [stat { title = \"Deploys\", value = \"42\", unit = \"\" }]);\n"
+    );
+    assert!(std::fs::read_to_string(dir.join("mkp.toml")).unwrap().contains("[uses]\nkit = 2\n"));
+    assert_eq!(mkp(&["check", docs.join("report.mkp.md").to_str().unwrap()]).0, 0);
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--check"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("up to date"), "{}", out);
+}
+
+#[test]
+fn migrate_finds_the_version_a_document_compiles_against_and_writes_nothing_broken() {
+    // no [uses]: the document compiles against kit@1's surface, so it is written for kit@1
+    let dir = kit_tree("migrate-infer", "packs = [\"kit\"]\n");
+    let docs = dir.join("docs");
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("written for kit@1, as it compiles against that surface"), "{}", out);
+    // a statement it can't apply yet: the file is reported and left as it was
+    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), MIGRATION.replace("        rename(input = color, to = tone);\n", "        execute {\n            return @plot(values = values, tone = color);\n        }\n")).unwrap();
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("not written") && out.contains("`execute` in chart's migration isn't applied yet"), "{}", out);
+    assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+}

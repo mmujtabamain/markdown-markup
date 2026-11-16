@@ -533,6 +533,10 @@ impl Checker {
                 return (ir::Expr::Num("0".into()), Ty::Err);
             }
         };
+        self.note_ref(file, name.span, span, crate::RefTarget::Decl(d));
+        for i in inits.iter() {
+            self.note_ref(file, i.name.span, i.name.span.to(i.value.span), crate::RefTarget::Member(d, i.name.name.clone()));
+        }
         let args: Vec<Ty> = match expect.map(|t| self.vars.resolve(t)) {
             Some(Ty::Def(e, a)) if e == d => a,
             _ => self.defs[d].generics.clone().iter().map(|_| self.vars.fresh()).collect(),
@@ -594,6 +598,9 @@ impl Checker {
             }
         }
         let (x, t) = self.expr(cx, target, None);
+        if let Ty::Def(d, _) = self.vars.resolve(&t) {
+            self.note_ref(file, name.span, name.span, crate::RefTarget::Member(d, name.name.clone()));
+        }
         let fields = self.fields_in(cx, &t);
         match fields.into_iter().find(|(n, _)| *n == name.name) {
             Some((_, ft)) => {
@@ -649,6 +656,8 @@ impl Checker {
                 }
             }
             Some(TypeSym::Def(d)) => {
+                self.note_ref(file, tn.span, tn.span, crate::RefTarget::Decl(d));
+                self.note_ref(file, name.span, name.span, crate::RefTarget::Case(d, name.name.clone()));
                 let (cases, token) = match &self.defs[d].kind {
                     DefKind::Enum { cases } => (cases.clone(), false),
                     DefKind::Token { cases, .. } => (cases.clone(), true),
