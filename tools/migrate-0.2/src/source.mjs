@@ -185,7 +185,7 @@ export function sourceComments(text) {
 
 /** Whether a migration's output still has a comment's words (as a comment or in place). */
 export function kept(comment, outputs) {
-  const words = (t) => t.replace(/\/\/\s?|<!--|-->/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = (t) => t.replace(/@?\/\/\s?|<!--|-->/g, ' ').replace(/\s+/g, ' ').trim();
   const w = words(comment.text);
   return outputs.some((o) => words(o).includes(w));
 }

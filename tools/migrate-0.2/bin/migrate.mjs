@@ -2,7 +2,7 @@
 // migrate-0.2: an MKP 0.2 bundle (IR shape 1) to an MKP 0.3 document and the pack shims it imports.
 //
 //   node bin/migrate.mjs doc.ir.json [--source doc.mkp.md] [--out dir] [--name doc] [--pack-widgets]
-//                        [--html-comments header|inline]
+//                        [--html-comments prose|header|inline]
 //
 // --source reads the 0.2 document beside its IR for what the IR drops: HTML comments (to the header,
 // or with --html-comments inline in place, where 0.3 shows them as text), link reference definitions,
@@ -25,12 +25,12 @@ const opt = (name) => {
 const source = opt('--source');
 const out = opt('--out') ?? '.';
 const name = opt('--name');
-const htmlComments = opt('--html-comments') ?? 'header';
+const htmlComments = opt('--html-comments') ?? 'prose';
 const packWidgets = args.includes('--pack-widgets');
 if (packWidgets) args.splice(args.indexOf('--pack-widgets'), 1);
 const [input] = args;
 if (!input) {
-  console.error('usage: node bin/migrate.mjs doc.ir.json [--source doc.mkp.md] [--out dir] [--name doc] [--pack-widgets] [--html-comments header|inline]');
+  console.error('usage: node bin/migrate.mjs doc.ir.json [--source doc.mkp.md] [--out dir] [--name doc] [--pack-widgets] [--html-comments prose|header|inline]');
   process.exit(2);
 }
 const raw = JSON.parse(readFileSync(input, 'utf8'));

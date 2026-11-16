@@ -69,7 +69,7 @@ numbers:
 | `# comments` in a YAML block, on a line of their own or at a line's end | `//` comments on the argument or record item they described, in the call's argument list |
 | the order the YAML wrote its keys and fields in | the same order of arguments and record fields (canonical form allows any order) |
 | link reference definitions (`[p]: https://…`) | kept in place. 0.3 reads them, so `[text][p]` is now a link, where 0.2 showed it as text (noted as CHANGED) |
-| HTML comments in prose | in the header, each with where it stood. 0.3 prose shows `<!-- … -->` as text (spec page 1, "Raw HTML is shown as text"), so it can't stay in place unseen. `--html-comments inline` keeps it in place, visible |
+| HTML comments in prose | in place, as prose's own comment: one `@//` line per line of the comment (0.3 shows `<!-- … -->` as text, and warns). `--html-comments header` moves them to the header with where each stood; `--html-comments inline` keeps them visible |
 | front matter, its comments included | copied as written |
 
 A definition the migration can't write keeps its 0.2 source, quoted in comments above its stand-in.
@@ -138,7 +138,9 @@ test/                    node --test, on three real 0.2 bundles (one written to 
   and YAML comments. With it or without it, the spelling of list markers, and the per-use `summary:`
   of a document's own widgets: 0.3 builds such a widget's Markdown from the widget, so a per-use
   summary has no home.
-- **Comments in prose have no home in 0.3**: an HTML comment would show as text, so they move to the
-  header. Keeping them in place needs 0.3 prose to drop a `<!-- … -->` block, as 0.2 and GitHub do.
+- **Comments in prose**: 0.3 prose has its own comment, `@//` to the end of the line, and an HTML
+  comment there is shown as text with a warning, so the migration writes 0.2's HTML comments as
+  `@//` lines in place. Inside a Markdown quote or list item there is no comment, so one there moves
+  to the next block.
 - **`$`**: maths is paired again by 0.3's rule (no digit after the closing `$`), and the tool doesn't
   check whether 0.2's micromark paired it differently.

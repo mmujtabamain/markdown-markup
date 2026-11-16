@@ -363,6 +363,19 @@ describe("the playground in Chromium", { skip }, () => {
     await compiled("ok");
   });
 
+  test("a prose comment, @// to the end of the line, is coloured as a comment and draws nothing", async () => {
+    await tab.getByTestId("brand").click();
+    await compiled("ok");
+    await typeAtEnd("\n@// a note nobody sees\n");
+    await compiled("ok");
+    const lines = (await tab.evaluate(() => window.playground.source())).split("\n");
+    const at = lines.findIndex((l) => l.startsWith("@// a note")) + 1;
+    assert.ok(at > 0);
+    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), at), [{ text: "@// a note nobody sees", type: "comment.mkp" }]);
+    assert.doesNotMatch(await markdown().textContent(), /a note nobody sees/);
+    assert.doesNotMatch(await preview().textContent(), /a note nobody sees/);
+  });
+
   test("no errors in the browser's console", () => {
     assert.deepEqual(
       pageErrors.map((e) => e.message),

@@ -86,9 +86,13 @@ test('with the 0.2 source beside the IR, every comment and link definition is ke
   // YAML comments sit beside what they described, in the author's key order
   assert.match(r.doc, /\/\/ deploys first\n\s+stat \{ label = "Deploys", value = "42", change = "\+12%" \}, \/\/ up from 37/);
   assert.match(r.doc, /summary = "Two numbers from this week\.", \/\/ the alt text/);
-  // link definitions stay in the prose; HTML comments go to the header, with where they stood
+  // link definitions stay in the prose; HTML comments stay in place as `@//`, prose's comment
   assert.match(r.doc, /\n\[p\]: https:\/\/example\.com\/plan\n/);
-  assert.match(r.doc, /\/\/ line 54, at the end of the callout block:/);
+  assert.match(r.doc, /\n *@\/\/ /);
+  assert.doesNotMatch(r.doc, /<!--/);
+  // or go to the header, with where they stood, when asked
+  const header = migrate(bundle('comments.bundle.json'), { source, htmlComments: 'header' });
+  assert.match(header.doc, /\/\/ line 54, at the end of the callout block:/);
   // code comments come from the IR itself
   assert.match(r.doc, /\/\/ what the tile is for, above the definition\n\/\/@about One number in a box\./);
   const c = check03(r);

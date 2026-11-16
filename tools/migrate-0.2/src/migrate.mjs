@@ -16,7 +16,7 @@ import { resolve, typeOf, value, expr, scopeOf, child } from './values.mjs';
  * @param opts { source?: string (the 0.2 .mkp.md: its comments, link definitions, YAML key order and
  *                 front matter, which the IR drops, and the source of definitions that can't migrate),
  *               packWidgets?: boolean (write each pack widget with a view where it migrates, not as an extern),
- *               htmlComments?: 'header' | 'inline' (where an HTML comment in prose goes; 0.3 would show it as text) }
+ *               htmlComments?: 'prose' | 'header' | 'inline' (an HTML comment in prose: `@//` lines in place, the default; the header; or visible text) }
  * @returns { doc, packs: Map<packName, text>, notes, counts }
  */
 export function migrate(bundle, opts = {}) {

@@ -109,7 +109,8 @@ export class ProseWriter {
 
   /**
    * What the source held before line `before` and the IR dropped: a link reference definition goes
-   * back where it was (0.3 reads it), an HTML comment to the header (or in place, with htmlComments: 'inline').
+   * back where it was (0.3 reads it), an HTML comment in place as `@//` lines, prose's comment (or to the
+   * header with htmlComments: 'header', or as visible text with 'inline').
    */
   flush(before, next) {
     const out = [];
@@ -119,7 +120,9 @@ export class ProseWriter {
         out.push(P.md(it.text));
         this.m.lossy(it.line, `the link reference definition ${it.text.split(':')[0]} is kept: 0.3 reads it, so a link written [text]${it.text.split(':')[0]} is a link now, where 0.2 showed it as text`);
       } else if (this.m.opts.htmlComments === 'inline') out.push(P.md(it.text));
-      else this.moved.push({ ...it, before: next ? describe(next) : 'at the end' });
+      else if (this.m.opts.htmlComments === 'header') this.moved.push({ ...it, before: next ? describe(next) : 'at the end' });
+      // prose's own comment, in place: one `@//` line per line of the HTML comment
+      else out.push(P.md(proseComment(it.text)));
     }
     return out;
   }
@@ -268,4 +271,12 @@ function describe(n) {
   if (n.node === 'heading') return `before the heading "${words(n.props?.text?.text)}"`;
   if (n.node === 'paragraph') return `before "${words(n.props?.text?.text)}"`;
   return `before the ${n.node} block`;
+}
+
+/** An HTML comment as prose's own: its words, one `@//` line per line, without the markers. */
+export function proseComment(html) {
+  const lines = html.replace(/^\s*<!--[ \t]?/, '').replace(/[ \t]?-->\s*$/, '').split('\n');
+  while (lines.length > 1 && !lines[0].trim()) lines.shift();
+  while (lines.length > 1 && !lines[lines.length - 1].trim()) lines.pop();
+  return lines.map((l) => `@// ${l.trim()}`.trimEnd()).join('\n');
 }

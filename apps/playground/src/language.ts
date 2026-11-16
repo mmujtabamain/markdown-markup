@@ -79,6 +79,8 @@ function tokenizer(start: "code" | "prose"): Monarch {
         [/^\s*~~~.*$/, { token: "code", next: "@fenceTildes" }],
         [/^\s*\$\$\s*$/, { token: "code", next: "@maths" }],
         [/^#{1,6}(?=\s|$)/, { token: "heading", next: "@heading" }],
+        // prose's comment: `@//` to the end of the line (`\@//` is text)
+        [/^ {0,3}@\/\/.*$/, "comment"],
         // a control line, a call (its arguments may run over lines) and a block's closing line
         [/^ {0,3}@(?:mut\s+)?(?:if|for|match|slot)\b/, { token: "call.control", next: "@proseCode" }],
         [/^ {0,3}@[a-z][a-z0-9_]*/, { token: "call", next: "@proseCode" }],
