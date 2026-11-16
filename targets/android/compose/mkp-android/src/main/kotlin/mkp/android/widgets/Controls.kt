@@ -266,12 +266,12 @@ fun MkpPress(p: Props, ctx: WidgetContext) {
             }
         }
         "PLAIN" -> TextButton(click, root.semantics { this.selected = false }, enabled = enabled, colors = tone?.let { ButtonDefaults.textButtonColors(contentColor = it) } ?: ButtonDefaults.textButtonColors()) { inside() }
-        else -> Button(
-            click,
-            root.semantics { this.selected = false },
-            enabled = enabled,
-            colors = tone?.let { ButtonDefaults.buttonColors(containerColor = it) } ?: ButtonDefaults.buttonColors(),
-        ) { inside() }
+        // a press is an outlined button, as @mkp/dom's is a bordered one; one with a tone is filled with it
+        else -> if (tone != null) {
+            Button(click, root.semantics { this.selected = false }, enabled = enabled, colors = ButtonDefaults.buttonColors(containerColor = tone)) { inside() }
+        } else {
+            OutlinedButton(click, root.semantics { this.selected = false }, enabled = enabled) { inside() }
+        }
     }
 }
 
@@ -349,7 +349,7 @@ fun MkpSlider(p: Props, ctx: WidgetContext) {
         if (value == null || v.compareTo(value) != 0) ctx.write("value", V.num(v))
     }
     Column(Modifier.site(ctx, "slider").fillMaxWidth()) {
-        Text(label, Modifier.testTag("slider.label"), style = MaterialTheme.typography.labelLarge)
+        Text(label, Modifier.testTag("slider.label"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Slider(
                 value = (value ?: ends.low).toFloat(),

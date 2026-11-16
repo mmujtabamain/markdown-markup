@@ -59,6 +59,11 @@ page.markdown()                                        // the page as Markdown, 
 - **core.gfx** draws on a `Canvas` per shape, in the surface's units (y up); each shape has a box at its bounds for
   its semantics, clicks and hover. `shade` paints at most 4,096 samples from its shader, worked out in Rust off the
   main thread, and scales them up.
+- **Maths** is laid out from its TeX by the same reader as @mkp/dom's (`Math.kt`): on a line of its own, as
+  boxes on a Canvas (scripts smaller and raised or lowered, a big operator's limits above and below it, a fraction
+  stacked over its bar, a root under its sign); in a sentence, as an `AnnotatedString` (scripts with a baseline
+  shift, a fraction as a/b, bracketed only where it would read wrongly). TeX it doesn't know shows as itself.
+- **Rows** (`flex` along X, `row`, wrapping or not) centre, start or end their children across as `align` says.
 - **A closed overlay's body** stays composed, unmeasured and hidden from accessibility, as @mkp/dom keeps it on
   the page; open, it is a `Popup` (popover, menu, tooltip) or a `Dialog`.
 
@@ -71,10 +76,10 @@ other parts have `testTag`s as @mkp/dom's `data-part`s (targets/ts/dom/README.md
 |---|---|---|
 | paragraph, heading | `paragraph`, `heading` | Rich text as an `AnnotatedString`; a heading is `heading()` |
 | bullets, item | `bullets`; `item`, `item.check`, `item.body` | `collectionInfo`; the marker is hidden; the task box is a disabled checkbox named Done or Not done |
-| quote, code, math | `quote`; `code`, `code.text`; `math` | Code scrolls and is selectable; maths is named by its TeX |
-| table, footnote, divider | `table`, `table.grid`, `table.header`, `table.cell`; `footnote`, `footnote.mark`, `footnote.body`; `divider` | A footnote is named "Footnote <mark>" |
+| quote, code, math | `quote`; `code`, `code.text`; `math` | Code scrolls sideways and is selectable; maths is named by its TeX |
+| table, footnote, divider | `table`, `table.grid`, `table.header`, `table.cell`; `footnote`, `footnote.mark`, `footnote.body`; `divider` | A table is as @mkp/dom draws it: each column as wide as its widest cell, a line under each row, and it scrolls when wider than the page; a footnote is named "Footnote <mark>" |
 | label, image, icon | `label`; `image`; `icon` | An image is named by its alt; an icon with a label is an image, else decoration |
-| press | `press`, `press.label`, `press.content`, `press.indicator` | BUTTON a `Button`, PLAIN a `TextButton`, TOGGLE and OPTION a tonal or outlined button with `selected`, TAB a `Tab`, SWITCH, CHECK and RADIO a row with role switch, checkbox or radio button; with content, its label is its name |
+| press | `press`, `press.label`, `press.content`, `press.indicator` | BUTTON an `OutlinedButton` (a `Button` filled with its tone when it has one), PLAIN a `TextButton`, TOGGLE and OPTION a tonal or outlined button with `selected`, TAB a `Tab`, SWITCH, CHECK and RADIO a row with role switch, checkbox or radio button; with content, its label is its name |
 | field | `field`, `field.label`, `field.input` | An `OutlinedTextField`; Enter (its IME action) submits a one-line field, Ctrl+Enter a longer one |
 | slider | `slider`, `slider.label`, `slider.input`, `slider.value` | A Material `Slider` named by its label; arrows, Page Up/Down, Home and End move it exactly |
 | overlay | `overlay`, `overlay.anchor`, `overlay.body` | The anchor is a button unless it holds a control; the body is a pane named by its label; Escape closes it |
@@ -104,6 +109,14 @@ cd targets/android/compose
 The library's build stops with a message when `native/` is missing (step 1). The sample builds its pages' IR with
 `targets/rust/target/release/mkp` (`cargo build --release` in targets/rust) as part of its build:
 `examples/pages/shop.mkp.md` and `sample/pages/tour.mkp.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
+
+## Looking at it
+
+`./gradlew :sample:testDebugUnitTest -Pmkp.render=<folder>` draws the sample under Robolectric's native graphics
+(Skia, real fonts), as an Infinix X6516 shows it (360 by 806 dp at density 2), light and dark: each tab's first
+screen with the app around it, and each page whole. The same pages drawn by @mkp/dom in Chromium at 360 px wide
+are what to hold them against. Compose's `captureToImage()` waits for a frame Robolectric's paused looper never
+draws, so `RenderTest` draws the window's views on a canvas itself.
 
 ## The checks
 
@@ -178,5 +191,5 @@ killed for memory, so omnicui runs it on its own.
 - Inline views in rich text (`\{@icon(…)}` in a sentence) aren't drawn: the native runtime has no `drawView` yet.
 - Pictures inside rich text show their alt text; `image` loads http, https and data: pictures itself, with no cache
   beyond the composition.
-- Maths is one line of Unicode (scripts, fractions, roots, Greek, operators), named by its TeX; Compose has no
-  maths layout.
+- Maths in a sentence is one line of text: a fraction there is a/b, not stacked; on a line of its own it is laid
+  out, but without TeX's fine spacing rules or a maths font (it uses the system serif).

@@ -138,7 +138,7 @@ fun MkpFlex(p: Props, ctx: WidgetContext) {
             else -> Alignment.Top
         }
         if (p.flag("wrap")) {
-            FlowRow(m, horizontalArrangement = h, verticalArrangement = Arrangement.spacedBy(gap)) {
+            FlowRow(m, horizontalArrangement = h, verticalArrangement = Arrangement.spacedBy(gap), itemVerticalAlignment = v) {
                 CompositionLocalProvider(LocalFlexItem provides FlexItem({ w -> Modifier.weight(w) }, true)) { ctx.Children(kids) }
             }
         } else {

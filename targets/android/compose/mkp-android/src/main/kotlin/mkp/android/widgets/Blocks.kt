@@ -27,6 +27,17 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import mkp.android.MathBlock
+import mkp.android.readTex
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -37,6 +48,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +65,6 @@ import mkp.android.items
 import mkp.android.richText
 import mkp.android.site
 import mkp.android.str
-import mkp.android.texText
 import mkp.android.templateText
 import mkp.android.field
 import mkp.android.ffi.Val
@@ -116,25 +127,31 @@ fun MkpBullets(p: Props, ctx: WidgetContext) {
 fun MkpItem(p: Props, ctx: WidgetContext) {
     val done = p["done"].inner() as? Val.Bool
     val marker = LocalMarker.current ?: "•"
+    // the box or the marker sits on the body's first line: as tall as one line of it, centred there
+    val line = with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.lineHeight.toDp() }
     Row(Modifier.site(ctx, "item").fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        if (done != null) {
-            // a task box shows whether it is done; a press elsewhere changes it
-            Checkbox(
-                checked = done.b,
-                onCheckedChange = null,
-                enabled = false,
-                modifier = Modifier.testTag("item.check").semantics {
-                    contentDescription = if (done.b) "Done" else "Not done"
-                    role = Role.Checkbox
-                    toggleableState = ToggleableState(done.b)
-                    disabled()
-                },
-            )
-        } else {
-            // the marker is the list's, not the item's words: a screen reader hears the list's count
-            Text(marker, Modifier.widthIn(min = 24.dp).padding(end = 6.dp).clearAndSetSemantics { }, textAlign = TextAlign.End, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.widthIn(min = 16.dp).height(line).padding(end = 8.dp), contentAlignment = Alignment.CenterEnd) {
+            if (done != null) {
+                // a task box shows whether it is done; a press elsewhere changes it
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Checkbox(
+                        checked = done.b,
+                        onCheckedChange = null,
+                        enabled = false,
+                        modifier = Modifier.testTag("item.check").size(20.dp).semantics {
+                            contentDescription = if (done.b) "Done" else "Not done"
+                            role = Role.Checkbox
+                            toggleableState = ToggleableState(done.b)
+                            disabled()
+                        },
+                    )
+                }
+            } else {
+                // the marker is the list's, not the item's words: a screen reader hears the list's count
+                Text(marker, Modifier.clearAndSetSemantics { }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+            }
         }
-        ctx.Flow(p.slot("body"), Modifier.testTag("item.body").weight(1f).padding(top = if (done != null) 12.dp else 0.dp))
+        ctx.Flow(p.slot("body"), Modifier.testTag("item.body").weight(1f))
     }
 }
 
@@ -155,11 +172,12 @@ fun MkpCode(p: Props, ctx: WidgetContext) {
         Modifier.site(ctx, "code").fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
             .horizontalScroll(rememberScrollState())
-            .padding(12.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
             .semantics { if (lang.isNotEmpty()) stateDescription = lang },
     ) {
         SelectionContainer {
-            Text(p.text("src"), Modifier.testTag("code.text"), style = codeStyle(MaterialTheme.typography), softWrap = false)
+            // one line break at the end ends the last line: it isn't an empty line of its own
+            Text(p.text("src").removeSuffix("\n").removeSuffix("\r"), Modifier.testTag("code.text"), style = codeStyle(MaterialTheme.typography), softWrap = false)
         }
     }
 }
@@ -167,8 +185,18 @@ fun MkpCode(p: Props, ctx: WidgetContext) {
 @Composable
 fun MkpMath(p: Props, ctx: WidgetContext) {
     val tex = templateText(p["tex"].field("tex"))
-    Box(Modifier.site(ctx, "math").fillMaxWidth().semantics { contentDescription = tex }, contentAlignment = Alignment.Center) {
-        Text(texText(tex), style = MaterialTheme.typography.titleLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Serif))
+    val tree = remember(tex) { readTex(tex.trim()) }
+    Box(
+        // named by its TeX, as @mkp/dom's is; its text is what the drawing says, on one line
+        Modifier.site(ctx, "math").fillMaxWidth().horizontalScroll(rememberScrollState()).semantics {
+            contentDescription = tex
+            text = androidx.compose.ui.text.AnnotatedString(mkp.android.texText(tex))
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        // a little larger than the text around it, as @mkp/dom draws it (1.1em)
+        if (tree != null) MathBlock(tree, LocalContentColor.current, MaterialTheme.typography.bodyLarge.fontSize * 1.1f, Modifier.clearAndSetSemantics { })
+        else Text(tex, style = codeStyle(MaterialTheme.typography))
     }
 }
 
@@ -179,29 +207,51 @@ fun MkpTable(p: Props, ctx: WidgetContext) {
     val align = p["align"].items().map { it.case() }
     val cols = maxOf(head.size, rows.maxOfOrNull { it.size } ?: 0)
     val line = MaterialTheme.colorScheme.outlineVariant
+    val density = LocalDensity.current
+    // where each row ends, worked out by the layout, for the lines under them
+    val ends = remember { mutableStateListOf<Float>() }
+    // as @mkp/dom draws it: each column as wide as its widest cell, a line under the header
+    // (thicker) and under each row; a table wider than the page scrolls
     Box(Modifier.site(ctx, "table").fillMaxWidth().horizontalScroll(rememberScrollState())) {
-        Column(
-            Modifier.testTag("table.grid").border(1.dp, line, RoundedCornerShape(8.dp)).semantics { collectionInfo = CollectionInfo(rows.size + 1, cols) },
-        ) {
-            @Composable
-            fun row(cells: List<Val>, header: Boolean) {
-                Row(Modifier.height(IntrinsicSize.Min)) {
+        Layout(
+            content = {
+                for ((r, cells) in (listOf(head) + rows).withIndex()) {
                     for (k in 0 until cols) {
-                        val v = cells.getOrNull(k)
                         Text(
-                            rich(v),
-                            Modifier.testTag(if (header) "table.header" else "table.cell").widthIn(min = 96.dp).fillMaxHeight().padding(horizontal = 12.dp, vertical = 8.dp),
+                            rich(cells.getOrNull(k)),
+                            Modifier.testTag(if (r == 0) "table.header" else "table.cell").padding(horizontal = 12.dp, vertical = 6.dp),
                             textAlign = textAlign(align.getOrNull(k)) ?: TextAlign.Start,
-                            fontWeight = if (header) FontWeight.SemiBold else null,
-                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (r == 0) FontWeight.SemiBold else null,
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                 }
-            }
-            row(head, true)
-            for (r in rows) {
-                HorizontalDivider(color = line)
-                row(r, false)
+            },
+            modifier = Modifier.testTag("table.grid").semantics { collectionInfo = CollectionInfo(rows.size + 1, cols) }.drawBehind {
+                val thin = 1.dp.toPx()
+                ends.forEachIndexed { r, y ->
+                    val w = if (r == 0) 2 * thin else thin
+                    drawLine(line, Offset(0f, y - w / 2), Offset(size.width, y - w / 2), w)
+                }
+            },
+        ) { ms, _ ->
+            val n = maxOf(1, cols)
+            val widths = IntArray(n)
+            ms.forEachIndexed { i, m -> widths[i % n] = maxOf(widths[i % n], m.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)) }
+            val placed = ms.mapIndexed { i, m -> m.measure(androidx.compose.ui.unit.Constraints.fixedWidth(widths[i % n])) }
+            val heights = placed.chunked(n).map { r -> r.maxOf { it.height } }
+            val rule = with(density) { 2.dp.roundToPx() }
+            var y = 0
+            val tops = heights.map { h -> y.also { y += h + rule } }
+            val total = y
+            ends.clear()
+            ends.addAll(tops.zip(heights).map { (t, h) -> (t + h + rule).toFloat() })
+            layout(widths.sum(), total) {
+                placed.forEachIndexed { i, pl ->
+                    val r = i / n
+                    val x = (0 until i % n).sumOf { widths[it] }
+                    pl.place(x, tops[r])
+                }
             }
         }
     }

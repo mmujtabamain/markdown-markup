@@ -90,9 +90,10 @@ fun textStyle(size: String?, weight: String?, font: String?): TextStyle {
 
 /** A heading's style by level, from the Material 3 type scale. */
 fun headingStyle(t: Typography, level: Int): TextStyle = when (level) {
+    // Material 3's type scale at @mkp/dom's sizes: 28 (30), 22, 18, 16, 14 (14.4) and 14 (13.6)
     1 -> t.headlineMedium
-    2 -> t.headlineSmall
-    3 -> t.titleLarge
+    2 -> t.titleLarge
+    3 -> t.titleMedium.copy(fontSize = 18.sp, lineHeight = 24.sp)
     4 -> t.titleMedium
     5 -> t.titleSmall
     else -> t.labelLarge

@@ -1,6 +1,10 @@
 package mkp.android.widgets
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -106,7 +110,10 @@ fun MkpPlane(p: Props, ctx: WidgetContext) {
         }
         val wPx = (wDp * density).toFloat()
         val hPx = (hDp * density).toFloat()
-        var view = Modifier.testTag("plane.view").size(wDp.dp, hDp.dp).clipToBounds()
+        // framed as @mkp/dom frames it: a line around the view, with the card's corners
+        var view = Modifier.testTag("plane.view").size(wDp.dp, hDp.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
             .onSizeChanged { sizes.plane(ctx.path, it.width / density.toDouble()) }
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false

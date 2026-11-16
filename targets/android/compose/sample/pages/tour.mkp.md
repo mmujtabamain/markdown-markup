@@ -34,14 +34,14 @@ widget details() {
 //@about A plane with two notes, which the reader pans and zooms.
 widget board() {
     view {
-        @plane(label = "Notes on a board", bounds = region { from = point { x = -400, y = -300 }, to = point { x = 400, y = 300 } }, center = $state.center, zoom = $state.zoom, zoom_range = 0.5..3, aspect = 1.5) {
+        @plane(label = "Notes on a board", bounds = region { from = point { x = -300, y = -200 }, to = point { x = 300, y = 200 } }, center = $state.center, zoom = $state.zoom, zoom_range = 0.5..3, aspect = 1.5) {
             items {
-                @spot(at = point { x = -120, y = 60 }, box = $state.note) {
+                @spot(at = point { x = -50, y = 40 }, box = $state.note) {
                     @column(pad = space.M, stroke = color.LINE, radius = radius.CARD) {
                         @label(value = "Pinch to zoom, drag to pan");
                     }
                 }
-                @spot(at = point { x = 140, y = -80 }, anchor = anchor.SW) {
+                @spot(at = point { x = 10, y = -60 }, anchor = anchor.SW) {
                     @label(value = "Another note", tone = color.MUTED);
                 }
             }

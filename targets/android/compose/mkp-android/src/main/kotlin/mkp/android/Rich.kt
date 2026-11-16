@@ -53,7 +53,7 @@ fun richText(v: Val?, linkColor: Color, codeBackground: Color): AnnotatedString 
                 when (part.case()) {
                     "TEXT" -> append(part.field("value").str())
                     "CODE" -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeBackground)) { append(part.field("value").str()) }
-                    "MATH" -> withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontFamily = FontFamily.Serif)) { append(texText(templateText(part.field("tex").field("tex")))) }
+                    "MATH" -> appendTex(templateText(part.field("tex").field("tex")))
                     "IMAGE" -> append(part.field("alt").str())
                     "NOTE" -> withStyle(SpanStyle(baselineShift = BaselineShift.Superscript, fontSize = 0.75.em, color = linkColor)) { append(part.field("mark").str()) }
                     "BREAK" -> append("\n")

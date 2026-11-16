@@ -52,6 +52,8 @@ dependencies {
 tasks.withType<Test>().configureEach {
     systemProperty("jna.library.path", rootProject.file("mkp-android/native/host/linux-x86-64").absolutePath)
     maxHeapSize = "2g"
+    // `-Pmkp.render=<folder>`: RenderTest draws both pages there, as PNGs (README: Looking at it)
+    (project.findProperty("mkp.render") as String?)?.let { systemProperty("mkp.render", file(it).absolutePath) }
 }
 
 // The pages' IR, from their MKP source, by the compiler: `mkp build <page> -o <name>.ir.json`.

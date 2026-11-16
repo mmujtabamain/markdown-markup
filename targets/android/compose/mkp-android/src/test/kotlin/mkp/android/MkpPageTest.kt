@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.runAndroidComposeUiTest
 import java.io.File
 import mkp.android.check.FixedMeasure
@@ -25,11 +27,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /** MkpPage drawing real pages, built by the mkp binary: the shop example and the sample's tour.
  * The widgets are driven through their semantics, as TalkBack or a test would. */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE) // real text measuring (Skia), so widths are a phone's
 @Config(sdk = [36], qualifiers = "w400dp-h2000dp-port-notnight-mdpi")
 class MkpPageTest {
     private val repo = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }.first { File(it, "targets/checks").isDirectory }
@@ -114,6 +118,21 @@ class MkpPageTest {
         waitForIdle()
         assertEquals("{\"text\":\"Ada\"}", state(page, "name"))
         onNodeWithText("Hello, Ada.").assertExists()
+    }
+
+    @Test
+    fun aLongCodeLineScrollsAndEndsWithoutAnEmptyLine() = runAndroidComposeUiTest<ComponentActivity> {
+        val page = CompiledPage.fromJson(tour, PageOptions(zone = UtcZone))
+        setContent { MkpPage(page, measure = FixedMeasure) }
+        waitForIdle()
+        val code = onNode(SemanticsMatcher.expectValue(SemanticsProperties.TestTag, "code.text"), useUnmergedTree = true)
+        // the source's last line break ends its line: no empty line under it
+        assertEquals(1, code.fetchSemanticsNode().config[SemanticsProperties.Text].first().text.lines().size)
+        val before = code.fetchSemanticsNode().boundsInRoot.left
+        // a finger across the block, which is as wide as the page
+        onNode(SemanticsMatcher.expectValue(SemanticsProperties.TestTag, "code"), useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitForIdle()
+        assertTrue("it scrolls sideways", code.fetchSemanticsNode().boundsInRoot.left < before)
     }
 
     @Test

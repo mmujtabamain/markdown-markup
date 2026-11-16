@@ -70,11 +70,24 @@ class ValuesTest {
     }
 
     @Test
-    fun texIsDrawnAsUnicodeOrAsItself() {
-        assertEquals("e^(iπ)+1=0", texText("e^{i\\pi} + 1 = 0").replace(" ", ""))
-        assertEquals("x²", texText("x^2"))
-        assertEquals("√x", texText("\\sqrt{x}"))
-        assertEquals("(n+1)⁄2", texText("\\frac{n+1}{2}"))
+    fun texIsReadAsTheWebReadsIt() {
+        val sum = readTex("\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}") as Mx.Row
+        // a big operator takes its limits above and below; the fraction stays a fraction
+        assertTrue((sum.kids[0] as Mx.Scripts).limits)
+        assertTrue(sum.kids.last() is Mx.Frac)
+        assertNull(readTex("\\unknowncommand{x}"))
+        assertNull(readTex("x^"))
+    }
+
+    @Test
+    fun inlineTexIsTextWithScripts() {
+        fun plain(tex: String) = texText(tex).replace("\u2009", "")
+        assertEquals("eiπ+1=0", plain("e^{i\\pi} + 1 = 0"))
+        assertEquals("x2", plain("x^2"))
+        assertEquals("√x", plain("\\sqrt{x}"))
+        // a fraction is a/b, with brackets only where a part would read wrongly without them
+        assertEquals("n(n+1)/2", plain("\\frac{n(n+1)}{2}"))
+        assertEquals("(n+1)/2", plain("\\frac{n+1}{2}"))
         assertEquals("\\unknowncommand{x}", texText("\\unknowncommand{x}"))
     }
 }

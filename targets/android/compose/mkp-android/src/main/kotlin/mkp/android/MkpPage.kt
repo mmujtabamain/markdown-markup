@@ -2,6 +2,7 @@ package mkp.android
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -140,10 +141,16 @@ class WidgetContext internal constructor(val page: CompiledPage, internal val sc
         key(n.key) { DrawNode(n) }
     }
 
-    /** Blocks as a flow: each after the one before, with the page's space between them. */
+    /** Blocks as a flow: each after the one before, with the page's space between them (12 dp, as
+     * @mkp/dom's 0.75em), and more before a heading of level 1 to 3 that isn't first (20 dp). */
     @Composable
     fun Flow(nodes: List<Node>, modifier: Modifier = Modifier) {
-        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) { Children(nodes) }
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            nodes.forEachIndexed { k, n ->
+                val big = k > 0 && n.widget == "core/heading" && (n.props["level"].num() ?: 1.0) <= 3.0
+                if (big) Box(Modifier.padding(top = 8.dp)) { Child(n) } else Child(n)
+            }
+        }
     }
 }
 
