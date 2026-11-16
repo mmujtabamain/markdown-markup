@@ -141,6 +141,9 @@ pub fn block_json(b: &Block) -> Json {
 
 /// Text with every character Markdown or MKP's prose would read written with a backslash.
 fn escape(s: &str, line_start: bool) -> String {
+    if UNESCAPED.with(|u| u.get()) {
+        return s.to_string();
+    }
     let mut out = String::new();
     let chars: Vec<char> = s.chars().collect();
     let mut at_start = line_start;
@@ -211,9 +214,17 @@ pub fn write_inline(runs: &[Inline]) -> String {
     out
 }
 
+/// Each line of `text` behind a prefix: `first` on the first line, `rest` on the others. Lines
+/// are split at `\n` only, the empty one after a final `\n` dropped, and it always ends with a
+/// line break, as @mkp/runtime writes it: the live page's Markdown is the same text on every
+/// target.
 fn indent(text: &str, first: &str, rest: &str) -> String {
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    if lines.last() == Some(&"") {
+        lines.pop();
+    }
     let mut out = String::new();
-    for (k, line) in text.lines().enumerate() {
+    for (k, line) in lines.iter().enumerate() {
         let prefix = if k == 0 { first } else { rest };
         if line.is_empty() {
             out.push_str(prefix.trim_end());
@@ -221,8 +232,11 @@ fn indent(text: &str, first: &str, rest: &str) -> String {
             out.push_str(prefix);
             out.push_str(line);
         }
-        out.push('\n');
+        if k + 1 < lines.len() {
+            out.push('\n');
+        }
     }
+    out.push('\n');
     out
 }
 
@@ -284,6 +298,21 @@ fn write_block(b: &Block) -> String {
 
 fn write_blocks_inner(blocks: &[Block]) -> String {
     blocks.iter().map(write_block).collect::<Vec<_>>().join("\n")
+}
+
+thread_local! {
+    /// Set only by [`write_unescaped`].
+    static UNESCAPED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The page as Markdown text with its values written as they are, so Markdown's own characters in
+/// them change the page. Wrong on purpose: the test targets' `unescaped-markdown` defect, which a
+/// check has to catch.
+pub fn write_unescaped(blocks: &[Block]) -> String {
+    UNESCAPED.with(|u| u.set(true));
+    let out = write(blocks);
+    UNESCAPED.with(|u| u.set(false));
+    out
 }
 
 /// The page as Markdown text: its blocks, then its footnotes at the end.

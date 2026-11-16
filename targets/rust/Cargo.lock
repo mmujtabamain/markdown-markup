@@ -334,6 +334,7 @@ name = "mkp-cli"
 version = "0.3.0"
 dependencies = [
  "mkp-check",
+ "mkp-eval",
  "mkp-ir",
  "mkp-lower",
  "mkp-markdown",
@@ -376,6 +377,18 @@ version = "0.3.0"
 dependencies = [
  "mkp-eval",
  "mkp-ir",
+ "serde_json",
+]
+
+[[package]]
+name = "mkp-runtime"
+version = "0.3.0"
+dependencies = [
+ "mkp-check",
+ "mkp-eval",
+ "mkp-ir",
+ "mkp-lower",
+ "mkp-markdown",
  "serde_json",
 ]
 

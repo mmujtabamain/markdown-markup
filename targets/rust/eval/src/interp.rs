@@ -82,18 +82,22 @@ pub enum Outer {
 }
 
 /// Everything outside a fn: a widget instance, the document, the app, the target.
+///
+/// A host is called back from inside the machine and may call the machine again (a runtime reads
+/// a `mut` input by working out its caller's place), so its methods take `&self`: one with
+/// state of its own keeps it in a `RefCell`, borrowed only while it isn't calling back.
 pub trait Host {
-    fn read(&mut self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> R<Value>;
-    fn write(&mut self, m: &mut Machine, what: &Outer, owner: Option<u64>, value: Value) -> R<()>;
+    fn read(&self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> R<Value>;
+    fn write(&self, m: &mut Machine, what: &Outer, owner: Option<u64>, value: Value) -> R<()>;
     /// An extern fn of a pack or of the app. `None` when nobody supplies it.
-    fn call_extern(&mut self, _m: &mut Machine, _name: &str, _args: &[Value]) -> R<Option<Option<Value>>> {
+    fn call_extern(&self, _m: &mut Machine, _name: &str, _args: &[Value]) -> R<Option<Option<Value>>> {
         Ok(None)
     }
-    fn invoke(&mut self, _m: &mut Machine, event: &str, _args: Vec<Value>, _owner: Option<u64>) -> R<()> {
+    fn invoke(&self, _m: &mut Machine, event: &str, _args: Vec<Value>, _owner: Option<u64>) -> R<()> {
         Err(Failure::new(FailKind::NotConstant, format!("`invoke {}` runs only when the page runs", event)))
     }
     /// The value a token case stands for, from the target's tokens.
-    fn token_value(&mut self, m: &mut Machine, case: &Case) -> R<Value> {
+    fn token_value(&self, m: &mut Machine, case: &Case) -> R<Value> {
         m.default_token_value(case)
     }
 }
@@ -102,7 +106,7 @@ pub trait Host {
 pub struct Constants;
 
 impl Host for Constants {
-    fn read(&mut self, m: &mut Machine, what: &Outer, _owner: Option<u64>) -> R<Value> {
+    fn read(&self, m: &mut Machine, what: &Outer, _owner: Option<u64>) -> R<Value> {
         if let Outer::Let(name) = what {
             if let Some(v) = m.prog.lets.get(&**name) {
                 return Ok(v.clone());
@@ -111,9 +115,17 @@ impl Host for Constants {
         Err(Failure::new(FailKind::NotConstant, format!("{:?} is only known when the page runs", what)))
     }
 
-    fn write(&mut self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> R<()> {
+    fn write(&self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> R<()> {
         Err(Failure::new(FailKind::NotConstant, format!("{:?} can't change while a constant is worked out", what)))
     }
+}
+
+/// One row of a `for` in a view: its locals, and who it is across redraws.
+#[derive(Clone, Debug)]
+pub struct Row {
+    /// The item's identity for a list, the number for a range.
+    pub key: String,
+    pub bindings: Vec<(Rc<str>, Binding)>,
 }
 
 /// A local, or a reference to a place for a `mut` parameter, a `mut for` or an `if (mut …)`.
@@ -222,14 +234,14 @@ pub struct Machine<'p> {
     pub depth: u32,
     pub next_id: u64,
     frames: Vec<Frame>,
-    pub host: Option<Box<dyn Host + 'p>>,
+    host: Rc<dyn Host + 'p>,
     /// The message of the last rule a `try` turned into `none`, for a literal's error.
     pub last_rule: Option<String>,
 }
 
 impl<'p> Machine<'p> {
     pub fn new(prog: &'p Program, host: Box<dyn Host + 'p>) -> Machine<'p> {
-        Machine { prog, steps: 0, depth: 0, next_id: 0, frames: vec![Frame { vars: Vec::new(), owner: None }], host: Some(host), last_rule: None }
+        Machine { prog, steps: 0, depth: 0, next_id: 0, frames: vec![Frame { vars: Vec::new(), owner: None }], host: Rc::from(host), last_rule: None }
     }
 
     /// Starts counting steps again, for one redraw, one event or one constant.
@@ -260,11 +272,10 @@ impl<'p> Machine<'p> {
         Ok(v)
     }
 
-    fn with_host<T>(&mut self, f: impl FnOnce(&mut dyn Host, &mut Machine<'p>) -> R<T>) -> R<T> {
-        let mut host = self.host.take().expect("the host is in use");
-        let out = f(&mut *host, self);
-        self.host = Some(host);
-        out
+    fn with_host<T>(&mut self, f: impl FnOnce(&dyn Host, &mut Machine<'p>) -> R<T>) -> R<T> {
+        // the host may call back into the machine, and through it into the host again
+        let host = self.host.clone();
+        f(&*host, self)
     }
 
     fn frame(&self) -> &Frame {
@@ -283,6 +294,87 @@ impl<'p> Machine<'p> {
         let out = self.eval(e);
         self.frames.pop();
         out
+    }
+
+    // ---- for a runtime: a view's nodes read with the locals around them, values or references
+    // (a `mut for` row's item, an `if (mut …)`), each run as the fn statements run
+
+    fn with_frame<T>(&mut self, bindings: &[(Rc<str>, Binding)], owner: Option<u64>, f: impl FnOnce(&mut Self) -> R<T>) -> R<T> {
+        self.frames.push(Frame { vars: bindings.to_vec(), owner });
+        let out = f(self);
+        self.frames.pop();
+        out
+    }
+
+    /// [`Machine::eval_in`], with locals that may be references.
+    pub fn eval_with(&mut self, bindings: &[(Rc<str>, Binding)], owner: Option<u64>, e: &Expr) -> R<Value> {
+        self.with_frame(bindings, owner, |m| m.eval(e))
+    }
+
+    /// Writes `value` where an IR place says, its locals and positions read with these bindings.
+    pub fn set_place(&mut self, bindings: &[(Rc<str>, Binding)], owner: Option<u64>, place: &ir::Place, value: Value) -> R<()> {
+        self.with_frame(bindings, owner, |m| {
+            let p = m.place(place)?;
+            m.write_place(&p, value)
+        })
+    }
+
+    /// Opens an opt as `if (let …)` and `if (mut …)` do: the binding of its name, or `None` when
+    /// there is nothing inside.
+    pub fn open_cond(&mut self, bindings: &[(Rc<str>, Binding)], owner: Option<u64>, open: &ir::CondOpen) -> R<Option<Binding>> {
+        self.with_frame(bindings, owner, |m| {
+            if !m.open(open)? {
+                return Ok(None);
+            }
+            Ok(m.frame().vars.last().map(|(_, b)| b.clone()))
+        })
+    }
+
+    /// The rows a `for` walks, as the statement walks them (a step each): each row's locals (its
+    /// position, when it has one, then its name: the item, or for `mut for` a reference to the
+    /// real item) and its key: the item's identity for a list, the number for a range.
+    pub fn loop_rows(&mut self, bindings: &[(Rc<str>, Binding)], owner: Option<u64>, over: &Expr, name: &str, position: Option<&str>, mutable: bool) -> R<Vec<Row>> {
+        self.with_frame(bindings, owner, |m| {
+            let mut rows = Vec::new();
+            let mut row = |m: &mut Self, k: usize, key: String, b: Binding| -> R<()> {
+                m.step()?;
+                let mut out = Vec::new();
+                if let Some(p) = position {
+                    out.push((Rc::from(p), Binding::Value(Value::Num(Num::int(k as i64)))));
+                }
+                out.push((Rc::from(name), b));
+                rows.push(Row { key, bindings: out });
+                Ok(())
+            };
+            if mutable {
+                let list_place = m.place_of(over)?;
+                let ids: Vec<u64> = match m.read_place(&list_place)? {
+                    Value::List(l) => l.items.iter().map(|i| i.id).collect(),
+                    _ => return Err(Failure::ir("`mut for` over something that isn't a list")),
+                };
+                for (k, id) in ids.into_iter().enumerate() {
+                    let mut item = list_place.clone();
+                    item.path.push(Step::ItemOpt(id));
+                    row(m, k, id.to_string(), Binding::Ref(item))?;
+                }
+                return Ok(rows);
+            }
+            match m.eval(over)? {
+                Value::List(l) => {
+                    for (k, i) in l.items.iter().enumerate() {
+                        row(m, k, i.id.to_string(), Binding::Value(i.value.clone()))?;
+                    }
+                }
+                Value::Range(r) => {
+                    for (k, v) in m.walk_range(&r)?.into_iter().enumerate() {
+                        let key = v.as_num().map_or_else(|| k.to_string(), |n| n.show());
+                        row(m, k, key, Binding::Value(v))?;
+                    }
+                }
+                _ => return Err(Failure::ir("`for` over something that isn't a list or a range")),
+            }
+            Ok(rows)
+        })
     }
 
     fn bind(&mut self, name: &str, b: Binding) {
@@ -477,62 +569,66 @@ impl<'p> Machine<'p> {
     fn cond(&mut self, c: &Cond) -> R<bool> {
         match c {
             Cond::Cond(e) => self.eval(e)?.as_bool().ok_or_else(|| Failure::ir("a condition that isn't a bool")),
-            Cond::Open(o) => {
-                if o.mutable {
-                    let mut target = self.place_of(&o.opt)?;
-                    // `xs[i]` is an opt: none past the end, and otherwise the item itself, by its identity
-                    if let Some(Step::Index(i)) = target.path.last() {
-                        let i = *i;
-                        let mut list = target.clone();
-                        list.path.pop();
-                        let id = match self.read_place(&list)? {
-                            Value::List(l) => usize::try_from(i).ok().and_then(|i| l.items.get(i)).map(|item| item.id),
-                            _ => None,
-                        };
-                        let Some(id) = id else { return Ok(false) };
-                        target.path.pop();
-                        target.path.push(Step::Item(id));
-                    }
-                    let (inside, now) = match target.path.last() {
-                        Some(Step::ItemOpt(id)) => {
-                            let mut p = target.clone();
-                            let id = *id;
-                            p.path.pop();
-                            p.path.push(Step::Item(id));
-                            (p, self.read_place(&target)?)
-                        }
-                        _ => {
-                            let mut p = target.clone();
-                            p.path.push(Step::Inside);
-                            (p, self.read_place(&target)?)
-                        }
-                    };
-                    match now {
-                        Value::Opt(Some(_)) => {
-                            self.bind(&o.name, Binding::Ref(inside));
-                            Ok(true)
-                        }
-                        Value::Opt(None) => Ok(false),
-                        // a plain value where an opt is wanted is always there
-                        _ => {
-                            let mut p = inside;
-                            p.path.pop();
-                            self.bind(&o.name, Binding::Ref(p));
-                            Ok(true)
-                        }
-                    }
-                } else {
-                    match self.eval(&o.opt)? {
-                        Value::Opt(Some(v)) => {
-                            self.bind(&o.name, Binding::Value((*v).clone()));
-                            Ok(true)
-                        }
-                        Value::Opt(None) => Ok(false),
-                        v => {
-                            self.bind(&o.name, Binding::Value(v));
-                            Ok(true)
-                        }
-                    }
+            Cond::Open(o) => self.open(o),
+        }
+    }
+
+    /// `if (let x = opt)` and `if (mut x = opt)`: whether there is something inside, bound to its
+    /// name when there is.
+    fn open(&mut self, o: &ir::CondOpen) -> R<bool> {
+        if o.mutable {
+            let mut target = self.place_of(&o.opt)?;
+            // `xs[i]` is an opt: none past the end, and otherwise the item itself, by its identity
+            if let Some(Step::Index(i)) = target.path.last() {
+                let i = *i;
+                let mut list = target.clone();
+                list.path.pop();
+                let id = match self.read_place(&list)? {
+                    Value::List(l) => usize::try_from(i).ok().and_then(|i| l.items.get(i)).map(|item| item.id),
+                    _ => None,
+                };
+                let Some(id) = id else { return Ok(false) };
+                target.path.pop();
+                target.path.push(Step::Item(id));
+            }
+            let (inside, now) = match target.path.last() {
+                Some(Step::ItemOpt(id)) => {
+                    let mut p = target.clone();
+                    let id = *id;
+                    p.path.pop();
+                    p.path.push(Step::Item(id));
+                    (p, self.read_place(&target)?)
+                }
+                _ => {
+                    let mut p = target.clone();
+                    p.path.push(Step::Inside);
+                    (p, self.read_place(&target)?)
+                }
+            };
+            match now {
+                Value::Opt(Some(_)) => {
+                    self.bind(&o.name, Binding::Ref(inside));
+                    Ok(true)
+                }
+                Value::Opt(None) => Ok(false),
+                // a plain value where an opt is wanted is always there
+                _ => {
+                    let mut p = inside;
+                    p.path.pop();
+                    self.bind(&o.name, Binding::Ref(p));
+                    Ok(true)
+                }
+            }
+        } else {
+            match self.eval(&o.opt)? {
+                Value::Opt(Some(v)) => {
+                    self.bind(&o.name, Binding::Value((*v).clone()));
+                    Ok(true)
+                }
+                Value::Opt(None) => Ok(false),
+                v => {
+                    self.bind(&o.name, Binding::Value(v));
+                    Ok(true)
                 }
             }
         }

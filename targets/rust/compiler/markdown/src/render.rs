@@ -53,7 +53,7 @@ const SLOT: &str = "#slot";
 struct Page(Rc<RefCell<Shared>>);
 
 impl Host for Page {
-    fn read(&mut self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
+    fn read(&self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
         let mut sh = self.0.borrow_mut();
         let missing = |what: &Outer| mkp_eval::Failure::new(FailKind::Ir, format!("{:?} isn't known here", what));
         match what {
@@ -82,7 +82,7 @@ impl Host for Page {
         }
     }
 
-    fn write(&mut self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> Result<(), mkp_eval::Failure> {
+    fn write(&self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> Result<(), mkp_eval::Failure> {
         Err(mkp_eval::Failure::new(FailKind::NotConstant, format!("writing the page's Markdown changes nothing, so {:?} isn't written", what)))
     }
 }

@@ -1,0 +1,23 @@
+[package]
+name = "mkp-runtime"
+description = "MKP's native runtime: runs the IR the mkp compiler writes, with transactions, $state, bindings, item identity, failures, layout and Markdown out. No drawing: the egui and Android targets draw its tree."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mkp_runtime"
+
+[[bin]]
+name = "mkp_runtime_check"
+path = "src/bin/mkp_runtime_check/main.rs"
+
+[dependencies]
+mkp-ir = { path = "../compiler/ir" }
+mkp-eval = { path = "../eval" }
+mkp-markdown = { path = "../compiler/markdown" }
+serde_json.workspace = true
+
+[dev-dependencies]
+mkp-check = { path = "../compiler/check" }
+mkp-lower = { path = "../compiler/lower" }

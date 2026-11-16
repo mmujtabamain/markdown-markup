@@ -529,13 +529,13 @@ impl Checker {
     pub(crate) fn settle_widget_requires(&mut self, prog: &Program) {
         struct Inputs(HashMap<String, Value>);
         impl mkp_eval::Host for Inputs {
-            fn read(&mut self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
+            fn read(&self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
                 match what {
                     mkp_eval::interp::Outer::Input(n) => self.0.get(&**n).cloned().ok_or_else(|| mkp_eval::Failure::new(mkp_eval::FailKind::NotConstant, "an input with no value")),
                     _ => Constants.read(m, what, owner),
                 }
             }
-            fn write(&mut self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>, v: Value) -> Result<(), mkp_eval::Failure> {
+            fn write(&self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>, v: Value) -> Result<(), mkp_eval::Failure> {
                 Constants.write(m, what, owner, v)
             }
         }
