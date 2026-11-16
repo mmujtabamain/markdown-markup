@@ -1010,7 +1010,14 @@ export class Page {
       // an extern widget held as a view value
       return this.drawExtern({ name, site: path.split("/").pop()!, props: args, slots, events, writes: {}, levels, fallback: [] } as ir.NodeExtern, { ...env, path: path.split("/").slice(0, -1).join("/") });
     }
-    const reused = this.reuse(name, path, key, args, slots, events, env);
+    // a failure working out whether it can be reused is left to drawing it, so it fails there,
+    // as it would with no reuse at all
+    let reused: Drawn[] | undefined;
+    try {
+      reused = this.reuse(name, path, key, args, slots, events, env);
+    } catch {
+      reused = undefined;
+    }
     if (reused) return reused;
     const frame: Frame = { deps: new Map(), nested: [], own: [], missed: [], ext: [], dirty: false };
     this.frames.push(frame);
