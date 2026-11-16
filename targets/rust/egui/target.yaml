@@ -1,0 +1,13 @@
+# targets/rust/egui/target.yaml: mkp-egui, our egui widgets on the native runtime, drawn headless
+# through egui_kittest and read through AccessKit. It runs the prebuilt release binary, so that a
+# check run doesn't build anything; build it first:
+#   cd targets/rust && cargo build --release -p mkp-egui
+name: egui
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/moment.local]
+cannot:
+  core/math: "egui has no maths renderer; the formula shows as its TeX"
+tokens: core                            # mkp-egui draws core's own tokens
+check_adapter: exec ../target/release/mkp_check_adapter

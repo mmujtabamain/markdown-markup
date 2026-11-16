@@ -1,0 +1,53 @@
+[package]
+name = "mkp-egui"
+description = "MKP's desktop target: the native runtime drawn with egui. Our default egui widgets for every core extern widget, MkpPage::new(page), and the check adapters that drive it headless through egui_kittest and AccessKit."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mkp_egui"
+
+# The check adapters: `mkp target check egui` (target.yaml) and omnicui's widget contracts
+# (targets/checks/targets/egui/target.yaml). Both drive egui headless through egui_kittest.
+[[bin]]
+name = "mkp_check_adapter"
+path = "src/bin/mkp_check_adapter.rs"
+required-features = ["check"]
+
+[[bin]]
+name = "mkp_omnicui_adapter"
+path = "src/bin/mkp_omnicui_adapter.rs"
+required-features = ["check"]
+
+# A window showing a page: `cargo run -p mkp-egui --example page --features app -- page.ir.json`.
+[[example]]
+name = "page"
+required-features = ["app"]
+
+[features]
+default = ["fonts", "check"]
+# egui's own fonts, which our widgets' text is drawn in (egui bundles none by default); an app
+# that installs fonts of its own turns it off.
+fonts = ["egui/default_fonts", "egui/monochrome_emoji_fonts"]
+# The headless harness and the adapters; an app that only draws pages turns it off.
+check = ["dep:egui_kittest", "dep:mkp-check", "dep:mkp-lower"]
+# The example's window.
+app = ["dep:eframe"]
+
+[dependencies]
+mkp-runtime = { path = "../runtime" }
+mkp-eval = { path = "../eval" }
+mkp-ir = { path = "../compiler/ir" }
+serde_json.workspace = true
+egui = "0.37"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+egui_kittest = { version = "0.37", optional = true }
+# the omnicui adapter compiles each contract's page itself, as the mkp binary does
+mkp-check = { path = "../compiler/check", optional = true }
+mkp-lower = { path = "../compiler/lower", optional = true }
+eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
+
+[dev-dependencies]
+mkp-check = { path = "../compiler/check" }
+mkp-lower = { path = "../compiler/lower" }

@@ -8,6 +8,7 @@ members = [
     "compiler/markdown",
     "eval",
     "runtime",
+    "egui",
     "schemagen",
     "cli",
 ]

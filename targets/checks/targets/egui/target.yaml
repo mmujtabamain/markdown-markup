@@ -1,0 +1,18 @@
+# targets/checks/targets/egui/target.yaml: omnicui's target for MKP's widget contracts
+# (targets/checks/contracts/), on the desktop: mkp-runtime and mkp-egui's widgets, drawn headless
+# through egui_kittest and read through AccessKit.
+#
+# This is an omnicui target, not an MKP one: it has no `check_adapter:`, so `mkp target check`
+# skips it (MKP's own egui target is targets/rust/egui/target.yaml).
+#
+# omnicui runs both commands with /bin/sh -c in this folder. Both run the prebuilt release binary,
+# so a check run builds nothing; build it first: cd targets/rust && cargo build --release -p mkp-egui
+# `stubs:` keeps every contract (JSON, from standard input) where the adapter reads each one's prop
+# defaults; `adapter:` is the JSON-RPC adapter, which lives with the egui target in targets/rust/egui.
+name: egui
+language: rust
+stubs: ../../../rust/target/release/mkp_omnicui_adapter --write-contracts ../../.omnicui/egui-contracts.json
+adapter: exec ../../../rust/target/release/mkp_omnicui_adapter --contracts ../../.omnicui/egui-contracts.json
+platform: [desktop]
+stepTimeout: 30s
+startTimeout: 120s
