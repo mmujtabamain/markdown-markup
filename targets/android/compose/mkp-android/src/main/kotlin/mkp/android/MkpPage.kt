@@ -126,6 +126,11 @@ class WidgetContext internal constructor(val page: CompiledPage, internal val sc
         page.change { it.write(path, input, value) }
     }
 
+    /** [write], off the main thread: a drag's write (see [FrameWriter]). */
+    suspend fun writeAway(input: String, value: Val) {
+        page.writeAway(path, input, value)
+    }
+
     /** Whether the caller set this event to a handler that does something: what makes it clickable. */
     fun listens(event: String): Boolean = event in node.listens
 
@@ -145,16 +150,24 @@ class WidgetContext internal constructor(val page: CompiledPage, internal val sc
      * @mkp/dom's 0.75em), and more before a heading of level 1 to 3 that isn't first (20 dp). */
     @Composable
     fun Flow(nodes: List<Node>, modifier: Modifier = Modifier) {
-        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            nodes.forEachIndexed { k, n ->
-                val big = k > 0 && n.widget == "core/heading" && (n.props["level"].num() ?: 1.0) <= 3.0
-                if (big) Box(Modifier.padding(top = 8.dp)) { Child(n) } else Child(n)
-            }
+        Column(modifier, verticalArrangement = FLOW) {
+            nodes.forEachIndexed { k, n -> key(n.key) { Block(n, k > 0) } }
         }
+    }
+
+    /** One block of a flow: skipped whole when its node is the one it was. */
+    @Composable
+    private fun Block(n: Node, after: Boolean) {
+        val big = after && n.widget == "core/heading" && (n.props["level"].num() ?: 1.0) <= 3.0
+        if (big) Box(HEADING_GAP) { DrawNode(n) } else DrawNode(n)
     }
 }
 
 internal val TRACE = System.getenv("MKP_ANDROID_TRACE") != null
+
+/** The space between blocks, and the more before a heading of level 1 to 3. */
+private val FLOW = Arrangement.spacedBy(12.dp)
+private val HEADING_GAP = Modifier.padding(top = 8.dp)
 
 internal class MkpScope(val page: CompiledPage, val widgets: Map<String, Widget>, val sizes: SpotSizes)
 
@@ -167,10 +180,21 @@ var SemanticsPropertyReceiver.mkpSite by MkpSite
 /** A widget's root: its site, and its part name for omnicui's contracts (`slider`, `press`). */
 fun Modifier.site(ctx: WidgetContext, part: String): Modifier = this.semantics { mkpSite = ctx.path }.testTag(part)
 
+/**
+ * A page from an IR file in the app's assets, read and mounted off the main thread: `null` until
+ * it is, so the app shows something of its own meanwhile.
+ */
+@Composable
+fun rememberAssetPage(name: String, options: PageOptions = PageOptions()): CompiledPage? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.produceState<CompiledPage?>(null, name, options) { value = CompiledPage.loadAsset(context, name, options) }.value
+}
+
 /** One drawn widget: its composable from the registry, or a notice when nobody supplies it. */
 @Composable
 fun DrawNode(node: Node) {
     val scope = LocalMkp.current ?: error("DrawNode outside MkpPage")
+    scope.page.stats.draws++
     val ctx = remember(scope) { WidgetContext(scope.page, scope, node) }
     ctx.node = node
     DisposableEffect(scope.page, node.path) {
@@ -200,8 +224,9 @@ fun MkpNotice(props: Props, ctx: WidgetContext) = Notice(props.text("message"), 
 /** Each spot's child's size as Compose measured it, in dp, and each plane's width: the plane's
  * layout reads them. [version] moves when one changes, so the layout runs again. */
 class SpotSizes {
-    internal val spots = HashMap<String, Extent>()
-    internal val planes = HashMap<String, Double>()
+    // written on the main thread as Compose measures, read by a layout on a background one
+    internal val spots = java.util.concurrent.ConcurrentHashMap<String, Extent>()
+    internal val planes = java.util.concurrent.ConcurrentHashMap<String, Double>()
     var version by mutableIntStateOf(0)
         internal set
 
@@ -261,25 +286,51 @@ fun MkpPage(
         "LIGHT" -> false
         else -> isSystemInDarkTheme()
     }
-    MaterialTheme(colorScheme = colors(dark)) {
+    // one scheme for as long as the mode lasts: a new one at each redraw would be a new value of
+    // MaterialTheme's static composition local, and every widget on the page would compose again
+    val scheme = remember(dark, colors) { colors(dark) }
+    MaterialTheme(colorScheme = scheme) {
         CompositionLocalProvider(
             LocalMkp provides scope,
             LocalMkpDark provides dark,
             LocalContentColor provides MaterialTheme.colorScheme.onSurface,
             LocalTextStyle provides MaterialTheme.typography.bodyLarge,
         ) {
-            val ctx = remember(scope) { WidgetContext(page, scope, Node("", "", "#page", emptyMap(), emptyList(), emptyList(), emptyList(), emptyList())) }
-            ctx.Flow(page.tree, modifier.background(MaterialTheme.colorScheme.surface))
+            PageBody(page, scope, modifier.background(MaterialTheme.colorScheme.surface))
         }
     }
-    // the plane's layout, after each change from outside, and whenever a spot's measured size changes
+    PlaneLayout(page, sizes, measure)
+}
+
+/** The page's blocks: the one place the tree is read, so a redraw composes only this and the
+ * widgets that changed (each unchanged widget is the node it was, and is skipped). */
+@Composable
+private fun PageBody(page: CompiledPage, scope: MkpScope, modifier: Modifier) {
+    val ctx = remember(scope) { WidgetContext(page, scope, Node("", "", "#page", emptyMap(), emptyList(), emptyList(), emptyList(), emptyList(), false)) }
+    ctx.Flow(page.tree, modifier)
+}
+
+/**
+ * The planes' layout, after each change from outside the layout that touched a plane or a spot (or
+ * anything in one), and whenever a spot's measured size changes: a change elsewhere on the page
+ * can't move a box, and laying out again for it would be a cost on every step of a drag.
+ */
+@Composable
+private fun PlaneLayout(page: CompiledPage, sizes: SpotSizes, measure: Measure?) {
     val changes = page.changes
-    val version = sizes.version
+    // a measure of the app's own (the checks' fixed sizes) doesn't follow Compose's
+    val version = if (measure == null) sizes.version else 0
+    val laid = remember(page) { intArrayOf(-1) }
     LaunchedEffect(page, changes, version, measure) {
         if (!page.hasPlanes) return@LaunchedEffect
+        if (!page.planesTouched && laid[0] == version) return@LaunchedEffect
         // a spot not measured yet is measured on this frame: then `version` moves and this runs
         // again; one that never is (nothing draws it) doesn't hold the layout up past the frame
         if (measure == null && !sizes.ready(page.tree)) withFrameNanos { }
+        // a layout that moves a box marks the planes touched again (its redraw sends the spot), so
+        // the next change lays them out again, as one that didn't settle needs
+        page.planesTouched = false
+        laid[0] = version
         page.layout(measure ?: sizes.measure)
     }
 }

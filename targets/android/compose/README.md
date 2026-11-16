@@ -110,6 +110,38 @@ The library's build stops with a message when `native/` is missing (step 1). The
 `targets/rust/target/release/mkp` (`cargo build --release` in targets/rust) as part of its build:
 `examples/pages/shop.mkp.md` and `sample/pages/tour.mkp.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 
+## Keeping it fast
+
+A budget phone is 5 to 10 times slower than a desktop, and the runtime redraws the whole page on
+every change. So a change's work is kept small, and a drag's is kept off the frames:
+
+- **A redraw sends only what changed.** `NativePage.treeUpdate(since)` sends each widget that is as
+  it was (and everything in it) as a stub, and `CompiledPage` keeps the very node it holds for it,
+  so only changed nodes cross from Rust, and Compose (with strong skipping) composes only those:
+  about 6 widgets a step of a drag on the tour, not all 52.
+- **A drag writes at most once a frame, and off the main thread.** `FrameWriter` keeps the latest
+  move, writes it on the next frame through `CompiledPage.writeAway` (the runtime's work on a
+  background thread, the tree read back on the main one), and never has two writes in flight. The
+  handle, the slider's thumb and the plane follow the finger meanwhile; where a drag ends is always
+  written. Keys and accessibility actions write at once, as before.
+- **The planes are laid out only when a plane or a spot (or anything in one) changed**, or a spot's
+  measured size did; a layout that moved a box lays out again on the next change, as one that
+  doesn't settle needs (the checks hold this to the test target's behaviour).
+- **One colour scheme for as long as the mode lasts**: a new one at each redraw was a new value of
+  MaterialTheme's static composition local, and composed the whole page again.
+- **Pages load off the main thread**: `CompiledPage.loadAsset` (or `rememberAssetPage` in a
+  composable) parses the IR and mounts the page on a background thread; an IR with all of core in
+  it takes 40 to 120 ms to mount here, a fraction of a second on a phone. The sample shows a
+  progress indicator meanwhile.
+- **Tests wait for the off-main work**: `MkpWork.idle` is false while a load, a drag's write or a
+  pending frame write runs; every test and both check adapters register it as an idling resource.
+
+`DragPerfTest` measures the tour's three drags (the handle, the plane, the slider) on a phone-sized
+window, each step's main-thread processor time split from the runtime's off-main time, against a
+control step, and holds them to a budget and to what the fixes do (only changed widgets composed
+and sent, one write a step). It writes `mkp-android/build/drag-perf.txt`. `-Pmkp.jfr=<file>` records
+a Java Flight Recording of the tests, and `-Pmkp.perf.only=handle|plane|slider` runs one drag.
+
 ## Looking at it
 
 `./gradlew :sample:testDebugUnitTest -Pmkp.render=<folder>` draws the sample under Robolectric's native graphics

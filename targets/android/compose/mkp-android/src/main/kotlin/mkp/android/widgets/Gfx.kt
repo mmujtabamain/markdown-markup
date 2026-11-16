@@ -5,6 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.LocalIndication
@@ -52,6 +54,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -88,6 +92,9 @@ import mkp.android.length
 import mkp.android.num
 import mkp.android.point
 import mkp.android.region
+import mkp.android.rememberFrameWriter
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import mkp.android.site
 import mkp.android.str
 import mkp.android.token
@@ -361,10 +368,22 @@ fun MkpHandle(p: Props, ctx: WidgetContext) {
     val hit = 28 * density
     val source = remember { MutableInteractionSource() }
     val focus = remember { FocusRequester() }
-    Box(Modifier.fillMaxSize()) {
+    // a drag shows the handle under the finger at once, and writes at most once a frame
+    val writer = rememberFrameWriter()
+    val drag = remember { mutableStateOf<Offset?>(null) }
+    val now = rememberUpdatedState(Offset(cx, cy))
+    // the surface's and the handle's own places on the screen, so the finger is found on the
+    // surface however far the handle has moved under it
+    val places = remember { arrayOfNulls<LayoutCoordinates>(2) }
+    Box(Modifier.fillMaxSize().onPlaced { places[0] = it }) {
         Box(
-            Modifier.offset { IntOffset((cx - hit / 2).roundToInt(), (cy - hit / 2).roundToInt()) }
+            Modifier.offset {
+                // read while placing, so a drag moves it without composing anything again
+                val c = drag.value ?: now.value
+                IntOffset((c.x - hit / 2).roundToInt(), (c.y - hit / 2).roundToInt())
+            }
                 .size(28.dp)
+                .onPlaced { places[1] = it }
                 .site(ctx, "handle")
                 .focusRequester(focus)
                 .graphicsLayer { alpha = o }
@@ -388,13 +407,34 @@ fun MkpHandle(p: Props, ctx: WidgetContext) {
                 }
                 .focusable(interactionSource = source)
                 .pointerInput(space) {
-                    // the handle's drag, which takes the focus as it starts, as a press does on the web
-                    detectDragGestures(onDragStart = { focus.requestFocus() }) { change, _ ->
-                        change.consume()
-                        // where the finger is, on the surface: the handle's corner plus where in it
-                        val px = cx - hit / 2 + change.position.x
-                        val py = cy - hit / 2 + change.position.y
-                        write(space.unit(px, py))
+                    // the handle's drag: past the touch slop it takes the focus (as a press does on
+                    // the web) and follows the finger; every move, and the lift too, is where the
+                    // finger is, so the last write is always where the drag ended
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var dragging = false
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                            if (!dragging && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                dragging = true
+                                focus.requestFocus()
+                            }
+                            if (dragging) {
+                                change.consume()
+                                // the finger on the surface, from where the handle is now
+                                val surface = places[0]
+                                val box = places[1]
+                                if (surface != null && box != null && surface.isAttached && box.isAttached) {
+                                    val finger = surface.localPositionOf(box, change.position)
+                                    val k = space.keep(space.unit(finger.x, finger.y))
+                                    drag.value = Offset(space.x(k.x), space.y(k.y))
+                                    writer.submit { ctx.writeAway("at", pointOf(k, placesFor(space.unitsPerDp()))) }
+                                }
+                            }
+                            if (!change.pressed) break
+                        }
+                        // the handle stays under the finger until where it ended is written
+                        if (dragging) writer.finish { drag.value = null }
                     }
                 },
             contentAlignment = Alignment.Center,

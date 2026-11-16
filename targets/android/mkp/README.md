@@ -10,7 +10,7 @@ in `targets/rust` (`"../android/mkp"` in its `Cargo.toml`), so it shares its `Ca
 | Rust | Kotlin | What it is |
 |---|---|---|
 | `NativePage` | `class NativePage(irJson, PageInit, Zone)` | A running page: one handle, behind a lock. Every change is one call, one transaction |
-| `Node`, `Slot` | `data class Node(path, key, widget, props: Map<String, Val>, slots, listens, events, writes)` | A drawn extern widget, props worked out; `key` is who it is across redraws |
+| `Node`, `Slot` | `data class Node(path, key, widget, props: Map<String, Val>, slots, listens, events, writes, same)` | A drawn extern widget, props worked out; `key` is who it is across redraws |
 | `Val`, `Field` | `sealed class Val` (`Num`, `Text`, `Bool`, `Duration`, `Items`, `Record`, `Case`, `Opt`, `Range`, `Fn`, `View`) | A value. Numbers are exact decimals as text. A token case carries the build's value for it in `token`, so a composable never calls back while it draws |
 | `Measure` | `interface Measure { spot(Node): Extent; planeWidth(Node): Double }` | The plane's layout asks the target for sizes, in dp |
 | `Zone` | `interface Zone { offsetMinutes(utcMinutes: Long): Int }` | Where the reader is, for `core/moment.local` |
@@ -18,7 +18,9 @@ in `targets/rust` (`"../android/mkp"` in its `Cargo.toml`), so it shares its `Ca
 
 `NativePage`'s methods:
 
-- **Reading:** `tree()`, `node(path)`, `revision()` (moves on every draw), `changes()` (moves on every change from
+- **Reading:** `tree()`, `treeUpdate(since)` (the tree with each widget that is as it was at
+  revision `since`, and everything in it, as a stub with `same: true`: only what changed crosses),
+  `timings()` (time in the runtime and in turning the tree into nodes, for measuring), `node(path)`, `revision()` (moves on every draw), `changes()` (moves on every change from
   outside the layout), `markdown()`, `missing()`, `state(name)`, `takeCalls()` (the app's extern fns MKP called),
   `takeErrors()`, `sliderEnds(path)` (a slider's ends and step, exactly, as @mkp/dom works them out, aliases of its
   variable's type included), `shade(path, cols, rows)` (a shade's pixels, as ARGB, from its shader).
@@ -78,10 +80,12 @@ CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK/aarch64-linux-android26-clang \
 ## Tests
 
 ```sh
-cd targets/rust && cargo test --release -p mkp-android     # 10 tests: tests/bindings.rs
+cd targets/rust && cargo test --release -p mkp-android     # 12 tests: tests/bindings.rs
+MKP_TIME_IR=/tmp/tour.ir.json cargo test --release -p mkp-android -- mount_time --nocapture   # how long a page takes to mount
 ```
 
-They compile pages in-process (core once, on a compiler thread) and check the interface as Kotlin uses it: the tree
+They compile pages in-process (core once, on a compiler thread) and check the interface as Kotlin uses it: a tree
+update sending only what changed, the tree
 as `Val`s with token values, events and writes as one change each, a refused write observed, the check
 protocol's JSON in and out, a slider's ends, `moment.local` through a zone, a shade's pixels, the plane laid out
 from a `Measure`, and supplies.

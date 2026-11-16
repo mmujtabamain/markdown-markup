@@ -18,6 +18,9 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.runAndroidComposeUiTest
 import java.io.File
 import mkp.android.check.FixedMeasure
+import mkp.android.check.settle
+import mkp.android.check.waitsForMkp
+import androidx.compose.ui.geometry.Offset
 import mkp.android.ffi.Val
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -56,9 +59,10 @@ class MkpPageTest {
 
     @Test
     fun theTourDrawsEveryWidgetItHas() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(tour, PageOptions(zone = UtcZone))
         setContent { MkpPage(page) }
-        waitForIdle()
+        settle()
         assertEquals(emptyList<String>(), page.missing)
         val tree = JSONObject(page.native.observeJson(null)).getJSONObject("tree")
         val widgets = tree.keys().asSequence().map { tree.getJSONObject(it).getString("widget") }.toSet()
@@ -75,11 +79,12 @@ class MkpPageTest {
 
     @Test
     fun aPressRunsItsHandlerAndTheAppHearsItsCall() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(shop, PageOptions(zone = UtcZone))
         setContent { MkpPage(page) }
-        waitForIdle()
+        settle()
         onNodeWithText("Check out").performClick()
-        waitForIdle()
+        settle()
         assertEquals("{\"num\":\"1\"}", state(page, "orders"))
         val calls = page.takeCalls()
         assertEquals(1, calls.size)
@@ -87,22 +92,23 @@ class MkpPageTest {
         assertEquals(listOf<Val>(Val.Num("36"), Val.Num("3")), calls[0].args)
         // a row's own press takes its item out
         onNodeWithText("Remove Honey").performClick()
-        waitForIdle()
+        settle()
         assertTrue(page.markdown().contains("2 items for 18 €"))
     }
 
     @Test
     fun aSliderWritesExactlyAndARefusedWriteLeavesTheValue() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(shop, PageOptions(zone = UtcZone))
         setContent { MkpPage(page) }
-        waitForIdle()
+        settle()
         val slider = onNode(hasContentDescription("Budget") and SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress), useUnmergedTree = true)
         slider.performSemanticsAction(SemanticsActions.SetProgress) { it(45f) }
-        waitForIdle()
+        settle()
         assertEquals("{\"num\":\"45\"}", state(page, "budget"))
         // the basket costs 36: a budget of 30 breaks `$state`'s rule, and is undone
         slider.performSemanticsAction(SemanticsActions.SetProgress) { it(30f) }
-        waitForIdle()
+        settle()
         assertEquals("{\"num\":\"45\"}", state(page, "budget"))
         val refused = JSONObject(page.native.observeJson(null)).getJSONObject("outcome").getJSONArray("refused")
         assertEquals("the basket fits the budget", refused.getJSONObject(0).getString("rule"))
@@ -111,50 +117,110 @@ class MkpPageTest {
 
     @Test
     fun aFieldWritesWhatIsTyped() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(tour, PageOptions(zone = UtcZone))
         setContent { MkpPage(page, measure = FixedMeasure) }
-        waitForIdle()
+        settle()
         onNode(hasSetTextAction()).performTextReplacement("Ada")
-        waitForIdle()
+        settle()
         assertEquals("{\"text\":\"Ada\"}", state(page, "name"))
         onNodeWithText("Hello, Ada.").assertExists()
     }
 
     @Test
     fun aLongCodeLineScrollsAndEndsWithoutAnEmptyLine() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(tour, PageOptions(zone = UtcZone))
         setContent { MkpPage(page, measure = FixedMeasure) }
-        waitForIdle()
+        settle()
         val code = onNode(SemanticsMatcher.expectValue(SemanticsProperties.TestTag, "code.text"), useUnmergedTree = true)
         // the source's last line break ends its line: no empty line under it
         assertEquals(1, code.fetchSemanticsNode().config[SemanticsProperties.Text].first().text.lines().size)
         val before = code.fetchSemanticsNode().boundsInRoot.left
         // a finger across the block, which is as wide as the page
         onNode(SemanticsMatcher.expectValue(SemanticsProperties.TestTag, "code"), useUnmergedTree = true).performTouchInput { swipeLeft() }
-        waitForIdle()
+        settle()
         assertTrue("it scrolls sideways", code.fetchSemanticsNode().boundsInRoot.left < before)
     }
 
     @Test
+    fun aDragThatEndsWhileAWriteIsInFlightWritesWhereItEnded() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
+        val page = CompiledPage.fromJson(tour, PageOptions(zone = UtcZone))
+        val writes = mutableListOf<Val>()
+        page.watcher = object : PageWatcher {
+            override fun write(path: String, input: String, value: Val) {
+                if (input == "at") writes += value
+            }
+        }
+        setContent { MkpPage(page, measure = FixedMeasure) }
+        settle()
+        fun bounds(tag: String) = onNode(SemanticsMatcher.expectValue(SemanticsProperties.TestTag, tag), useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+        val surface = bounds("canvas.surface")
+        val start = bounds("handle").center
+        val view = activity!!.window.decorView
+        var time = android.os.SystemClock.uptimeMillis()
+        val downTime = time
+        fun send(action: Int, at: Offset) {
+            time += 8
+            val e = android.view.MotionEvent.obtain(downTime, time, action, at.x, at.y, 0)
+            runOnUiThread { view.dispatchTouchEvent(e) }
+            e.recycle()
+        }
+        // the page held by a long call on another thread (a big shade's pixels): a write started
+        // now waits for it, in flight, while the finger goes on and lifts
+        val shade = page.tree.let { t ->
+            fun find(ns: List<mkp.android.ffi.Node>): mkp.android.ffi.Node? = ns.firstNotNullOfOrNull { n -> if (n.widget == "core/shade") n else find(n.slots.flatMap { it.nodes }) }
+            find(t)!!
+        }
+        val holder = Thread { page.native.shade(shade.path, 160u, 160u) }
+        send(android.view.MotionEvent.ACTION_DOWN, start)
+        send(android.view.MotionEvent.ACTION_MOVE, start + Offset(20f, -10f))
+        holder.start()
+        Thread.sleep(50)
+        // a frame: the first write starts, and waits for the page
+        mainClock.advanceTimeByFrame()
+        send(android.view.MotionEvent.ACTION_MOVE, start + Offset(30f, -20f))
+        val end = start + Offset(42f, -31f)
+        send(android.view.MotionEvent.ACTION_MOVE, start + Offset(40f, -30f))
+        // the lift is a little further on than the last move
+        send(android.view.MotionEvent.ACTION_UP, end)
+        assertTrue("a write was in flight when the drag ended", !MkpWork.idle && holder.isAlive)
+        settle()
+        holder.join()
+        // the canvas is -1..1 across and up, 320 dp wide at an aspect of 1.5 (its height a fraction
+        // the laid-out box rounds); one dp is 2/320 units, kept to 4 places
+        val w = surface.width
+        val h = w / 1.5f
+        fun units(x: Float, y: Float) = "{\"record\":{\"type\":\"core/point\",\"fields\":{\"x\":{\"num\":\"%s\"},\"y\":{\"num\":\"%s\"}}}}".format(
+            V.show(V.decimal(-1.0 + (x - surface.left) / w * 2.0, 4)), V.show(V.decimal(1.0 - (y - surface.top) / h * 2.0, 4)))
+        assertEquals(units(end.x, end.y), writes.last().toIrJson())
+        assertEquals(units(end.x, end.y), state(page, "p"))
+        assertTrue("fewer writes than moves: ${writes.size}", writes.size in 2..3)
+    }
+
+    @Test
     fun anAppsWidgetReplacesOurs() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(shop, PageOptions(zone = UtcZone))
         val mine = Widget { p, ctx -> Text("mine: ${p.text("value")}", Modifier.site(ctx, "label")) }
         setContent { MkpPage(page, Externs(mapOf("core/label" to mine))) }
-        waitForIdle()
+        settle()
         onNodeWithText("mine: Tea: 12 €").assertExists()
     }
 
     @Test
     fun theAppsWritesAreChecked() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
         val page = CompiledPage.fromJson(shop, PageOptions(zone = UtcZone, state = mapOf("budget" to Val.Num("80"))))
         setContent { MkpPage(page) }
-        waitForIdle()
+        settle()
         assertEquals("{\"num\":\"80\"}", state(page, "budget"))
         page.set("budget" to Val.Num("120"))
-        waitForIdle()
+        settle()
         assertEquals("{\"num\":\"80\"}", state(page, "budget"))
         page.setPage(null, "DARK")
-        waitForIdle()
+        settle()
         assertEquals("DARK", page.theme)
     }
 }

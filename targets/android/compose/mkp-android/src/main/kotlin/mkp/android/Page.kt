@@ -7,12 +7,15 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.util.TimeZone
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import mkp.android.ffi.ExternCall
 import mkp.android.ffi.Field
 import mkp.android.ffi.Measure
 import mkp.android.ffi.NativePage
 import mkp.android.ffi.Node
 import mkp.android.ffi.PageInit
+import mkp.android.ffi.Slot
 import mkp.android.ffi.Val
 import mkp.android.ffi.Zone
 
@@ -48,6 +51,29 @@ data class PageOptions(
 private fun json(m: Map<String, Val>): String = m.entries.joinToString(",", "{", "}") { (k, v) -> "${quote(k)}:${v.toIrJson()}" }
 
 internal fun quote(s: String): String = Val.Text(s).toIrJson().removePrefix("{\"text\":").removeSuffix("}")
+
+/** Work running off the main thread, on every page (pages loading, drags' writes, the planes' layouts). A test
+ * waits until there are none: `registerIdlingResource { MkpWork.idle }`, as the check adapters do. */
+object MkpWork {
+    internal val running = java.util.concurrent.atomic.AtomicInteger(0)
+    val idle: Boolean get() = running.get() == 0
+}
+
+/** Where a page's time went on the Kotlin side: calls that change it (the runtime's work included),
+ * and reading its tree back after a redraw. For measuring; `native.timings()` splits the rest. */
+class PageStats {
+    var changeNanos = 0L
+    var changes = 0
+    var treeNanos = 0L
+    var trees = 0
+    /** How many times a widget's composable ran. */
+    var draws = 0L
+    /** Time in the plane's layout (part of [changeNanos]). */
+    var layoutNanos = 0L
+    /** Nodes a tree update left as they were, and nodes it sent whole. */
+    var kept = 0L
+    var sent = 0L
+}
 
 /** Told of what the reader does through the widgets' contexts, and of what each layout wrote: the
  * checks (omnicui's widget contracts) report a widget's events and writes from it. */
@@ -86,6 +112,10 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
     internal var supplies: List<String>? = supplies?.toList()
         private set
 
+    /** Whether a plane or a spot (or anything in one) changed since the planes were last laid out:
+     * a page read whole counts as one. */
+    internal var planesTouched = true
+
     /** Whether the tree holds a plane, whose spots are laid out after each draw. */
     internal var hasPlanes = planes(tree)
         private set
@@ -105,13 +135,67 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
         if (n <= 0) onScreen.remove(path) else onScreen[path] = n
     }
 
+    /** Where this page's time went, for measuring. */
+    val stats = PageStats()
+
+    /** The nodes drawn now, by key: what a stub in a tree update stands for. */
+    private var byKey: Map<String, Node> = index(tree)
+
+    /**
+     * The tree after a redraw, from the runtime's update: a widget that is as it was (and everything
+     * in it) comes as a stub, and stays the very node this page already holds, so Compose skips
+     * it; only what changed crossed from Rust. A stub this page can't place means the full tree.
+     */
+    private fun update(nodes: List<Node>): List<Node> {
+        var missing = false
+        fun resolve(n: Node): Node {
+            if (n.same) stats.kept++ else stats.sent++
+            if (n.same) return byKey[n.key] ?: n.also { missing = true }
+            if (n.widget == "core/plane" || n.widget == "core/spot") planesTouched = true
+            if (n.slots.isEmpty()) return n
+            return n.copy(slots = n.slots.map { s -> Slot(s.name, s.nodes.map(::resolve)) })
+        }
+        val out = nodes.map(::resolve)
+        val tree = if (missing) native.tree().also { planesTouched = true } else out
+        byKey = index(tree)
+        return tree
+    }
+
     /** Runs a change on the native page, then reads the tree again if it was redrawn. */
     fun <T> change(block: (NativePage) -> T): T {
+        val started = System.nanoTime()
         try {
             return block(native)
         } finally {
+            stats.changeNanos += System.nanoTime() - started
+            stats.changes++
             refresh()
         }
+    }
+
+    /**
+     * A change made off the main thread: the runtime's work (the write, its redraw) runs on a
+     * background thread while the main one keeps drawing frames, and the tree is read back on the
+     * main thread when it is done. Call it from the main thread. The page is behind a lock, so a
+     * call from the main thread meanwhile waits for it; a drag keeps at most one in flight.
+     */
+    suspend fun <T> changeAway(block: (NativePage) -> T): T {
+        MkpWork.running.incrementAndGet()
+        val started = System.nanoTime()
+        try {
+            return withContext(Dispatchers.Default) { block(native) }
+        } finally {
+            stats.changeNanos += System.nanoTime() - started
+            stats.changes++
+            refresh()
+            MkpWork.running.decrementAndGet()
+        }
+    }
+
+    /** A widget's write, made off the main thread ([changeAway]): what a drag writes. */
+    suspend fun writeAway(path: String, input: String, value: Val) {
+        watcher?.write(path, input, value)
+        changeAway { it.write(path, input, value) }
     }
 
     /** Reads the tree again when the page was drawn since: after any call into the page. */
@@ -120,7 +204,10 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
         changes = native.changes().toLong()
         if (r != revision) {
             if (TRACE) System.err.println("[mkp] revision $revision -> $r")
-            tree = native.tree()
+            val started = System.nanoTime()
+            tree = update(native.treeUpdate(revision.toULong()))
+            stats.treeNanos += System.nanoTime() - started
+            stats.trees++
             hasPlanes = planes(tree)
             revision = r
         }
@@ -158,7 +245,18 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
     /** Lays the planes out from a measure (MkpPage does it after every change). */
     fun layout(measure: Measure) {
         val before = tree
+        val started = System.nanoTime()
         change { it.layout(measure) }
+        stats.layoutNanos += System.nanoTime() - started
+        watcher?.laidOut(before, tree)
+    }
+
+    /** [layout], off the main thread ([changeAway]): the measure is called on a background thread. */
+    suspend fun layoutAway(measure: Measure) {
+        val before = tree
+        val started = System.nanoTime()
+        changeAway { it.layout(measure) }
+        stats.layoutNanos += System.nanoTime() - started
         watcher?.laidOut(before, tree)
     }
 
@@ -189,9 +287,40 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
             return CompiledPage(NativePage(ir, init, options.zone), supplies, options.theme)
         }
 
-        /** A page from an IR file in the app's assets. */
+        /** A page from an IR file in the app's assets. It reads and mounts the page where it is
+         * called: on a phone that is a fraction of a second for a page with all of core in its IR,
+         * so call [loadAsset] from the main thread instead. */
         fun fromAsset(context: Context, name: String, options: PageOptions = PageOptions()): CompiledPage =
             fromJson(context.assets.open(name).bufferedReader().use { it.readText() }, options)
+
+        /** [fromJson], off the main thread: the IR is read and the page mounted on a background one. */
+        suspend fun load(ir: String, options: PageOptions = PageOptions()): CompiledPage = away(Dispatchers.Default) { fromJson(ir, options) }
+
+        /** [fromAsset], off the main thread. */
+        suspend fun loadAsset(context: Context, name: String, options: PageOptions = PageOptions()): CompiledPage =
+            away(Dispatchers.IO) { fromAsset(context, name, options) }
+
+        /** Work on another thread, counted in [MkpWork] while it runs. */
+        private suspend fun <T> away(on: kotlinx.coroutines.CoroutineDispatcher, block: () -> T): T {
+            MkpWork.running.incrementAndGet()
+            try {
+                return withContext(on) { block() }
+            } finally {
+                MkpWork.running.decrementAndGet()
+            }
+        }
+
+        private fun index(nodes: List<Node>): Map<String, Node> {
+            val out = HashMap<String, Node>()
+            fun walk(ns: List<Node>) {
+                for (n in ns) {
+                    out[n.key] = n
+                    for (s in n.slots) walk(s.nodes)
+                }
+            }
+            walk(nodes)
+            return out
+        }
 
         private fun planes(nodes: List<Node>): Boolean = nodes.any { it.widget == "core/plane" || it.slots.any { s -> planes(s.nodes) } }
     }

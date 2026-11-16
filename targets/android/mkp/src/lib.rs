@@ -14,6 +14,7 @@
 uniffi::setup_scaffolding!();
 
 mod convert;
+mod diff;
 mod fns;
 mod observe;
 
@@ -23,7 +24,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use mkp_eval::Program;
 use mkp_ir::ir::{self, Expr, Stmt};
 use mkp_runtime::{Drawn, Num, Page, PageOptions, PageTheme, PageValues, PageWidth, Value};
 
@@ -81,6 +81,10 @@ pub struct Node {
     pub events: Vec<String>,
     /// Its `mut` inputs given a variable: what it writes back to.
     pub writes: Vec<String>,
+    /// From [`NativePage::tree_update`]: this widget and everything in its slots are as they were
+    /// when the tree was last read, so this node is a stub (its props and slots left out) for the
+    /// node with this key that the reader holds.
+    pub same: bool,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -139,6 +143,16 @@ pub struct Ends {
     pub step: String,
 }
 
+/// Where a page's time went, since it was mounted: in the runtime (each change, its redraw and
+/// the plane's layout) and in turning its tree into `Node`s for Kotlin. For measuring.
+#[derive(Clone, Copy, Debug, Default, uniffi::Record)]
+pub struct Timings {
+    pub runtime_nanos: u64,
+    pub runtime_calls: u64,
+    pub convert_nanos: u64,
+    pub convert_calls: u64,
+}
+
 /// An extern fn of the app MKP called: its full name (`doc/scores.saved`) and its arguments.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct ExternCall {
@@ -148,8 +162,34 @@ pub struct ExternCall {
 
 struct Inner {
     page: Page,
-    /// The IR's declarations, for the aliases a slider's variable may have.
-    program: Program,
+    /// Time spent in the runtime (changes, redraws, layouts) and turning the tree into `Node`s.
+    timings: Timings,
+    /// The IR's type aliases, for a slider's variable's contract.
+    aliases: HashMap<String, ir::Type>,
+    /// The tree as Kotlin last read it, the events each widget listened to then, and the
+    /// revision it was read at: what [`NativePage::tree_update`] sends the changes since.
+    sent: Vec<Drawn>,
+    listening: HashMap<String, Vec<String>>,
+    sent_revision: Option<u64>,
+}
+
+impl Inner {
+    /// Remembers the tree as Kotlin has just read it.
+    fn sent_now(&mut self) {
+        fn walk(page: &Page, nodes: &[Drawn], out: &mut HashMap<String, Vec<String>>) {
+            for d in nodes {
+                out.insert(d.key.clone(), d.events.keys().filter(|e| page.listens(d, e)).cloned().collect());
+                for kids in d.slots.values() {
+                    walk(page, kids, out);
+                }
+            }
+        }
+        let mut listening = HashMap::new();
+        walk(&self.page, self.page.tree(), &mut listening);
+        self.listening = listening;
+        self.sent = self.page.tree().to_vec();
+        self.sent_revision = Some(self.page.revision());
+    }
 }
 
 /// The page lives on one thread at a time behind the lock; nothing of it (an `Rc`) is handed out.
@@ -219,18 +259,26 @@ fn supplies_fn(list: Option<Vec<String>>) -> Option<mkp_runtime::Supplies> {
     list.map(|l| Rc::new(move |w: &str| supplied(&l, w)) as mkp_runtime::Supplies)
 }
 
-/// A drawn widget as Kotlin reads it.
-fn node(page: &Page, d: &Drawn) -> Node {
+/// A drawn widget as Kotlin reads it, without its slots.
+pub(crate) fn node_shallow(page: &Page, d: &Drawn) -> Node {
     Node {
         path: d.path.clone(),
         key: d.key.clone(),
         widget: d.widget.clone(),
         props: d.props.iter().map(|(k, v)| (k.clone(), convert::val(page, v))).collect(),
-        slots: d.slots.iter().map(|(name, kids)| Slot { name: name.clone(), nodes: kids.iter().map(|k| node(page, k)).collect() }).collect(),
+        slots: Vec::new(),
         listens: d.events.keys().filter(|e| page.listens(d, e)).cloned().collect(),
         events: d.events.keys().cloned().collect(),
         writes: d.writes.keys().cloned().collect(),
+        same: false,
     }
+}
+
+/// A drawn widget as Kotlin reads it, with everything in its slots.
+fn node(page: &Page, d: &Drawn) -> Node {
+    let mut n = node_shallow(page, d);
+    n.slots = d.slots.iter().map(|(name, kids)| Slot { name: name.clone(), nodes: kids.iter().map(|k| node(page, k)).collect() }).collect();
+    n
 }
 
 /// A shader's name: a named fn is lowered to a lambda that calls it with its own parameters
@@ -295,6 +343,17 @@ impl NativePage {
         let mut g = self.lock()?;
         f(&mut g.guard.0)
     }
+
+    /// A change: timed as the runtime's.
+    fn change<T>(&self, f: impl FnOnce(&mut Inner) -> Res<T>) -> Res<T> {
+        let mut g = self.lock()?;
+        let started = std::time::Instant::now();
+        let out = f(&mut g.guard.0);
+        let t = &mut g.guard.0.timings;
+        t.runtime_nanos += started.elapsed().as_nanos() as u64;
+        t.runtime_calls += 1;
+        out
+    }
 }
 
 #[uniffi::export]
@@ -304,7 +363,10 @@ impl NativePage {
     #[uniffi::constructor]
     pub fn new(ir_json: String, init: PageInit, zone: Box<dyn Zone>) -> Res<Arc<Self>> {
         let file: ir::File = serde_json::from_str(&ir_json).map_err(|e| failed(format!("the IR doesn't read: {}", e)))?;
-        let program = Program::from_module(&file.ir);
+        let aliases = file.ir.declarations.iter().filter_map(|d| match &d.declare {
+            ir::Decl::Type(a) => Some((a.name.clone(), a.is.clone())),
+            _ => None,
+        }).collect();
         let mut opts = PageOptions { page: page_values(init.width.as_deref(), init.theme.as_deref()), defects: init.defects.clone(), ..PageOptions::default() };
         if let Some(s) = &init.state_json {
             opts.state = exprs(s)?;
@@ -316,7 +378,7 @@ impl NativePage {
         opts.fns = fns::target_fns(Arc::from(zone));
         opts.supplies = supplies_fn(init.supplies);
         let page = Page::new(file, opts)?;
-        Ok(Arc::new(NativePage { inner: Mutex::new(Locked(Inner { page, program })), owner: AtomicU64::new(0) }))
+        Ok(Arc::new(NativePage { inner: Mutex::new(Locked(Inner { page, aliases, timings: Timings::default(), sent: Vec::new(), listening: HashMap::new(), sent_revision: None })), owner: AtomicU64::new(0) }))
     }
 
     // ---- reading it
@@ -333,7 +395,39 @@ impl NativePage {
 
     /// The drawn extern widgets, in order, with their props worked out.
     pub fn tree(&self) -> Res<Vec<Node>> {
-        self.with(|i| Ok(i.page.tree().iter().map(|d| node(&i.page, d)).collect()))
+        self.with(|i| {
+            let started = std::time::Instant::now();
+            let out: Vec<Node> = i.page.tree().iter().map(|d| node(&i.page, d)).collect();
+            i.sent_now();
+            i.timings.convert_nanos += started.elapsed().as_nanos() as u64;
+            i.timings.convert_calls += 1;
+            Ok(out)
+        })
+    }
+
+    /// The drawn widgets, as [`NativePage::tree`] gives them, but with each widget that is as it
+    /// was when the tree was read at revision `since` (and everything in its slots) left as a stub,
+    /// `same: true`, for the node with its key the reader holds. Read at any other revision than
+    /// the last one this page sent, every node is whole.
+    pub fn tree_update(&self, since: u64) -> Res<Vec<Node>> {
+        self.with(|i| {
+            let started = std::time::Instant::now();
+            let out: Vec<Node> = if i.sent_revision == Some(since) {
+                let d = diff::Diff::new(&i.page, &i.sent, &i.listening);
+                i.page.tree().iter().map(|n| d.node(n).0).collect()
+            } else {
+                i.page.tree().iter().map(|d| node(&i.page, d)).collect()
+            };
+            i.sent_now();
+            i.timings.convert_nanos += started.elapsed().as_nanos() as u64;
+            i.timings.convert_calls += 1;
+            Ok(out)
+        })
+    }
+
+    /// Where the page's time went, since it was mounted.
+    pub fn timings(&self) -> Timings {
+        self.lock().map(|g| g.guard.0.timings).unwrap_or_default()
     }
 
     /// The drawn widget at a path.
@@ -409,7 +503,7 @@ impl NativePage {
                         step = n(&c.step);
                     }
                 }
-                t = i.program.aliases.get(&ty.name).cloned();
+                t = i.aliases.get(&ty.name).cloned();
             }
             let low = low.unwrap_or_else(Num::zero);
             let mut high = high.filter(|h| *h > low);
@@ -440,7 +534,7 @@ impl NativePage {
 
     /// The reader's event on a drawn widget: runs its caller's handler.
     pub fn event(&self, path: String, name: String, args: Vec<Val>) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let args = args.iter().map(|a| i.page.value(&convert::expr(a))).collect::<Result<Vec<_>, _>>()?;
             Ok(i.page.event(&path, &name, args)?)
         })
@@ -448,7 +542,7 @@ impl NativePage {
 
     /// A drawn widget writing one of its `mut` inputs, as a slider does: checked, then one change.
     pub fn write(&self, path: String, input: String, value: Val) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let v = i.page.value(&convert::expr(&value))?;
             Ok(i.page.write(&path, &input, v)?)
         })
@@ -456,7 +550,7 @@ impl NativePage {
 
     /// The app's write to `$state`: one change, checked once.
     pub fn set(&self, changes: Vec<Field>) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let changes = changes.iter().map(|f| Ok((f.name.clone(), i.page.value(&convert::expr(&f.value))?))).collect::<Res<Vec<_>>>()?;
             Ok(i.page.set(changes)?)
         })
@@ -464,7 +558,7 @@ impl NativePage {
 
     /// The app calling a fn the document exposes.
     pub fn expose(&self, channel: String, name: String, args: Vec<Val>) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let args = args.iter().map(|a| i.page.value(&convert::expr(a))).collect::<Result<Vec<_>, _>>()?;
             Ok(i.page.expose(&channel, &name, args)?)
         })
@@ -472,7 +566,7 @@ impl NativePage {
 
     /// The app giving a channel's values.
     pub fn set_extern(&self, channel: String, values: Vec<Field>) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let values = values.iter().map(|f| Ok((f.name.clone(), i.page.value(&convert::expr(&f.value))?))).collect::<Res<Vec<_>>>()?;
             Ok(i.page.set_extern(&channel, values)?)
         })
@@ -480,17 +574,17 @@ impl NativePage {
 
     /// The page's own values: its width (`NARROW`, `MEDIUM`, `WIDE`) and theme (`LIGHT`, `DARK`).
     pub fn set_page(&self, width: Option<String>, theme: Option<String>) -> Res<()> {
-        self.with(|i| Ok(i.page.set_page(page_values(width.as_deref(), theme.as_deref()))?))
+        self.change(|i| Ok(i.page.set_page(page_values(width.as_deref(), theme.as_deref()))?))
     }
 
     /// Which extern widgets the target draws, from its registry: by full name or a whole pack as `pack/` and a star.
     pub fn set_supplies(&self, supplies: Option<Vec<String>>) -> Res<()> {
-        self.with(|i| Ok(i.page.set_supplies(supplies_fn(supplies))?))
+        self.change(|i| Ok(i.page.set_supplies(supplies_fn(supplies))?))
     }
 
     /// Lays the page's planes out until nothing changes, from the target's measure.
     pub fn layout(&self, measure: Box<dyn Measure>) -> Res<()> {
-        self.with(|i| Ok(i.page.layout(&mut MeasureFrom(measure.as_ref()))?))
+        self.change(|i| Ok(i.page.layout(&mut MeasureFrom(measure.as_ref()))?))
     }
 
     // ---- the checks: the check protocol's own JSON, in and out
@@ -505,7 +599,7 @@ impl NativePage {
 
     /// `event`, its arguments in the IR's form (a JSON list).
     pub fn event_json(&self, path: String, name: String, args_json: String) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let xs: Vec<Expr> = serde_json::from_str(&args_json).map_err(|e| failed(format!("not values: {}", e)))?;
             let args = xs.iter().map(|x| i.page.value(x)).collect::<Result<Vec<_>, _>>()?;
             Ok(i.page.event(&path, &name, args)?)
@@ -514,7 +608,7 @@ impl NativePage {
 
     /// `write`, its value in the IR's form.
     pub fn write_json(&self, path: String, input: String, value_json: String) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let v = i.page.value(&expr_json(&value_json)?)?;
             Ok(i.page.write(&path, &input, v)?)
         })
@@ -522,7 +616,7 @@ impl NativePage {
 
     /// `set`, `$state`'s values in the IR's form (a JSON object).
     pub fn set_json(&self, state_json: String) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let changes = exprs(&state_json)?.into_iter().map(|(k, x)| Ok((k, i.page.value(&x)?))).collect::<Res<Vec<_>>>()?;
             Ok(i.page.set(changes)?)
         })
@@ -530,7 +624,7 @@ impl NativePage {
 
     /// `expose`, its arguments in the IR's form (a JSON list).
     pub fn expose_json(&self, channel: String, name: String, args_json: String) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let xs: Vec<Expr> = serde_json::from_str(&args_json).map_err(|e| failed(format!("not values: {}", e)))?;
             let args = xs.iter().map(|x| i.page.value(x)).collect::<Result<Vec<_>, _>>()?;
             Ok(i.page.expose(&channel, &name, args)?)
@@ -539,7 +633,7 @@ impl NativePage {
 
     /// `extern`, the channel's values in the IR's form (a JSON object).
     pub fn extern_json(&self, channel: String, values_json: String) -> Res<()> {
-        self.with(|i| {
+        self.change(|i| {
             let values = exprs(&values_json)?.into_iter().map(|(k, x)| Ok((k, i.page.value(&x)?))).collect::<Res<Vec<_>>>()?;
             Ok(i.page.set_extern(&channel, values)?)
         })

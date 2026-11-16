@@ -52,6 +52,7 @@ import mkp.android.length
 import mkp.android.num
 import mkp.android.point
 import mkp.android.region
+import mkp.android.rememberFrameWriter
 import mkp.android.site
 
 // The plane (plan tab 15): a clipped view holding one inner layer that graphicsLayer moves and
@@ -87,26 +88,45 @@ fun MkpPlane(p: Props, ctx: WidgetContext) {
         val low = maxOf(0.1, (range?.low?.firstOrNull().num() ?: 1.0) * base)
         val high = minOf(10.0, (range?.high?.firstOrNull().num() ?: 1.0) * base)
         val now = rememberUpdatedState(Triple(z, c, low to high))
+        val writer = rememberFrameWriter()
         /** The reader moving the view: the zoom first, so the centre is kept inside bounds for it. */
-        fun move(center: XY, zoom: Double) {
-            val (z0, c0, _) = now.value
-            if (abs(zoom - z0) > 1e-9) {
-                val nz = exactOf(zoom, 3)
-                if (nz.toDouble() != z0) ctx.write("zoom", V.num(nz))
+        // a drag's and a pinch's writes, at most one a frame, with the latest place: on a slow
+        // phone a redraw can take longer than a frame, and moves must not pile up behind it
+        fun move(center: XY, zoom: Double, immediately: Boolean = false) {
+            // a key is one step, written as it is pressed
+            if (immediately) {
+                val (z0, _, _) = now.value
+                if (abs(zoom - z0) > 1e-9) {
+                    val nz = exactOf(zoom, 3)
+                    if (nz.toDouble() != z0) ctx.write("zoom", V.num(nz))
+                }
+                val places = placesFor(1 / zoom)
+                val next = XY(exactOf(center.x, places).toDouble(), exactOf(center.y, places).toDouble())
+                val c1 = now.value.second
+                if (next.x != c1.x || next.y != c1.y) ctx.write("center", pointOf(center, places))
+                return
             }
-            val places = placesFor(1 / zoom)
-            val next = XY(exactOf(center.x, places).toDouble(), exactOf(center.y, places).toDouble())
-            if (next.x != c0.x || next.y != c0.y) ctx.write("center", pointOf(center, places))
+            writer.submit {
+                val (z0, _, _) = now.value
+                if (abs(zoom - z0) > 1e-9) {
+                    val nz = exactOf(zoom, 3)
+                    if (nz.toDouble() != z0) ctx.writeAway("zoom", V.num(nz))
+                }
+                val places = placesFor(1 / zoom)
+                val next = XY(exactOf(center.x, places).toDouble(), exactOf(center.y, places).toDouble())
+                val c1 = now.value.second
+                if (next.x != c1.x || next.y != c1.y) ctx.writeAway("center", pointOf(center, places))
+            }
         }
         /** Zooms about a point of the view (px), which stays where it is. */
-        fun zoomAt(ox: Float, oy: Float, want: Double) {
+        fun zoomAt(ox: Float, oy: Float, want: Double, immediately: Boolean = false) {
             val (z0, c0, lh) = now.value
             val nz = want.coerceIn(lh.first, lh.second)
             if (!(lh.second > lh.first) || abs(nz - z0) < 1e-6) return
             val dx = (ox / density - wDp / 2)
             val dy = (oy / density - hDp / 2)
             val u = XY(c0.x + dx / z0, c0.y - dy / z0)
-            move(XY(u.x - dx / nz, u.y + dy / nz), nz)
+            move(XY(u.x - dx / nz, u.y + dy / nz), nz, immediately)
         }
         val wPx = (wDp * density).toFloat()
         val hPx = (hDp * density).toFloat()
@@ -120,12 +140,12 @@ fun MkpPlane(p: Props, ctx: WidgetContext) {
                 val (z0, c0, _) = now.value
                 val step = 40 / z0
                 when (e.key) {
-                    Key.DirectionLeft -> move(XY(c0.x - step, c0.y), z0)
-                    Key.DirectionRight -> move(XY(c0.x + step, c0.y), z0)
-                    Key.DirectionUp -> move(XY(c0.x, c0.y + step), z0)
-                    Key.DirectionDown -> move(XY(c0.x, c0.y - step), z0)
-                    Key.Plus, Key.Equals, Key.NumPadAdd -> zoomAt(wPx / 2, hPx / 2, z0 * 1.25)
-                    Key.Minus, Key.NumPadSubtract -> zoomAt(wPx / 2, hPx / 2, z0 / 1.25)
+                    Key.DirectionLeft -> move(XY(c0.x - step, c0.y), z0, true)
+                    Key.DirectionRight -> move(XY(c0.x + step, c0.y), z0, true)
+                    Key.DirectionUp -> move(XY(c0.x, c0.y + step), z0, true)
+                    Key.DirectionDown -> move(XY(c0.x, c0.y - step), z0, true)
+                    Key.Plus, Key.Equals, Key.NumPadAdd -> zoomAt(wPx / 2, hPx / 2, z0 * 1.25, true)
+                    Key.Minus, Key.NumPadSubtract -> zoomAt(wPx / 2, hPx / 2, z0 / 1.25, true)
                     else -> return@onKeyEvent false
                 }
                 true
@@ -142,7 +162,17 @@ fun MkpPlane(p: Props, ctx: WidgetContext) {
                     while (true) {
                         val e = awaitPointerEvent()
                         val pressed = e.changes.filter { it.pressed }
-                        if (pressed.isEmpty()) break
+                        // the finger lifted: where it lifted is written, as the last write
+                        if (pressed.isEmpty()) {
+                            val up = e.changes.firstOrNull { it.id == down.id }
+                            if (moved && pinch == null && up != null && !up.isConsumed) {
+                                val d = up.position - down.position
+                                val z0 = now.value.first
+                                move(XY(c0.x - d.x / density / z0, c0.y + d.y / density / z0), z0)
+                                up.consume()
+                            }
+                            break
+                        }
                         if (pressed.size >= 2) {
                             val a = pressed[0].position
                             val b = pressed[1].position

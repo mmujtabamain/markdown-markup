@@ -18,11 +18,19 @@ export PATH="$HOME/.cargo/bin:$PATH" CARGO_INCREMENTAL=0
 what=${1:-all}
 cd "$rust"
 
+# A library is put in place by a rename, never written over: a check adapter that has the old one
+# loaded (another agent's `mkp target check`, say) keeps it, instead of crashing as its code changes
+# under it.
+put() {
+  mkdir -p "$2"
+  cp "$1" "$2/.libmkp_android.so.new"
+  mv -f "$2/.libmkp_android.so.new" "$2/libmkp_android.so"
+}
+
 host() {
   # with the generator built alongside, from the same UniFFI, so the bindings match the library
   cargo build -q -p mkp-android --release --features bindgen
-  mkdir -p "$out/host/linux-x86-64"
-  cp target/release/libmkp_android.so "$out/host/linux-x86-64/"
+  put target/release/libmkp_android.so "$out/host/linux-x86-64"
   rm -rf "$out/kotlin"
   ./target/release/uniffi-bindgen generate --library "$out/host/linux-x86-64/libmkp_android.so" \
     --language kotlin --out-dir "$out/kotlin" --no-format
@@ -48,8 +56,7 @@ android() {
     export "AR_$under=$bin/llvm-ar"
     export "CARGO_TARGET_${upper}_LINKER=$bin/$clang$api-clang"
     cargo build -q -p mkp-android --release --target "$triple"
-    mkdir -p "$out/jniLibs/$abi"
-    cp "target/$triple/release/libmkp_android.so" "$out/jniLibs/$abi/"
+    put "target/$triple/release/libmkp_android.so" "$out/jniLibs/$abi"
   done
   echo "mkp-android: arm64-v8a, armeabi-v7a and x86_64 libraries in $out/jniLibs"
 }

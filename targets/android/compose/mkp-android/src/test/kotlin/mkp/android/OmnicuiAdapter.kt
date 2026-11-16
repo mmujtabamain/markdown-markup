@@ -47,6 +47,8 @@ import mkp.android.check.RpcError
 import mkp.android.check.STEP_FAILED
 import mkp.android.check.checkPacks
 import mkp.android.check.log
+import mkp.android.check.settle
+import mkp.android.check.waitsForMkp
 import mkp.android.ffi.Node
 import mkp.android.ffi.Val
 import org.json.JSONObject
@@ -268,6 +270,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
         var ended = false
         try {
             runAndroidComposeUiTest<ComponentActivity> {
+                waitsForMkp()
                 val page = CompiledPage.fromJson(File(built.getString("ir")).readText(), PageOptions(theme = if (dark) "DARK" else "LIGHT", zone = UtcZone, supplies = registry.keys + checkPacks.keys))
                 recorder.path = find(page.tree) { it.widget == recorder.widget }?.path
                     ?: throw RpcError(NO_COMPONENT, "${recorder.widget} is not on the page")
@@ -276,7 +279,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
                     inputMode = LocalInputModeManager.current
                     MkpPage(page, Externs(checkPacks))
                 }
-                waitForIdle()
+                settle()
                 rpc.reply(req.id, null)
                 replied = true
                 val session = Session(this, page, recorder, component)
@@ -390,7 +393,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
                 val focused = ui.onAllNodes(isFocused())
                 val n = if (focused.fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) focused.onFirst() else ui.onAllNodes(isRoot()).onLast()
                 key(n, p.getString("key"))
-                ui.waitForIdle()
+                ui.settle()
                 return
             }
             val partId = p.getString("part")
@@ -423,7 +426,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
                     while (k < text.length) {
                         val end = text.offsetByCodePoints(k, 1)
                         n.performTextInput(text.substring(k, end))
-                        ui.waitForIdle()
+                        ui.settle()
                         k = end
                     }
                 }
@@ -436,7 +439,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
                 }
                 else -> throw RpcError(NO_METHOD, "unknown step $method")
             }
-            ui.waitForIdle()
+            ui.settle()
         }
 
         /** Keyboard focus, as a keyboard user gets it: Compose lets a clickable take focus only in
@@ -452,7 +455,7 @@ private class OmnicuiTarget(private val rpc: Rpc) {
             if (inputMode?.inputMode != InputMode.Keyboard) ui.runOnUiThread { inputMode?.requestInputMode(InputMode.Keyboard) }
             val t = if (target.id == node.id) n else ui.onNode(SemanticsMatcher("node ${target.id}") { it.id == target.id }, useUnmergedTree = true)
             t.performSemanticsAction(SemanticsActions.RequestFocus)
-            ui.waitForIdle()
+            ui.settle()
         }
 
         private fun key(n: SemanticsNodeInteraction, combo: String) {

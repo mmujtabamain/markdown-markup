@@ -236,3 +236,57 @@ fn a_widget_not_supplied_shows_its_markdown() {
     assert!(find(&p.tree().unwrap(), "core/press").is_none());
     let _ = Field { name: String::new(), value: Val::Bool { b: true } };
 }
+
+#[test]
+fn a_tree_update_sends_only_what_changed() {
+    let p = page("$state {\n    count: int 0..3 = 0;\n}\n\nwidget sample() {\n    view {\n        @label(value = \"Still\");\n        @press(label = \"Add\", click = fn() { $state.count = ($state.count + 1).clamp(0, 3); });\n        @label(value = \"Count: \\{$state.count}\");\n    }\n}\n@@@\n@sample;\n");
+    let first = p.tree().unwrap();
+    let all = |nodes: &[Node]| -> Vec<Node> {
+        fn walk(n: &[Node], out: &mut Vec<Node>) {
+            for x in n {
+                out.push(x.clone());
+                for s in &x.slots {
+                    walk(&s.nodes, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(nodes, &mut out);
+        out
+    };
+    assert!(all(&first).iter().all(|n| !n.same));
+    let press = find(&first, "core/press").unwrap();
+    let since = p.revision();
+    p.event(press.path.clone(), "click".into(), vec![]).unwrap();
+    let update = p.tree_update(since).unwrap();
+    let nodes = all(&update);
+    // the count's label is sent whole; the press and the still label are stubs
+    let count = nodes.iter().find(|n| n.props.get("value") == Some(&Val::Text { s: "Count: 1".into() })).expect("the count is sent");
+    assert!(!count.same);
+    let stubs: Vec<&Node> = nodes.iter().filter(|n| n.same).collect();
+    assert!(stubs.iter().any(|n| n.widget == "core/press" && n.props.is_empty()), "{:?}", stubs);
+    assert!(stubs.iter().any(|n| n.widget == "core/label"));
+    // read at another revision than the last one sent, everything is whole
+    let whole = p.tree_update(since).unwrap();
+    assert!(all(&whole).iter().all(|n| !n.same));
+}
+
+/// How long a page takes to mount, for the sample's tour (`MKP_TIME_IR=<ir.json>`): printed, not held
+/// to a number, since it depends on the box.
+#[test]
+fn mount_time() {
+    let Ok(path) = std::env::var("MKP_TIME_IR") else { return };
+    let ir = std::fs::read_to_string(path).unwrap();
+    for _ in 0..3 {
+        let t = std::time::Instant::now();
+        let file: mkp_ir::ir::File = serde_json::from_str(&ir).unwrap();
+        let parsed = t.elapsed();
+        drop(file);
+        let t = std::time::Instant::now();
+        let p = NativePage::new(ir.clone(), PageInit::default(), Box::new(Utc)).unwrap();
+        let mounted = t.elapsed();
+        let t = std::time::Instant::now();
+        let tree = p.tree().unwrap();
+        eprintln!("parse {:?}, mount (parse included) {:?}, tree {:?} ({} roots)", parsed, mounted, t.elapsed(), tree.len());
+    }
+}

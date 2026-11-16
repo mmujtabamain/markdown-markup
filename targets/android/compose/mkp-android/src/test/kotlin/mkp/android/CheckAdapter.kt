@@ -29,6 +29,8 @@ import mkp.android.check.clickable
 import mkp.android.check.interaction
 import mkp.android.check.log
 import mkp.android.check.part
+import mkp.android.check.settle
+import mkp.android.check.waitsForMkp
 import mkp.android.check.widgetAt
 import mkp.android.check.withAction
 import mkp.android.ffi.Val
@@ -87,11 +89,12 @@ class CheckSession(private val rpc: Rpc) {
 
     fun run() {
         runAndroidComposeUiTest<ComponentActivity> {
+            waitsForMkp()
             var shown by mutableStateOf<CompiledPage?>(null)
             setContent {
                 shown?.let { p -> key(p) { MkpPage(p, Externs(checkPacks), measure = FixedMeasure) } }
             }
-            waitForIdle()
+            settle()
             while (true) {
                 val r = rpc.next() ?: break
                 val loaded = page
@@ -106,17 +109,17 @@ class CheckSession(private val rpc: Rpc) {
                             val p = load(r.params)
                             page = p
                             shown = p
-                            waitForIdle()
+                            settle()
                             rpc.reply(r.id, emptyMap<String, Any>())
                         }
                         "event", "write", "set", "expose", "extern", "page", "observe" -> {
                             if (loaded == null) throw RpcError(FAILED, "no page is loaded")
                             if (r.method == "observe") {
-                                waitForIdle()
+                                settle()
                                 rpc.replyRaw(r.id, loaded.native.observeJson(loaded.drawn.toList()))
                             } else {
                                 step(this, loaded, r)
-                                waitForIdle()
+                                settle()
                                 rpc.reply(r.id, emptyMap<String, Any>())
                             }
                         }

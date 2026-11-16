@@ -65,10 +65,11 @@ class RenderTest {
         val scheme = if (dark) "dark" else "light"
         RuntimeEnvironment.setQualifiers("w360dp-h806dp-port-${if (dark) "night" else "notnight"}-xhdpi")
         runAndroidComposeUiTest<MainActivity> {
-            waitForIdle()
+            registerIdlingResource(object : androidx.compose.ui.test.IdlingResource { override val isIdleNow get() = mkp.android.MkpWork.idle })
+            settle()
             save(shot(this), "android-shop-screen-$scheme")
             onNode(hasText("Tour") and hasClickAction()).performClick()
-            waitForIdle()
+            settle()
             save(shot(this), "android-tour-screen-$scheme")
         }
     }
@@ -78,13 +79,14 @@ class RenderTest {
         val scheme = if (dark) "dark" else "light"
         RuntimeEnvironment.setQualifiers("w360dp-h3200dp-port-${if (dark) "night" else "notnight"}-xhdpi")
         runAndroidComposeUiTest<ComponentActivity> {
+            registerIdlingResource(object : androidx.compose.ui.test.IdlingResource { override val isIdleNow get() = mkp.android.MkpWork.idle })
             val p = CompiledPage.fromAsset(activity!!, "$page.ir.json")
             setContent {
                 MaterialTheme(colorScheme = MkpTheme.colors(dark)) {
                     Box(Modifier.testTag("page").background(MaterialTheme.colorScheme.surface).padding(16.dp)) { MkpPage(p) }
                 }
             }
-            waitForIdle()
+            settle()
             val bounds = onNodeWithTag("page").fetchSemanticsNode().boundsInWindow
             save(shot(this, bounds), "android-$page-$scheme")
         }
@@ -96,4 +98,18 @@ class RenderTest {
     @Test fun shopDark() = whole("shop", true)
     @Test fun tourLight() = whole("tour", false)
     @Test fun tourDark() = whole("tour", true)
+}
+
+/** Compose idle, and every page's work off the main thread done (Robolectric's waitForIdle doesn't
+ * wait for a registered idling resource). */
+@OptIn(ExperimentalTestApi::class)
+private fun androidx.compose.ui.test.ComposeUiTest.settle() {
+    waitForIdle()
+    val until = System.nanoTime() + 60_000_000_000L
+    while (!mkp.android.MkpWork.idle) {
+        check(System.nanoTime() < until) { "the page's work off the main thread took over a minute" }
+        // asleep, not polling: a drag's measured processor time stays its own
+        Thread.sleep(2)
+        waitForIdle()
+    }
 }

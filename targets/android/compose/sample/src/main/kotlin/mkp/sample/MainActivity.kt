@@ -27,10 +27,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import mkp.android.CompiledPage
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Alignment
 import mkp.android.MkpPage
+import mkp.android.rememberAssetPage
 import mkp.android.MkpTheme
 import mkp.android.str
 
@@ -46,14 +48,9 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SampleApp() {
-    val context = LocalContext.current
-    // each page runs on MKP's native runtime; the app keeps it for as long as it shows it
-    val pages = remember {
-        listOf(
-            "Shop" to CompiledPage.fromAsset(context, "shop.ir.json"),
-            "Tour" to CompiledPage.fromAsset(context, "tour.ir.json"),
-        )
-    }
+    // each page runs on MKP's native runtime, read and mounted off the main thread (an IR holds all
+    // of core: a fraction of a second on a budget phone, which would hold the first frame up)
+    val pages = listOf("Shop" to rememberAssetPage("shop.ir.json"), "Tour" to rememberAssetPage("tour.ir.json"))
     var at by rememberSaveable { mutableIntStateOf(0) }
     val snack = remember { SnackbarHostState() }
     MaterialTheme(colorScheme = MkpTheme.colors(isSystemInDarkTheme())) {
@@ -66,15 +63,19 @@ fun SampleApp() {
                     pages.forEachIndexed { k, (name, _) -> Tab(selected = k == at, onClick = { at = k }, text = { Text(name) }) }
                 }
                 val page = pages[at].second
-                // what the page tells the app: the shop's `shop.checkout(total, count)`
-                LaunchedEffect(page, page.revision) {
-                    for (call in page.takeCalls()) {
-                        val args = call.args.map { it.str() }
-                        snack.showSnackbar(if (call.name.endsWith(".checkout")) "Checked out ${args.getOrNull(1)} items for ${args.getOrNull(0)} €" else "${call.name}(${args.joinToString()})")
+                if (page == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                } else {
+                    // what the page tells the app: the shop's `shop.checkout(total, count)`
+                    LaunchedEffect(page, page.revision) {
+                        for (call in page.takeCalls()) {
+                            val args = call.args.map { it.str() }
+                            snack.showSnackbar(if (call.name.endsWith(".checkout")) "Checked out ${args.getOrNull(1)} items for ${args.getOrNull(0)} €" else "${call.name}(${args.joinToString()})")
+                        }
                     }
-                }
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
-                    MkpPage(page)
+                    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
+                        MkpPage(page)
+                    }
                 }
             }
         }

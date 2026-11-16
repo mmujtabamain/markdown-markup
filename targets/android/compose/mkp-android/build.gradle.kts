@@ -138,4 +138,8 @@ tasks.register("checkAdapterArgs") {
 tasks.withType<Test>().configureEach {
     systemProperty("jna.library.path", native.dir("host/linux-x86-64").asFile.absolutePath)
     maxHeapSize = "2g"
+    // `-Pmkp.jfr=<file>`: a Java Flight Recording of the tests, to see where their time goes
+    System.getenv("MKP_ANDROID_TRACE")?.let { environment("MKP_ANDROID_TRACE", it) }
+    (project.findProperty("mkp.perf.only") as String?)?.let { systemProperty("mkp.perf.only", it) }
+    (project.findProperty("mkp.jfr") as String?)?.let { jvmArgs("-XX:StartFlightRecording=filename=$it,settings=profile,jdk.ExecutionSample#period=1ms") }
 }

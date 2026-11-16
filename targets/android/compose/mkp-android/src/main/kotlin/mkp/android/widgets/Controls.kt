@@ -106,6 +106,8 @@ import mkp.android.length
 import mkp.android.safeSrc
 import mkp.android.site
 import mkp.android.textStyle
+import mkp.android.rememberFrameWriter
+import androidx.compose.runtime.rememberUpdatedState
 
 // Drawing and input: label, image, icon, press, field, slider and overlay, as the Material 3
 // controls they are, with their roles and states in the semantics tree, so TalkBack, Switch
@@ -344,16 +346,32 @@ fun MkpSlider(p: Props, ctx: WidgetContext) {
     val shown = value?.let(V::show) ?: ""
     val enabled = !p.flag("disabled")
     val label = p.text("label")
+    val writer = rememberFrameWriter()
+    val dragged = remember { mutableStateOf<BigDecimal?>(null) }
+    val current = rememberUpdatedState(value)
     fun go(x: BigDecimal) {
         val v = ends.snap(x.max(ends.low).min(ends.high))
-        if (value == null || v.compareTo(value) != 0) ctx.write("value", V.num(v))
+        val now = current.value
+        if (now == null || v.compareTo(now) != 0) ctx.write("value", V.num(v))
+    }
+    suspend fun goAway(v: BigDecimal) {
+        val now = current.value
+        if (now == null || v.compareTo(now) != 0) ctx.writeAway("value", V.num(v))
     }
     Column(Modifier.site(ctx, "slider").fillMaxWidth()) {
         Text(label, Modifier.testTag("slider.label"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Slider(
-                value = (value ?: ends.low).toFloat(),
-                onValueChange = { x -> go(BigDecimal(x.toDouble())) },
+                value = (dragged.value ?: value ?: ends.low).toFloat(),
+                // a drag shows the thumb under the finger at once and writes at most once a frame,
+                // the latest value; where it ends is always written
+                onValueChange = { x ->
+                    val v = ends.snap(BigDecimal(x.toDouble()).max(ends.low).min(ends.high))
+                    dragged.value = v
+                    writer.submit { goAway(v) }
+                },
+                // the thumb stays where it was let go until that value is written
+                onValueChangeFinished = { writer.finish { dragged.value = null } },
                 valueRange = ends.low.toFloat()..ends.high.toFloat(),
                 enabled = enabled,
                 modifier = Modifier.testTag("slider.input").weight(1f).semantics { contentDescription = label }.onPreviewKeyEvent { e ->
