@@ -156,6 +156,17 @@ export interface Diagnostic {
   severity?: DiagnosticSeverity;
 }
 
+export interface ExpectedShadedSamples {
+  at: Expr;
+  pixel: Expr;
+}
+
+export interface ExpectedShaded {
+  args: Expr;
+  samples?: ExpectedShadedSamples[];
+  shader: string;
+}
+
 export interface ExpectedTree {
   props?: { [key: string]: Expr };
   slots?: { [key: string]: string[] };
@@ -168,6 +179,8 @@ export interface Expected {
   calls?: Call[];
   markdown?: MarkdownExpected;
   outcome?: Outcome;
+  /** Each shade drawn, by site: the fn it was given, by name ("" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader. */
+  shaded?: { [key: string]: ExpectedShaded };
   state?: { [key: string]: Expr };
   tree?: { [key: string]: ExpectedTree };
 }
@@ -214,8 +227,14 @@ export interface Mounted {
   widget: string;
 }
 
+export interface ObservationShadedSamples {
+  at: Expr;
+  pixel: Expr;
+}
+
 export interface ObservationShaded {
   args: Expr;
+  samples?: ObservationShadedSamples[];
   shader: string;
 }
 
@@ -226,6 +245,7 @@ export interface Observation {
   /** The page as Markdown, which the runner reads as blocks. */
   markdown: string;
   outcome: Outcome;
+  /** Each shade drawn, by site: the fn it was given, by name ("" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader. */
   shaded?: { [key: string]: ObservationShaded };
   state: { [key: string]: Expr };
   /** The mounted extern widgets, by site. */

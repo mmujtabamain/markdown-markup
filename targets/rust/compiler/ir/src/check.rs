@@ -262,6 +262,22 @@ pub struct Diagnostic {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ExpectedShadedSamples {
+    pub at: crate::ir::Expr,
+    pub pixel: crate::ir::Expr,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectedShaded {
+    pub args: crate::ir::Expr,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub samples: Vec<ExpectedShadedSamples>,
+    pub shader: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExpectedTree {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub props: BTreeMap<String, crate::ir::Expr>,
@@ -283,6 +299,9 @@ pub struct Expected {
     pub markdown: Option<MarkdownExpected>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<Outcome>,
+    /// Each shade drawn, by site: the fn it was given, by name ("" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub shaded: BTreeMap<String, ExpectedShaded>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub state: BTreeMap<String, crate::ir::Expr>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -365,8 +384,17 @@ pub struct Mounted {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ObservationShadedSamples {
+    pub at: crate::ir::Expr,
+    pub pixel: crate::ir::Expr,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ObservationShaded {
     pub args: crate::ir::Expr,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub samples: Vec<ObservationShadedSamples>,
     pub shader: String,
 }
 
@@ -380,6 +408,7 @@ pub struct Observation {
     /// The page as Markdown, which the runner reads as blocks.
     pub markdown: String,
     pub outcome: Outcome,
+    /// Each shade drawn, by site: the fn it was given, by name ("" for a lambda), and its arguments; on the test target also the colour at the area's two corners and its middle, worked out by the shader.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub shaded: BTreeMap<String, ObservationShaded>,
     pub state: BTreeMap<String, crate::ir::Expr>,
