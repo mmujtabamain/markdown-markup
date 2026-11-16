@@ -1,0 +1,56 @@
+{
+  "id": "prose.comments-in-prose",
+  "about": "`@//` to the end of a line is a comment in prose: nothing draws it, Markdown out leaves it out, it ends no paragraph, it sits inside blocks, and `\\@//` shows one as text",
+  "source": "comments-in-prose.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "Notes"
+                }
+              }
+            ],
+            "level": 1
+          }
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "The count is 3,\nand the paragraph goes on."
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "There is something to count."
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "@// shown as text, because the @ is escaped"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

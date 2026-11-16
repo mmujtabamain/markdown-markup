@@ -94,6 +94,7 @@ pub mod codes {
     pub const BARE_STATE: &str = "prose.bare-state";
     pub const SHADE_MKP_FN: &str = "views.shade-given-an-mkp-fn";
     pub const SPOT_OUTSIDE: &str = "views.spot-outside-bounds";
+    pub const HTML_COMMENT: &str = "prose.html-comment";
     pub const REMOVED_USED: &str = "effects.removed-item-used";
     pub const SIZING_TWICE: &str = "views.sizing-set-twice";
     pub const FN_CLASH: &str = "names.fn-clash";

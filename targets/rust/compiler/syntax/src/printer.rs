@@ -1084,6 +1084,12 @@ impl<'a> Printer<'a> {
                         self.prose_line(l, base);
                     }
                 }
+                ProseNode::Comment { indent, span } => {
+                    self.mkp_line_start(base, indent);
+                    let raw = self.src[span.range()].trim_end().to_string();
+                    self.w(&raw);
+                    self.nl();
+                }
                 ProseNode::Call(c) => {
                     self.mkp_line_start(base, &c.indent);
                     self.indent = base + c.indent.len();

@@ -338,12 +338,12 @@ impl<'a> Parser<'a> {
             }
 
             if let Some(inner) = inside_quote_or_item(s) {
-                if starts_mkp_line(inner) || inner == "}" || inner.starts_with("} else") {
+                if starts_mkp_line(inner) || inner.starts_with("@//") || inner == "}" || inner.starts_with("} else") {
                     let at = line.content + line.lead;
                     return Err(Diagnostic::error(
                         codes::IN_QUOTE_OR_ITEM,
                         Span::new(at, line.end),
-                        "a call, a control line or a closing `}` can't start inside a Markdown quote or list item: use `@quote`, or `@bullets` and `@item`, and write `\\@` to show an @ there",
+                        "a call, a control line, a comment or a closing `}` can't start inside a Markdown quote or list item: use `@quote`, or `@bullets` and `@item`, and write `\\@` to show an @ there",
                     ));
                 }
             }
@@ -385,6 +385,15 @@ impl<'a> Parser<'a> {
                         "`@match` holds `case … {` lines, each closed by a line that holds only `}`",
                     ));
                 }
+            }
+
+            // `@//` to the end of the line is a comment (`\@//` shows one as text): it ends no
+            // paragraph, as if the line weren't there
+            if line.lead <= 3 && line.text[line.lead..].starts_with("@//") {
+                let at = line.content + line.lead;
+                nodes.push(ProseNode::Comment { indent: " ".repeat(line.lead), span: Span::new(at, line.end) });
+                pos = next;
+                continue;
             }
 
             if line.lead <= 3 && starts_mkp_line(&line.text[line.lead..]) {

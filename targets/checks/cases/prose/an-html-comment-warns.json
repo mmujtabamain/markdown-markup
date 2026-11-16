@@ -1,0 +1,53 @@
+{
+  "id": "prose.an-html-comment-warns",
+  "about": "an HTML comment in prose is raw HTML, shown as text, and the compiler warns, pointing to `@//`",
+  "source": "an-html-comment-warns.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [
+      {
+        "code": "prose.html-comment",
+        "line": 4,
+        "column": 1
+      }
+    ],
+    "markdown": {
+      "blocks": [
+        {
+          "heading": {
+            "inline": [
+              {
+                "text": {
+                  "value": "Notes"
+                }
+              }
+            ],
+            "level": 1
+          }
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "<!-- shown as text in MKP, which warns -->"
+              }
+            }
+          ]
+        },
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "The rest."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -568,6 +568,14 @@ impl Checker {
                     if run.is_empty() {
                         self.prose_span = Span::new(line.span.start as usize, line.span.end as usize);
                     }
+                    // raw HTML is shown as text (page 1), so an HTML comment shows: `@//` is prose's
+                    let text = &src[line.span.range()];
+                    if let Some(k) = text.find("<!--") {
+                        if text[..k].trim().is_empty() {
+                            let at = line.span.start as usize + k;
+                            self.warning(file, codes::HTML_COMMENT, Span::new(at, line.span.end as usize), "this HTML comment is shown as text: write `@//` at the start of a line for a comment, which nothing draws");
+                        }
+                    }
                     let mut at = line.span.start as usize;
                     for h in &line.holes {
                         run.push_str(&src[at..h.span.start as usize]);
@@ -585,6 +593,8 @@ impl Checker {
                         run.push('\n');
                     }
                 }
+                // a comment draws nothing and ends no paragraph
+                ProseNode::Comment { .. } => {}
                 other => {
                     self.flush_markdown(cx, &mut run, &mut holes, &mut out);
                     match other {
@@ -692,7 +702,7 @@ impl Checker {
                             self.check_match(file, &vt, &cases.iter().map(|c| c.patterns.clone()).collect::<Vec<_>>(), has_else, *span);
                             out.push(ir::Node::Match(ir::NodeMatch { site, value: v, cases: cs, else_ }));
                         }
-                        ProseNode::Slot { .. } | ProseNode::Text(_) | ProseNode::Fence(_) => {}
+                        ProseNode::Slot { .. } | ProseNode::Text(_) | ProseNode::Fence(_) | ProseNode::Comment { .. } => {}
                     }
                 }
             }
@@ -875,6 +885,7 @@ impl Checker {
                     out.insert(name.name.clone(), nodes);
                 }
                 ProseNode::Text(line) if src[line.span.range()].trim().is_empty() => {}
+                ProseNode::Comment { .. } => {}
                 _ => {
                     self.error(file, codes::CHILDREN_ONE_SLOT, call.name.span, format!("`{}` takes `@slot name {{` blocks here: put this inside one of them", wname));
                     break;

@@ -752,6 +752,8 @@ pub enum ProseNode {
     Match { indent: String, subject: Expr, cases: Vec<ProseCase>, close: String, span: Span },
     /// `@slot name {`, directly inside a call's block.
     Slot { indent: String, name: Ident, body: Prose, close: String, span: Span },
+    /// `@// …` to the end of the line: a comment in prose, which nothing draws or writes.
+    Comment { indent: String, span: Span },
 }
 
 /// One line of prose: what it says once its common indent is taken off, and its holes.
