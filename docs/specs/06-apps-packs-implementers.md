@@ -120,7 +120,7 @@ A use moves exactly, never by searching the text. Each file is compiled against 
 
 Migrations and surfaces never reach a page: the IR has neither, and building a document never reads them.
 
-The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`), and no target reads the resolved IR.
+The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`): `mkp build` writes the IR and `mkp build --rir` the resolved IR, and no target reads the resolved IR.
 
 ### Tokens
 

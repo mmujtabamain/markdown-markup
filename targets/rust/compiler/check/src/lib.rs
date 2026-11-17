@@ -15,6 +15,8 @@ mod passes;
 pub mod proof;
 pub mod ty;
 mod migrations;
+mod rir;
+pub use rir::compile_rir;
 mod versions;
 mod view;
 
@@ -359,6 +361,8 @@ pub struct Checker {
     pub proofs: Vec<proof::Proof>,
     /// The references found, when asked for (`Some`).
     pub refs: Option<Vec<Ref>>,
+    /// Each expression's type and what it compiled to, by (file, start, end), when asked for.
+    pub typed: Option<HashMap<(usize, u32, u32), (Ty, ir::Expr)>>,
     /// What is known of each expression checked so far, by file and span.
     pub known_at: HashMap<(usize, u32, u32), proof::Known>,
     /// Contract bounds that name a constant or work one out, checked with the constants.
@@ -411,6 +415,7 @@ impl Checker {
             from: From::default(),
             proofs: Vec::new(),
             refs: None,
+            typed: None,
             known_at: HashMap::new(),
             bound_checks: Vec::new(),
             effects: effects::Effects::default(),
@@ -1095,7 +1100,7 @@ pub fn compile_on(base: &Checker, packs: &[Vec<Source>], main: &[Source], module
     compile_with(base.clone(), packs, main, module).0
 }
 
-fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> (Compiled, Checker) {
+pub(crate) fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> (Compiled, Checker) {
     c.module = module.to_string();
     c.from = From { files: c.files.len(), defs: c.defs.len(), fns: c.fns.len(), lets: c.lets.len(), channels: c.channels.len(), tokens: c.token_values.len() };
     let before = c.diags.len();

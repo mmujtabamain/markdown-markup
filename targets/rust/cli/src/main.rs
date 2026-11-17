@@ -121,7 +121,8 @@ fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Opti
     Ok((files, all, out))
 }
 
-/// `mkp build doc.mkp.md [--pack a,b] [-o out.ir.json]`: one standalone IR, core and the packs in it.
+/// `mkp build doc.mkp.md [--pack a,b] [--rir] [-o out.ir.json]`: one standalone IR, core and the packs
+/// in it; with `--rir`, the resolved IR of the document and its packs instead.
 fn build(args: &[String]) -> ExitCode {
     let (files, packs, out) = match options(args) {
         Ok(x) => x,
@@ -142,16 +143,29 @@ fn build(args: &[String]) -> ExitCode {
         }
     };
     let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-    let c = mkp_check::compile(&core_sources(), &[packs], &[mkp_check::Source { path: path.clone(), text }], module);
+    let rir = args.iter().any(|a| a == "--rir");
+    let main = [mkp_check::Source { path: path.clone(), text }];
+    let (c, resolved) = if rir {
+        let base = mkp_check::compile_core(&core_sources());
+        mkp_check::compile_rir(&base, &[packs], &main, module)
+    } else {
+        (mkp_check::compile(&core_sources(), &[packs], &main, module), None)
+    };
     for d in &c.diagnostics {
         if d.file == *path || d.diagnostic.is_error() {
             eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
         }
     }
     let Some(mut m) = c.module else { return ExitCode::from(1) };
-    // every prop that isn't constant becomes a binding with what it reads
-    mkp_lower::lower(&mut m);
-    let json = serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap();
+    let json = match resolved {
+        // the resolved IR: what the checker understood, for tools
+        Some(r) => serde_json::to_string_pretty(&r).unwrap(),
+        None => {
+            // every prop that isn't constant becomes a binding with what it reads
+            mkp_lower::lower(&mut m);
+            serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap()
+        }
+    };
     match out {
         Some(o) => {
             if let Err(e) = std::fs::write(&o, json) {
@@ -169,6 +183,7 @@ const USAGE: &str = "usage:
   mkp check [--json] [--pack a,b] <file>...   report every error and warning in each file
   mkp parse <file>                  print a file's syntax tree as JSON
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
+            [--rir]                 or its resolved IR, what the checker understood, for tools
   mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
   mkp surface <pack> [--pack a,b] [-o file] [--check] [--force]   write what this version of the pack provides
   mkp migrate [<file|folder>…] [--pack a,b] [--from kit@1] [--dry-run|--check|--diff] [--yes]

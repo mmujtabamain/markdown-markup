@@ -579,7 +579,7 @@ impl<'a> Parser<'a> {
                             let Stop::Close { indent: close, next } = stop else {
                                 return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, Span::at(case_at), "this case is not closed by a line that holds only `}`"));
                             };
-                            cases.push(ProseCase { indent: case_indent, patterns, body, close });
+                            cases.push(ProseCase { indent: case_indent, patterns, body, close, span: Span::at(case_at).to(Span::at(next)) });
                             pos = next;
                         }
                         Stop::End => return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, start, "`@match` is not closed by a line that holds only `}`")),

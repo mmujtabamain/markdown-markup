@@ -835,4 +835,5 @@ pub struct ProseCase {
     pub patterns: Vec<Pattern>,
     pub body: Prose,
     pub close: String,
+    pub span: Span,
 }

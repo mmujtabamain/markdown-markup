@@ -9,6 +9,7 @@ license.workspace = true
 mkp-syntax = { path = "../syntax" }
 mkp-ir = { path = "../ir" }
 mkp-eval = { path = "../../eval" }
+serde_json.workspace = true
 
 [dev-dependencies]
 mkp-lower = { path = "../lower" }

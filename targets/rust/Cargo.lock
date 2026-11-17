@@ -1980,6 +1980,7 @@ dependencies = [
 name = "mkp-cli"
 version = "0.3.0"
 dependencies = [
+ "jsonschema",
  "mkp-check",
  "mkp-eval",
  "mkp-ir",

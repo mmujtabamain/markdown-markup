@@ -140,7 +140,7 @@ impl Checker {
     pub fn expr(&mut self, cx: &mut Cx, e: &ast::Expr, expect: Option<&Ty>) -> (ir::Expr, Ty) {
         let (x, t) = self.expr_raw(cx, e, expect);
         self.note_known(cx, e, &x);
-        match expect {
+        let out = match expect {
             Some(want) if !t.is_err() => {
                 let x = self.coerce(cx.file, x, &t, want, e.span, &cx.bounds.clone());
                 let t = match self.accepts(want, &t, &cx.bounds.clone()) {
@@ -150,7 +150,12 @@ impl Checker {
                 (x, t)
             }
             _ => (x, t),
+        };
+        // for the resolved IR: what each expression is, by where it is
+        if let Some(m) = self.typed.as_mut() {
+            m.insert((cx.file, e.span.start, e.span.end), (out.1.clone(), out.0.clone()));
         }
+        out
     }
 
     fn literal_from(&mut self, cx: &mut Cx, x: ir::Expr, want: &Ty, given: &Ty, span: Span) -> Option<(ir::Expr, Ty)> {
@@ -1121,6 +1126,21 @@ impl Checker {
 
     /// Where an assignment or a `mut` argument writes, and its type.
     pub(crate) fn place(&mut self, cx: &mut Cx, e: &ast::Expr) -> Option<(ir::Place, Ty)> {
+        let out = self.place_raw(cx, e);
+        // for the resolved IR: a place's type, and the name its root is
+        if let (Some(m), Some((p, t))) = (self.typed.as_mut(), &out) {
+            let root = match &p.root {
+                ir::Root::Local(n) => ir::Get::Local(n.clone()),
+                ir::Root::Input(n) => ir::Get::Input(n.clone()),
+                ir::Root::Cell(n) => ir::Get::Cell(n.clone()),
+                ir::Root::State(n) => ir::Get::State(n.clone()),
+            };
+            m.insert((cx.file, e.span.start, e.span.end), (t.clone(), ir::Expr::Get(root)));
+        }
+        out
+    }
+
+    fn place_raw(&mut self, cx: &mut Cx, e: &ast::Expr) -> Option<(ir::Place, Ty)> {
         match &e.kind {
             E::Name(n) => {
                 if let Some(l) = cx.local(&n.name).cloned() {
