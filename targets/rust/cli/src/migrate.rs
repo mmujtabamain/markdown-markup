@@ -37,15 +37,15 @@ pub(crate) const FIRST: &str = "0.3.0";
 static ALLOW_ERRORS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A pack in the build: its version, the surfaces of earlier ones, and its migrations.
-struct Pack {
-    name: String,
-    version: u32,
+pub(crate) struct Pack {
+    pub(crate) name: String,
+    pub(crate) version: u32,
     /// Its own files, without its surfaces.
-    files: Vec<Source>,
-    surfaces: BTreeMap<u32, Source>,
-    steps: BTreeMap<u32, (ast::MigrationDecl, String)>,
+    pub(crate) files: Vec<Source>,
+    pub(crate) surfaces: BTreeMap<u32, Source>,
+    pub(crate) steps: BTreeMap<u32, (ast::MigrationDecl, String)>,
     /// Its migration fns, by name.
-    fns: BTreeMap<String, ast::MigrationFn>,
+    pub(crate) fns: BTreeMap<String, ast::MigrationFn>,
 }
 
 /// What migrating one file came to.
@@ -620,7 +620,7 @@ fn find_docs(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// The build's packs, by their package lines: each one's version, surfaces and migrations.
-fn packs_of(sources: &[Source]) -> Vec<Pack> {
+pub(crate) fn packs_of(sources: &[Source]) -> Vec<Pack> {
     let mut packs: BTreeMap<String, Pack> = BTreeMap::new();
     for s in sources {
         let Some(f) = parse(&s.text, Entry::Mkp).file else { continue };
@@ -1110,7 +1110,7 @@ fn mentions(text: &str, pack: &str) -> bool {
 }
 
 /// The build as it was at `pack@v`: its surface standing in for the pack, under the pack's name.
-fn world_at(sources: &[Source], pack: &Pack, v: u32) -> Vec<Source> {
+pub(crate) fn world_at(sources: &[Source], pack: &Pack, v: u32) -> Vec<Source> {
     let own: std::collections::HashSet<&str> = pack.files.iter().chain(pack.surfaces.values()).map(|s| s.path.as_str()).collect();
     let mut out: Vec<Source> = sources.iter().filter(|s| !own.contains(s.path.as_str())).cloned().collect();
     if let Some(s) = pack.surfaces.get(&v) {

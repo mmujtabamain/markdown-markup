@@ -450,3 +450,36 @@ fn migrate_writes_json_lines_and_a_report() {
     assert_eq!((v["files"][0]["result"].as_str(), v["summary"]["up_to_date"].as_u64()), (Some("up to date"), Some(1)));
     assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--report", "report.txt"]).0, 2);
 }
+
+#[test]
+fn check_runs_each_example_of_a_migration_through_its_block() {
+    let examples = MIGRATION
+        .replace("rename(input = color, to = tone);", "rename(input = color, to = tone);\n        example(before = @chart(values = [1, 2], color = color.OK), after = @plot(values = [1, 2], tone = color.OK));")
+        .replace("why = \"kit@1's badges were small\");", "why = \"kit@1's badges were small\");\n        example(before = @badge(label = \"Beta\", shadow = true), after = @badge(label = \"Beta\", size = size.S));")
+        .replace("why = \"a stat names its unit\");", "why = \"a stat names its unit\");\n        example(before = stat { label = \"Deploys\", value = \"42\" }, after = stat { title = \"Deploys\", value = \"42\", unit = \"\" });");
+    let dir = kit_tree("migrate-examples", "packs = [\"kit\"]\n");
+    let (kit, file) = (dir.join("kit"), dir.join("kit/migrations/kit@2.mkp"));
+    let check = |text: &str| {
+        std::fs::write(&file, text).unwrap();
+        mkp(&["check", "--pack", kit.to_str().unwrap(), file.to_str().unwrap()])
+    };
+    let (code, _, err) = check(&examples);
+    assert_eq!(code, 0, "{}", err);
+    // an after the block doesn't come to, and a before that isn't kit@1's
+    let (code, _, err) = check(&examples.replace("after = @badge(label = \"Beta\", size = size.S)", "after = @badge(label = \"Beta\", size = size.M)"));
+    assert_eq!(code, 1);
+    assert!(err.contains("error[pack.migration-example]: `before` becomes `@badge(label = \"Beta\", size = size.S)`, not `after`"), "{}", err);
+    let (code, _, err) = check(&examples.replace("before = @chart(values = [1, 2], color = color.OK)", "before = @chart(values = [1, 2], colour = color.OK)"));
+    assert_eq!(code, 1);
+    assert!(err.contains("`before` doesn't compile against kit@1"), "{}", err);
+}
+
+#[test]
+fn migrate_leaves_a_statements_semicolon_after_a_record_it_rewrites() {
+    let doc = "import kit;\n\nlet s: stat = stat { label = \"Deploys\", value = \"42\" };\n@@@\n# Report\n";
+    let dir = scratch("migrate-record-semi", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", MIGRATION), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/r.mkp.md", doc)]);
+    let docs = dir.join("docs");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(std::fs::read_to_string(docs.join("r.mkp.md")).unwrap(), "import kit;\n\nlet s: stat = stat { title = \"Deploys\", value = \"42\", unit = \"\" };\n@@@\n# Report\n");
+}

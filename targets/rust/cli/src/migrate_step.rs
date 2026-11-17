@@ -273,7 +273,9 @@ impl<'a> Step<'a> {
                 if let Some(end) = prose_calls.get(&ws) {
                     we = *end;
                 }
-            } else if tail.starts_with(';') {
+            } else if tail.starts_with(';') && self.text[ws..].starts_with('@') {
+                // a call's `;` is its own, and goes with it if it gets a block; a record's is the
+                // statement's
                 we += 1;
                 semi = true;
             }

@@ -3,6 +3,7 @@
 use std::process::ExitCode;
 
 mod migrate;
+mod examples;
 mod migrate_02;
 mod releases;
 mod migrate_step;
@@ -306,8 +307,17 @@ fn check(args: &[String]) -> ExitCode {
         // each file with core and the packs: a document, or a pack's file with the rest of its pack
         let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
         let packs: Vec<mkp_check::Source> = packs.iter().filter(|p| std::path::Path::new(&p.path) != std::path::Path::new(path)).cloned().collect();
-        let c = mkp_check::compile_on(&base, &[packs], &[mkp_check::Source { path: path.to_string(), text: src }], module);
+        let c = mkp_check::compile_on(&base, &[packs.clone()], &[mkp_check::Source { path: path.to_string(), text: src.clone() }], module);
         failed |= c.module.is_none();
+        // a pack's migrations: each example run through its block, once the file compiles
+        let mut c = c;
+        if c.module.is_some() && module == "main" {
+            crate::migrate_step::NO_ASKING.store(true, std::sync::atomic::Ordering::Relaxed);
+            for d in examples::check(&base, path, &src, &packs) {
+                failed = true;
+                c.diagnostics.push(mkp_check::Found { file: path.to_string(), diagnostic: d });
+            }
+        }
         // this file's errors and warnings, and any pack's errors
         for found in c.diagnostics.iter().filter(|d| d.file == *path || d.diagnostic.is_error()) {
             let (file, d) = (&found.file, &found.diagnostic);
