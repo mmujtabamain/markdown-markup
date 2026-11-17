@@ -14,7 +14,7 @@ use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
                   [--dry-run | --check | --diff] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
-                  [--todo] [--allow-errors]
+                  [--todo] [--allow-errors] [--format json] [--report report.md|report.json]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
   Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
@@ -24,7 +24,9 @@ const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.
   A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
   only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.
   mkp.toml's mkp = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none), and
-  [uses] each pack's version; both move with the tree.";
+  [uses] each pack's version; both move with the tree.
+  --format json prints a JSON object for each file, note and question, then the summary, and asks
+  nothing; --report writes the whole run to a file, as Markdown or JSON.";
 
 /// This mkp's release: what a tree is written for once `mkp migrate` has moved it.
 pub(crate) const RELEASE: &str = env!("CARGO_PKG_VERSION");
@@ -69,6 +71,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let flag = |f: &str| args.iter().any(|a| a == f);
     let (dry, check, diff, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--allow-dirty"));
     crate::migrate_step::TODO.store(flag("--todo"), std::sync::atomic::Ordering::Relaxed);
+    // JSON is for a program: nothing is asked in a terminal
+    crate::migrate_step::NO_ASKING.store(args.windows(2).any(|w| w[0] == "--format" && w[1] == "json"), std::sync::atomic::Ordering::Relaxed);
     ALLOW_ERRORS.store(flag("--allow-errors"), std::sync::atomic::Ordering::Relaxed);
     // `--yes`, or `--yes 1,3` / `--yes 1 3`: the questions to answer yes, by number
     let numbers = |v: &str| -> Option<Vec<usize>> { v.split(',').filter(|x| !x.is_empty()).map(|x| x.parse().ok()).collect::<Option<Vec<usize>>>().filter(|n| !n.is_empty()) };
@@ -76,6 +80,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let mut yes_to: BTreeSet<usize> = BTreeSet::new();
     let mut from: BTreeMap<String, u32> = BTreeMap::new();
     let mut answers: Option<PathBuf> = None;
+    let mut json = false;
+    let mut report: Option<String> = None;
     let mut rest = Vec::new();
     let mut k = 0;
     while k < args.len() {
@@ -86,6 +92,25 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                     return ExitCode::from(2);
                 };
                 from.insert(v.0, v.1);
+                k += 2;
+            }
+            "--format" => {
+                match args.get(k + 1).map(String::as_str) {
+                    Some("json") => json = true,
+                    Some("text") => json = false,
+                    _ => {
+                        eprintln!("--format takes json or text");
+                        return ExitCode::from(2);
+                    }
+                }
+                k += 2;
+            }
+            "--report" => {
+                let Some(f) = args.get(k + 1).filter(|f| f.ends_with(".md") || f.ends_with(".json")) else {
+                    eprintln!("--report takes a file to write the report to: report.md, or report.json");
+                    return ExitCode::from(2);
+                };
+                report = Some(f.clone());
                 k += 2;
             }
             "--answers" => {
@@ -246,17 +271,25 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             eprintln!("{}: {}", f.display(), e);
         }
     }
-    // the summary
+    // the summary: as text, or with --format json one JSON object per file and per note
+    let human = !json;
+    macro_rules! say {
+        ($($t:tt)*) => {
+            if human {
+                println!($($t)*);
+            }
+        };
+    }
     let width = results.iter().map(|(p, _, _)| p.display().to_string().len()).max().unwrap_or(0);
     let (mut to_write, mut need, mut fine) = (Vec::new(), 0, 0);
     for (p, old, o) in &results {
         let name = format!("{:width$}", p.display(), width = width);
         if !o.refused.is_empty() {
             need += 1;
-            println!("{}  {}  not written: {}", name, o.moved.join(", "), o.refused.join("; "));
+            say!("{}  {}  not written: {}", name, o.moved.join(", "), o.refused.join("; "));
         } else if o.text == *old {
             fine += 1;
-            println!("{}  up to date", name);
+            say!("{}  up to date", name);
         } else {
             let mut parts = vec![format!("{} change{}", o.changes, if o.changes == 1 { "" } else { "s" })];
             if !o.deletions.is_empty() {
@@ -271,55 +304,55 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if !o.errors.is_empty() {
                 parts.push("doesn't compile".to_string());
             }
-            println!("{}  {}  {}{}", name, o.moved.join(", "), parts.join("; "), if o.inferred.is_empty() { String::new() } else { format!(" ({})", o.inferred.join(", ")) });
+            say!("{}  {}  {}{}", name, o.moved.join(", "), parts.join("; "), if o.inferred.is_empty() { String::new() } else { format!(" ({})", o.inferred.join(", ")) });
             to_write.push((p.clone(), old.clone(), o));
         }
     }
     if let Some(cfg) = &config {
         match &written_release {
-            Some(r) if r == RELEASE => println!("{}: written for mkp {}.", cfg.display(), r),
-            Some(r) => println!("{}: written for mkp {}, and moves to {}.", cfg.display(), r, RELEASE),
-            None => println!("{}: says no release of mkp, so it is taken as written for {}, and moves to {}.", cfg.display(), FIRST, RELEASE),
+            Some(r) if r == RELEASE => say!("{}: written for mkp {}.", cfg.display(), r),
+            Some(r) => say!("{}: written for mkp {}, and moves to {}.", cfg.display(), r, RELEASE),
+            None => say!("{}: says no release of mkp, so it is taken as written for {}, and moves to {}.", cfg.display(), FIRST, RELEASE),
         }
     }
-    println!("{} file{}: {} to migrate, {} need{} a person, {} up to date.", results.len(), if results.len() == 1 { "" } else { "s" }, to_write.len(), need, if need == 1 { "s" } else { "" }, fine);
+    say!("{} file{}: {} to migrate, {} need{} a person, {} up to date.", results.len(), if results.len() == 1 { "" } else { "s" }, to_write.len(), need, if need == 1 { "s" } else { "" }, fine);
     let notices: Vec<&String> = to_write.iter().flat_map(|(_, _, o)| o.notices.iter()).collect();
     if !notices.is_empty() {
-        println!("\nto know:");
+        say!("\nto know:");
         for n in notices {
-            println!("  {}", n);
+            say!("  {}", n);
         }
     }
     let asked = crate::migrate_step::ASKED.lock().unwrap().clone();
     if !asked.is_empty() {
-        println!("\nquestions:");
+        say!("\nquestions:");
         for (k, (q, a, by)) in asked.iter().enumerate() {
             let hint = if *by == "nobody to ask" { format!(" (--yes {} answers yes)", k + 1) } else { String::new() };
-            println!("  {}. {}  {}: {}{}", k + 1, q, if *a { "yes" } else { "no" }, by, hint);
+            say!("  {}. {}  {}: {}{}", k + 1, q, if *a { "yes" } else { "no" }, by, hint);
         }
     }
     let todos: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.todos.iter().map(move |t| format!("{}: {}", p.display(), t))).collect();
     if !todos.is_empty() {
-        println!("\nleft for a person, each with a TODO above it:");
+        say!("\nleft for a person, each with a TODO above it:");
         for t in &todos {
-            println!("  {}", t);
+            say!("  {}", t);
         }
     }
     let errors: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.errors.iter().map(move |e| format!("{}: {}", p.display(), e))).collect();
     if !errors.is_empty() {
-        println!("\nwritten with errors (--allow-errors):");
+        say!("\nwritten with errors (--allow-errors):");
         for e in &errors {
-            println!("  {}", e);
+            say!("  {}", e);
         }
     }
     let deletions: Vec<&String> = to_write.iter().flat_map(|(_, _, o)| o.deletions.iter()).collect();
     if !deletions.is_empty() {
-        println!("\nwarning: the newer versions drop what these files give:");
+        say!("\nwarning: the newer versions drop what these files give:");
         for d in deletions {
-            println!("  {}", d);
+            say!("  {}", d);
         }
     }
-    if diff {
+    if diff && human {
         // what would change, refused files too, so a person can see what's left
         for (p, old, o) in &results {
             if o.text != *old {
@@ -327,89 +360,246 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         }
     }
-    if to_write.is_empty() && !record_moves {
-        return if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
-    }
-    if check {
-        return ExitCode::from(1);
-    }
-    if dry || diff {
-        return if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
-    }
-    // git: what can be undone, and what has edits of its own
-    let paths: Vec<&Path> = to_write.iter().map(|(p, _, _)| p.as_path()).collect();
-    let dirty = git_dirty(&paths);
-    match &dirty {
-        None => println!("\nnot in git: nothing can undo these changes; keep a copy first."),
-        Some(d) if d.is_empty() => println!("\ngit: these files are in a git repository, and every change can be undone with git restore."),
-        Some(d) => println!("\ngit: these files are in a git repository; {} {} uncommitted changes of {} own, which the migration's would mix with.", d.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "), if d.len() == 1 { "has" } else { "have" }, if d.len() == 1 { "its" } else { "their" }),
-    }
-    println!("warning: this rewrites {} file{} in place{}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, if record_moves { ", and the release mkp.toml says" } else { "" });
-    if std::io::stdin().is_terminal() && !yes {
-        print!("Continue? [y/N] ");
-        let _ = std::io::stdout().flush();
-        let mut answer = String::new();
-        let _ = std::io::stdin().read_line(&mut answer);
-        if !matches!(answer.trim(), "y" | "Y" | "yes") {
-            println!("Nothing written.");
-            return ExitCode::from(1);
+    let terminal = std::io::stdin().is_terminal() && human;
+    let mut wrote: Vec<PathBuf> = Vec::new();
+    let mut skipped: Vec<PathBuf> = Vec::new();
+    let mut moved_record = false;
+    let code = 'run: {
+        if to_write.is_empty() && !record_moves {
+            break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
-    } else if !yes {
-        println!("There is no terminal to ask in: nothing written. Pass --yes to write, or --dry-run to only look.");
-        return ExitCode::from(1);
-    }
-    let mut written = 0;
-    for (p, _, o) in &to_write {
-        if !std::io::stdin().is_terminal() && !dirty_ok && dirty.as_ref().map_or(false, |d| d.iter().any(|x| x == p)) {
-            println!("{}: skipped: it has uncommitted changes (--allow-dirty writes it)", p.display());
-            continue;
+        if check {
+            break 'run ExitCode::from(1);
         }
-        if let Err(e) = std::fs::write(p, &o.text) {
-            eprintln!("{}: {}", p.display(), e);
-            return ExitCode::from(2);
+        if dry || diff {
+            break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
-        written += 1;
-        for name in &o.stand_ins {
-            let (file, text) = &stand_ins[name];
-            if std::fs::read_to_string(file).ok().as_deref() == Some(text.as_str()) {
+        // git: what can be undone, and what has edits of its own
+        let paths: Vec<&Path> = to_write.iter().map(|(p, _, _)| p.as_path()).collect();
+        let dirty = git_dirty(&paths);
+        match &dirty {
+            None => say!("\nnot in git: nothing can undo these changes; keep a copy first."),
+            Some(d) if d.is_empty() => say!("\ngit: these files are in a git repository, and every change can be undone with git restore."),
+            Some(d) => say!("\ngit: these files are in a git repository; {} {} uncommitted changes of {} own, which the migration's would mix with.", d.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "), if d.len() == 1 { "has" } else { "have" }, if d.len() == 1 { "its" } else { "their" }),
+        }
+        say!("warning: this rewrites {} file{} in place{}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, if record_moves { ", and the release mkp.toml says" } else { "" });
+        if terminal && !yes {
+            print!("Continue? [y/N] ");
+            let _ = std::io::stdout().flush();
+            let mut answer = String::new();
+            let _ = std::io::stdin().read_line(&mut answer);
+            if !matches!(answer.trim(), "y" | "Y" | "yes") {
+                say!("Nothing written.");
+                break 'run ExitCode::from(1);
+            }
+        } else if !yes {
+            say!("There is no terminal to ask in: nothing written. Pass --yes to write, or --dry-run to only look.");
+            break 'run ExitCode::from(1);
+        }
+        for (p, _, o) in &to_write {
+            if !terminal && !dirty_ok && dirty.as_ref().map_or(false, |d| d.iter().any(|x| x == p)) {
+                say!("{}: skipped: it has uncommitted changes (--allow-dirty writes it)", p.display());
+                skipped.push(p.clone());
                 continue;
             }
-            let wrote = std::fs::create_dir_all(file.parent().unwrap_or(Path::new("."))).and_then(|_| std::fs::write(file, text));
-            if let Err(e) = wrote {
-                eprintln!("{}: {}", file.display(), e);
+            if let Err(e) = std::fs::write(p, &o.text) {
+                eprintln!("{}: {}", p.display(), e);
                 return ExitCode::from(2);
             }
-            println!("{}: a stand-in for {}, written from its 0.2 definitions.", file.display(), name);
+            wrote.push(p.clone());
+            for name in &o.stand_ins {
+                let (file, text) = &stand_ins[name];
+                if std::fs::read_to_string(file).ok().as_deref() == Some(text.as_str()) {
+                    continue;
+                }
+                let made = std::fs::create_dir_all(file.parent().unwrap_or(Path::new("."))).and_then(|_| std::fs::write(file, text));
+                if let Err(e) = made {
+                    eprintln!("{}: {}", file.display(), e);
+                    return ExitCode::from(2);
+                }
+                say!("{}: a stand-in for {}, written from its 0.2 definitions.", file.display(), name);
+            }
         }
-    }
-    if to_write.iter().any(|(_, _, o)| !o.stand_ins.is_empty()) {
-        println!("The documents are checked against the stand-ins with: mkp check --pack {} …", stand_in_dir.display());
-    }
-    println!("Wrote {} file{}.", written, if written == 1 { "" } else { "s" });
-    // the tree is written for the newer versions once every file in it moved
-    if let Some(cfg) = config.filter(|_| need == 0 && written == to_write.len()) {
-        let to: BTreeMap<String, u32> = packs.iter().filter(|p| uses.get(&p.name).map_or(false, |v| *v < p.version)).map(|p| (p.name.clone(), p.version)).collect();
-        if !to.is_empty() {
-            if let Err(e) = bump_config(&cfg, &to) {
-                eprintln!("{}: {}", cfg.display(), e);
+        if to_write.iter().any(|(_, _, o)| !o.stand_ins.is_empty()) {
+            say!("The documents are checked against the stand-ins with: mkp check --pack {} …", stand_in_dir.display());
+        }
+        say!("Wrote {} file{}.", wrote.len(), if wrote.len() == 1 { "" } else { "s" });
+        // the tree is written for the newer versions once every file in it moved
+        if let Some(cfg) = config.as_ref().filter(|_| need == 0 && wrote.len() == to_write.len()) {
+            let to: BTreeMap<String, u32> = packs.iter().filter(|p| uses.get(&p.name).map_or(false, |v| *v < p.version)).map(|p| (p.name.clone(), p.version)).collect();
+            if !to.is_empty() {
+                if let Err(e) = bump_config(cfg, &to) {
+                    eprintln!("{}: {}", cfg.display(), e);
+                    return ExitCode::from(2);
+                }
+                say!("{}: now written for {}.", cfg.display(), to.iter().map(|(p, v)| format!("{}@{}", p, v)).collect::<Vec<_>>().join(", "));
+            }
+            if record_moves {
+                if let Err(e) = set_release(cfg, RELEASE) {
+                    eprintln!("{}: {}", cfg.display(), e);
+                    return ExitCode::from(2);
+                }
+                moved_record = true;
+                say!("{}: now written for mkp {}.", cfg.display(), RELEASE);
+            }
+        }
+        // a file written with a TODO or with errors is still a person's to finish
+        let left = to_write.iter().any(|(_, _, o)| !o.todos.is_empty() || !o.errors.is_empty());
+        if need > 0 || wrote.len() < to_write.len() || left {
+            ExitCode::from(1)
+        } else {
+            ExitCode::SUCCESS
+        }
+    };
+    // what happened, for CI and tools: JSON lines, and the report
+    if json || report.is_some() {
+        let r = Report { results: &results, asked: &asked, wrote: &wrote, skipped: &skipped, from: &from_release, record: config.as_ref().map(|c| (c.as_path(), moved_record)), diff, code: if code == ExitCode::SUCCESS { 0 } else { 1 } };
+        if json {
+            for line in r.lines() {
+                println!("{}", line);
+            }
+        }
+        if let Some(f) = &report {
+            let text = if f.ends_with(".json") { serde_json::to_string_pretty(&r.whole()).unwrap() + "\n" } else { r.markdown() };
+            if let Err(e) = std::fs::write(f, text) {
+                eprintln!("{}: {}", f, e);
                 return ExitCode::from(2);
             }
-            println!("{}: now written for {}.", cfg.display(), to.iter().map(|(p, v)| format!("{}@{}", p, v)).collect::<Vec<_>>().join(", "));
-        }
-        if record_moves {
-            if let Err(e) = set_release(&cfg, RELEASE) {
-                eprintln!("{}: {}", cfg.display(), e);
-                return ExitCode::from(2);
-            }
-            println!("{}: now written for mkp {}.", cfg.display(), RELEASE);
         }
     }
-    // a file written with a TODO or with errors is still a person's to finish
-    let left = to_write.iter().any(|(_, _, o)| !o.todos.is_empty() || !o.errors.is_empty());
-    if need > 0 || written < to_write.len() || left {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
+    code
+}
+
+/// What a run did, file by file: `--format json`'s lines and `--report`'s file.
+struct Report<'a> {
+    results: &'a [(PathBuf, String, Outcome)],
+    asked: &'a [(String, bool, &'static str)],
+    wrote: &'a [PathBuf],
+    skipped: &'a [PathBuf],
+    from: &'a str,
+    /// The mkp.toml, and whether its release moved.
+    record: Option<(&'a Path, bool)>,
+    diff: bool,
+    code: u8,
+}
+
+impl Report<'_> {
+    /// What became of a file: up to date, migrated, to migrate (not written by this run), not
+    /// written (refused) or skipped (it has edits of its own).
+    fn result(&self, p: &PathBuf, old: &str, o: &Outcome) -> &'static str {
+        if !o.refused.is_empty() {
+            "not written"
+        } else if o.text == old {
+            "up to date"
+        } else if self.wrote.contains(p) {
+            "migrated"
+        } else if self.skipped.contains(p) {
+            "skipped"
+        } else {
+            "to migrate"
+        }
+    }
+
+    fn file(&self, p: &PathBuf, old: &str, o: &Outcome, notes: bool) -> serde_json::Value {
+        let mut v = serde_json::json!({
+            "file": p.display().to_string(),
+            "kind": if p.display().to_string().ends_with(".mkp.md") { "document" } else { "pack" },
+            "result": self.result(p, old, o),
+            "moved": o.moved,
+            "changes": o.changes,
+        });
+        if notes {
+            for (k, xs) in [("inferred", &o.inferred), ("deletions", &o.deletions), ("to_know", &o.notices), ("todos", &o.todos), ("errors", &o.errors), ("refused", &o.refused), ("stand_ins", &o.stand_ins)] {
+                v[k] = serde_json::json!(xs);
+            }
+        }
+        if self.diff && o.text != old {
+            v["diff"] = serde_json::json!(unified(&p.display().to_string(), old, &o.text));
+        }
+        v
+    }
+
+    fn questions(&self) -> Vec<serde_json::Value> {
+        self.asked.iter().enumerate().map(|(k, (q, a, by))| serde_json::json!({ "question": k + 1, "asks": q, "answer": a, "by": by })).collect()
+    }
+
+    fn summary(&self) -> serde_json::Value {
+        let count = |r: &str| self.results.iter().filter(|(p, old, o)| self.result(p, old, o) == r).count();
+        let mut v = serde_json::json!({
+            "files": self.results.len(),
+            "migrated": count("migrated"),
+            "to_migrate": count("to migrate"),
+            "not_written": count("not written"),
+            "skipped": count("skipped"),
+            "up_to_date": count("up to date"),
+            "release": { "from": self.from, "to": RELEASE },
+            "exit": self.code,
+        });
+        if let Some((cfg, moved)) = self.record {
+            v["mkp_toml"] = serde_json::json!({ "file": cfg.display().to_string(), "release_moved": moved });
+        }
+        v
+    }
+
+    /// `--format json`: a line for each file, one for each of its notes, one for each question,
+    /// then the summary.
+    fn lines(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for (p, old, o) in self.results {
+            let mut f = self.file(p, old, o, false);
+            f["type"] = "file".into();
+            out.push(f.to_string());
+            for (kind, xs) in [("inferred", &o.inferred), ("deletion", &o.deletions), ("to_know", &o.notices), ("todo", &o.todos), ("error", &o.errors), ("refused", &o.refused)] {
+                for x in xs {
+                    out.push(serde_json::json!({ "type": "note", "file": p.display().to_string(), "kind": kind, "text": x }).to_string());
+                }
+            }
+        }
+        for mut q in self.questions() {
+            q["type"] = "question".into();
+            out.push(q.to_string());
+        }
+        let mut s = self.summary();
+        s["type"] = "summary".into();
+        out.push(s.to_string());
+        out
+    }
+
+    /// `--report f.json`: the run as one JSON document.
+    fn whole(&self) -> serde_json::Value {
+        serde_json::json!({
+            "mkp": RELEASE,
+            "files": self.results.iter().map(|(p, old, o)| self.file(p, old, o, true)).collect::<Vec<_>>(),
+            "questions": self.questions(),
+            "summary": self.summary(),
+        })
+    }
+
+    /// `--report f.md`: the run for a person to read, file by file.
+    fn markdown(&self) -> String {
+        let s = self.summary();
+        let mut out = format!(
+            "# mkp migrate\n\nmkp {}, from mkp {}: {} files, {} migrated, {} to migrate, {} not written, {} skipped, {} up to date.\n",
+            RELEASE, self.from, s["files"], s["migrated"], s["to_migrate"], s["not_written"], s["skipped"], s["up_to_date"]
+        );
+        for (p, old, o) in self.results {
+            out.push_str(&format!("\n## {}\n\n{}{}.\n", p.display(), self.result(p, old, o), if o.moved.is_empty() { String::new() } else { format!(": {}", o.moved.join(", ")) }));
+            for (title, xs) in [("Inferred", &o.inferred), ("Refused", &o.refused), ("Deleted", &o.deletions), ("To know", &o.notices), ("TODO", &o.todos), ("Errors", &o.errors)] {
+                if !xs.is_empty() {
+                    out.push_str(&format!("\n{}:\n\n", title));
+                    for x in xs {
+                        out.push_str(&format!("- {}\n", x));
+                    }
+                }
+            }
+        }
+        if !self.asked.is_empty() {
+            out.push_str("\n## Questions\n\n");
+            for (k, (q, a, by)) in self.asked.iter().enumerate() {
+                out.push_str(&format!("{}. {} {} ({})\n", k + 1, q, if *a { "Yes" } else { "No" }, by));
+            }
+        }
+        out
     }
 }
 

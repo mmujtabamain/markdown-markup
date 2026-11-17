@@ -422,3 +422,31 @@ fn migrate_keeps_the_release_a_tree_is_written_for_in_mkp_toml() {
     std::fs::write(dir.join("mkp.toml"), toml.replace(&format!("mkp = \"{}\"", release), "mkp = \"soon\"")).unwrap();
     assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]).0, 2);
 }
+
+#[test]
+fn migrate_writes_json_lines_and_a_report() {
+    let dir = kit_tree("migrate-report", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let report = |out: &str| -> Vec<serde_json::Value> { out.lines().map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!("{}: {}", l, e))).collect() };
+    // --format json: a line per file, per note and per question, then the summary; nothing else
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run", "--format", "json"]);
+    assert_eq!(code, 0, "{}", out);
+    let lines = report(&out);
+    let file = lines.iter().find(|l| l["type"] == "file").unwrap();
+    assert_eq!((file["kind"].as_str(), file["result"].as_str(), file["moved"][0].as_str()), (Some("document"), Some("to migrate"), Some("kit@1 → kit@2")));
+    assert_eq!(lines.iter().filter(|l| l["type"] == "note" && l["kind"] == "deletion").count(), 2);
+    let summary = lines.last().unwrap();
+    assert_eq!((summary["type"].as_str(), summary["to_migrate"].as_u64(), summary["exit"].as_u64()), (Some("summary"), Some(1), Some(0)));
+    // --report: the run as Markdown, or as one JSON document
+    let md = dir.join("report.md");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--report", md.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    let text = std::fs::read_to_string(&md).unwrap();
+    assert!(text.starts_with("# mkp migrate\n\n") && text.contains("1 migrated") && text.contains("report.mkp.md\n\nmigrated: kit@1 → kit@2.\n") && text.contains("\nDeleted:\n\n- "), "{}", text);
+    let js = dir.join("report.json");
+    let (code, _, _) = mkp(&["migrate", docs.to_str().unwrap(), "--check", "--report", js.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&js).unwrap()).unwrap();
+    assert_eq!((v["files"][0]["result"].as_str(), v["summary"]["up_to_date"].as_u64()), (Some("up to date"), Some(1)));
+    assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--report", "report.txt"]).0, 2);
+}

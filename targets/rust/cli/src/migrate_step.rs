@@ -1345,6 +1345,13 @@ pub(crate) fn answers_text() -> Option<String> {
 /// file being refused.
 pub(crate) static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// `--format json`: no question is asked in a terminal, as where there is none.
+pub(crate) static NO_ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn can_ask() -> bool {
+    std::io::stdin().is_terminal() && !NO_ASKING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// `--yes`: every question answered yes, or only the ones numbered (`--yes 1,3`).
 pub(crate) enum Yes {
     All,
@@ -1370,7 +1377,7 @@ fn confirm(question: &str) -> Option<bool> {
         (Some(a), _) => (*a, "--answers"),
         (None, Some(Yes::All)) => (true, "--yes"),
         (None, Some(Yes::Numbers(ns))) => (ns.contains(&n), "--yes"),
-        (None, None) if std::io::stdin().is_terminal() => {
+        (None, None) if can_ask() => {
             print!("{}. {} [y/N] ", n, question);
             let _ = std::io::stdout().flush();
             let mut s = String::new();
@@ -1394,7 +1401,7 @@ fn ask(key: &str, question: &str, options: &[String]) -> Option<String> {
     if let Some(a) = answers.split.get(key) {
         return options.iter().find(|o| *o == a).cloned();
     }
-    if !std::io::stdin().is_terminal() || options.is_empty() {
+    if !can_ask() || options.is_empty() {
         return None;
     }
     println!("{}", question);
