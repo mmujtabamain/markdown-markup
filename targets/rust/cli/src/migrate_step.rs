@@ -1350,7 +1350,7 @@ pub(crate) static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::Atomi
 /// `--format json`: no question is asked in a terminal, as where there is none.
 pub(crate) static NO_ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-fn can_ask() -> bool {
+pub(crate) fn can_ask() -> bool {
     std::io::stdin().is_terminal() && !NO_ASKING.load(std::sync::atomic::Ordering::Relaxed)
 }
 
@@ -1362,60 +1362,157 @@ pub(crate) enum Yes {
 
 pub(crate) static YES: std::sync::Mutex<Option<Yes>> = std::sync::Mutex::new(None);
 
-/// Every question asked, numbered in the order they came up: its answer, and who gave it.
-pub(crate) static ASKED: std::sync::Mutex<Vec<(String, bool, &'static str)>> = std::sync::Mutex::new(Vec::new());
+/// Every yes or no answered in this pass: its number, the question, its answer, and who gave it.
+pub(crate) static ASKED: std::sync::Mutex<Vec<(usize, String, bool, &'static str)>> = std::sync::Mutex::new(Vec::new());
 
-/// A yes or no for the whole run: from the answers, else `--yes`, else asked once in a terminal,
-/// else no.
-fn confirm(question: &str) -> Option<bool> {
-    let mut asked = ASKED.lock().unwrap();
-    if let Some((_, a, _)) = asked.iter().find(|(q, _, _)| q == question) {
-        return Some(*a);
+/// A question a migration asks: one yes or no for the whole run (`confirm`), or a choice about
+/// one use (`ask`, and `split`), with its options.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Question {
+    /// What identifies it in `--answers`: the `why` of a yes or no, `file:line CASE` of a choice.
+    pub key: String,
+    pub asks: String,
+    /// Empty for a yes or no.
+    pub options: Vec<String>,
+}
+
+/// Every question the run has met, numbered in the order it first came up (as `--yes 2` names
+/// them), and the ones no one has answered yet.
+static QUESTIONS: std::sync::Mutex<Vec<Question>> = std::sync::Mutex::new(Vec::new());
+static PENDING: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(Vec::new());
+/// The questions answered in this terminal, by key.
+static ANSWERED_HERE: std::sync::Mutex<BTreeSet<String>> = std::sync::Mutex::new(BTreeSet::new());
+
+/// A question's number, registering it the first time it comes up.
+fn number(q: Question) -> usize {
+    let mut all = QUESTIONS.lock().unwrap();
+    match all.iter().position(|x| x.key == q.key) {
+        Some(k) => k + 1,
+        None => {
+            all.push(q);
+            all.len()
+        }
     }
-    let n = asked.len() + 1;
+}
+
+fn wait_for(n: usize) {
+    let mut p = PENDING.lock().unwrap();
+    if !p.contains(&n) {
+        p.push(n);
+    }
+}
+
+/// A new pass over the files: what was answered stays, what was waiting is met again.
+pub(crate) fn new_pass() {
+    ASKED.lock().unwrap().clear();
+    PENDING.lock().unwrap().clear();
+}
+
+/// The questions this pass met that no one has answered, with their numbers, in order.
+pub(crate) fn pending() -> Vec<(usize, Question)> {
+    let all = QUESTIONS.lock().unwrap();
+    let mut p = PENDING.lock().unwrap().clone();
+    p.sort();
+    p.into_iter().map(|n| (n, all[n - 1].clone())).collect()
+}
+
+/// In a terminal: every question waiting, listed, then each asked in turn until it gets y or n
+/// (a choice, its number). `false` when the terminal closes before every one is answered.
+pub(crate) fn ask_in_terminal(questions: &[(usize, Question)]) -> bool {
+    println!("\n{} question{} to answer before anything is written:", questions.len(), if questions.len() == 1 { "" } else { "s" });
+    for (n, q) in questions {
+        println!("  {}. {}{}", n, q.asks, if q.options.is_empty() { String::new() } else { format!(" ({})", q.options.join(" or ")) });
+    }
+    println!();
     let mut guard = ANSWERS.lock().unwrap();
     let answers = guard.get_or_insert_with(Answers::default);
-    let (a, by) = match (answers.confirm.get(question), &*YES.lock().unwrap()) {
-        (Some(a), _) => (*a, "--answers"),
-        (None, Some(Yes::All)) => (true, "--yes"),
-        (None, Some(Yes::Numbers(ns))) => (ns.contains(&n), "--yes"),
-        (None, None) if can_ask() => {
-            print!("{}. {} [y/N] ", n, question);
+    for (n, q) in questions {
+        let mut again = false;
+        loop {
+            // asked once in full; an answer that isn't one is asked for again, briefly
+            match (q.options.is_empty(), again) {
+                (true, false) => print!("{}. {} [y/n] ", n, q.asks),
+                (true, true) => print!("   y or n: "),
+                (false, false) => {
+                    println!("{}. {}", n, q.asks);
+                    for (k, o) in q.options.iter().enumerate() {
+                        println!("     {}) {}", k + 1, o);
+                    }
+                    print!("   [1-{}] ", q.options.len());
+                }
+                (false, true) => print!("   a number from 1 to {}: ", q.options.len()),
+            }
+            again = true;
             let _ = std::io::stdout().flush();
             let mut s = String::new();
-            let _ = std::io::stdin().read_line(&mut s);
-            let a = matches!(s.trim(), "y" | "Y" | "yes");
-            answers.confirm.insert(question.to_string(), a);
+            if std::io::stdin().read_line(&mut s).map_or(true, |read| read == 0) {
+                println!();
+                return false;
+            }
+            let s = s.trim();
+            if q.options.is_empty() {
+                let a = match s {
+                    "y" | "Y" | "yes" => true,
+                    "n" | "N" | "no" => false,
+                    _ => continue,
+                };
+                answers.confirm.insert(q.key.clone(), a);
+            } else {
+                let Some(pick) = s.parse::<usize>().ok().filter(|k| *k >= 1 && *k <= q.options.len()) else { continue };
+                answers.split.insert(q.key.clone(), q.options[pick - 1].clone());
+            }
             answers.changed = true;
-            (a, "asked")
+            ANSWERED_HERE.lock().unwrap().insert(q.key.clone());
+            break;
         }
-        (None, None) => (false, "nobody to ask"),
+    }
+    true
+}
+
+/// How a question no one answered can be: by number, or in the answers file.
+pub(crate) fn how_to_answer(n: usize, q: &Question) -> String {
+    let quoted = |s: &str| format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
+    if q.options.is_empty() {
+        format!("--yes {}, or in --answers: [confirm] {} = true", n, quoted(&q.key))
+    } else {
+        format!("in --answers: [split] {} = {}", quoted(&q.key), quoted(&q.options[0]))
+    }
+}
+
+/// A yes or no for the whole run: from the answers or `--yes`; else it waits, to be asked once
+/// every question is known, and counts as no in the meantime.
+fn confirm(question: &str) -> Option<bool> {
+    let mut asked = ASKED.lock().unwrap();
+    if let Some((_, _, a, _)) = asked.iter().find(|(_, q, _, _)| q == question) {
+        return Some(*a);
+    }
+    let n = number(Question { key: question.to_string(), asks: question.to_string(), options: Vec::new() });
+    let mut guard = ANSWERS.lock().unwrap();
+    let answers = guard.get_or_insert_with(Answers::default);
+    let here = ANSWERED_HERE.lock().unwrap().contains(question);
+    let (a, by) = match (answers.confirm.get(question), &*YES.lock().unwrap()) {
+        (Some(a), _) => (*a, if here { "asked" } else { "--answers" }),
+        (None, Some(Yes::All)) => (true, "--yes"),
+        (None, Some(Yes::Numbers(ns))) => (ns.contains(&n), "--yes"),
+        (None, None) => {
+            wait_for(n);
+            return Some(false);
+        }
     };
-    asked.push((question.to_string(), a, by));
+    asked.push((n, question.to_string(), a, by));
     Some(a)
 }
 
-/// A choice about one use: from the answers, by `key`, else asked in a terminal; `None` where
-/// nobody can be asked and the answers don't say.
+/// A choice about one use: from the answers, by `key`; else it waits to be asked, or with
+/// `--allow-todos` is left for a person (`None`).
 fn ask(key: &str, question: &str, options: &[String]) -> Option<String> {
     let mut guard = ANSWERS.lock().unwrap();
     let answers = guard.get_or_insert_with(Answers::default);
     if let Some(a) = answers.split.get(key) {
         return options.iter().find(|o| *o == a).cloned();
     }
-    if !can_ask() || options.is_empty() {
-        return None;
+    if !options.is_empty() && !TODO.load(std::sync::atomic::Ordering::Relaxed) {
+        wait_for(number(Question { key: key.to_string(), asks: question.to_string(), options: options.to_vec() }));
     }
-    println!("{}", question);
-    for (k, o) in options.iter().enumerate() {
-        println!("  {}) {}", k + 1, o);
-    }
-    print!("[1-{}] ", options.len());
-    let _ = std::io::stdout().flush();
-    let mut s = String::new();
-    let _ = std::io::stdin().read_line(&mut s);
-    let pick = s.trim().parse::<usize>().ok().filter(|k| *k >= 1 && *k <= options.len()).map(|k| options[k - 1].clone())?;
-    answers.split.insert(key.to_string(), pick.clone());
-    answers.changed = true;
-    Some(pick)
+    None
 }

@@ -17,7 +17,9 @@ const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.
                   [--allow-todos] [--allow-errors] [--format json] [--report report.md|report.json]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
-  Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
+  A migration's questions are numbered. In a terminal they are listed, then asked one by one; --yes
+  answers yes to all of them, --yes 1,3 to those only, and --answers keeps answers in a file.
+  Without a terminal, a question nothing answers stops the run, saying how to answer it.
   --dry-run and --diff show what would change, --check fails if anything would, and --stdout prints
   one document's result instead of writing it (what it says goes to stderr).
   What a migration can't do refuses the file; --allow-todos leaves that code as it was, with a TODO
@@ -228,52 +230,86 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let core = crate::core_sources();
     let base = mkp_check::compile_core(&core);
 
-    let mut results: Vec<(PathBuf, String, Outcome)> = Vec::new();
-    // packs that use a migrated pack go first, so documents are checked against them as they end
-    let mut now = sources.clone();
-    for p in &packs {
-        for (path, old, o) in migrate_pack(&base, &packs, &sources, p) {
-            if o.refused.is_empty() {
-                if let Some(s) = now.iter_mut().find(|s| s.path == path.display().to_string()) {
-                    s.text = o.text.clone();
-                }
-            }
-            results.push((path, old, o));
-        }
-    }
-    // a pack's file the release steps changed: compared with what is on disk, and written with what
-    // they say; one they can't move is refused
-    for (path, old, o) in results.iter_mut() {
-        if let Some((disk, said)) = stepped.get(&path.display().to_string()) {
-            *old = disk.clone();
-            o.moved.insert(0, release_label.clone());
-            o.changes += said.len();
-            o.notices.extend(said.iter().cloned());
-        }
-    }
-    for (path, (disk, said)) in &stepped {
-        if !results.iter().any(|(p, _, _)| p.display().to_string() == *path) {
-            let text = sources.iter().find(|s| s.path == *path).map(|s| s.text.clone()).unwrap_or_default();
-            results.push((PathBuf::from(path), disk.clone(), Outcome { text, moved: vec![release_label.clone()], changes: said.len(), notices: said.clone(), ..Outcome::default() }));
-        }
-    }
-    for (path, (disk, why)) in &step_refused {
-        results.push((PathBuf::from(path), disk.clone(), Outcome { text: disk.clone(), moved: vec![release_label.clone()], refused: vec![why.clone()], ..Outcome::default() }));
-    }
+    // the plan: a pass over every file; when it meets questions no one has answered, they are asked
+    // in a terminal and the files planned again with the answers, and elsewhere the run stops
     // stand-ins for the 0.2 packs that have no 0.3 release here, beside the documents
     let stand_in_dir = targets.first().map(|t| if Path::new(t).is_dir() { PathBuf::from(t) } else { Path::new(t).parent().map(Path::to_path_buf).unwrap_or_default() }).unwrap_or_default().join("stand-ins");
-    let mut stand_ins: BTreeMap<String, (PathBuf, String)> = BTreeMap::new();
-    for d in &docs {
-        let Ok(text) = std::fs::read_to_string(d) else {
-            eprintln!("{}: can't be read", d.display());
-            return ExitCode::from(2);
-        };
-        let o = match migrate_02_doc(&base, &packs, &sources, &now, d, &text, &packs02, &mut stand_ins, &stand_in_dir, &uses) {
-            Some(o) => o,
-            None => doc_through_releases(&base, &packs, &sources, &now, d, &text, &from, &uses, &release_steps, &release_label),
-        };
-        results.push((d.clone(), text, o));
-    }
+    let mut asked_here = false;
+    let (results, stand_ins) = loop {
+        crate::migrate_step::new_pass();
+        let mut results: Vec<(PathBuf, String, Outcome)> = Vec::new();
+        // packs that use a migrated pack go first, so documents are checked against them as they end
+        let mut now = sources.clone();
+        for p in &packs {
+            for (path, old, o) in migrate_pack(&base, &packs, &sources, p) {
+                if o.refused.is_empty() {
+                    if let Some(s) = now.iter_mut().find(|s| s.path == path.display().to_string()) {
+                        s.text = o.text.clone();
+                    }
+                }
+                results.push((path, old, o));
+            }
+        }
+        // a pack's file the release steps changed: compared with what is on disk, and written with what
+        // they say; one they can't move is refused
+        for (path, old, o) in results.iter_mut() {
+            if let Some((disk, said)) = stepped.get(&path.display().to_string()) {
+                *old = disk.clone();
+                o.moved.insert(0, release_label.clone());
+                o.changes += said.len();
+                o.notices.extend(said.iter().cloned());
+            }
+        }
+        for (path, (disk, said)) in &stepped {
+            if !results.iter().any(|(p, _, _)| p.display().to_string() == *path) {
+                let text = sources.iter().find(|s| s.path == *path).map(|s| s.text.clone()).unwrap_or_default();
+                results.push((PathBuf::from(path), disk.clone(), Outcome { text, moved: vec![release_label.clone()], changes: said.len(), notices: said.clone(), ..Outcome::default() }));
+            }
+        }
+        for (path, (disk, why)) in &step_refused {
+            results.push((PathBuf::from(path), disk.clone(), Outcome { text: disk.clone(), moved: vec![release_label.clone()], refused: vec![why.clone()], ..Outcome::default() }));
+        }
+        let mut stand_ins: BTreeMap<String, (PathBuf, String)> = BTreeMap::new();
+        for d in &docs {
+            let Ok(text) = std::fs::read_to_string(d) else {
+                eprintln!("{}: can't be read", d.display());
+                return ExitCode::from(2);
+            };
+            let o = match migrate_02_doc(&base, &packs, &sources, &now, d, &text, &packs02, &mut stand_ins, &stand_in_dir, &uses) {
+                Some(o) => o,
+                None => doc_through_releases(&base, &packs, &sources, &now, d, &text, &from, &uses, &release_steps, &release_label),
+            };
+            results.push((d.clone(), text, o));
+        }
+        let waiting = crate::migrate_step::pending();
+        if waiting.is_empty() {
+            break (results, stand_ins);
+        }
+        if crate::migrate_step::can_ask() && !json && !stdout && !asked_here {
+            asked_here = true;
+            if crate::migrate_step::ask_in_terminal(&waiting) {
+                continue;
+            }
+            println!("Nothing written: not every question was answered.");
+            return ExitCode::from(1);
+        }
+        // nobody to ask: nothing is planned or written until each is answered
+        if json {
+            for (n, q) in &waiting {
+                println!("{}", serde_json::json!({ "type": "question", "question": n, "asks": q.asks, "options": q.options, "answer": null, "how": crate::migrate_step::how_to_answer(*n, q) }));
+            }
+            println!("{}", serde_json::json!({ "type": "summary", "files": results.len(), "unanswered": waiting.len(), "exit": 1 }));
+        } else {
+            let say = |l: String| if stdout { eprintln!("{}", l) } else { println!("{}", l) };
+            say(format!("{} question{} no one has answered, so nothing is migrated:", waiting.len(), if waiting.len() == 1 { "" } else { "s" }));
+            for (n, q) in &waiting {
+                say(format!("  {}. {}{}", n, q.asks, if q.options.is_empty() { String::new() } else { format!(" ({})", q.options.join(" or ")) }));
+                say(format!("     {}", crate::migrate_step::how_to_answer(*n, q)));
+            }
+            say("Run it in a terminal to be asked, or answer each here.".to_string());
+        }
+        return ExitCode::from(1);
+    };
 
     // what was answered in a terminal, kept for the next run
     if let (Some(f), Some(text)) = (&answers, crate::migrate_step::answers_text()) {
@@ -341,9 +377,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let asked = crate::migrate_step::ASKED.lock().unwrap().clone();
     if !asked.is_empty() {
         say!("\nquestions:");
-        for (k, (q, a, by)) in asked.iter().enumerate() {
-            let hint = if *by == "nobody to ask" { format!(" (--yes {} answers yes)", k + 1) } else { String::new() };
-            say!("  {}. {}  {}: {}{}", k + 1, q, if *a { "yes" } else { "no" }, by, hint);
+        for (n, q, a, by) in asked.iter() {
+            say!("  {}. {}  {}: {}", n, q, if *a { "yes" } else { "no" }, by);
         }
     }
     let todos: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.todos.iter().map(move |t| format!("{}: {}", p.display(), t))).collect();
@@ -516,7 +551,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
 /// What a run did, file by file: `--format json`'s lines and `--report`'s file.
 struct Report<'a> {
     results: &'a [(PathBuf, String, Outcome)],
-    asked: &'a [(String, bool, &'static str)],
+    asked: &'a [(usize, String, bool, &'static str)],
     wrote: &'a [PathBuf],
     skipped: &'a [PathBuf],
     from: &'a str,
@@ -563,7 +598,7 @@ impl Report<'_> {
     }
 
     fn questions(&self) -> Vec<serde_json::Value> {
-        self.asked.iter().enumerate().map(|(k, (q, a, by))| serde_json::json!({ "question": k + 1, "asks": q, "answer": a, "by": by })).collect()
+        self.asked.iter().map(|(n, q, a, by)| serde_json::json!({ "question": n, "asks": q, "answer": a, "by": by })).collect()
     }
 
     fn summary(&self) -> serde_json::Value {
@@ -638,8 +673,8 @@ impl Report<'_> {
         }
         if !self.asked.is_empty() {
             out.push_str("\n## Questions\n\n");
-            for (k, (q, a, by)) in self.asked.iter().enumerate() {
-                out.push_str(&format!("{}. {} {} ({})\n", k + 1, q, if *a { "Yes" } else { "No" }, by));
+            for (n, q, a, by) in self.asked.iter() {
+                out.push_str(&format!("{}. {} {} ({})\n", n, q, if *a { "Yes" } else { "No" }, by));
             }
         }
         out

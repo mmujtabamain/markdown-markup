@@ -169,7 +169,7 @@ fn migrate_finds_the_version_a_document_compiles_against_and_writes_nothing_brok
     std::fs::write(dir.join("kit/migrations/kit@2.mkp"), MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")).unwrap();
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 1);
-    assert!(out.contains("not written") && out.contains("only a person knows which this one is"), "{}", out);
+    assert!(out.contains("1 question no one has answered, so nothing is migrated:") && out.contains("in --answers: [split]"), "{}", out);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
     // answered in a file, as CI would: the run writes it
     let key = format!("{}:4 LATE", docs.join("report.mkp.md").display());
@@ -284,10 +284,10 @@ fn migrate_numbers_its_questions_and_yes_answers_the_ones_named() {
         .replace("rename(input = color, to = tone);", "rename(input = color, to = tone);\n        set(input = tone, value = color.ACCENT, when = confirm(why = \"Reset every chart's tone?\"), why = \"one tone for charts\");");
     std::fs::write(dir.join("kit/migrations/kit@2.mkp"), migration).unwrap();
     let docs = dir.join("docs");
-    // no terminal: every question is a no, and the summary says how to answer each
+    // no terminal and no answers: nothing is planned; each question is listed with how to answer it
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
-    assert_eq!(code, 0, "{}", out);
-    assert!(out.contains("questions:\n  1. Make kit@1's badges small?  no: nobody to ask (--yes 1 answers yes)\n  2. Reset every chart's tone?  no: nobody to ask (--yes 2 answers yes)"), "{}", out);
+    assert_eq!(code, 1, "{}", out);
+    assert!(out.contains("2 questions no one has answered, so nothing is migrated:\n  1. Make kit@1's badges small?\n     --yes 1, or in --answers: [confirm] \"Make kit@1's badges small?\" = true\n  2. Reset every chart's tone?\n     --yes 2,"), "{}", out);
     // --yes 2: yes to the second only, and the files are written
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "2", "--allow-dirty"]);
     assert_eq!(code, 0, "{}{}", out, err);
@@ -541,8 +541,7 @@ fn fmt_surface_and_migrate_each_check_show_the_change_or_print_one_file() {
 #[test]
 fn the_walkthroughs_bugs_stay_fixed() {
     // every file refused: nothing to write, so no git notice, no "rewrites 0 files", no "Wrote 0 files"
-    let doc = format!("{}\n@badge(label = $state.s == state.LATE ? \"Late\" : \"On time\");\n", OLD_DOC);
-    let dir = scratch("bugs-refused", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", &doc)]);
+    let dir = scratch("bugs-refused", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", OLD_DOC)]);
     let (code, out, _) = mkp(&["migrate", dir.join("docs").to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 1);
     assert!(out.contains("not written") && !out.contains("rewrites") && !out.contains("Wrote") && !out.contains("not in git"), "{}", out);
@@ -559,4 +558,42 @@ fn the_walkthroughs_bugs_stay_fixed() {
     let (code, out, err) = mkp(&["md", "--json", counter.to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
     assert!(out.ends_with("]\n") || out.ends_with("}\n"), "{:?}", out.chars().rev().take(5).collect::<String>());
+}
+
+#[test]
+fn in_a_terminal_every_question_is_listed_then_asked_in_turn() {
+    // a terminal of its own: script(1) gives mkp one, and the answers are typed into it
+    if Command::new("script").arg("--version").output().is_err() {
+        return;
+    }
+    let dir = kit_tree("migrate-asked", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let migration = MIGRATION
+        .replace("when = !given(size)", "when = confirm(why = \"Make kit@1's badges small?\")")
+        .replace("rename(input = color, to = tone);", "rename(input = color, to = tone);\n        set(input = tone, value = color.ACCENT, when = confirm(why = \"Reset every chart's tone?\"), why = \"one tone for charts\");")
+        .replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");");
+    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), migration).unwrap();
+    let run = |input: &str| {
+        let mut child = Command::new("script")
+            .args(["-qec", &format!("{} migrate docs --allow-dirty --answers answers.toml", env!("CARGO_BIN_EXE_mkp")), "/dev/null"])
+            .current_dir(&dir)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        use std::io::Write;
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        let out = child.wait_with_output().unwrap();
+        String::from_utf8_lossy(&out.stdout).replace('\r', "")
+    };
+    // a terminal that closes before every question is answered writes nothing
+    let out = run("2\n");
+    assert!(out.contains("3 questions to answer before anything is written:\n  1. docs/report.mkp.md:4 uses LATE"), "{}", out);
+    assert!(out.contains("Nothing written: not every question was answered."), "{}", out);
+    assert_eq!(std::fs::read_to_string(dir.join("docs/report.mkp.md")).unwrap(), OLD_DOC);
+    // an answer that isn't one is asked for again; then the plan, and Continue?
+    let out = run("3\n2\nn\nmaybe\ny\ny\n");
+    assert!(out.contains("a number from 1 to 2:") && out.contains("y or n:") && out.contains("Wrote 1 file."), "{}", out);
+    let text = std::fs::read_to_string(dir.join("docs/report.mkp.md")).unwrap();
+    assert!(text.contains("s: state = state.DONE;") && text.contains("@plot(values = [1, 2], tone = color.ACCENT);") && text.contains("@badge(label = \"Beta\");"), "{}", text);
+    assert!(std::fs::read_to_string(dir.join("answers.toml")).unwrap().contains("\"Reset every chart's tone?\" = true"));
 }
