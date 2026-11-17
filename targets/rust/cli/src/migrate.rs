@@ -14,13 +14,13 @@ use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
                   [--dry-run | --check | --diff] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
-                  [--todo] [--allow-errors] [--format json] [--report report.md|report.json]
+                  [--allow-todos] [--allow-errors] [--format json] [--report report.md|report.json]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
   Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
   --dry-run and --diff show what would change, --check fails if anything would.
-  What a migration can't do refuses the file; --todo leaves that code as it was with a TODO above
-  it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.
+  What a migration can't do refuses the file; --allow-todos leaves that code as it was, with a TODO
+  above it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.
   A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
   only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.
   mkp.toml's mkp = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none), and
@@ -60,7 +60,7 @@ struct Outcome {
     /// Why it can't be written: a use only a person can move, or errors after.
     refused: Vec<String>,
     inferred: Vec<String>,
-    /// What `--todo` left for a person, and the errors `--allow-errors` wrote it with.
+    /// What `--allow-todos` left for a person, and the errors `--allow-errors` wrote it with.
     todos: Vec<String>,
     errors: Vec<String>,
     /// The stand-in packs it is checked against, written with it.
@@ -70,7 +70,7 @@ struct Outcome {
 pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let flag = |f: &str| args.iter().any(|a| a == f);
     let (dry, check, diff, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--allow-dirty"));
-    crate::migrate_step::TODO.store(flag("--todo"), std::sync::atomic::Ordering::Relaxed);
+    crate::migrate_step::TODO.store(flag("--allow-todos"), std::sync::atomic::Ordering::Relaxed);
     // JSON is for a program: nothing is asked in a terminal
     crate::migrate_step::NO_ASKING.store(args.windows(2).any(|w| w[0] == "--format" && w[1] == "json"), std::sync::atomic::Ordering::Relaxed);
     ALLOW_ERRORS.store(flag("--allow-errors"), std::sync::atomic::Ordering::Relaxed);
@@ -87,6 +87,10 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     while k < args.len() {
         match args[k].as_str() {
             "--from" => {
+                if let Some(r) = args.get(k + 1).filter(|v| release_of(v).is_some()) {
+                    eprintln!("error: --from {} names a release, as mkp 0.2's did; since mkp 0.3.0 it names a pack and the version the files are written for (--from kit@1), and mkp.toml's mkp = \"…\" says the release", r);
+                    return ExitCode::from(2);
+                }
                 let Some(v) = args.get(k + 1).and_then(|v| v.split_once('@')).and_then(|(p, n)| Some((p.to_string(), n.parse::<u32>().ok()?))) else {
                     eprintln!("--from takes a pack and the version the files are written for: --from kit@1");
                     return ExitCode::from(2);
@@ -144,7 +148,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 yes_to.extend(ns);
                 k += 1;
             }
-            "--dry-run" | "--check" | "--diff" | "--allow-dirty" | "--todo" | "--allow-errors" => k += 1,
+            "--dry-run" | "--check" | "--diff" | "--allow-dirty" | "--allow-todos" | "--allow-errors" => k += 1,
             "--help" | "-h" => {
                 println!("{}", USAGE);
                 return ExitCode::SUCCESS;
@@ -865,7 +869,7 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
     }
     if !o.todos.is_empty() && !crate::migrate_step::TODO.load(std::sync::atomic::Ordering::Relaxed) {
         let n = o.todos.len();
-        o.refused.push(format!("0.3 can't yet say {} thing{} the way 0.2 did ({}): --todo writes it with a TODO at each", n, if n == 1 { "" } else { "s" }, o.todos.join("; ")));
+        o.refused.push(format!("0.3 can't yet say {} thing{} the way 0.2 did ({}): --allow-todos writes it with a TODO at each", n, if n == 1 { "" } else { "s" }, o.todos.join("; ")));
         return Some(o);
     }
     // then up to the versions of the 0.3 packs it uses, through their migrations

@@ -304,13 +304,13 @@ fn migrate_leaves_a_todo_with_todo_and_writes_errors_only_with_allow_errors() {
     let dir = scratch("migrate-todo", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", &doc)]);
     let docs = dir.join("docs");
     let file = docs.join("report.mkp.md");
-    // --todo leaves both cases as they were, with a TODO, and the file then doesn't compile
-    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--todo"]);
+    // --allow-todos leaves both cases as they were, with a TODO, and the file then doesn't compile
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--allow-todos"]);
     assert_eq!(code, 1);
     assert!(out.contains("not written") && out.contains("it doesn't compile afterwards"), "{}", out);
     assert_eq!(std::fs::read_to_string(&file).unwrap(), doc);
     // --allow-errors writes it, says so, and the run still fails: a person has to finish it
-    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--todo", "--allow-errors"]);
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--allow-todos", "--allow-errors"]);
     assert_eq!(code, 1, "{}{}", out, err);
     assert!(out.contains("left for a person, each with a TODO above it:") && out.contains("written with errors (--allow-errors):"), "{}", out);
     let text = std::fs::read_to_string(&file).unwrap();
@@ -352,9 +352,9 @@ fn migrate_moves_a_0_2_document_with_0_2_10s_own_compiler() {
     assert_eq!(code, 1, "{}", out);
     assert!(out.contains("counter.mkp.md  mkp 0.2 → 0.3  1 change; 1 to know (written for MKP 0.2, as 0.2.10 builds it)"), "{}", out);
     assert!(out.contains("plain.mkp.md    up to date"), "{}", out);
-    // units has no 0.3 release here: only a stand-in, so runs.mkp.md is refused without --todo
-    assert!(out.contains("runs.mkp.md     mkp 0.2 → 0.3  not written: 0.3 can't yet say 1 thing") && out.contains("--todo writes it"), "{}", out);
-    let (code, out, err) = mkp(&["migrate", d, "--pack", o, "--yes", "--todo"]);
+    // units has no 0.3 release here: only a stand-in, so runs.mkp.md is refused without --allow-todos
+    assert!(out.contains("runs.mkp.md     mkp 0.2 → 0.3  not written: 0.3 can't yet say 1 thing") && out.contains("--allow-todos writes it"), "{}", out);
+    let (code, out, err) = mkp(&["migrate", d, "--pack", o, "--yes", "--allow-todos"]);
     assert_eq!(code, 1, "a stand-in is a person's to replace: {}{}", out, err);
     let counter = std::fs::read_to_string(docs.join("counter.mkp.md")).unwrap();
     assert!(counter.contains("widget counter(start: int = 0) {") && counter.contains("\n@@@\n") && counter.contains("@counter(start = 3);"), "{}", counter);
@@ -376,7 +376,7 @@ fn migrate_uses_a_packs_own_0_3_release_and_checks_the_0_2_step_it_runs() {
     let dir = scratch("migrate-02-own", &[("docs/runs.mkp.md", RUNS_02), ("old/units/manifest.mkp", UNITS_02_MANIFEST), ("old/units/distance.mkp", UNITS_02_DISTANCE), ("units/units.mkp", units3)]);
     let docs = dir.join("docs");
     let packs = format!("{},{}", dir.join("old/units").display(), dir.join("units").display());
-    // with units' own 0.3 release in the build, nothing is a stand-in and nothing needs --todo
+    // with units' own 0.3 release in the build, nothing is a stand-in and nothing needs --allow-todos
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--pack", &packs, "--yes"]);
     assert_eq!(code, 0, "{}{}", out, err);
     assert!(!docs.join("stand-ins").exists());
@@ -482,4 +482,26 @@ fn migrate_leaves_a_statements_semicolon_after_a_record_it_rewrites() {
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 0, "{}{}", out, err);
     assert_eq!(std::fs::read_to_string(docs.join("r.mkp.md")).unwrap(), "import kit;\n\nlet s: stat = stat { title = \"Deploys\", value = \"42\", unit = \"\" };\n@@@\n# Report\n");
+}
+
+#[test]
+fn an_unknown_flag_is_a_warning_and_a_dropped_one_says_what_replaced_it() {
+    let dir = kit_tree("migrate-flags", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run", "--stdout"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(err.contains("warning: mkp migrate has no flag --stdout, so it is ignored") && out.contains("kit@1 → kit@2"), "{}", err);
+    let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--write"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("error: mkp migrate dropped --write in mkp 0.3.0: mkp migrate writes in place"), "{}", err);
+    let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--to", "0.3.0"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("error: mkp migrate has no --to: a migration goes one way"), "{}", err);
+    let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--from", "0.2.1"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--from 0.2.1 names a release, as mkp 0.2's did"), "{}", err);
+    let (code, _, err) = mkp(&["check", "--format", "json", docs.join("report.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("error: mkp check dropped --format in mkp 0.3.0: use --json"), "{}", err);
+    assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
 }

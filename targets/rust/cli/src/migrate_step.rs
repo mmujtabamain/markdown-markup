@@ -66,7 +66,7 @@ pub(crate) struct Done {
     pub deletions: Vec<String>,
     pub notices: Vec<String>,
     pub refused: Vec<String>,
-    /// What `--todo` left for a person, each with a TODO above it.
+    /// What `--allow-todos` left for a person, each with a TODO above it.
     pub todos: Vec<String>,
     /// Where those TODOs go, and what each says: placed once the other edits are known.
     pending: Vec<(usize, String)>,
@@ -326,7 +326,7 @@ impl<'a> Step<'a> {
         done
     }
 
-    /// What a statement can't do to the code at `at`: the file is refused, or with `--todo`, the
+    /// What a statement can't do to the code at `at`: the file is refused, or with `--allow-todos`, the
     /// code is left as it was with a TODO above it.
     fn cannot(&self, done: &mut Done, at: usize, why: String, line_of: &dyn Fn(usize) -> usize) {
         self.cannot_with(done, at, why.clone(), why, line_of);
@@ -1343,7 +1343,7 @@ pub(crate) fn answers_text() -> Option<String> {
     Some(out)
 }
 
-/// `--todo`: what a migration can't do is left as it was, with a TODO above it, instead of the
+/// `--allow-todos`: what a migration can't do is left as it was, with a TODO above it, instead of the
 /// file being refused.
 pub(crate) static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 

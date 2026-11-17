@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 mod migrate;
 mod examples;
+mod flags;
 mod migrate_02;
 mod releases;
 mod migrate_step;
@@ -396,6 +397,15 @@ fn md(args: &[String]) -> ExitCode {
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // each command's flags: an unknown one is ignored with a warning, a dropped one stops it
+    let (cmd, rest) = match args.first().map(String::as_str) {
+        Some("target") if args.get(1).map(String::as_str) == Some("check") => ("target check", &args[2..]),
+        Some(c) => (c, &args[1.min(args.len())..]),
+        None => ("", &args[..]),
+    };
+    if !cmd.is_empty() && !flags::ok(cmd, rest) {
+        return ExitCode::from(2);
+    }
     match args.first().map(String::as_str) {
         Some("fmt") => fmt(&args[1..]),
         Some("parse") => parse_cmd(&args[1..]),
