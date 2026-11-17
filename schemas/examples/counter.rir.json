@@ -207,6 +207,10 @@
       }
     }
   ],
+  "levels": [
+    "core.draw",
+    "core.live"
+  ],
   "mkp": "0.3.0",
   "packs": [],
   "rir": 1

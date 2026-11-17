@@ -148,6 +148,8 @@ def S(id, scene, cmd, show=(), answers=None):
 
 
 YES = r"\[y/N\] $"
+# a question of a migration's, asked in turn once every one is listed
+ASKED = r"\[y/n\] $"
 
 # ------------------------------------------------------------------ the reels
 REELS = {
@@ -214,17 +216,16 @@ REELS = {
     },
     "questions": {
         "part": 4, "title": "mkp migrate: questions, TODOs and errors",
-        "chapters": ["--yes 1,3", "asked in a terminal", "--allow-todos", "--allow-errors"],
+        "chapters": ["--yes 1,3", "asked in a terminal", "a bare --yes, --allow-todos", "what is left"],
         "steps": [
             S("dry", "ask", "mkp migrate docs --dry-run", show=["kit/migrations/kit@2.mkp"]),
             S("yes13", "ask", "mkp migrate docs --yes 1,3", show=["docs/report.mkp.md"]),
             S("restore", "ask", "git restore docs mkp.toml"),
             S("asked", "ask", "mkp migrate docs --answers answers.toml", show=["answers.toml", "docs/report.mkp.md"],
-              answers=[(r"small\? " + YES, "y\n"), (r"deploys\? " + YES, "n\n"), (r"tone\? " + YES, "y\n"),
+              answers=[(r"small\? " + ASKED, "y\n"), (r"deploys\? " + ASKED, "n\n"), (r"tone\? " + ASKED, "y\n"),
                        (r"Continue\? " + YES, "y\n")]),
             S("refused", "split", "mkp migrate docs --yes", show=["kit/migrations/kit@2.mkp", "docs/report.mkp.md"]),
-            S("todos", "split", "mkp migrate docs --yes --allow-todos"),
-            S("errors", "split", "mkp migrate docs --yes --allow-todos --allow-errors", show=["docs/report.mkp.md"]),
+            S("todos", "split", "mkp migrate docs --yes --allow-todos", show=["docs/report.mkp.md"]),
             S("check", "split", "mkp check docs/report.mkp.md"),
         ],
     },
@@ -244,6 +245,25 @@ REELS = {
               " && mkp check --pack kit kit/migrations/kit@2.mkp", show=["kit/migrations/kit@2.mkp"]),
             S("bad-before", "kit2", "sed -i 's/color = color.OK), after/colour = color.OK), after/' kit/migrations/kit@2.mkp"
               " && mkp check --pack kit kit/migrations/kit@2.mkp", show=["kit/migrations/kit@2.mkp"]),
+        ],
+    },
+    "fixes": {
+        "part": 7, "title": "What the usability test changed",
+        "chapters": ["help", "flags", "fmt", "check", "migrate", "target check"],
+        "steps": [
+            S("version", "pages", "mkp --version"),
+            S("help", "pages", "mkp fmt --help"),
+            S("typo", "pages", "cp messy.mkp.md before.mkp.md && mkp fmt --chek messy.mkp.md; cmp -s before.mkp.md messy.mkp.md && echo 'messy.mkp.md is as it was'"),
+            S("first", "pages", "mkp --format json check counter.mkp.md"),
+            S("copy", "pages", "mkp fmt messy.mkp.md --out tidy/messy.mkp.md && cmp -s before.mkp.md messy.mkp.md && echo 'messy.mkp.md is as it was'",
+              show=["tidy/messy.mkp.md"]),
+            S("folder", "pages", "mkp check ."),
+            S("missing-pack", "flow", "mkp check release-flow.mkp.md"),
+            S("root", "report", "mkp migrate --dry-run"),
+            S("patch", "report", "mkp migrate --diff 2>/dev/null > migrate.diff && git apply --check migrate.diff && tail -n 9 migrate.diff"),
+            S("bare-yes", "ask", "mkp migrate docs --yes"),
+            S("yes-all", "ask", "mkp migrate docs --yes all", show=["docs/report.mkp.md"]),
+            S("defect", "repo", "mkp target check test --defect no-undoo --expect-failures"),
         ],
     },
     "from02": {

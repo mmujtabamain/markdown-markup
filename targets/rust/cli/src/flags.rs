@@ -1,27 +1,43 @@
-//! The flags each command takes. One a command doesn't know is a warning, and it is ignored; one a
-//! release of mkp dropped fails, saying what replaced it.
+//! The flags each command takes. One a command doesn't know is a warning, and it is ignored, but a
+//! run that would write files writes nothing then; one a release of mkp dropped fails, saying what
+//! replaced it.
 
 /// Each command's flags; one that takes a value takes it as the next argument or after `=`.
 fn known(cmd: &str) -> &'static [&'static str] {
-    // every command takes --format and --out (page 1 of `mkp`'s usage); one spelling each
+    // every command takes --format, --out and --help (page 1 of `mkp`'s usage); one spelling each
     match cmd {
-        "fmt" => &["--check", "--diff", "--stdout", "--format", "--out"],
-        "parse" => &["--format", "--out"],
-        "check" => &["--pack", "--config", "--format", "--out"],
-        "build" => &["--rir", "--pack", "--config", "--format", "--out"],
-        "md" => &["--pack", "--config", "--format", "--out"],
-        "surface" => &["--check", "--diff", "--stdout", "--force", "--pack", "--config", "--format", "--out"],
+        "fmt" => &["--check", "--diff", "--stdout", "--format", "--out", "--help"],
+        "parse" => &["--format", "--out", "--help"],
+        "check" => &["--pack", "--config", "--format", "--out", "--help"],
+        "build" => &["--rir", "--pack", "--config", "--format", "--out", "--help"],
+        "md" => &["--pack", "--config", "--format", "--out", "--help"],
+        "surface" => &["--check", "--diff", "--stdout", "--force", "--pack", "--config", "--format", "--out", "--help"],
         "migrate" => &[
             "--pack", "--config", "--from", "--answers", "--format", "--out", "--report", "--dry-run", "--check", "--diff", "--stdout", "--yes", "--allow-dirty", "--allow-errors", "--allow-todos", "--help",
         ],
-        "target check" => &["--cases", "--defect", "--expect-failures", "--require", "--format", "--out"],
+        "target check" => &["--cases", "--defect", "--expect-failures", "--require", "--format", "--out", "--help"],
         _ => &[],
     }
 }
 
-/// A flag a release dropped: its command, the flag, the release that dropped it, and what does its
-/// work now ("nothing: …" where nothing does, and why). A later release that drops one adds it
-/// here. A release of `""` is a flag mkp never had but is asked for, and why it has none.
+/// The flags that take a value, as the next argument or after `=`.
+pub(crate) const VALUED: &[&str] = &["--format", "--out", "--pack", "--config", "--from", "--answers", "--report", "--cases", "--defect", "--require"];
+
+/// Whether a run of the command, with these flags, writes files the person has: fmt and surface
+/// unless they only look, and migrate unless it only looks or prints.
+pub(crate) fn writes(cmd: &str, args: &[String]) -> bool {
+    let has = |f: &str| args.iter().any(|a| a == f);
+    match cmd {
+        "fmt" | "surface" => !(has("--check") || has("--diff") || has("--stdout")),
+        "migrate" => !(has("--dry-run") || has("--check") || has("--diff") || has("--stdout")),
+        _ => false,
+    }
+}
+
+/// A flag a release dropped: its command (`*` for every command), the flag, the release that dropped
+/// it, and what does its work now ("nothing: …" where nothing does, and why). A later release that
+/// drops one adds it here. A release of `""` is a flag mkp never had but is asked for, and why it has
+/// none.
 const DROPPED: &[(&str, &str, &str, &str)] = &[
     ("build", "--target", "0.3.0", "mkp build writes the IR and mkp md the Markdown; drawing HTML is a target's"),
     ("build", "--md", "0.3.0", "mkp md writes CommonMark with GitHub's tables, and has no switches"),
@@ -40,35 +56,28 @@ const DROPPED: &[(&str, &str, &str, &str)] = &[
     ("fmt", "--write", "0.3.0", "mkp fmt writes each file in place; --check only checks"),
     ("migrate", "--write", "0.3.0", "mkp migrate writes in place, asking first in a terminal; elsewhere --yes writes"),
     ("migrate", "--keep", "0.3.0", "a pack's migration asks with confirm, and --yes 1,3 answers its numbered questions (or --answers)"),
-    ("migrate", "--take", "0.3.0", "a pack's migration asks with confirm, and --yes answers every question (or --answers)"),
+    ("migrate", "--take", "0.3.0", "a pack's migration asks with confirm, and --yes all answers every question yes (or --answers)"),
     ("migrate", "--core", "0.3.0", "MKP_MIGRATE_02 names the frozen 0.2 step"),
     ("migrate", "--to", "", "a migration goes one way, to this mkp's release and to the version of each pack in the build"),
     // one spelling for each flag: the short ones mkp 0.3's development had, and the --json it had
-    ("build", "-o", "", "use --out"),
-    ("md", "-o", "", "use --out"),
-    ("surface", "-o", "", "use --out"),
-    ("check", "-c", "", "use --config"),
-    ("build", "-c", "", "use --config"),
-    ("md", "-c", "", "use --config"),
-    ("surface", "-c", "", "use --config"),
-    ("migrate", "-c", "", "use --config"),
+    ("*", "-o", "", "use --out"),
+    ("*", "-c", "", "use --config"),
+    ("*", "-h", "", "use --help"),
+    ("*", "--json", "", "use --format json"),
     ("migrate", "-y", "", "use --yes"),
-    ("migrate", "-h", "", "use --help"),
-    ("check", "--json", "", "use --format json"),
-    ("md", "--json", "", "use --format json"),
 ];
 
-/// Whether a command's flags let it run: each it doesn't know is warned about and ignored, and one a
-/// release dropped stops it, with what replaced it.
-pub(crate) fn ok(cmd: &str, args: &[String]) -> bool {
+/// The command's flags looked over: each one it doesn't know, warned about, and whether it can run;
+/// a flag a release dropped stops it, with what replaced it.
+pub(crate) fn check(cmd: &str, args: &[String]) -> (Vec<String>, bool) {
     let known = known(cmd);
-    let mut ok = true;
-    for a in args.iter().filter(|a| a.len() > 1 && a.starts_with('-') && a.trim_start_matches('-').chars().next().map_or(false, |c| c.is_ascii_alphabetic())) {
+    let (mut unknown, mut ok) = (Vec::new(), true);
+    for a in args.iter().filter(|a| is_flag(a)) {
         let name = a.split_once('=').map_or(a.as_str(), |(n, _)| n);
         if known.contains(&name) {
             continue;
         }
-        match DROPPED.iter().find(|(c, f, _, _)| *c == cmd && *f == name) {
+        match DROPPED.iter().find(|(c, f, _, _)| (*c == cmd || *c == "*") && *f == name) {
             Some((_, _, since, instead)) => {
                 match (since.is_empty(), instead.strip_prefix("nothing: ")) {
                     (true, _) => eprintln!("error: mkp {} has no {}: {}", cmd, name, instead),
@@ -77,10 +86,37 @@ pub(crate) fn ok(cmd: &str, args: &[String]) -> bool {
                 }
                 ok = false;
             }
-            None => eprintln!("warning: mkp {} has no flag {}, so it is ignored", cmd, name),
+            None => unknown.push(name.to_string()),
         }
     }
-    ok
+    (unknown, ok)
+}
+
+/// The warning for a flag the command doesn't know, with the one meant, when one is close.
+pub(crate) fn warning(cmd: &str, flag: &str) -> String {
+    let near = known(cmd).iter().copied().filter(|k| distance(k, flag) <= 2).min_by_key(|k| distance(k, flag));
+    format!("mkp {} has no flag {}, so it is ignored{}", cmd, flag, near.map_or(String::new(), |k| format!(" (did you mean {}?)", k)))
+}
+
+/// An argument that is a flag: `-x` or `--x…`, not `-` or a negative number.
+pub(crate) fn is_flag(a: &str) -> bool {
+    a.len() > 1 && a.starts_with('-') && a.trim_start_matches('-').chars().next().map_or(false, |c| c.is_ascii_alphabetic())
+}
+
+/// How many letters apart two flags are.
+fn distance(a: &str, b: &str) -> usize {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for i in 1..=a.len() {
+        let mut prev = row[0];
+        row[0] = i;
+        for j in 1..=b.len() {
+            let here = row[j];
+            row[j] = (row[j] + 1).min(row[j - 1] + 1).min(prev + usize::from(a[i - 1] != b[j - 1]));
+            prev = here;
+        }
+    }
+    row[b.len()]
 }
 
 #[cfg(test)]
@@ -98,11 +134,18 @@ mod tests {
     #[test]
     fn an_unknown_flag_is_ignored_and_a_dropped_one_stops_the_command() {
         let args = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-        assert!(ok("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout", "--quiet"])));
-        assert!(!ok("migrate", &args(&["docs", "--write"])));
-        assert!(!ok("migrate", &args(&["docs", "--to", "0.3.0"])));
-        assert!(ok("fmt", &args(&["a.mkp", "--check", "-", "--format", "json", "--out", "x.txt"])));
-        assert!(!ok("build", &args(&["a.mkp.md", "-o", "a.ir.json"])));
-        assert!(!ok("fmt", &args(&["a.mkp", "--write"])));
+        assert_eq!(check("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout", "--quiet"])), (vec!["--quiet".to_string()], true));
+        assert!(!check("migrate", &args(&["docs", "--write"])).1);
+        assert!(!check("migrate", &args(&["docs", "--to", "0.3.0"])).1);
+        assert_eq!(check("fmt", &args(&["a.mkp", "--check", "-", "--format", "json", "--out", "x.txt"])), (vec![], true));
+        assert!(!check("build", &args(&["a.mkp.md", "-o", "a.ir.json"])).1);
+        assert!(!check("check", &args(&["a.mkp.md", "-o", "report.txt"])).1);
+        assert!(!check("fmt", &args(&["a.mkp", "--write"])).1);
+    }
+
+    #[test]
+    fn a_near_miss_names_the_flag_meant() {
+        assert_eq!(warning("fmt", "--chek"), "mkp fmt has no flag --chek, so it is ignored (did you mean --check?)");
+        assert_eq!(warning("fmt", "--quiet"), "mkp fmt has no flag --quiet, so it is ignored");
     }
 }

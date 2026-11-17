@@ -127,7 +127,7 @@ TASKS = [
     dict(id="23-starting-count", area="md", goal="What number does counter.mkp.md show for the count when it first loads? answer.txt.", files={"counter.mkp.md": COUNTER},
          solution="echo 0 > answer.txt", check="answer_is 0"),
     dict(id="24-blocks", area="md", goal="I need counter.mkp.md's Markdown as structured blocks, in JSON: blocks.json.", files={"counter.mkp.md": COUNTER},
-         solution="mkp md counter.mkp.md --format json --out blocks.json", check="json blocks.json; grep -q '\"heading\"' blocks.json || fail 'blocks.json has no heading block'"),
+         solution="mkp md counter.mkp.md --format json --out blocks.json", check="json blocks.json; python3 -I -c 'import json,sys; b=json.load(open(sys.argv[1])); sys.exit(0 if isinstance(b, list) and b and all(isinstance(x, dict) and len(x) == 1 for x in b) and any(\"heading\" in x for x in b) else 1)' blocks.json || fail 'blocks.json is not the Markdown as a list of blocks'"),
     # ---- surfaces
     dict(id="25-release-pack", area="surface", goal="The shelf pack goes out as version 1 today. Do whatever mkp expects for a release.", files={"shelf/shelf.mkp": C["SHELF"]},
          solution="mkp surface shelf", check="[ -f shelf/surfaces/shelf@1.mkp ] || fail 'no surface for shelf@1'; mkp surface shelf --check >/dev/null 2>&1 || fail 'the surface is not current'"),
@@ -138,7 +138,7 @@ TASKS = [
     dict(id="28-surface-current", area="surface", goal="Is shelf's recorded release surface up to date? Don't change anything. answer.txt: yes or no.", files={"shelf/shelf.mkp": C["SHELF"]},
          solution="echo no > answer.txt", check="answer_is no; [ ! -e shelf/surfaces ] || fail 'something was written into shelf/'"),
     # ---- migrating packs
-    dict(id="29-what-gets-dropped", area="migrate", goal="My docs are on an older kit than the one in this folder. Without changing anything, tell me how many things the newer kit drops from them (answer.txt).", files=kit(),
+    dict(id="29-what-gets-dropped", area="migrate", goal="My docs are on an older kit than the one in this folder. Without changing anything, tell me how many things the newer kit drops from them: just the number, on one line of answer.txt.", files=kit(),
          solution="echo 2 > answer.txt", check="unchanged docs/report.mkp.md mkp.toml; answer_is 2"),
     dict(id="30-bring-up-to-date", area="migrate", goal="Bring the docs up to the kit in this folder.", files=kit(), solution="mkp migrate docs --yes",
          check="grep -q '@plot(' docs/report.mkp.md || fail 'the document was not migrated'; mkp check docs/report.mkp.md >/dev/null 2>&1 || fail 'the document does not compile'; grep -q 'kit = 2' mkp.toml || fail 'mkp.toml still says kit = 1'"),
@@ -147,8 +147,10 @@ TASKS = [
     dict(id="32-preview", area="migrate", goal="Show me what docs/report.mkp.md would look like after migrating; put it in preview.mkp.md, but don't change the original.", files=kit(),
          solution="mkp migrate docs/report.mkp.md --stdout > preview.mkp.md", check="unchanged docs/report.mkp.md mkp.toml; grep -q '@plot(' preview.mkp.md || fail 'preview.mkp.md is not the migrated document'"),
     dict(id="33-ci-gate", area="migrate", goal="Our CI must fail while any document still needs migrating. Find the command, check that it fails here right now, and put it in answer.txt.", files=kit(),
-         solution="mkp migrate --check; echo 'mkp migrate --check' > answer.txt", check="unchanged docs/report.mkp.md mkp.toml; grep -q 'migrate' answer.txt && grep -q -- '--check' answer.txt || fail 'answer.txt does not hold mkp migrate --check'"),
-    dict(id="34-written-record", area="migrate", goal="Migrate the docs and keep a written record of what happened in migration-report.md.", files=kit(), solution="mkp migrate docs --yes --report migration-report.md",
+         solution="mkp migrate --check; echo 'mkp migrate --check' > answer.txt",
+         # the gate itself: it fails on this tree, and passes on the same tree once migrated
+         check="unchanged docs/report.mkp.md mkp.toml; cmd=$(answer | head -1); [ -n \"$cmd\" ] || fail 'answer.txt holds no command'; t=$(mktemp -d); cp -r . \"$t/stale\"; (cd \"$t/stale\" && sh -c \"$cmd\" >/dev/null 2>&1) && fail \"$cmd passes on a tree that needs migrating\"; cp -r . \"$t/done\"; (cd \"$t/done\" && mkp migrate --yes --allow-dirty >/dev/null 2>&1); (cd \"$t/done\" && sh -c \"$cmd\" >/dev/null 2>&1) || fail \"$cmd still fails once the tree is migrated\"; rm -rf \"$t\""),
+    dict(id="34-written-record", area="migrate", goal="Migrate the docs and keep a written record of what happened in migration-report.md: writing that file is part of the task.", files=kit(), solution="mkp migrate docs --yes --report migration-report.md",
          check="grep -q '@plot(' docs/report.mkp.md || fail 'the document was not migrated'; grep -q '^# mkp migrate' migration-report.md || fail 'migration-report.md is not the report'"),
     dict(id="35-plan-for-a-bot", area="migrate", goal="Same as a dry run, but as JSON lines for a bot: plan.jsonl.", files=kit(), solution="mkp migrate docs --dry-run --format json > plan.jsonl",
          check="unchanged docs/report.mkp.md mkp.toml; jsonl plan.jsonl; last_type plan.jsonl summary"),

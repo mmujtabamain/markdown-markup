@@ -28,10 +28,11 @@ def take(t):
     t.beat(r.line("Make kit@1's badges small?"), "Make kit@1's badges small?", 2.4)
     t.beat(r.line("Count every stat in deploys?"), "Count every stat in deploys?", 2.4)
     r.run("dry", "With nobody to ask, as in CI…")
-    t.beat(r.out("dry", "questions:", 4),
-           "…each is a no, numbered in the order it came up, with the --yes that answers it yes.", 4.0)
+    t.beat(r.out("dry", "3 questions no one has answered", 7),
+           "…nothing is planned: each question is listed, numbered in the order it came up, with how to answer it.", 4.2)
     r.run("yes13", "--yes 1,3 answers yes to those two only, and writes.")
-    t.beat(r.out("yes13", "questions:", 4), "1 and 3 yes, 2 no, each by --yes.", 3.0)
+    t.beat(r.out("yes13", "questions:", 4), "1 and 3 yes, 2 no: --yes names the others.", 3.0)
+    t.beat(r.out("yes13", "tone = color.ACCENT, was color.OK"), "And each change says why: the tone reset is question 3's, one tone for charts.", 3.6)
     r.file("yes13", "docs/report.mkp.md", "after")
     t.beat(r.line("@plot("), "Yes to 3: the chart's tone reset to ACCENT.", 2.8)
     t.beat(r.line("@badge("), "Yes to 1: the badge made small.", 2.4)
@@ -56,23 +57,19 @@ def take(t):
     r.file("refused", "docs/report.mkp.md", "before")
     t.beat(r.line("s: state = state.LATE"), "This document uses LATE twice: here…", 2.4)
     t.beat(r.line("$state.s == state.LATE"), "…and here.", 2.0)
-    r.run("refused", "--yes can't answer that…")
-    t.beat(r.out("refused", "not written"),
-           "…so the file isn't written, and mkp says how to answer each: in a terminal, or in --answers.", 4.2)
-    t.beat(r.out("refused", "not in git"),
-           "Note: this folder is in git, so this \"not in git\" line is wrong. Nothing was written.", 3.6)
-    r.run("todos", "--allow-todos leaves what it can't do as it was, with a TODO above it…")
-    t.beat(r.out("todos", "not written"),
-           "…but then the file still says LATE and doesn't compile, so it isn't written.", 3.8)
+    r.run("refused", "A bare --yes answers no question…")
+    t.beat(r.out("refused", "2 questions no one has answered", 5),
+           "…so each LATE is listed, with how to answer it in --answers, and nothing is written. --yes all answers every yes or no.", 4.6)
+    r.run("todos", "--allow-todos leaves what only a person can decide as it was, with a TODO above it…")
+    t.beat(r.out("todos", "left for a person", 3), "…two uses, each with a TODO…", 3.0)
 
     r.chapter(3, clear=False)
-    r.run("errors", "--allow-errors writes it anyway.")
-    t.beat(r.out("errors", "left for a person", 3), "Two uses left for a person, each with a TODO above it…", 3.2)
-    t.beat(r.out("errors", "written with errors", 2), "…and the file written with errors. The run still fails: exit 1.", 3.6)
-    r.file("errors", "docs/report.mkp.md", "after")
+    t.beat(r.out("todos", "written though it doesn't compile", 2),
+           "…and writes the file, though LATE doesn't compile at those TODOs: they are a person's to finish. Exit 0, as asked.", 4.4)
+    r.file("todos", "docs/report.mkp.md", "after")
     t.beat(r.line("TODO(mkp migrate)", 2), "In code, the TODO is a // comment…", 2.8)
     t.beat(r.line("@// TODO(mkp migrate)", 2), "…above prose, an @// one. Everything else is migrated around them.", 3.6)
     r.run("check", "mkp check shows what is left to finish.")
-    t.beat(r.out("check", "names.unknown-case", 2), "LATE, in both places.", 2.4)
+    t.beat(r.out("check", "names.unknown-case", 2), "LATE, in both places. (--allow-errors writes a file whose errors aren't at TODOs.)", 3.4)
 
     r.end("Next, part 5: JSON, reports and a migration's examples.", 2.8)

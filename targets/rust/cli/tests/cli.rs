@@ -145,7 +145,7 @@ fn migrate_moves_a_document_to_the_packs_version_and_then_leaves_it_alone() {
     // no terminal and no --yes: nothing is written
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap()]);
     assert_eq!(code, 1);
-    assert!(out.contains("Pass --yes to write"), "{}", out);
+    assert!(out.contains("Nothing written: without a terminal to ask in, mkp migrate writes only with --yes"), "{}", out);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 0, "{}{}", out, err);
@@ -307,15 +307,16 @@ fn migrate_leaves_a_todo_with_todo_and_writes_errors_only_with_allow_errors() {
     let dir = scratch("migrate-todo", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", &doc)]);
     let docs = dir.join("docs");
     let file = docs.join("report.mkp.md");
-    // --allow-todos leaves both cases as they were, with a TODO, and the file then doesn't compile
-    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--allow-todos"]);
+    // without --allow-todos, the question stops the run; the dry run says how to answer it
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
     assert_eq!(code, 1);
-    assert!(out.contains("not written") && out.contains("it doesn't compile afterwards"), "{}", out);
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), doc);
-    // --allow-errors writes it, says so, and the run still fails: a person has to finish it
-    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--allow-todos", "--allow-errors"]);
-    assert_eq!(code, 1, "{}{}", out, err);
-    assert!(out.contains("left for a person, each with a TODO above it:") && out.contains("written with errors (--allow-errors):"), "{}", out);
+    assert!(out.contains("question") && out.contains("[split]"), "{}", out);
+    // --allow-todos leaves both cases as they were, with a TODO; the file doesn't compile at those two
+    // places only, so it is written, the run says what is left, and it has done what was asked
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--allow-todos"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.contains("left for a person, each with a TODO above it:") && out.contains("written though it doesn't compile:") && out.contains("at the TODOs"), "{}", out);
+    assert!(out.contains("Left for a person, as asked: 2 TODOs, 1 file that doesn't compile"), "{}", out);
     let text = std::fs::read_to_string(&file).unwrap();
     // in code, `//`; on a line of prose, `@//`; the rest of the migration is done around them
     assert!(text.contains("$state {\n    // TODO(mkp migrate): kit@2 splits LATE into OVERDUE or DONE: write the one this is (late is now overdue, or done)\n"), "{}", text);
@@ -357,8 +358,10 @@ fn migrate_moves_a_0_2_document_with_0_2_10s_own_compiler() {
     assert!(out.contains("plain.mkp.md    up to date"), "{}", out);
     // units has no 0.3 release here: only a stand-in, so runs.mkp.md is refused without --allow-todos
     assert!(out.contains("runs.mkp.md     mkp 0.2 → 0.3  not written: 0.3 can't yet say 1 thing") && out.contains("--allow-todos writes it"), "{}", out);
+    // a stand-in is a person's to replace: written, as --allow-todos asks, and said
     let (code, out, err) = mkp(&["migrate", d, "--pack", o, "--yes", "--allow-todos"]);
-    assert_eq!(code, 1, "a stand-in is a person's to replace: {}{}", out, err);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.contains("Left for a person, as asked: 1 stand-in"), "{}", out);
     let counter = std::fs::read_to_string(docs.join("counter.mkp.md")).unwrap();
     assert!(counter.contains("widget counter(start: int = 0) {") && counter.contains("\n@@@\n") && counter.contains("@counter(start = 3);"), "{}", counter);
     assert_eq!(std::fs::read_to_string(docs.join("plain.mkp.md")).unwrap(), plain);
@@ -366,6 +369,8 @@ fn migrate_moves_a_0_2_document_with_0_2_10s_own_compiler() {
     assert!(stand_in.starts_with("package units;\n// TODO(mkp migrate): a stand-in made from the 0.2 definitions of units,") && stand_in.contains("extern widget distance(km: number"), "{}", stand_in);
     let runs = std::fs::read_to_string(docs.join("runs.mkp.md")).unwrap();
     assert!(!runs.contains("mkp: 0.2.10") && runs.contains("import units;") && runs.contains("@distance(km = 21.0975, label = \"A half marathon\""), "{}", runs);
+    // its header says what is left: the stand-in, not "nothing to finish"
+    assert!(runs.contains("// TODO(mkp migrate): checked against a stand-in for units (") && !runs.contains("Nothing to finish by hand"), "{}", runs);
     let stand_ins = docs.join("stand-ins");
     assert_eq!(mkp(&["check", "--pack", stand_ins.to_str().unwrap(), docs.join("runs.mkp.md").to_str().unwrap(), docs.join("counter.mkp.md").to_str().unwrap()]).0, 0);
     // now 0.3: a second run leaves them alone
@@ -403,7 +408,7 @@ fn migrate_keeps_the_release_a_tree_is_written_for_in_mkp_toml() {
     let docs = dir.join("docs");
     let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
     assert_eq!(code, 0, "{}", out);
-    assert!(out.contains(&format!("says no release of mkp, so it is taken as written for 0.3.0, and moves to {}.", release)), "{}", out);
+    assert!(out.contains(&format!("has no `mkp =` line, so the tree is taken as written for mkp 0.3.0; migrating writes mkp = \"{}\" into it, and [uses] kit = 2.", release)), "{}", out);
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
     assert_eq!(code, 0, "{}{}", out, err);
     let toml = std::fs::read_to_string(dir.join("mkp.toml")).unwrap();
@@ -554,7 +559,7 @@ fn the_walkthroughs_bugs_stay_fixed() {
     // one error, reported once, however many passes read the name
     let graphs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../examples/graphs/release-flow.mkp.md");
     let (_, _, err) = mkp(&["check", graphs.to_str().unwrap()]);
-    assert_eq!(err.matches(":5:17: error[names.unknown-type]").count(), 1, "{}", err);
+    assert_eq!(err.matches("error[names.unknown-pack]").count(), 1, "{}", err);
     // a pack's file named by a relative path, under an mkp.toml that lists its pack, is one file
     let dir = kit_tree("bugs-relative", "packs = [\"kit\"]\n");
     let out = Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(&dir).args(["check", "kit/kit.mkp"]).output().unwrap();
@@ -650,4 +655,269 @@ fn surface_reads_a_pack_once_when_its_mkp_toml_lists_it_too() {
     let text = String::from_utf8_lossy(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(text.starts_with("package kit@2;"), "{}", text);
+}
+
+// The issues the CLI usability test found (#12394–#12431), each kept fixed.
+
+#[test]
+fn every_command_has_its_own_help_and_mkp_says_its_version() {
+    let (code, out, _) = mkp(&[]);
+    assert_eq!(code, 0, "mkp alone is its usage, not an error");
+    assert!(out.contains("usage: mkp <command>") && out.contains("Exit codes: 0 done"), "{}", out);
+    let (code, out, _) = mkp(&["--version"]);
+    assert_eq!((code, out.trim().to_string()), (0, format!("mkp {} (MKP 0.3; resolved IR: rir 1)", env!("CARGO_PKG_VERSION"))));
+    for cmd in ["fmt", "check", "parse", "build", "md", "surface", "migrate", "target check"] {
+        let args: Vec<&str> = cmd.split(' ').chain(["--help"]).collect();
+        let (code, out, err) = mkp(&args);
+        assert_eq!(code, 0, "{}: {}", cmd, err);
+        assert!(out.starts_with(&format!("usage: mkp {}", cmd)) && out.contains("exit: 0") && out.contains("e.g."), "{}: {}", cmd, out);
+        let help: Vec<&str> = ["help"].into_iter().chain(cmd.split(' ')).collect();
+        assert_eq!(mkp(&help).1, out, "mkp help {} is mkp {} --help", cmd, cmd);
+    }
+    // --help runs nothing: fmt writes no file, surface records no surface
+    let dir = scratch("help-runs-nothing", &[("messy.mkp", "package messy;\nlet   x: number = 1;\n"), ("shelf/shelf.mkp", SHELF)]);
+    assert_eq!(mkp(&["fmt", "--help", dir.join("messy.mkp").to_str().unwrap()]).0, 0);
+    assert_eq!(std::fs::read_to_string(dir.join("messy.mkp")).unwrap(), "package messy;\nlet   x: number = 1;\n");
+    assert_eq!(mkp(&["surface", dir.join("shelf").to_str().unwrap(), "--help"]).0, 0);
+    assert!(!dir.join("shelf/surfaces").exists());
+    let (code, _, err) = mkp(&["frobnicate"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("mkp has no command frobnicate: the commands are fmt, check"), "{}", err);
+}
+
+#[test]
+fn flags_are_read_before_the_command_and_a_short_one_is_never_a_file() {
+    let dir = scratch("flags-first", &[("packs/shelf/shelf.mkp", SHELF), ("doc.mkp.md", DOC)]);
+    let doc = dir.join("doc.mkp.md");
+    let packs = dir.join("packs");
+    // `mkp --format json check …` is `mkp check --format json …`
+    let (code, out, err) = mkp(&["--format", "json", "check", "--pack", packs.to_str().unwrap(), doc.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(out.lines().last().map_or(false, |l| l.contains("\"type\":\"summary\"")), "{}", out);
+    // -o is --out's old spelling, and stops the command; nothing is read as a file named -o
+    let report = dir.join("report.txt");
+    let (code, _, err) = mkp(&["check", doc.to_str().unwrap(), "-o", report.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("error: mkp check has no -o: use --out") && !err.contains("-o: not an MKP file"), "{}", err);
+    assert!(!report.exists());
+    // a command that takes one file says so when given two
+    let (code, _, err) = mkp(&["parse", doc.to_str().unwrap(), doc.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("mkp parse takes one file, and was given 2"), "{}", err);
+    // with --format json, the warning about a flag is a JSON line too
+    let (_, _, err) = mkp(&["check", "--format", "json", "--pakc", packs.to_str().unwrap(), "--pack", packs.to_str().unwrap(), doc.to_str().unwrap()]);
+    let first: serde_json::Value = serde_json::from_str(err.lines().next().unwrap()).unwrap();
+    assert_eq!((first["type"].as_str(), first["flag"].as_str()), (Some("warning"), Some("--pakc")));
+    assert!(first["message"].as_str().unwrap().contains("did you mean --pack?"), "{}", err);
+}
+
+#[test]
+fn a_flag_mkp_doesnt_know_stops_a_run_that_would_write() {
+    let messy = "package messy;\nlet   x: number = 1;\n";
+    let dir = scratch("unknown-writes", &[("messy.mkp", messy)]);
+    let file = dir.join("messy.mkp");
+    let (code, _, err) = mkp(&["fmt", "--chek", file.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("warning: mkp fmt has no flag --chek, so it is ignored (did you mean --check?)") && err.contains("Nothing written"), "{}", err);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), messy);
+    // a run that only looks goes on, with the warning
+    let (code, _, err) = mkp(&["fmt", "--check", "--quiet", file.to_str().unwrap()]);
+    assert_eq!(code, 1, "{}", err);
+    assert!(err.contains("has no flag --quiet") && !err.contains("Nothing written"), "{}", err);
+    let dir = kit_tree("unknown-migrate", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let (code, _, _) = mkp(&["migrate", dir.join("docs").to_str().unwrap(), "--yes", "--allow-dirty", "--quiet"]);
+    assert_eq!(code, 2);
+    assert_eq!(std::fs::read_to_string(dir.join("docs/report.mkp.md")).unwrap(), OLD_DOC);
+}
+
+#[test]
+fn fmt_says_what_it_did_and_out_writes_a_copy() {
+    let messy = "package messy;\nlet   x: number = 1;\n";
+    let dir = scratch("fmt-copy", &[("src/messy.mkp", messy), ("src/tidy.mkp", "package tidy;\n\nlet x: number = 1;\n")]);
+    let (file, copy) = (dir.join("src/messy.mkp"), dir.join("out/clean.mkp"));
+    // --out alone: the canonical text in the copy, its folder made, the file left as it was
+    let (code, _, err) = mkp(&["fmt", file.to_str().unwrap(), "--out", copy.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), messy);
+    assert_eq!(std::fs::read_to_string(&copy).unwrap(), mkp(&["fmt", "--stdout", file.to_str().unwrap()]).1);
+    // a folder: every file in it, each verdict said, and a summary
+    let src = dir.join("src");
+    let (code, _, err) = mkp(&["fmt", "--check", src.to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(err.contains("messy.mkp: not in the canonical layout") && err.contains("2 files: 1 already canonical, 1 would change"), "{}", err);
+    // --diff previews; with --check it gates too
+    assert_eq!(mkp(&["fmt", "--diff", file.to_str().unwrap()]).0, 0);
+    assert_eq!(mkp(&["fmt", "--diff", "--check", file.to_str().unwrap()]).0, 1);
+    let (code, _, err) = mkp(&["fmt", src.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(err.contains("messy.mkp: formatted") && err.contains("2 files: 1 already canonical, 1 formatted"), "{}", err);
+}
+
+#[test]
+fn out_is_written_at_the_end_in_a_folder_it_makes_and_a_closed_pipe_is_quiet() {
+    let dir = scratch("out-end", &[("packs/shelf/shelf.mkp", SHELF), ("doc.mkp.md", DOC)]);
+    let doc = dir.join("doc.mkp.md");
+    // a usage error leaves --out's file as it was
+    let kept = dir.join("kept.txt");
+    std::fs::write(&kept, "keep\n").unwrap();
+    assert_eq!(mkp(&["parse", "--out", kept.to_str().unwrap()]).0, 2);
+    assert_eq!(std::fs::read_to_string(&kept).unwrap(), "keep\n");
+    // its folder is made
+    let ir = dir.join("dist/ir/doc.ir.json");
+    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "--pack", dir.join("packs").to_str().unwrap(), "--out", ir.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(ir.is_file());
+    // a file that can't be read is exit 2, not 1 (what a file with errors is)
+    let (code, out, _) = mkp(&["check", "--format", "json", dir.join("nowhere.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(out.contains("\"unreadable\":1"), "{}", out);
+    // `mkp build … | head` ends quietly
+    let sh = format!("{} build {} --pack {} | head -c 10 >/dev/null", env!("CARGO_BIN_EXE_mkp"), doc.display(), dir.join("packs").display());
+    let run = Command::new("sh").args(["-c", &sh]).output().unwrap();
+    assert!(!String::from_utf8_lossy(&run.stderr).contains("panicked"), "{}", String::from_utf8_lossy(&run.stderr));
+}
+
+#[test]
+fn check_takes_folders_and_says_what_each_file_needs_and_what_is_wrong() {
+    let broken = SHELF.replace("widget row_of_books(title: text)", "widget row_of_books(name: text)").replace("\\{title}", "\\{name}").replace("value = title", "value = name");
+    let old = "---\nmkp: 0.2.10\nir: 1\n---\n# Old\n\n```shelf@1\ntitle: Read\n```\n";
+    let dir = scratch("check-folders", &[("shelf/shelf.mkp", SHELF), ("docs/doc.mkp.md", DOC), ("docs/old.mkp.md", old), ("mkp.toml", "packs = [\"shelf\"]\n")]);
+    // a folder: each file, a line for each, the levels a document needs, a total
+    let (code, _, err) = mkp(&["check", dir.join("docs").to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(err.contains("doc.mkp.md: clean; needs core.draw"), "{}", err);
+    // a document 0.2 wrote: a warning that says how to move it
+    assert!(err.contains("warning[file.mkp-0.2]: this looks like an MKP 0.2 document (its front matter says mkp: 0.2)") && err.contains("mkp migrate brings it to 0.3"), "{}", err);
+    assert!(err.contains("2 files: 0 with errors, 2 without; 0 errors, 1 warning"), "{}", err);
+    let (_, out, _) = mkp(&["check", "--format", "json", dir.join("docs/doc.mkp.md").to_str().unwrap()]);
+    assert!(out.contains("\"levels\":[\"core.draw\"]"), "{}", out);
+    // a pack that is missing: one error, saying how to add it, and none of what follows from it
+    let graphs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../examples/graphs/release-flow.mkp.md");
+    let (code, _, err) = mkp(&["check", graphs.to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(err.contains("error[names.unknown-pack]") && err.contains("fix: pass its folder with --pack") && !err.contains("names.unknown-type") && !err.contains("names.unknown-widget"), "{}", err);
+    // a pack's file is held to the surfaces it has released, without naming them
+    assert_eq!(mkp(&["surface", dir.join("shelf").to_str().unwrap()]).0, 0);
+    std::fs::write(dir.join("shelf/shelf.mkp"), broken).unwrap();
+    let (code, _, err) = mkp(&["check", dir.join("shelf/shelf.mkp").to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(err.contains("error[pack.version-break]"), "{}", err);
+    // a 0.2 pack given to --pack: said what it is
+    let old_pack = scratch("check-02-pack", &[("units/manifest.mkp", UNITS_02_MANIFEST), ("units/distance.mkp", UNITS_02_DISTANCE), ("doc.mkp.md", "# Hi\n")]);
+    let (code, _, err) = mkp(&["check", "--pack", old_pack.join("units").to_str().unwrap(), old_pack.join("doc.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("an MKP 0.2 pack (it has a manifest.mkp)"), "{}", err);
+    // mkp surface names the pack it was given, not a flag
+    let (code, _, err) = mkp(&["surface", dir.join("nokit").to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("nokit: not a pack's folder or a .mkp file") && !err.contains("--pack"), "{}", err);
+}
+
+#[test]
+fn migrate_from_the_tree_reads_its_mkp_toml_and_refuses_a_pack_it_doesnt_have() {
+    let dir = kit_tree("migrate-root", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let run = |args: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(args).current_dir(&dir).output().unwrap();
+        (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+    // no folder named: this one, with its own mkp.toml's packs
+    let (code, out) = run(&["migrate", "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("kit@1 → kit@2"), "{}", out);
+    // once mkp.toml records the release, --check still fails while a document needs migrating
+    std::fs::write(dir.join("mkp.toml"), format!("mkp = \"{}\"\npacks = [\"kit\"]\n\n[uses]\nkit = 1\n", env!("CARGO_PKG_VERSION"))).unwrap();
+    assert_eq!(run(&["migrate", "--check"]).0, 1);
+    assert_eq!(run(&["migrate", ".", "--check"]).0, 1);
+    // a pack the document imports that isn't in the build: refused, saying how to add it
+    let lone = scratch("migrate-no-pack", &[("docs/report.mkp.md", OLD_DOC)]);
+    let (code, out, _) = mkp(&["migrate", lone.join("docs").to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("not written: it imports kit, which isn't in the build: pass its folder with --pack"), "{}", out);
+}
+
+#[test]
+fn migrate_says_each_change_with_its_why_and_its_diff_is_a_patch() {
+    let dir = kit_tree("migrate-why", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("changed, each by a statement of the migration (with its why):"), "{}", out);
+    assert!(out.contains("badge: size = size.S, added: kit@1's badges were small") && out.contains("stat: unit = \"\", added: a stat names its unit") && out.contains("LATE → OVERDUE, renamed by kit@2"), "{}", out);
+    // --diff: on stdout only the patch, mkp.toml's hunk too; what it says on stderr
+    let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(["migrate", "docs", "--diff"]).current_dir(&dir).output().unwrap();
+    let (patch, said) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(patch.starts_with("--- a/docs/report.mkp.md\n+++ b/docs/report.mkp.md\n@@") && patch.contains("--- a/mkp.toml\n+++ b/mkp.toml\n") && patch.contains(&format!("+mkp = \"{}\"", env!("CARGO_PKG_VERSION"))) && patch.contains("+kit = 2"), "{}", patch);
+    assert!(said.contains("1 file: 1 to migrate"), "{}", said);
+    // JSON says what the run would write into mkp.toml, and the changes as notes
+    let (_, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run", "--format", "json"]);
+    let lines: Vec<serde_json::Value> = out.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    let summary = lines.last().unwrap();
+    assert_eq!((summary["mkp_toml"]["says"].as_str(), summary["mkp_toml"]["records"].as_str(), summary["mkp_toml"]["uses"]["kit"].as_u64()), (None, Some(env!("CARGO_PKG_VERSION")), Some(2)));
+    assert!(lines.iter().any(|l| l["kind"] == "changed" && l["text"].as_str().map_or(false, |t| t.contains("size = size.S"))), "{}", out);
+    // and the warning before writing says what it rewrites
+    let (_, out, _) = mkp(&["migrate", docs.to_str().unwrap()]);
+    assert!(out.contains("warning: this rewrites 1 file in place, and mkp.toml's `mkp =` line and [uses]."), "{}", out);
+}
+
+#[test]
+fn yes_all_answers_every_question_and_a_bare_yes_lists_them() {
+    let dir = kit_tree("migrate-yes-all", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let migration = MIGRATION
+        .replace("when = !given(size)", "when = confirm(why = \"Make kit@1's badges small?\")")
+        .replace("rename(input = color, to = tone);", "rename(input = color, to = tone);\n        set(input = tone, value = color.ACCENT, when = confirm(why = \"Reset every chart's tone?\"), why = \"one tone for charts\");");
+    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), migration).unwrap();
+    let docs = dir.join("docs");
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("2 questions no one has answered") && out.contains("A bare --yes answers none of them: --yes all answers every one yes"), "{}", out);
+    assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "all", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.contains("1. Make kit@1's badges small?  yes: --yes all") && out.contains("2. Reset every chart's tone?  yes: --yes all"), "{}", out);
+    let text = std::fs::read_to_string(docs.join("report.mkp.md")).unwrap();
+    assert!(text.contains("tone = color.ACCENT") && text.contains("size = size.S"), "{}", text);
+}
+
+#[test]
+fn migrate_says_what_stops_it_and_how_to_go_on() {
+    let dir = kit_tree("migrate-stops", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    // an --answers file that isn't there, with no terminal to write it from
+    let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--answers", dir.join("nope.toml").to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("nope.toml: no such file"), "{}", err);
+    // edits of a person's own: named in the dry run, with the flag that writes them anyway
+    let git = |args: &[&str]| Command::new("git").args(args).current_dir(&dir).output().unwrap();
+    git(&["init", "-q"]);
+    git(&["add", "-A"]);
+    git(&["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"]);
+    std::fs::write(docs.join("report.mkp.md"), format!("{}\n", OLD_DOC)).unwrap();
+    let (_, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert!(out.contains("report.mkp.md has uncommitted changes, which a run without a terminal skips unless --allow-dirty is given too"), "{}", out);
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap()]);
+    assert_eq!(code, 1);
+    assert!(out.contains("writes only with --yes (and --allow-dirty, as") && !out.contains("There is no terminal"), "{}", out);
+}
+
+#[test]
+fn target_check_stops_at_what_it_cant_run_before_counting_anything() {
+    let yaml = "name: tiny\nlevels: [core.draw]\nsupplies:\n  widgets: [core/*]\ncheck_adapter: exec false\n";
+    let case = "{\"id\": \"hello\", \"source\": \"hello.mkp.md\", \"target\": {\"levels\": [\"core.draw\"]}, \"expect\": {}}";
+    let dir = scratch("target-stops", &[("targets/checks/cases/hello/hello.json", case), ("targets/checks/cases/hello/hello.mkp.md", "# Hello\n"), ("targets/tiny/target.yaml", yaml)]);
+    let run = |args: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(args).current_dir(&dir).output().unwrap();
+        (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+    };
+    // a name that isn't a target, even beside one that is
+    let (code, _, err) = run(&["target", "check", "tiny", "bogus"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("no target bogus: the targets are tiny"), "{}", err);
+    // cases that aren't there
+    let (code, _, err) = run(&["target", "check", "tiny", "--cases", "nowhere"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--cases nowhere: no such folder"), "{}", err);
+    // an adapter that doesn't answer: nothing was checked, so nothing is caught
+    let (code, out, err) = run(&["target", "check", "tiny", "--defect", "no-such", "--expect-failures"]);
+    assert_eq!(code, 2, "{}{}", out, err);
+    assert!(!out.contains("caught") && err.contains("the target's adapter didn't run, so nothing was checked"), "{}{}", out, err);
 }

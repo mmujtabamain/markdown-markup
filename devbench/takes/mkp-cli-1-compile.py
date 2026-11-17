@@ -23,7 +23,7 @@ def take(t):
 
     r.chapter(0)
     r.layout("term")
-    r.run("usage", "mkp on its own prints its usage, and exits 2.")
+    r.run("usage", "mkp on its own prints its usage, and exits 0.")
     t.beat(r.out("usage", "usage:", 18), "A line or two for each command: fmt, check, parse, build, md, surface, migrate, target check.", 4.0)
 
     r.chapter(1)
@@ -48,7 +48,7 @@ def take(t):
     r.run("fmt-check", "mkp fmt --check only checks the layout…")
     t.beat(r.out("fmt-check", "not in the canonical layout"), "…and fails when a file isn't in the canonical one.", 3.0)
     r.run("fmt-diff", "--diff shows what fmt would change, and writes nothing.")
-    t.beat(r.out("fmt-diff", "--- messy.mkp.md", 12), "A unified diff: the old lines, then the new, with the lines around them.", 3.8)
+    t.beat(r.out("fmt-diff", "--- a/messy.mkp.md", 12), "A unified diff, as git writes one: the old lines, then the new, with the lines around them.", 3.8)
     r.run("fmt", "mkp fmt writes it in place.")
     r.file("fmt", "messy.mkp.md", "after")
     t.beat(r.changed(), "Four spaces in, and the brace on a line of its own.", 3.2)

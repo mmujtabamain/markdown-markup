@@ -46,8 +46,10 @@ def take(t):
     t.beat("#filebody", "The document, written for kit@1.", 2.4)
     r.run("dry", "--dry-run shows what it would do, and writes nothing.")
     t.beat(r.out("dry", "kit@1 → kit@2"), "One file: kit@1 → kit@2, 5 changes and 2 deletions.", 3.2)
-    t.beat(r.out("dry", "says no release of mkp"),
-           "mkp.toml names no release of mkp, so it is taken as written for 0.3.0, and will say so.", 3.8)
+    t.beat(r.out("dry", "has no `mkp =` line"),
+           "mkp.toml has no mkp = line, so the tree is taken as written for 0.3.0; migrating writes it, and kit = 2.", 4.0)
+    t.beat(r.out("dry", "changed, each by a statement", 7),
+           "Each change, with the statement of the migration behind it, and its why.", 3.8)
     t.beat(r.out("dry", "warning: the newer versions drop", 3),
            "And a warning for what kit@2 drops: the sparkline, kept as a comment, and shadow = true.", 4.0)
     r.layout("term")

@@ -68,8 +68,15 @@ pub(crate) struct Done {
     pub refused: Vec<String>,
     /// What `--allow-todos` left for a person, each with a TODO above it.
     pub todos: Vec<String>,
+    /// Each value a statement renamed, set or added, where, with the statement's why.
+    pub changed: Vec<String>,
     /// Where those TODOs go, and what each says: placed once the other edits are known.
     pending: Vec<(usize, String)>,
+}
+
+/// A statement's `why`, as `: why` after what it did, or nothing.
+fn why_of(args: &[(String, Expr)]) -> String {
+    args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).filter(|w| !w.is_empty()).map(|w| format!(": {}", w)).unwrap_or_default()
 }
 
 /// One statement, with migration fns' calls replaced by their bodies.
@@ -351,7 +358,11 @@ impl<'a> Step<'a> {
                 continue;
             }
             match o.as_str() {
-                "rename" => return args.iter().find(|(n, _)| n == "to").and_then(|(_, v)| case_of(v)),
+                "rename" => {
+                    let to = args.iter().find(|(n, _)| n == "to").and_then(|(_, v)| case_of(v))?;
+                    done.changed.push(format!("{}:{}  {} → {}, renamed by {}{}", self.doc, line_of(at), case, to, self.label, why_of(args)));
+                    return Some(to);
+                }
                 "split" => {
                     let options: Vec<String> = match args.iter().find(|(n, _)| n == "to").map(|(_, v)| &v.kind) {
                         Some(ExprKind::List(xs)) => xs.iter().filter_map(case_of).collect(),
@@ -360,7 +371,10 @@ impl<'a> Step<'a> {
                     let why = args.iter().find(|(n, _)| n == "why").map(|(_, v)| literal_text(v)).unwrap_or_default();
                     let key = format!("{}:{} {}", self.doc, line_of(at), case);
                     match ask(&key, &format!("{}:{} uses {}, which {} replaces{}", self.doc, line_of(at), case, self.label, if why.is_empty() { String::new() } else { format!(": {}", why) }), &options) {
-                        Some(pick) => return Some(pick),
+                        Some(pick) => {
+                            done.changed.push(format!("{}:{}  {} → {}, as answered{}", self.doc, line_of(at), case, pick, if why.is_empty() { String::new() } else { format!(" ({})", why) }));
+                            return Some(pick);
+                        }
                         None => {
                             let why_said = why.clone();
                             let why = format!("{} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default());
@@ -471,10 +485,12 @@ impl<'a> Step<'a> {
                     "rename" => {
                         if let (Some(m), Some(to)) = (&mem, arg_name(args, "to")) {
                             if let Some(p) = u.args.iter().position(|a| a.0 == *m) {
+                                done.changed.push(format!("{}:{}  {}: {} → {}{}", self.doc, line, key, m, to, why));
                                 u.args[p].0 = to;
                             }
                         } else if let Some(to) = arg_name(args, "to") {
                             if !args.iter().any(|(n, _)| n == "from") {
+                                done.changed.push(format!("{}:{}  {} → {}{}", self.doc, line, key, to, why));
                                 u.name = to;
                             }
                         }
@@ -502,8 +518,14 @@ impl<'a> Step<'a> {
                         }
                         let value = args.iter().find(|(n, _)| n == "value").map(|(_, v)| print_expr(&env.subst(v))).ok_or("a set with no value")?;
                         match u.args.iter().position(|a| a.0 == m) {
-                            Some(p) => u.args[p].1 = value,
-                            None => u.args.push(UseArg::new(m, value)),
+                            Some(p) => {
+                                done.changed.push(format!("{}:{}  {}: {} = {}, was {}{}", self.doc, line, key, m, value, u.args[p].1, why));
+                                u.args[p].1 = value;
+                            }
+                            None => {
+                                done.changed.push(format!("{}:{}  {}: {} = {}, added{}", self.doc, line, key, m, value, why));
+                                u.args.push(UseArg::new(m, value));
+                            }
                         }
                         u.parens = true;
                     }

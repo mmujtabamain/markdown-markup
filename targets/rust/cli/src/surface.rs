@@ -133,9 +133,6 @@ fn signature(kind: &DeclKind, provides: &std::collections::HashSet<String>) -> O
     })
 }
 
-const USAGE: &str = "usage: mkp surface <pack folder> [--pack a,b] [--out file] [--check|--diff|--stdout] [--force] [--format json]
-  writes <pack folder>/surfaces/<name>@<version>.mkp, what this version of the pack provides;
-  --check writes nothing and fails if it is missing or differs, --force replaces one that differs";
 
 pub fn surface_cmd(args: &[String]) -> ExitCode {
     let check = args.iter().any(|a| a == "--check");
@@ -158,16 +155,30 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         }
     };
     let Some(dir) = dirs.first() else {
-        eprintln!("{}", USAGE);
+        eprintln!("{}", crate::help::of("surface").unwrap());
         return ExitCode::from(2);
     };
+    if dirs.len() > 1 {
+        eprintln!("mkp surface takes one pack, and was given {}: {}", dirs.len(), dirs.join(", "));
+        return ExitCode::from(2);
+    }
+    // the pack named is the one mkp surface reads, not one of --pack's
+    let p = Path::new(dir);
+    if !p.is_dir() && !dir.ends_with(".mkp") {
+        eprintln!("{}: not a pack's folder or a .mkp file{}", dir, if p.exists() { "" } else { ", and there is nothing by that name" });
+        return ExitCode::from(2);
+    }
     let files = match crate::pack_sources(dir) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("{}", e.strip_prefix("--pack ").unwrap_or(&e));
             return ExitCode::from(2);
         }
     };
+    if files.is_empty() {
+        eprintln!("{}: no .mkp files in it, so no pack", dir);
+        return ExitCode::from(2);
+    }
     let dir_path = Path::new(dir);
     // the pack's own files aren't its dependencies, however an mkp.toml names them
     let mine = std::fs::canonicalize(dir_path).ok();

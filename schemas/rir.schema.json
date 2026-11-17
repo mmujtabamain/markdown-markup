@@ -61,6 +61,18 @@
           "items": {
             "$ref": "#/$defs/file"
           }
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "core.draw",
+              "core.live",
+              "core.gfx"
+            ]
+          },
+          "description": "The levels the document needs to run (page 6), as its IR's top-level levels: none means its Markdown is enough. Only for a document."
         }
       },
       "required": [

@@ -46,14 +46,13 @@ pub(crate) fn line(v: Value) {
     print(&format!("{}\n", v));
 }
 
-/// `--out`: where what a command prints goes, when it isn't standard output.
-static SINK: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
+/// `--out`: the file what a command prints goes to, and what it has printed so far. It is written
+/// when the command ends, so one that stops at a usage error leaves the file as it was.
+static SINK: std::sync::Mutex<Option<(String, Vec<u8>)>> = std::sync::Mutex::new(None);
 
-/// What the command prints from here on goes to `path`.
-pub(crate) fn to_file(path: &str) -> Result<(), String> {
-    let f = std::fs::File::create(path).map_err(|e| format!("--out {}: {}", path, e))?;
-    *SINK.lock().unwrap() = Some(f);
-    Ok(())
+/// What the command prints from here on goes to `path`, once it ends.
+pub(crate) fn to_file(path: &str) {
+    *SINK.lock().unwrap() = Some((path.to_string(), Vec::new()));
 }
 
 /// Whether `--out` took what the command prints.
@@ -61,16 +60,55 @@ pub(crate) fn to_a_file() -> bool {
     SINK.lock().unwrap().is_some()
 }
 
+/// The command has ended with `code`: what it printed goes to the `--out` file, unless it stopped at
+/// a usage error (2) before printing anything, when the file is left as it was.
+pub(crate) fn finish(code: std::process::ExitCode) -> std::process::ExitCode {
+    let Some((path, text)) = SINK.lock().unwrap().take() else { return code };
+    if code == std::process::ExitCode::from(2) && text.is_empty() {
+        return code;
+    }
+    match write_file(&path, &text) {
+        Ok(()) => code,
+        Err(e) => {
+            eprintln!("--out {}", e);
+            std::process::ExitCode::from(2)
+        }
+    }
+}
+
+/// A file written, its folder made first when it isn't there.
+pub(crate) fn write_file(path: &str, text: impl AsRef<[u8]>) -> Result<(), String> {
+    let p = std::path::Path::new(path);
+    if let Some(dir) = p.parent().filter(|d| !d.as_os_str().is_empty() && !d.exists()) {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}: can't make its folder {}: {}", path, dir.display(), e))?;
+    }
+    std::fs::write(p, text).map_err(|e| format!("{}: {}", path, e))
+}
+
 /// What the command prints: to standard output, or the `--out` file.
 pub(crate) fn print(s: &str) {
     use std::io::Write;
     match SINK.lock().unwrap().as_mut() {
-        Some(f) => {
-            let _ = f.write_all(s.as_bytes());
-        }
+        Some((_, buf)) => buf.extend_from_slice(s.as_bytes()),
         None => {
-            print!("{}", s);
+            // a pipe closed early (`mkp build … | head`) ends mkp quietly, as SIGPIPE ends a C
+            // program, and with its exit code
+            if let Err(e) = std::io::stdout().write_all(s.as_bytes()) {
+                if e.kind() == std::io::ErrorKind::BrokenPipe {
+                    std::process::exit(141);
+                }
+            }
         }
+    }
+}
+
+/// A line for a person, beside what the command prints: on standard error, or with `--out` in the
+/// file with the rest.
+pub(crate) fn note(s: &str) {
+    if to_a_file() {
+        text(s);
+    } else {
+        eprintln!("{}", s);
     }
 }
 
@@ -83,3 +121,4 @@ pub(crate) fn text(s: &str) {
 pub(crate) fn out_path(args: &[String]) -> Option<String> {
     args.iter().position(|a| a == "--out").and_then(|k| args.get(k + 1).cloned()).or_else(|| args.iter().find_map(|a| a.strip_prefix("--out=").map(str::to_string)))
 }
+

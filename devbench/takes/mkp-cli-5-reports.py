@@ -27,7 +27,7 @@ def take(t):
     r.run("check", "The kit@1 tree from part 3, as CI sees it. --check fails if anything would change…")
     t.beat(r.exit("check"), "…and something would: exit 1.", 2.6)
     r.run("no-tty", "With no terminal to ask in, nothing is written…")
-    t.beat(r.out("no-tty", "There is no terminal to ask in"), "…unless --yes says to write.", 3.0)
+    t.beat(r.out("no-tty", "Nothing written: without a terminal"), "…unless --yes says to write.", 3.0)
 
     r.chapter(1)
     r.layout("term")

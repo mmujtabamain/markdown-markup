@@ -49,7 +49,7 @@ def take(t):
     r.chapter(2)
     r.run("write", "--yes --allow-todos writes them, with a stand-in for units.")
     t.beat(r.out("write", "to know:", 3), "To know: the summary dropped, and 0.2's stamp taken out of the front matter.", 3.8)
-    t.beat(r.out("write", "left for a person", 2), "Left for a person: units' stand-in, until its own 0.3 release replaces it.", 3.6)
+    t.beat(r.out("write", "Left for a person, as asked"), "Left for a person, as --allow-todos asked: units' stand-in, until its own 0.3 release replaces it. Exit 0.", 3.8)
     t.beat(r.out("write", "a stand-in for units", 3), "The stand-in is written, and mkp says how to check against it.", 3.4)
     r.file("write", "docs/counter.mkp.md", "after")
     t.beat(r.line("widget counter(", 19), "The counter in 0.3: a widget with its view and its markdown block…", 3.6)

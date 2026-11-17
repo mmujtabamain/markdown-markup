@@ -282,12 +282,12 @@ fn compare(base: &mkp_check::Checker, dir: &Path, want: &Value, got: &Value) -> 
     out
 }
 
-fn repo() -> PathBuf {
-    // the repository: where `targets/checks` is, from here or above, else the one this mkp was
-    // built from, so the checks run from any folder
+/// The repository: where `targets/checks` is, from here or above, else the one this mkp was built
+/// from, so the checks run from any folder; and whether it is that one.
+fn repo() -> Option<(PathBuf, bool)> {
     let here = std::env::current_dir().unwrap_or_default();
     let built = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    here.ancestors().find(|d| d.join("targets/checks/cases").is_dir()).map(Path::to_path_buf).or_else(|| built.join("targets/checks/cases").is_dir().then(|| built.canonicalize().unwrap_or(built.clone()))).unwrap_or(here)
+    here.ancestors().find(|d| d.join("targets/checks/cases").is_dir()).map(|d| (d.to_path_buf(), false)).or_else(|| built.join("targets/checks/cases").is_dir().then(|| (built.canonicalize().unwrap_or(built.clone()), true)))
 }
 
 /// The cases that run on targets: every one whose source compiles. A case that expects a compile
@@ -443,10 +443,14 @@ fn comparable(o: &Value) -> Value {
 
 /// `mkp target check [target…] [--cases dir] [--defect name] [--expect-failures] [--require target:name]…`
 pub fn target_check(args: &[String]) -> ExitCode {
-    let root = repo();
+    let Some((root, built)) = repo() else {
+        eprintln!("mkp target check needs an MKP checkout: there is no targets/checks/cases here, in a folder above, or in the checkout this mkp was built from. Run it in one.");
+        return ExitCode::from(2);
+    };
     let mut names = Vec::new();
     let mut required: Vec<(String, String)> = Vec::new();
     let mut cases_dir = root.join("targets/checks/cases");
+    let mut cases_given = false;
     let mut defect = None;
     let mut expect_failures = false;
     let json = match crate::out::wants_json(args) {
@@ -464,6 +468,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
             a if a.starts_with("--format=") || a.starts_with("--out=") => k += 1,
             "--cases" => {
                 cases_dir = PathBuf::from(args.get(k + 1).cloned().unwrap_or_default());
+                cases_given = true;
                 k += 2;
             }
             "--defect" => {
@@ -491,9 +496,20 @@ pub fn target_check(args: &[String]) -> ExitCode {
         }
     }
     let all = find_targets(&root);
+    let known: Vec<&str> = all.iter().map(|t| t.name.as_str()).collect();
+    // every name has to be a target: one that isn't stops the run, before anything runs
+    let unknown: Vec<&String> = names.iter().filter(|n| !known.contains(&n.as_str())).collect();
+    if !unknown.is_empty() {
+        eprintln!("no target {}: the targets are {}", unknown.iter().map(|n| n.as_str()).collect::<Vec<_>>().join(", "), known.join(", "));
+        return ExitCode::from(2);
+    }
     let targets: Vec<&Target> = if names.is_empty() { all.iter().collect() } else { all.iter().filter(|t| names.contains(&t.name)).collect() };
     if targets.is_empty() {
-        eprintln!("no target {:?}: the targets are {:?}", names, all.iter().map(|t| &t.name).collect::<Vec<_>>());
+        eprintln!("{}: no targets in it", root.display());
+        return ExitCode::from(2);
+    }
+    if !cases_dir.is_dir() {
+        eprintln!("--cases {}: {}", cases_dir.display(), if cases_dir.exists() { "not a folder" } else { "no such folder" });
         return ExitCode::from(2);
     }
     // a required capability a target leaves out fails the run before any check
@@ -525,9 +541,26 @@ pub fn target_check(args: &[String]) -> ExitCode {
     let tmp = std::env::temp_dir().join(format!("mkp-target-check-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&tmp);
     let cases = cases(&base, &cases_dir, &tmp);
+    if cases.is_empty() {
+        let _ = std::fs::remove_dir_all(&tmp);
+        eprintln!("{}: no cases in it{}", cases_dir.display(), if cases_given { "" } else { " (pass --cases <dir>)" });
+        return ExitCode::from(2);
+    }
+    // where the cases come from, and what runs: on stderr, so the results stay what is printed
+    if !json {
+        eprintln!("cases: {} cases from {}{}", cases.len(), cases_dir.display(), if built && !cases_given { " (the checkout this mkp was built from)" } else { "" });
+        if targets.len() > 1 {
+            eprintln!("running {} targets, one after another: {}", targets.len(), targets.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "));
+        }
+    }
     let mut results = Vec::new();
     let mut failures = Vec::new();
+    // an adapter that won't start or answer: the run can't say anything of that target
+    let mut broken = Vec::new();
     for t in &targets {
+        if !json && targets.len() > 1 {
+            eprintln!("{}: running", t.name);
+        }
         match run_target(&base, t, &cases, defect.as_deref()) {
             Ok((obs, fails, steps)) => {
                 if json {
@@ -538,8 +571,23 @@ pub fn target_check(args: &[String]) -> ExitCode {
                 failures.extend(fails);
                 results.push((t.name.clone(), obs));
             }
-            Err(e) => failures.push(format!("{}: {}", t.name, e)),
+            Err(e) => broken.push(format!("{}: {}", t.name, e)),
         }
+    }
+    if !broken.is_empty() {
+        let _ = std::fs::remove_dir_all(&tmp);
+        let hint = if defect.is_some() { " (with --defect, the adapter stops at a defect it doesn't have, and lists the ones it has above)" } else { "" };
+        for b in &broken {
+            if json {
+                crate::out::line(serde_json::json!({ "type": "error", "text": b }));
+            } else {
+                eprintln!("{}: the target's adapter didn't run, so nothing was checked{}", b, hint);
+            }
+        }
+        if json {
+            crate::out::line(serde_json::json!({ "type": "summary", "targets": targets.len(), "differences": failures.len(), "not_run": broken.len(), "exit": 2 }));
+        }
+        return ExitCode::from(2);
     }
     // every target's whole observation against every other's
     for i in 0..results.len() {

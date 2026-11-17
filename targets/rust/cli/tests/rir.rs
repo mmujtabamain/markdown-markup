@@ -115,5 +115,5 @@ fn the_example_is_what_mkp_build_rir_writes() {
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(repo()).args(["build", path, "--rir"]).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let got: Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(got, json(&want), "schemas/examples/counter.rir.json is not what `mkp build --rir` writes: run it with -o");
+    assert_eq!(got, json(&want), "schemas/examples/counter.rir.json is not what `mkp build --rir` writes: run it with --out");
 }
