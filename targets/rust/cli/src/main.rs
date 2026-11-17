@@ -192,7 +192,9 @@ const USAGE: &str = "usage:
   mkp target check [target…] [--cases dir] [--defect name] [--expect-failures]
                                     run the target checks on targets, through their check adapters
   (--pack takes a comma-separated list of folders and .mkp files; --config/-c names an mkp.toml,
-   and left out, mkp looks for one beside the file and in the folders above: packs = [\"kit\", \"extra.mkp\"])";
+   and left out, mkp looks for one beside the file and in the folders above: packs = [\"kit\", \"extra.mkp\"];
+   mkp migrate keeps mkp = \"0.3.0\" there, the release of mkp the tree is written for, and [uses],
+   the version of each pack)";
 
 fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
     let entry = entry_for(path).ok_or_else(|| format!("{}: not an MKP file (.mkp or .mkp.md)", path))?;

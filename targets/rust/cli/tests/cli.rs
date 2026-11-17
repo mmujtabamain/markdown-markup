@@ -391,3 +391,34 @@ fn migrate_uses_a_packs_own_0_3_release_and_checks_the_0_2_step_it_runs() {
     assert_eq!(out.status.code(), Some(1));
     assert!(text.contains("isn't the 0.2 → 0.3 step this mkp was built with (its SHA-256 differs): not run"), "{}", text);
 }
+
+#[test]
+fn migrate_keeps_the_release_a_tree_is_written_for_in_mkp_toml() {
+    let release = env!("CARGO_PKG_VERSION");
+    // no record: taken as 0.3.0, and the run that moves the tree writes this mkp's release
+    let dir = kit_tree("migrate-release", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains(&format!("says no release of mkp, so it is taken as written for 0.3.0, and moves to {}.", release)), "{}", out);
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    let toml = std::fs::read_to_string(dir.join("mkp.toml")).unwrap();
+    assert!(toml.starts_with(&format!("mkp = \"{}\"\npacks = [\"kit\"]\n", release)) && toml.contains("[uses]\nkit = 2\n"), "{}", toml);
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--check"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains(&format!("written for mkp {}.", release)), "{}", out);
+    // an older record with nothing else to move: --check fails, and a run writes only the record
+    std::fs::write(dir.join("mkp.toml"), toml.replace(&format!("mkp = \"{}\"", release), "mkp = \"0.0.1\"")).unwrap();
+    assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--check"]).0, 1);
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(std::fs::read_to_string(dir.join("mkp.toml")).unwrap().starts_with(&format!("mkp = \"{}\"\n", release)));
+    // a newer release than this mkp, or no release at all, stops it
+    std::fs::write(dir.join("mkp.toml"), toml.replace(&format!("mkp = \"{}\"", release), "mkp = \"9.0.0\"")).unwrap();
+    let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("written for mkp 9.0.0, which is newer than this mkp"), "{}", err);
+    std::fs::write(dir.join("mkp.toml"), toml.replace(&format!("mkp = \"{}\"", release), "mkp = \"soon\"")).unwrap();
+    assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]).0, 2);
+}

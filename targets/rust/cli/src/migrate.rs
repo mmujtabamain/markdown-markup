@@ -22,7 +22,14 @@ const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.
   What a migration can't do refuses the file; --todo leaves that code as it was with a TODO above
   it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.
   A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
-  only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.";
+  only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.
+  mkp.toml's mkp = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none), and
+  [uses] each pack's version; both move with the tree.";
+
+/// This mkp's release: what a tree is written for once `mkp migrate` has moved it.
+pub(crate) const RELEASE: &str = env!("CARGO_PKG_VERSION");
+/// The release a tree whose mkp.toml doesn't say is taken to be written for: the first of 0.3.
+pub(crate) const FIRST: &str = "0.3.0";
 
 /// `--allow-errors`: a file that doesn't compile afterwards is written all the same.
 static ALLOW_ERRORS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -150,6 +157,22 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     }
     let packs = packs_of(&sources);
     let (uses, config) = uses_in_config(rest.iter().position(|a| a == "-c" || a == "--config").and_then(|i| rest.get(i + 1)).map(String::as_str), docs.first());
+    // the release of mkp the tree is written for: mkp.toml's `mkp = "0.3.x"`
+    let written_release = config.as_ref().and_then(|c| release_in_config(c));
+    if let (Some(cfg), Some(r)) = (&config, &written_release) {
+        match release_of(r) {
+            None => {
+                eprintln!("{}: mkp = \"{}\" isn't a release of mkp, such as \"{}\"", cfg.display(), r, RELEASE);
+                return ExitCode::from(2);
+            }
+            Some(v) if v > release_of(RELEASE).unwrap_or_default() => {
+                eprintln!("{}: written for mkp {}, which is newer than this mkp ({}): update mkp first", cfg.display(), r, RELEASE);
+                return ExitCode::from(2);
+            }
+            _ => {}
+        }
+    }
+    let record_moves = config.is_some() && written_release.as_deref() != Some(RELEASE);
     let core = crate::core_sources();
     let base = mkp_check::compile_core(&core);
 
@@ -216,6 +239,13 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             to_write.push((p.clone(), old.clone(), o));
         }
     }
+    if let Some(cfg) = &config {
+        match &written_release {
+            Some(r) if r == RELEASE => println!("{}: written for mkp {}.", cfg.display(), r),
+            Some(r) => println!("{}: written for mkp {}, and moves to {}.", cfg.display(), r, RELEASE),
+            None => println!("{}: says no release of mkp, so it is taken as written for {}, and moves to {}.", cfg.display(), FIRST, RELEASE),
+        }
+    }
     println!("{} file{}: {} to migrate, {} need{} a person, {} up to date.", results.len(), if results.len() == 1 { "" } else { "s" }, to_write.len(), need, if need == 1 { "s" } else { "" }, fine);
     let notices: Vec<&String> = to_write.iter().flat_map(|(_, _, o)| o.notices.iter()).collect();
     if !notices.is_empty() {
@@ -261,7 +291,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         }
     }
-    if to_write.is_empty() {
+    if to_write.is_empty() && !record_moves {
         return if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
     }
     if check {
@@ -278,7 +308,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         Some(d) if d.is_empty() => println!("\ngit: these files are in a git repository, and every change can be undone with git restore."),
         Some(d) => println!("\ngit: these files are in a git repository; {} {} uncommitted changes of {} own, which the migration's would mix with.", d.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "), if d.len() == 1 { "has" } else { "have" }, if d.len() == 1 { "its" } else { "their" }),
     }
-    println!("warning: this rewrites {} file{} in place.", to_write.len(), if to_write.len() == 1 { "" } else { "s" });
+    println!("warning: this rewrites {} file{} in place{}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, if record_moves { ", and the release mkp.toml says" } else { "" });
     if std::io::stdin().is_terminal() && !yes {
         print!("Continue? [y/N] ");
         let _ = std::io::stdout().flush();
@@ -321,7 +351,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     }
     println!("Wrote {} file{}.", written, if written == 1 { "" } else { "s" });
     // the tree is written for the newer versions once every file in it moved
-    if let Some(cfg) = config.filter(|_| need == 0 && written == to_write.len() && !uses.is_empty()) {
+    if let Some(cfg) = config.filter(|_| need == 0 && written == to_write.len()) {
         let to: BTreeMap<String, u32> = packs.iter().filter(|p| uses.get(&p.name).map_or(false, |v| *v < p.version)).map(|p| (p.name.clone(), p.version)).collect();
         if !to.is_empty() {
             if let Err(e) = bump_config(&cfg, &to) {
@@ -329,6 +359,13 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 return ExitCode::from(2);
             }
             println!("{}: now written for {}.", cfg.display(), to.iter().map(|(p, v)| format!("{}@{}", p, v)).collect::<Vec<_>>().join(", "));
+        }
+        if record_moves {
+            if let Err(e) = set_release(&cfg, RELEASE) {
+                eprintln!("{}: {}", cfg.display(), e);
+                return ExitCode::from(2);
+            }
+            println!("{}: now written for mkp {}.", cfg.display(), RELEASE);
         }
     }
     // a file written with a TODO or with errors is still a person's to finish
@@ -395,6 +432,44 @@ fn uses_in_config(named: Option<&str>, file: Option<&PathBuf>) -> (BTreeMap<Stri
     let Some(text) = path.as_ref().and_then(|p| std::fs::read_to_string(p).ok()) else { return (BTreeMap::new(), path) };
     let Ok(v) = text.parse::<toml::Value>() else { return (BTreeMap::new(), path) };
     (v.get("uses").and_then(|u| u.as_table()).map(|t| t.iter().filter_map(|(k, v)| Some((k.clone(), v.as_integer()? as u32))).collect()).unwrap_or_default(), path)
+}
+
+/// A release, `0.3.1`, as numbers to compare.
+pub(crate) fn release_of(v: &str) -> Option<(u32, u32, u32)> {
+    let mut parts = v.trim().split('.').map(|x| x.parse::<u32>().ok());
+    let r = (parts.next()??, parts.next()??, parts.next()??);
+    parts.next().is_none().then_some(r)
+}
+
+/// mkp.toml's `mkp = "0.3.x"`: the release of mkp the tree is written for.
+fn release_in_config(path: &Path) -> Option<String> {
+    let v: toml::Value = std::fs::read_to_string(path).ok()?.parse().ok()?;
+    v.get("mkp").and_then(|m| m.as_str()).map(str::to_string)
+}
+
+/// mkp.toml's `mkp = "…"` set to a release: in place, or as its first line.
+fn set_release(path: &Path, to: &str) -> std::io::Result<()> {
+    let text = std::fs::read_to_string(path)?;
+    let line = format!("mkp = \"{}\"\n", to);
+    let mut out = String::new();
+    let mut done = false;
+    let mut top = true;
+    for l in text.split_inclusive('\n') {
+        let t = l.trim();
+        if t.starts_with('[') {
+            top = false;
+        }
+        if top && !done && t.split_once('=').map_or(false, |(k, _)| k.trim() == "mkp") {
+            out.push_str(&line);
+            done = true;
+            continue;
+        }
+        out.push_str(l);
+    }
+    if !done {
+        out = format!("{}{}", line, out);
+    }
+    std::fs::write(path, out)
 }
 
 /// The mkp.toml's `[uses]`, each pack at the version its files are now written for.
