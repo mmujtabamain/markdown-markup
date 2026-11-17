@@ -168,6 +168,8 @@ impl<'a> Step<'a> {
         let line_of = |at: usize| lines.place(at as u32).line as usize;
         let prose_from = if self.prose { self.text.find("\n@@@\n").map(|i| i + 5).or_else(|| self.text.starts_with("@@@\n").then_some(4)).unwrap_or(0) } else { usize::MAX };
         let mut edits: Vec<Edit> = Vec::new();
+        // where each call in prose ends, its block and closing line included, as the parser read it
+        let prose_calls = if self.prose { prose_call_ends(self.text) } else { BTreeMap::new() };
         // what each block does, and the uses of its declaration
         struct Plan<'r> {
             key: String,
@@ -268,8 +270,8 @@ impl<'a> Step<'a> {
             let tail = self.text[we..line_end].trim_end();
             let mut semi = false;
             if prose && tail.trim() == "{" {
-                if let Some(end) = prose_block_end(self.text, line_end) {
-                    we = end;
+                if let Some(end) = prose_calls.get(&ws) {
+                    we = *end;
                 }
             } else if tail.starts_with(';') {
                 we += 1;
@@ -997,27 +999,35 @@ fn write_args(u: &Use) -> String {
 }
 
 /// The end of a prose call's block that opens on the line before `from`: its closing `}` line.
-fn prose_block_end(text: &str, from: usize) -> Option<usize> {
-    let mut depth = 1;
-    let mut at = from;
-    while at < text.len() {
-        let start = at + 1;
-        let end = text[start..].find('\n').map(|i| start + i).unwrap_or(text.len());
-        let line = text[start..end].trim();
-        if line == "}" {
-            depth -= 1;
-            if depth == 0 {
-                return Some(end);
+/// Where each call in a document's prose ends, by where it starts: after its closing `}` line,
+/// without that line's break, for a call with a block.
+fn prose_call_ends(text: &str) -> BTreeMap<usize, usize> {
+    fn walk(p: &ast::Prose, text: &str, out: &mut BTreeMap<usize, usize>) {
+        for n in &p.nodes {
+            match n {
+                ast::ProseNode::Call(c) => {
+                    let end = c.span.end as usize;
+                    out.insert(c.span.start as usize, if text[..end].ends_with('\n') { end - 1 } else { end });
+                    if let Some((b, _)) = &c.block {
+                        walk(b, text, out);
+                    }
+                }
+                ast::ProseNode::If { branches, otherwise, .. } => {
+                    for b in branches.iter().map(|(_, b, _)| b).chain(otherwise.iter().map(|(b, _)| b)) {
+                        walk(b, text, out);
+                    }
+                }
+                ast::ProseNode::For { body, .. } | ast::ProseNode::Slot { body, .. } => walk(body, text, out),
+                ast::ProseNode::Match { cases, .. } => cases.iter().for_each(|c| walk(&c.body, text, out)),
+                _ => {}
             }
-        } else if line.starts_with('@') && line.ends_with('{') {
-            depth += 1;
-        }
-        at = end;
-        if end >= text.len() {
-            break;
         }
     }
-    None
+    let mut out = BTreeMap::new();
+    if let Some(p) = parse(text, Entry::Document).file.as_ref().and_then(|f| f.prose.as_ref()) {
+        walk(p, text, &mut out);
+    }
+    out
 }
 
 /// A use written back: `@name(args)` with its block, inside any widgets put around it.

@@ -320,3 +320,17 @@ fn migrate_leaves_a_todo_with_todo_and_writes_errors_only_with_allow_errors() {
     assert!(text.contains("\n@// TODO(mkp migrate): kit@2 splits LATE into OVERDUE or DONE: write the one this is (late is now overdue, or done)\n@badge(") && text.contains("\n@badge(label = $state.s == state.LATE ? \"Late\" : \"On time\", size = size.S);\n"), "{}", text);
     assert!(text.contains("@plot(values = [1, 2], tone = color.OK);"), "{}", text);
 }
+
+#[test]
+fn migrate_takes_a_prose_calls_block_from_the_parser_fences_and_all() {
+    let surface = "package kit@1;\n\nextern widget card(title: text) {\n    slot body: view;\n}\n";
+    let pack = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides card, holder;\n}\n\nextern widget holder(title: text) {\n    slot body: view;\n}\nextern widget card() {\n    slot body: view;\n}\n";
+    let migration = "package kit;\n\nmigration kit@1 to kit@2 {\n    widget card {\n        wrap(parent = holder, why = \"a holder keeps the title now\");\n        move(from = title, to = holder.title, why = \"the title is the holder's\");\n    }\n}\n";
+    // a fence in the block holds a line that is only `}`: the block doesn't end there
+    let doc = "import kit;\n@@@\n# Code\n\n@card(title = \"Q3\") {\n```js\nif (x) {\n}\n```\n}\n\nAfter.\n";
+    let dir = scratch("migrate-fence", &[("kit/kit.mkp", pack), ("kit/surfaces/kit@1.mkp", surface), ("kit/migrations/kit@2.mkp", migration), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/code.mkp.md", doc)]);
+    let docs = dir.join("docs");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(std::fs::read_to_string(docs.join("code.mkp.md")).unwrap(), "import kit;\n@@@\n# Code\n\n@holder(title = \"Q3\") {\n@card {\n```js\nif (x) {\n}\n```\n}\n}\n\nAfter.\n");
+}
