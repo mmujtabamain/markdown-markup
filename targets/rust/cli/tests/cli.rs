@@ -224,3 +224,38 @@ fn migrate_moves_a_pack_that_uses_a_migrated_pack_and_its_uses_line() {
     assert!(moved.contains("    uses core@1, kit@2;\n") && moved.contains("        @plot(values = [n], tone = color.OK);\n"), "{}", moved);
     assert_eq!(mkp(&["check", "--pack", &format!("{},{}", dir.join("kit").display(), dir.join("report").display()), dir.join("docs/a.mkp.md").to_str().unwrap()]).0, 0);
 }
+
+#[test]
+fn migrate_keeps_a_change_inside_a_use_it_also_changes() {
+    // the outer widget's block comes first in the migration, the inner record's after it
+    let surface = "package kit@1;\n\nrecord stat {\n    label: text;\n    value: text;\n}\n\nextern widget stats(items: list<stat>);\n";
+    let pack = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides board, stat;\n}\n\nrecord stat {\n    title: text;\n    value: text;\n}\n\nextern widget board(rows: list<stat>);\n";
+    let migration = "package kit;\n\nmigration kit@1 to kit@2 {\n    widget stats {\n        rename(to = board);\n        rename(input = items, to = rows);\n    }\n\n    record stat {\n        rename(field = label, to = title);\n    }\n}\n";
+    let doc = "import kit;\n@@@\n@stats(items = [stat { label = \"A\", value = \"1\" }, stat { label = \"B\", value = \"2\" }]);\n";
+    let dir = scratch("migrate-nested", &[("kit/kit.mkp", pack), ("kit/surfaces/kit@1.mkp", surface), ("kit/migrations/kit@2.mkp", migration), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/a.mkp.md", doc)]);
+    let docs = dir.join("docs");
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert_eq!(std::fs::read_to_string(docs.join("a.mkp.md")).unwrap(), "import kit;\n@@@\n@board(rows = [stat { title = \"A\", value = \"1\" }, stat { title = \"B\", value = \"2\" }]);\n");
+}
+
+#[test]
+fn a_hole_shows_the_theme_in_words() {
+    let dir = scratch("theme", &[("t.mkp.md", "$state {\n    t: theme = theme.DARK;\n}\n@@@\nThis page is drawn in the \\{$state.t} theme.\n")]);
+    let (code, out, err) = mkp(&["md", dir.join("t.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert_eq!(out.trim(), "This page is drawn in the dark theme.");
+}
+
+#[test]
+fn a_long_line_of_inline_markdown_reads_within_the_step_limit() {
+    // 0.2's changelog has a 3,189-character list item of code spans; emphasis is as costly a case
+    let code: Vec<String> = (0..400).map(|k| format!("`name{}`", k)).collect();
+    let em: Vec<String> = (0..300).map(|k| format!("*w{}*", k)).collect();
+    let doc = format!("@@@\n# Changes\n\n- {}\n- {}\n", code.join(", "), em.join(", "));
+    assert!(doc.len() > 5000);
+    let dir = scratch("long-inline", &[("t.mkp.md", &doc)]);
+    let (code, out, err) = mkp(&["md", dir.join("t.mkp.md").to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(out.contains("`name399`") && out.contains("*w299*"), "{}", &out[..200.min(out.len())]);
+}

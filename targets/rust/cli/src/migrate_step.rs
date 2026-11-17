@@ -140,9 +140,19 @@ impl<'a> Step<'a> {
         let lines = Lines::new(self.text);
         let line_of = |at: usize| lines.place(at as u32).line as usize;
         let prose_from = if self.prose { self.text.find("\n@@@\n").map(|i| i + 5).or_else(|| self.text.starts_with("@@@\n").then_some(4)).unwrap_or(0) } else { usize::MAX };
-        // point edits (renames where a name is), then each use rewritten, innermost first
         let mut edits: Vec<Edit> = Vec::new();
-        let mut uses_done: Vec<(usize, usize, String)> = Vec::new();
+        // what each block does, and the uses of its declaration
+        struct Plan<'r> {
+            key: String,
+            full: String,
+            ops: Vec<Op>,
+            old: DeclInfo,
+            new: DeclInfo,
+            now: String,
+            renamed: BTreeMap<String, String>,
+            uses: Vec<&'r FoundRef>,
+        }
+        let mut plans: Vec<Plan> = Vec::new();
         for item in self.step.items.iter() {
             let MigrationItem::Block(b) = item else { continue };
             let key = b.path.iter().map(|i| i.name.as_str()).collect::<Vec<_>>().join(".");
@@ -156,7 +166,7 @@ impl<'a> Step<'a> {
                 self.fn_block(&key, &full, &ops, &mut edits, &mut done, &line_of);
                 continue;
             }
-            let old_info = decl_info(self.old, &key).unwrap_or_default();
+            let old = decl_info(self.old, &key).unwrap_or_default();
             // the declaration's name and members as they end up, for references outside uses
             let mut now = key.clone();
             let mut renamed: BTreeMap<String, String> = BTreeMap::new();
@@ -184,73 +194,31 @@ impl<'a> Step<'a> {
                     _ => {}
                 }
             }
-            let new_info = decl_info(self.new, &now).unwrap_or_default();
-            // the uses: a widget's calls, a record's literals
-            let mut uses: Vec<&FoundRef> = self.refs.iter().filter(|r| r.decl == full && r.member.is_none() && is_use(&self.text[r.whole.range()], &key)).collect();
-            uses.sort_by_key(|r| r.whole.end - r.whole.start);
-            let mut arg_spans: BTreeSet<(usize, usize)> = BTreeSet::new();
-            for u in &uses {
-                let (ws, mut we) = (u.whole.start as usize, u.whole.end as usize);
-                let prose = ws >= prose_from && self.text[..ws].rsplit('\n').next().map_or(true, |l| l.trim().is_empty());
-                // a call in prose: its block runs to its closing line, and its `;` ends it
-                let line_end = self.text[we..].find('\n').map(|i| we + i).unwrap_or(self.text.len());
-                let tail = self.text[we..line_end].trim_end();
-                let mut semi = false;
-                if prose && tail.trim() == "{" {
-                    if let Some(end) = prose_block_end(self.text, line_end) {
-                        we = end;
-                    }
-                } else if tail.starts_with(';') {
-                    we += 1;
-                    semi = true;
-                }
-                let Some(mut model) = read_use(self.text, ws, we, &edits) else {
-                    done.refused.push(format!("line {}: a use of {} written in a way {} can't read yet", line_of(ws), key, self.label));
-                    continue;
-                };
-                arg_spans.extend(model.arg_names.iter().copied());
-                let before = render(&model, false);
-                let mut said = Vec::new();
-                for op in &ops {
-                    if let Err(why) = self.apply_op(op, &mut model, &old_info, &new_info, &key, ws, &mut done, &mut said, &line_of) {
-                        done.refused.push(format!("line {}: {}", line_of(ws), why));
-                        break;
-                    }
-                }
-                done.notices.extend(said);
-                let after = match &model.replaced {
-                    Some(None) => {
-                        done.deletions.push(format!("{}:{}  {} (kept as a comment){}", self.doc, line_of(ws), first_line(&self.text[ws..u.whole.end as usize]), model.why));
-                        comment_out(&self.text[ws..we], &self.text[..ws], prose, &format!("{} dropped {}{}", self.label, key, model.why))
-                    }
-                    _ => {
-                        let t = render(&model, prose);
-                        if semi && !t.ends_with('}') {
-                            format!("{};", t)
-                        } else {
-                            t
-                        }
-                    }
-                };
-                let before = if semi { format!("{};", before) } else { before };
-                if after != before || model.replaced.is_some() {
-                    done.changes += 1;
-                    edits.push(Edit { start: ws, end: we, text: after.clone() });
-                    uses_done.push((ws, we, after));
+            let new = decl_info(self.new, &now).unwrap_or_default();
+            let uses: Vec<&FoundRef> = self.refs.iter().filter(|r| r.decl == full && r.member.is_none() && is_use(&self.text[r.whole.range()], &key)).collect();
+            plans.push(Plan { key, full, ops, old, new, now, renamed, uses });
+        }
+        // a use's own argument names are its rendering's to rename, not a point edit's
+        let mut arg_spans: BTreeSet<(usize, usize)> = BTreeSet::new();
+        for plan in &plans {
+            for u in &plan.uses {
+                if let Some(m) = read_use(self.text, u.whole.start as usize, u.whole.end as usize, &[]) {
+                    arg_spans.extend(m.arg_names.iter().copied());
                 }
             }
-            // every other reference: a type, an import, a field read, a case, an argument
-            // outside the uses rewritten above
-            for r in self.refs.iter().filter(|r| r.decl == full) {
+        }
+        // every other reference renamed where it is: a type, an import, a field read, a case
+        for plan in &plans {
+            for r in self.refs.iter().filter(|r| r.decl == plan.full) {
                 let (s, e) = (r.at.start as usize, r.at.end as usize);
-                if arg_spans.contains(&(s, e)) || uses.iter().any(|u| u.at == r.at) {
+                if arg_spans.contains(&(s, e)) || plan.uses.iter().any(|u| u.at == r.at) {
                     continue;
                 }
                 let here = &self.text[s..e];
                 let to = match (&r.member, r.case) {
-                    (None, _) if here == key && now != key => Some(now.clone()),
-                    (Some(m), false) if here == m => renamed.get(m).cloned(),
-                    (Some(c), true) if here == c => self.case_rename(&ops, c, s, &mut done, &line_of),
+                    (None, _) if here == plan.key && plan.now != plan.key => Some(plan.now.clone()),
+                    (Some(m), false) if here == m => plan.renamed.get(m).cloned(),
+                    (Some(c), true) if here == c => self.case_rename(&plan.ops, c, s, &mut done, &line_of),
                     _ => None,
                 };
                 if let Some(to) = to {
@@ -261,7 +229,62 @@ impl<'a> Step<'a> {
                 }
             }
         }
-        let _ = uses_done;
+        // then every use, innermost first, so a use around another writes the inner one as changed
+        let mut all: Vec<(usize, &FoundRef)> = plans.iter().enumerate().flat_map(|(k, p)| p.uses.iter().map(move |u| (k, *u))).collect();
+        all.sort_by_key(|(_, u)| u.whole.end - u.whole.start);
+        for (k, u) in all {
+            let plan = &plans[k];
+            let (ws, mut we) = (u.whole.start as usize, u.whole.end as usize);
+            let prose = ws >= prose_from && self.text[..ws].rsplit('\n').next().map_or(true, |l| l.trim().is_empty());
+            // a call in prose: its block runs to its closing line, and its `;` ends it
+            let line_end = self.text[we..].find('\n').map(|i| we + i).unwrap_or(self.text.len());
+            let tail = self.text[we..line_end].trim_end();
+            let mut semi = false;
+            if prose && tail.trim() == "{" {
+                if let Some(end) = prose_block_end(self.text, line_end) {
+                    we = end;
+                }
+            } else if tail.starts_with(';') {
+                we += 1;
+                semi = true;
+            }
+            let Some(mut model) = read_use(self.text, ws, we, &edits) else {
+                done.refused.push(format!("line {}: a use of {} written in a way {} can't read yet", line_of(ws), plan.key, self.label));
+                continue;
+            };
+            let before = render(&model, false);
+            let mut said = Vec::new();
+            for op in &plan.ops {
+                if let Err(why) = self.apply_op(op, &mut model, &plan.old, &plan.new, &plan.key, ws, &mut done, &mut said, &line_of) {
+                    done.refused.push(format!("line {}: {}", line_of(ws), why));
+                    break;
+                }
+            }
+            done.notices.extend(said);
+            let after = match &model.replaced {
+                Some(None) => {
+                    done.deletions.push(format!("{}:{}  {} (kept as a comment){}", self.doc, line_of(ws), first_line(&self.text[ws..u.whole.end as usize]), model.why));
+                    comment_out(&self.text[ws..we], &self.text[..ws], prose, &format!("{} dropped {}{}", self.label, plan.key, model.why))
+                }
+                _ => {
+                    let t = render(&model, prose);
+                    if semi && !t.ends_with('}') {
+                        format!("{};", t)
+                    } else {
+                        t
+                    }
+                }
+            };
+            let before = if semi { format!("{};", before) } else { before };
+            // what the edits inside it already made is part of `before` only through them
+            let unchanged = within(self.text, (ws, we), &edits);
+            if after != before || model.replaced.is_some() || after != unchanged {
+                if after != unchanged {
+                    done.changes += 1;
+                    edits.push(Edit { start: ws, end: we, text: after });
+                }
+            }
+        }
         done.edits = edits;
         done
     }
