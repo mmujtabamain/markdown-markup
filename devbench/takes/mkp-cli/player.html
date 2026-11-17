@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mkp CLI walkthrough</title>
+<!--
+  Plays back what capture.py recorded: each command as it was typed, and what it printed, word for
+  word, with its exit code and how long it took. The file pane shows files as they were on disk
+  before or after a step. Nothing on this page is written by hand: it only lays out reels/<reel>.json.
+  The takes drive it through window.mkpv.
+-->
+<style>
+  :root {
+    --bg: #0a0e17;
+    --panel: #0f1522;
+    --panel-2: #121a2a;
+    --bar: #172034;
+    --line: #243049;
+    --text: #d9e1ee;
+    --dim: #7f8ba3;
+    --faint: #4d5872;
+    --prompt: #7dd3a8;
+    --scene: #8fb4ff;
+    --cmd: #ffffff;
+    --input: #ffd479;
+    --ok: #63d297;
+    --bad: #ff7b7b;
+    --accent: #6ea8ff;
+    --chg: rgba(110, 168, 255, 0.16);
+    --chg-edge: #6ea8ff;
+    --mono: "DejaVu Sans Mono", "Liberation Mono", monospace;
+    --sans: "DejaVu Sans", "Liberation Sans", sans-serif;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); }
+  body { font-family: var(--sans); }
+  #app { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+  header { height: 64px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 28px;
+           border-bottom: 1px solid var(--line); background: #0c1220; }
+  .logo { font-family: var(--mono); font-weight: bold; font-size: 20px; color: #0a0e17; background: var(--prompt);
+          padding: 4px 10px; border-radius: 6px; }
+  .part { color: var(--dim); font-size: 16px; white-space: nowrap; }
+  .title { font-size: 21px; font-weight: bold; white-space: nowrap; }
+  .chapters { margin-left: auto; display: flex; gap: 8px; }
+  .chapters span { font-size: 14px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px;
+                   padding: 5px 12px; white-space: nowrap; transition: all 300ms; font-family: var(--mono); }
+  .chapters span.on { color: #0a0e17; background: var(--accent); border-color: var(--accent); }
+  .chapters span.done { color: var(--text); border-color: var(--faint); }
+
+  main { position: absolute; top: 76px; left: 28px; right: 28px; height: 668px; display: flex; gap: 18px; }
+  .win { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
+         border-radius: 10px; overflow: hidden; min-width: 0; transition: flex-grow 600ms ease, opacity 400ms; }
+  .winbar { height: 36px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+            background: var(--bar); border-bottom: 1px solid var(--line); font-size: 14px; color: var(--dim);
+            font-family: var(--mono); white-space: nowrap; overflow: hidden; }
+  .dots { display: flex; gap: 7px; margin-right: 8px; }
+  .dots i { width: 11px; height: 11px; border-radius: 50%; background: #3a4560; display: block; }
+  #term { flex: 1.45 1 0; }
+  #pane { flex: 1 1 0; background: var(--panel-2); }
+  main.term #term { flex-grow: 1; } main.term #pane { flex-grow: 0.0001; opacity: 0; }
+  main.file #term { flex-grow: 0.62; }
+
+  #screen { flex: 1; overflow-y: auto; padding: 12px 18px 18px; font-family: var(--mono); font-size: 16px;
+            line-height: 1.42; scroll-behavior: auto; }
+  .step { margin-bottom: 6px; }
+  .cmdline { display: flex; align-items: baseline; gap: 10px; min-height: 22px; }
+  .cmdline .text { white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; }
+  .ps-scene { color: var(--scene); } .ps-sign { color: var(--prompt); } .typed { color: var(--cmd); }
+  .caret { display: inline-block; width: 9px; height: 18px; background: var(--prompt); vertical-align: -3px;
+           animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .badge { flex: none; font-size: 13px; border-radius: 5px; padding: 1px 8px; border: 1px solid var(--line);
+           color: var(--dim); opacity: 0; transition: opacity 300ms; white-space: nowrap; }
+  .badge.show { opacity: 1; }
+  .badge.ok b { color: var(--ok); } .badge.bad b { color: var(--bad); }
+  .tty { flex: none; font-size: 12px; color: var(--input); border: 1px solid #6b5a2a; border-radius: 5px;
+         padding: 0 6px; }
+  .out .ln { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); min-height: 1.42em; }
+  .out .ln.e { color: #ffb0b0; } .out .ln.w { color: #ffd88a; }
+  .out .ln.add { color: #9be7b4; } .out .ln.del { color: #ff9e9e; } .out .ln.hunk { color: var(--dim); }
+  .out .in { color: var(--input); }
+  .grp { border-radius: 4px; }
+
+  #filebody { flex: 1; overflow-y: auto; padding: 10px 0 18px; font-family: var(--mono); font-size: 15px; line-height: 1.42; }
+  .fl { display: flex; white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 14px; border-left: 3px solid transparent; }
+  .fl .no { flex: none; width: 44px; text-align: right; padding-right: 14px; color: var(--faint); user-select: none; }
+  .fl .tx { flex: 1; min-width: 0; }
+  .fl.chg { background: var(--chg); border-left-color: var(--chg-edge); }
+  .fl .tx .cm { color: #8a96ad; }
+  #panetag { margin-left: auto; font-size: 12px; color: var(--dim); }
+  #panetag b { color: var(--accent); font-weight: normal; }
+  .empty { color: var(--faint); padding: 18px; font-family: var(--sans); font-size: 15px; }
+
+  footer { position: absolute; left: 28px; right: 28px; bottom: 6px; height: 22px; font-size: 13px; color: var(--faint);
+           display: flex; gap: 18px; align-items: center; white-space: nowrap; overflow: hidden; }
+  footer b { color: var(--dim); font-weight: normal; }
+
+  #card { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 18px; transition: opacity 700ms; z-index: 5; }
+  #card.gone { opacity: 0; pointer-events: none; }
+  #card .k { font-family: var(--mono); color: var(--prompt); font-size: 26px; }
+  #card h1 { margin: 0; font-size: 54px; }
+  #card p { margin: 0; color: var(--dim); font-size: 21px; max-width: 1100px; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="logo">mkp</span>
+    <span class="part" id="part"></span>
+    <span class="title" id="title"></span>
+    <div class="chapters" id="chapters"></div>
+  </header>
+  <main id="main" class="split">
+    <section class="win" id="term">
+      <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span id="termtitle">bash</span></div>
+      <div id="screen" data-testid="screen"></div>
+    </section>
+    <section class="win" id="pane">
+      <div class="winbar"><span id="panepath">file</span><span id="panetag"></span></div>
+      <div id="filebody" data-testid="file"><div class="empty">The file on disk shows here.</div></div>
+    </section>
+  </main>
+  <footer id="foot"></footer>
+  <div id="card"><div class="k" id="cardk"></div><h1 id="cardh"></h1><p id="cardp"></p></div>
+</div>
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  let reel = null, steps = {}, marks = 0;
+  const shown = {};          // scene:path -> the text the pane last showed for it
+  const state = {};          // step id -> {seg: next segment index, el: its element}
+
+  // colour only: errors, warnings, and the lines of a diff (in output that has a diff's header)
+  function lineClass(t, diff) {
+    if (/^\S.*: error\[|^error|: error\b/.test(t)) return "e";
+    if (/^\S.*: warning\[|^warning/.test(t)) return "w";
+    if (!diff) return "";
+    if (/^@@ /.test(t)) return "hunk";
+    if (/^\+(?!\+\+)/.test(t)) return "add";
+    if (/^-(?!--)/.test(t)) return "del";
+    return "";
+  }
+
+  async function load() {
+    const name = new URLSearchParams(location.search).get("reel") || "compile";
+    reel = await (await fetch("reels/" + name + ".json")).json();
+    for (const s of reel.steps) steps[s.id] = s;
+    $("#part").textContent = "Part " + reel.part + " of " + reel.parts;
+    $("#title").textContent = reel.title;
+    document.title = "mkp CLI " + reel.part + ": " + reel.title;
+    $("#chapters").innerHTML = reel.chapters.map((c, i) => '<span data-ch="' + i + '">' + esc(c) + "</span>").join("");
+    $("#foot").innerHTML = "<span>Every command here really ran with this repo's <b>mkp</b>, built from <b>" + esc(reel.built_from) +
+      "</b>, and printed what you see; captured " + esc(reel.captured) + ".</span><span>Without a terminal (as in CI) unless marked <b>in a terminal</b>.</span>";
+    $("#cardk").textContent = "mkp CLI · part " + reel.part + " of " + reel.parts;
+    $("#cardh").textContent = reel.title;
+    $("#cardp").textContent = "Every command was really run with this repo's mkp (built from " + reel.built_from +
+      "), and every line of output is what it printed.";
+    document.body.dataset.ready = "1";
+  }
+
+  function scrollDown() { const s = $("#screen"); s.scrollTop = s.scrollHeight; }
+
+  async function typeInto(el, text, ms) {
+    for (const ch of text) { el.textContent += ch; await sleep(ms); }
+  }
+
+  async function revealOut(box, text) {
+    // a terminal prints at once; a short roll keeps it readable without inventing anything
+    const lines = text.replace(/\n$/, "").split("\n");
+    const per = lines.length > 30 ? 6 : lines.length > 12 ? 14 : 28;
+    const diff = /^--- /m.test(text) && /^\+\+\+ /m.test(text);
+    let cur = null;
+    for (let i = 0; i < lines.length; i++) {
+      const last = i === lines.length - 1;
+      const t = lines[i];
+      const d = document.createElement("div");
+      d.className = "ln " + lineClass(t, diff);
+      d.textContent = t;
+      box.appendChild(d); cur = d;
+      scrollDown();
+      if (!last) await sleep(per);
+    }
+    return cur;
+  }
+
+  async function play(id, opts = {}) {
+    const s = steps[id];
+    if (!s) throw new Error("no step " + id);
+    if (!state[id]) {
+      const el = document.createElement("div");
+      el.className = "step"; el.id = "st-" + id;
+      el.innerHTML = '<div class="cmdline" id="c-' + id + '"><span class="text"><span class="ps-scene">' + esc(s.prompt) +
+        '</span> <span class="ps-sign">$</span> <span class="typed"></span><span class="caret"></span></span>' +
+        (s.tty ? '<span class="tty">in a terminal</span>' : "") +
+        '<span class="badge ' + (s.exit === 0 ? "ok" : "bad") + '" id="x-' + id + '">exit <b>' + s.exit + "</b> · " +
+        (s.seconds < 0.1 ? "<0.1" : s.seconds.toFixed(s.seconds < 10 ? 2 : 1)) + " s</span></div>" +
+        '<div class="out" id="o-' + id + '"></div>';
+      $("#screen").appendChild(el);
+      $("#termtitle").textContent = "bash — " + (s.scene === "repo" ? "~/project/markdown-markup" : "scenes/" + s.scene);
+      scrollDown();
+      await sleep(opts.pause ?? 250);
+      const ms = opts.typeMs ?? (s.cmd.length > 70 ? 13 : s.cmd.length > 40 ? 20 : 30);
+      await typeInto($(".typed", el), s.cmd, ms);
+      await sleep(opts.enter ?? 260);
+      $(".caret", el).remove();
+      state[id] = { seg: 0, el, box: $(".out", el), cur: null };
+    }
+    const st = state[id];
+    while (st.seg < s.segments.length) {
+      const [kind, text] = s.segments[st.seg];
+      if (kind === "in") {
+        if (!st.answering) return "waiting";
+        st.answering = false;
+        // the answer, typed where the prompt left the line, then the new line it ends with
+        const span = document.createElement("span");
+        span.className = "in";
+        (st.cur || st.box.appendChild(document.createElement("div"))).appendChild(span);
+        await typeInto(span, text.replace(/\n$/, ""), 160);
+        await sleep(200);
+        st.seg++; st.cur = null; continue;
+      }
+      // output that continues a line the answer ended goes on a new line
+      st.cur = await revealOut(st.box, text);
+      st.seg++;
+    }
+    await sleep(120);
+    $("#x-" + id).classList.add("show");
+    scrollDown();
+    return "done";
+  }
+
+  async function answer(id) { state[id].answering = true; return play(id); }
+
+  function chapter(i) {
+    document.querySelectorAll("#chapters span").forEach(el => {
+      const k = +el.dataset.ch;
+      el.className = k === i ? "on" : k < i ? "done" : "";
+    });
+  }
+
+  function clear() { $("#screen").innerHTML = ""; }
+
+  function layout(mode) { $("#main").className = mode; }
+
+  function card(on) { $("#card").classList.toggle("gone", !on); }
+
+  // which lines of `b` are new or changed since `a`: the lines outside their longest common run
+  function changed(a, b) {
+    const x = a.split("\n"), y = b.split("\n"), n = x.length, m = y.length;
+    const t = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      t[i][j] = x[i] === y[j] ? t[i + 1][j + 1] + 1 : Math.max(t[i + 1][j], t[i][j + 1]);
+    const out = new Set(); let i = 0, j = 0;
+    while (j < m) {
+      if (i < n && x[i] === y[j]) { i++; j++; }
+      else if (i < n && t[i + 1][j] >= t[i][j + 1]) i++;
+      else { out.add(j); j++; }
+    }
+    return out;
+  }
+
+  function show(id, path, when = "after", opts = {}) {
+    const s = steps[id];
+    const text = (s[when] || {})[path];
+    if (text === undefined) throw new Error("step " + id + " kept no " + path);
+    const body = $("#filebody");
+    $("#panepath").textContent = path;
+    $("#panetag").innerHTML = when === "after" ? "after <b>" + esc(s.cmd.length > 44 ? s.cmd.slice(0, 42) + "…" : s.cmd) + "</b>"
+                                               : "on disk";
+    if (text === null) { body.innerHTML = '<div class="empty">' + esc(path) + " isn't there.</div>"; return "#filebody"; }
+    const key = s.scene + ":" + path;   // a file is compared only with its own scene's earlier text
+    const prev = opts.since !== undefined ? opts.since : shown[key];
+    const chg = prev === undefined || prev === null ? new Set() : changed(prev, text);
+    const lines = text.replace(/\n$/, "").split("\n");
+    body.innerHTML = lines.map((l, k) => {
+      const tx = esc(l).replace(/^(\s*@?\/\/.*)$/, '<span class="cm">$1</span>');
+      return '<div class="fl' + (chg.has(k) ? " chg" : "") + '" data-n="' + (k + 1) + '"><span class="no">' + (k + 1) +
+             '</span><span class="tx">' + tx + "</span></div>";
+    }).join("");
+    body.scrollTop = 0;
+    shown[key] = text;
+    return "#filebody";
+  }
+
+  function wrap(lines) {
+    const g = document.createElement("div");
+    g.className = "grp"; g.id = "mk" + (++marks);
+    lines[0].parentNode.insertBefore(g, lines[0]);
+    lines.forEach(l => g.appendChild(l));
+    return "#" + g.id;
+  }
+
+  // the lines of a step's output from the first one holding `needle` (after `skip` earlier ones), `count` long
+  function mark(id, needle, count = 1, skip = 0) {
+    const lines = Array.from(document.querySelectorAll("#o-" + id + " .ln"));
+    const hits = lines.map((l, k) => [l, k]).filter(([l]) => l.textContent.includes(needle));
+    if (hits.length <= skip) return null;
+    const k = hits[skip][1];
+    return wrap(lines.slice(k, k + count));
+  }
+
+  // the lines of the file in the pane from line `from`, `count` long, or the first holding a text
+  function markFile(needle, count = 1) {
+    const lines = Array.from(document.querySelectorAll("#filebody .fl"));
+    const k = typeof needle === "number" ? needle - 1 : lines.findIndex(l => l.textContent.includes(needle));
+    if (k < 0 || k >= lines.length) return null;
+    return wrap(lines.slice(k, k + count));
+  }
+
+  function markChanged() {
+    const lines = Array.from(document.querySelectorAll("#filebody .fl.chg"));
+    if (!lines.length) return null;
+    const first = Array.from(document.querySelectorAll("#filebody .fl")).indexOf(lines[0]);
+    const all = Array.from(document.querySelectorAll("#filebody .fl"));
+    const last = all.indexOf(lines[lines.length - 1]);
+    return wrap(all.slice(first, last + 1));
+  }
+
+  window.mkpv = { load, play, answer, chapter, clear, layout, card, show, mark, markFile, markChanged };
+  load();
+})();
+</script>
+</body>
+</html>
