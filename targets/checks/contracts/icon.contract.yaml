@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/icon (core/controls.mkp): a symbol from a fixed set. @mkp/dom draws an <svg>: with a
 # label, role img named by it; without one, decoration hidden from assistive technology.
 id: core.icon

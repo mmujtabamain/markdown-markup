@@ -8,8 +8,8 @@ none is downloaded), driven two ways:
 - **The widget contracts**: omnicui checks each core extern widget's behaviour, keyboard and roles
   against its contract in `targets/checks/contracts/` (`core.press`, `core.slider` …), through
   `omnicui_adapter.mjs`. Run them from the repository's root with
-  `omnicui --project targets/checks check web` (or `npm test` here, which does the same in
-  `test/omnicui.test.mjs`, with the binary from `OMNICUI_BINARY` or `~/.local/bin/omnicui`).
+  `"$(external/omnicui/fetch.sh)" --project targets/checks check web` (or `npm test` here, which does the same in
+  `test/omnicui.test.mjs`, with the binary `external/omnicui/fetch.sh` gives it).
 
 ## The omnicui adapter
 

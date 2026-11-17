@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/sizing (core/layout.mkp): how big a child is, for implementers. Mounted in a core/flex row;
 # its child slot holds a label. @mkp/dom draws the flex item <div> its sizes are set on.
 id: core.sizing

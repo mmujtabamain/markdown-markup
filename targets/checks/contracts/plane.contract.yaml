@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/plane (core/layout.mkp): widgets placed anywhere on a plane with coordinates of its own, x
 # right and y up; at zoom 1 a unit is a CSS pixel. center, zoom and drawn are `mut`: the adapter
 # binds them to $state, and each write is reported as writeCenter, writeZoom and writeDrawn (the

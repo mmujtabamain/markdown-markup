@@ -181,7 +181,7 @@ tree only what Compose drew. `core/moment.local` is in UTC there, as on the test
 **omnicui's widget contracts** (targets/checks/targets/android/target.yaml):
 
 ```sh
-omnicui --project targets/checks check android    # 118 pass, 1 platform exception (about 50 s)
+"$(external/omnicui/fetch.sh)" --project targets/checks check android    # 118 pass, 1 platform exception (about 50 s)
 ```
 
 `mkp.android.OmnicuiAdapter` mounts one widget per contract test, in a fresh activity at the viewport and colour

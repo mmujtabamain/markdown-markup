@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/slider (core/controls.mkp): a number picked by dragging. value is `mut`: the adapter binds
 # it to $state (a plain number, so its ends and step come from range), and each write is
 # reported as writeValue. With no step anywhere it moves by a hundredth of its range. @mkp/dom

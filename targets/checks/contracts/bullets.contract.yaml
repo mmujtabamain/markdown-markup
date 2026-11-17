@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/bullets (core/blocks.mkp): a list, bulleted, or numbered from start. @mkp/dom draws a <ul>,
 # or an <ol> with start, holding its items (core/item, each an <li>).
 id: core.bullets

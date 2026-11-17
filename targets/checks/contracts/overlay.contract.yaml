@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/overlay (core/controls.mkp): content shown over the page, opened from its anchor. open is
 # `mut`: the adapter binds it to $state, and each write is reported as writeOpen. The anchor slot
 # holds a label here, so the anchor itself is the trigger (role=button, focusable). @mkp/dom

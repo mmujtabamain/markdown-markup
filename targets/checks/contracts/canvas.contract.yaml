@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/canvas (core/gfx.mkp): a drawing surface with coordinates of its own, x from left to right,
 # y from bottom to top. Its layers slot holds one layer with a labelled dot up and to the right of
 # its middle (the adapter's filler), so its middle is empty space. @mkp/dom draws a

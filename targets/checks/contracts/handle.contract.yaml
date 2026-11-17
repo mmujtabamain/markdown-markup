@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/handle (core/gfx.mkp): a point the reader drags. at is `mut`: the adapter binds it to
 # $state, and each write is reported as writeAt, with the point as valueX and valueY. Mounted in a
 # core/canvas 320 pixels wide with x and y -1..1, so a pixel is 0.00625 units. @mkp/dom draws an

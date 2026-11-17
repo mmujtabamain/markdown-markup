@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/footnote (core/blocks.mkp): a note at the foot of the page, with its mark. @mkp/dom draws a
 # div[role=note] named "Footnote <mark>", with a link back to where it is used, and its blocks.
 id: core.footnote

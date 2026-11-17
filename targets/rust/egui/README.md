@@ -88,7 +88,7 @@ author id `<short name>@<path>` (`press@s0/s0`), and each of its parts `<short n
 cd targets/rust && cargo build --release -p mkp-cli -p mkp-egui
 cd ../.. && targets/rust/target/release/mkp target check egui          # MKP's target checks
 targets/rust/target/release/mkp target check                           # with every target compared
-omnicui --project targets/checks check egui                            # the widget contracts
+"$(external/omnicui/fetch.sh)" --project targets/checks check egui   # the widget contracts
 cd targets/rust && cargo test -p mkp-egui                              # this crate's own tests
 ```
 

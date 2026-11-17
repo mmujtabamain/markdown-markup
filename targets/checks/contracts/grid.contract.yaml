@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/grid (core/layout.mkp): children in columns that line up across rows. The adapter sets its
 # click, so it is clickable: focusable, and Enter and Space click it. Its children slot holds
 # labels. @mkp/dom draws a CSS grid <div>.

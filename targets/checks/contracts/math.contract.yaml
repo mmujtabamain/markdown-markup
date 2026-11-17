@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/math (core/blocks.mkp): maths on a line of its own, drawn from TeX. @mkp/dom draws a
 # div[role=math] holding MathML, with the TeX as its accessible name.
 id: core.math

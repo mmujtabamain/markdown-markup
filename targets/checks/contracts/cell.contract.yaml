@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/cell (core/layout.mkp): where a child sits in a grid. Mounted in a core/grid of two equal
 # columns; its child slot holds a label. @mkp/dom draws a grid item <div>.
 id: core.cell

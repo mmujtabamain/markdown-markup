@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../../omnicui/tools/omnicui/schema/contract.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
 # core/spot (core/layout.mkp): any widget at a point of a plane; anchor says which part of it sits
 # on the point. box is `mut`: the adapter binds it to $state, and the box it lands in, written
 # after each layout (the first, while mounting, included), is reported as writeBox. Mounted in a

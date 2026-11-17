@@ -1,0 +1,14 @@
+# omnicui, vendored by its release: what MKP's widget contracts run on. Nothing of omnicui is
+# copied here; fetch.sh downloads the release file for this machine and checks it against these
+# hashes, which are the release's own SHA256SUMS. To move to another release, change all of it
+# in one commit: the version, the commit it was released from, and every line's hash.
+version 0.2.4
+commit 418fff304b35b5919716fc342ca0b97cd3a2995e
+release https://github.com/mmujtabamain/omnicui/releases/download/v0.2.4
+sha256 dec7236ed1eb9ecbca1232ca5d4cc2ab7a8ec4716c055ab0fc2336367494128f omnicui_0.2.4_darwin_amd64
+sha256 ac566fa48a93dbe13a6586134cb7eec63c2472bcb3651b447f1a1ac712ba4d0c omnicui_0.2.4_darwin_arm64
+sha256 13840ce7b19b807deeb3b254896dc81ce931d168d1aa6ea1ad5476ce4a307eb2 omnicui_0.2.4_linux_amd64
+sha256 869c403645ff1a1539a52f86a8f7a4c73ce775382679e717f118577715afbae7 omnicui_0.2.4_linux_arm64
+sha256 fdaf50da6549ec45f0de717802c2ca832372c16da60821e1e6a64c290b692a90 omnicui_0.2.4_windows_amd64.exe
+sha256 f7a4c31a4a783212b4c914bde44e1b0084b1aee8e940ab2f869138aabfc77517 omnicui_0.2.4_windows_arm64.exe
+sha256 f54264921bd7c991dac920737370e100818dbdf983c68bef3d6dae41b3b4f92d omnicui-src-0.2.4.tar.gz

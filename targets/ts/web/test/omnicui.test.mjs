@@ -1,13 +1,12 @@
 // MKP's widget contracts (targets/checks/contracts/, one per core extern widget) pass on the web
 // target: omnicui drives omnicui_adapter.mjs, which mounts each widget with @mkp/runtime and
-// @mkp/dom in a real Chromium. The omnicui binary is OMNICUI_BINARY, else ~/.local/bin/omnicui;
-// with neither, the test is skipped and says why.
+// @mkp/dom in a real Chromium. The omnicui binary is the release external/omnicui/omnicui.lock
+// names, which external/omnicui/fetch.sh fetches and checks (or OMNICUI_BINARY, which it passes
+// through); when it can't, the test is skipped and says why.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,15 +15,13 @@ const repo = resolve(here, "../../../..");
 const project = join(repo, "targets/checks");
 
 function omnicui() {
-  if (process.env.OMNICUI_BINARY) return process.env.OMNICUI_BINARY;
-  const local = join(homedir(), ".local/bin/omnicui");
-  return existsSync(local) ? local : undefined;
+  const run = spawnSync(join(repo, "external/omnicui/fetch.sh"), [], { encoding: "utf8" });
+  return run.status === 0 ? { path: run.stdout.trim() } : { why: run.stderr.trim() };
 }
 
-const binary = omnicui();
-const skip = binary
-  ? false
-  : "no omnicui binary: set OMNICUI_BINARY, or build omnicui/tools/omnicui into ~/.local/bin/omnicui (go build -o ~/.local/bin/omnicui ./cmd/omnicui)";
+const found = omnicui();
+const binary = found.path;
+const skip = binary ? false : `no omnicui binary: external/omnicui/fetch.sh says ${found.why || "nothing"}`;
 
 test("every widget contract passes on the web target (omnicui check web)", { skip, timeout: 20 * 60 * 1000 }, () => {
   const run = spawnSync(binary, ["--project", project, "check", "web"], { cwd: repo, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
