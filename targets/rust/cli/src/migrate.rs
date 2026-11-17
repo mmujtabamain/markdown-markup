@@ -135,7 +135,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     if yes {
         *crate::migrate_step::YES.lock().unwrap() = Some(if yes_to.is_empty() { crate::migrate_step::Yes::All } else { crate::migrate_step::Yes::Numbers(yes_to) });
     }
-    let (targets, sources, _) = match crate::options(&rest) {
+    let (targets, mut sources, _) = match crate::options(&rest) {
         Ok(x) => x,
         Err(e) => {
             eprintln!("{}", e);
@@ -155,7 +155,6 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    let packs = packs_of(&sources);
     let (uses, config) = uses_in_config(rest.iter().position(|a| a == "-c" || a == "--config").and_then(|i| rest.get(i + 1)).map(String::as_str), docs.first());
     // the release of mkp the tree is written for: mkp.toml's `mkp = "0.3.x"`
     let written_release = config.as_ref().and_then(|c| release_in_config(c));
@@ -173,6 +172,24 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         }
     }
     let record_moves = config.is_some() && written_release.as_deref() != Some(RELEASE);
+    // the steps of each release after the one the tree is written for, before anything else
+    let from_release = written_release.clone().unwrap_or_else(|| FIRST.to_string());
+    let release_steps = crate::releases::between(&from_release, RELEASE, crate::releases::STEPS);
+    let release_label = format!("mkp {} → {}", from_release, RELEASE);
+    let mut stepped: BTreeMap<String, (String, Vec<String>)> = BTreeMap::new();
+    let mut step_refused: BTreeMap<String, (String, String)> = BTreeMap::new();
+    for s in sources.iter_mut() {
+        match crate::releases::run(&s.text, &s.path, &release_steps) {
+            Ok((text, said)) if !said.is_empty() => {
+                stepped.insert(s.path.clone(), (std::mem::replace(&mut s.text, text), said));
+            }
+            Ok(_) => {}
+            Err(e) => {
+                step_refused.insert(s.path.clone(), (s.text.clone(), e));
+            }
+        }
+    }
+    let packs = packs_of(&sources);
     let core = crate::core_sources();
     let base = mkp_check::compile_core(&core);
 
@@ -189,6 +206,25 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             results.push((path, old, o));
         }
     }
+    // a pack's file the release steps changed: compared with what is on disk, and written with what
+    // they say; one they can't move is refused
+    for (path, old, o) in results.iter_mut() {
+        if let Some((disk, said)) = stepped.get(&path.display().to_string()) {
+            *old = disk.clone();
+            o.moved.insert(0, release_label.clone());
+            o.changes += said.len();
+            o.notices.extend(said.iter().cloned());
+        }
+    }
+    for (path, (disk, said)) in &stepped {
+        if !results.iter().any(|(p, _, _)| p.display().to_string() == *path) {
+            let text = sources.iter().find(|s| s.path == *path).map(|s| s.text.clone()).unwrap_or_default();
+            results.push((PathBuf::from(path), disk.clone(), Outcome { text, moved: vec![release_label.clone()], changes: said.len(), notices: said.clone(), ..Outcome::default() }));
+        }
+    }
+    for (path, (disk, why)) in &step_refused {
+        results.push((PathBuf::from(path), disk.clone(), Outcome { text: disk.clone(), moved: vec![release_label.clone()], refused: vec![why.clone()], ..Outcome::default() }));
+    }
     // stand-ins for the 0.2 packs that have no 0.3 release here, beside the documents
     let stand_in_dir = targets.first().map(|t| if Path::new(t).is_dir() { PathBuf::from(t) } else { Path::new(t).parent().map(Path::to_path_buf).unwrap_or_default() }).unwrap_or_default().join("stand-ins");
     let mut stand_ins: BTreeMap<String, (PathBuf, String)> = BTreeMap::new();
@@ -199,7 +235,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         };
         let o = match migrate_02_doc(&base, &packs, &sources, &now, d, &text, &packs02, &mut stand_ins, &stand_in_dir, &uses) {
             Some(o) => o,
-            None => migrate_doc(&base, &packs, &sources, &now, d, &text, &from, &uses),
+            None => doc_through_releases(&base, &packs, &sources, &now, d, &text, &from, &uses, &release_steps, &release_label),
         };
         results.push((d.clone(), text, o));
     }
@@ -559,6 +595,24 @@ fn split_02_packs(args: Vec<String>) -> (Vec<String>, Vec<PathBuf>) {
     (rest, old)
 }
 
+/// A 0.3 document: through the steps of the releases after the one it is written for, then up to the
+/// versions of the packs it uses.
+#[allow(clippy::too_many_arguments)]
+fn doc_through_releases(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>, steps: &[&crate::releases::ReleaseStep], label: &str) -> Outcome {
+    match crate::releases::run(text, &path.display().to_string(), steps) {
+        Err(e) => Outcome { text: text.to_string(), moved: vec![label.to_string()], refused: vec![e], ..Outcome::default() },
+        Ok((stepped, said)) => {
+            let mut o = migrate_doc(base, packs, sources, now, path, &stepped, from, uses);
+            if !said.is_empty() {
+                o.moved.insert(0, label.to_string());
+                o.changes += said.len();
+                o.notices.extend(said);
+            }
+            o
+        }
+    }
+}
+
 /// A document written for MKP 0.2: moved by the frozen 0.2 step, then through the packs'
 /// migrations as a 0.3 document is. `None` for a document that is 0.3's: one with a `@@@` line, one
 /// that compiles, or one 0.2.10 doesn't build either.
@@ -586,10 +640,24 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
     if !stamped {
         o.inferred.push("written for MKP 0.2, as 0.2.10 builds it".to_string());
     }
-    o.text = m.doc;
     o.changes = 1;
     o.notices = m.notes;
     o.todos = m.todos;
+    // written as 0.3.0, then through the steps of each release after it
+    match crate::releases::run(&m.doc, &doc_path, &crate::releases::between(FIRST, RELEASE, crate::releases::STEPS)) {
+        Ok((t, said)) => {
+            if !said.is_empty() {
+                o.moved.push(format!("mkp {} → {}", FIRST, RELEASE));
+                o.changes += said.len();
+                o.notices.extend(said);
+            }
+            o.text = t;
+        }
+        Err(e) => {
+            o.refused.push(e);
+            return Some(o);
+        }
+    }
     // each pack it uses: its own 0.3 release where the build has one, else a stand-in made from its
     // 0.2 definitions, which is a person's to replace
     let mut world = now.to_vec();
@@ -948,4 +1016,25 @@ fn unified(path: &str, old: &str, new: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_document_written_for_an_earlier_release_takes_its_steps_then_compiles() {
+        let base = mkp_check::compile_core(&crate::core_sources());
+        let steps = crate::releases::between("0.3.0", "0.3.2", crate::releases::tests::STEPS);
+        let doc = "# Notes\n\n@rule();\n";
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.mkp.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &steps, "mkp 0.3.0 → 0.3.2");
+        assert!(o.refused.is_empty(), "{:?}", o.refused);
+        assert_eq!(o.text, "# Notes\n\n@divider();\n");
+        assert_eq!(o.moved, ["mkp 0.3.0 → 0.3.2"]);
+        assert_eq!(o.notices, ["mkp 0.3.2: `rule` is `divider` now"]);
+        // a release whose step can't move it refuses it, as it was
+        let later = crate::releases::between("0.3.2", "0.4.0", crate::releases::tests::STEPS);
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.mkp.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "mkp 0.3.2 → 0.4.0");
+        assert_eq!((o.text.as_str(), o.refused), (doc, vec!["mkp 0.4.0: a form only a person can rewrite".to_string()]));
+    }
 }

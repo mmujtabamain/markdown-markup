@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 mod migrate;
 mod migrate_02;
+mod releases;
 mod migrate_step;
 mod surface;
 mod target;
