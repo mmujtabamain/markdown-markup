@@ -255,45 +255,35 @@ fn md_join(cs: list<text>, start: number, end: number): text {
 
 // How many times c repeats from at. Private to core
 fn md_run(cs: list<text>, at: number, c: text): number {
-    mut n: number = 0;
-    mut going: bool = true;
     for (k in at..(cs.len() - 1)) {
-        if (going && cs[k].or("") == c) {
-            n = n + 1;
-        } else {
-            going = false;
+        if (cs[k].or("") != c) {
+            return k - at;
         }
     }
-    return n;
+    return cs.len() > at ? cs.len() - at : 0;
 }
 
 // The first character that isn't a space or a tab, from at. Private to core
 fn md_after_spaces(cs: list<text>, at: number): number {
-    mut k: number = at;
-    mut going: bool = true;
     for (j in at..(cs.len() - 1)) {
-        if (going && (cs[j].or("") == " " || cs[j].or("") == "\t")) {
-            k = j + 1;
-        } else {
-            going = false;
+        let c: text = cs[j].or("");
+        if (c != " " && c != "\t") {
+            return j;
         }
     }
-    return k;
+    return at > cs.len() ? at : cs.len();
 }
 
 // The text without the spaces and tabs at its end. Private to core
 fn md_trim_end(s: text): text {
-    mut end: number = s.len();
     let cs: list<text[1]> = s.chars();
-    mut going: bool = true;
     for (k in (s.len() - 1)..0 step -1) {
-        if (going && (cs[k].or("") == " " || cs[k].or("") == "\t")) {
-            end = k;
-        } else {
-            going = false;
+        let c: text = cs[k].or("");
+        if (c != " " && c != "\t") {
+            return s.slice(0, md_pos(k + 1));
         }
     }
-    return s.slice(0, md_pos(end));
+    return "";
 }
 
 // Unicode whitespace, as CommonMark's flanking rules read it; the ends count as space. Private to core
@@ -313,18 +303,17 @@ fn md_is_punct(c: text): bool {
 
 // Where a closing run of exactly count backticks starts, after at; -1 for none. Private to core
 fn md_find_ticks(cs: list<text>, at: number, count: number): number {
-    mut found: number = -1;
     mut k: number = at;
     for (j in at..(cs.len() - 1)) {
-        if (found < 0 && j >= k && cs[j].or("") == "`") {
+        if (j >= k && cs[j].or("") == "`") {
             let run: number = md_run(cs, j, "`");
             if (run == count) {
-                found = j;
+                return j;
             }
             k = j + run;
         }
     }
-    return found;
+    return -1;
 }
 
 // A code span's text: line breaks as spaces, and one space off each end when both have one. Private to core
@@ -344,25 +333,21 @@ fn md_maths_opens(cs: list<text>, at: number): bool {
 
 // The $ that closes maths opened before at, on the same line, or 0 for none. Private to core
 fn md_maths_close(cs: list<text>, at: number): number {
-    mut found: number = 0;
-    mut stop: bool = false;
     for (k in at..(cs.len() - 1)) {
         let c: text = cs[k].or("");
-        if (!stop && found == 0) {
-            if (c == "\n") {
-                stop = true;
-            } else if (c == "$" && cs[k - 1].or("") != "\\") {
-                let before: text = cs[k - 1].or(" ");
-                let after: text = cs[k + 1].or(" ");
-                if (before != " " && before != "\t" && !"0123456789".has(after)) {
-                    found = k;
-                } else {
-                    stop = true;
-                }
+        if (c == "\n") {
+            return 0;
+        }
+        if (c == "$" && cs[k - 1].or("") != "\\") {
+            let before: text = cs[k - 1].or(" ");
+            let after: text = cs[k + 1].or(" ");
+            if (before != " " && before != "\t" && !"0123456789".has(after)) {
+                return k;
             }
+            return 0;
         }
     }
-    return found;
+    return 0;
 }
 
 // The characters from start to end as a template, its holes taken in order from first. Private to core
@@ -398,20 +383,16 @@ fn md_template(cs: list<text>, value: template, start: number, end: number, firs
 
 // The ] that ends a footnote mark [^label] opened at at, or 0. Private to core
 fn md_note_end(cs: list<text>, at: number): number {
-    mut found: number = 0;
-    mut stop: bool = false;
     for (k in (at + 2)..(cs.len() - 1)) {
         let c: text = cs[k].or("");
-        if (!stop && found == 0) {
-            if (c == "]") {
-                found = k > at + 2 ? k : 0;
-                stop = true;
-            } else if (md_is_space(c) || c == "[" || c == "\u{fffc}") {
-                stop = true;
-            }
+        if (c == "]") {
+            return k > at + 2 ? k : 0;
+        }
+        if (md_is_space(c) || c == "[" || c == "\u{fffc}") {
+            return 0;
         }
     }
-    return found;
+    return 0;
 }
 
 // Whether a bare link may start here: at the start, or after a space or ( * _ ~. Private to core
@@ -429,18 +410,7 @@ fn md_bare_link(cs: list<text>, at: number): md_link {
     } else if (!head.starts("http://") && !head.starts("https://") && !head.starts("ftp://")) {
         return md_link { };
     }
-    mut end: number = at;
-    mut stop: bool = false;
-    for (k in at..(cs.len() - 1)) {
-        let c: text = cs[k].or("");
-        if (!stop) {
-            if (md_is_space(c) || c == "<" || c == "\u{fffc}") {
-                stop = true;
-            } else {
-                end = k + 1;
-            }
-        }
-    }
+    let end: number = md_link_end(cs, at);
     // trailing punctuation is not part of the link, nor an unmatched )
     mut cut: number = end;
     mut trimming: bool = true;
@@ -481,32 +451,31 @@ fn md_bare_link(cs: list<text>, at: number): md_link {
     return md_link { end = cut, dest = "\{scheme}\{label}", label = label };
 }
 
+// Where a bare link's characters end, from at: before a space, a < or a hole. Private to core
+fn md_link_end(cs: list<text>, at: number): number {
+    for (k in at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (md_is_space(c) || c == "<" || c == "\u{fffc}") {
+            return k;
+        }
+    }
+    return cs.len() > at ? cs.len() : at;
+}
+
 // How many characters at the end of the text could be an email address's local part. Private to core
 fn md_local_part(buf: text): number {
     let cs: list<text[1]> = buf.chars();
-    mut n: number = 0;
-    mut going: bool = true;
     for (k in (cs.len() - 1)..0 step -1) {
-        if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.+-_".has(cs[k].or(" "))) {
-            n = n + 1;
-        } else {
-            going = false;
+        if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.+-_".has(cs[k].or(" "))) {
+            return cs.len() - 1 - k;
         }
     }
-    return n;
+    return cs.len();
 }
 
 // Where a bare email address's domain ends, after the @ at at: letters, digits, - and _, with a dot, and not ending in - or _; 0 for none. Private to core
 fn md_email_end(cs: list<text>, at: number): number {
-    mut end: number = at + 1;
-    mut going: bool = true;
-    for (k in (at + 1)..(cs.len() - 1)) {
-        if (going && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_".has(cs[k].or(" "))) {
-            end = k + 1;
-        } else {
-            going = false;
-        }
-    }
+    mut end: number = md_domain_end(cs, at + 1);
     // a trailing dot is punctuation after the address
     if (cs[end - 1].or("") == ".") {
         end = end - 1;
@@ -516,6 +485,16 @@ fn md_email_end(cs: list<text>, at: number): number {
         return 0;
     }
     return end;
+}
+
+// Where a domain's letters, digits, dots, - and _ end, from at. Private to core
+fn md_domain_end(cs: list<text>, at: number): number {
+    for (k in at..(cs.len() - 1)) {
+        if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_".has(cs[k].or(" "))) {
+            return k;
+        }
+    }
+    return cs.len() > at ? cs.len() : at;
 }
 
 // How many times c appears from start up to end. Private to core
@@ -531,18 +510,7 @@ fn md_count(cs: list<text>, start: number, end: number, c: text): number {
 
 // An autolink <scheme:…> or <address@host>. Private to core
 fn md_autolink(cs: list<text>, at: number): md_link {
-    mut end: number = 0;
-    mut stop: bool = false;
-    for (k in (at + 1)..(cs.len() - 1)) {
-        let c: text = cs[k].or("");
-        if (!stop && end == 0) {
-            if (c == ">") {
-                end = k;
-            } else if (c == "<" || md_is_space(c) || c == "\u{fffc}") {
-                stop = true;
-            }
-        }
-    }
+    let end: number = md_angle_end(cs, at);
     if (end == 0) {
         return md_link { };
     }
@@ -557,6 +525,20 @@ fn md_autolink(cs: list<text>, at: number): md_link {
         return md_link { end = end + 1, dest = "mailto:\{body}", label = body };
     }
     return md_link { };
+}
+
+// The > that closes an autolink opened at at, or 0 when a <, a space or a hole comes first. Private to core
+fn md_angle_end(cs: list<text>, at: number): number {
+    for (k in (at + 1)..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (c == ">") {
+            return k;
+        }
+        if (c == "<" || md_is_space(c) || c == "\u{fffc}") {
+            return 0;
+        }
+    }
+    return 0;
 }
 
 // A scheme: a letter, then letters, digits, + . or -. Private to core
@@ -617,40 +599,13 @@ fn md_html(cs: list<text>, at: number): number {
         return 0;
     }
     // the tag's name, then attributes, then > or />, with no hole in it
-    mut name_end: number = name_at;
-    mut naming: bool = true;
-    for (k in name_at..(cs.len() - 1)) {
-        if (naming && ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-".has(cs[k].or(" ")))) {
-            name_end = k + 1;
-        } else {
-            naming = false;
-        }
-    }
+    let name_end: number = md_tag_name_end(cs, name_at);
     let after_name: text = cs[name_end].or("");
     if (![" ", "\t", "\n", "/", ">"].has(after_name)) {
         return 0;
     }
-    mut quote: text = "";
-    mut end: number = 0;
-    mut bad: bool = false;
-    for (k in name_at..(cs.len() - 1)) {
-        let c: text = cs[k].or("");
-        if (end == 0 && !bad) {
-            if (quote != "") {
-                if (c == quote) {
-                    quote = "";
-                }
-            } else if (c == "\"" || c == "'") {
-                quote = closing ? "" : c;
-                bad = closing;
-            } else if (c == ">") {
-                end = k + 1;
-            } else if (c == "<" || c == "\u{fffc}" || c == "`") {
-                bad = true;
-            }
-        }
-    }
-    if (bad || end == 0) {
+    let end: number = md_tag_end(cs, name_at, closing);
+    if (end == 0) {
         return 0;
     }
     let inside: text = md_join(cs, name_at, end - 1);
@@ -658,6 +613,39 @@ fn md_html(cs: list<text>, at: number): number {
         return 0;
     }
     return end;
+}
+
+// Where a tag's name ends, from at. Private to core
+fn md_tag_name_end(cs: list<text>, at: number): number {
+    for (k in at..(cs.len() - 1)) {
+        if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-".has(cs[k].or(" "))) {
+            return k;
+        }
+    }
+    return cs.len() > at ? cs.len() : at;
+}
+
+// Just after the > that ends a tag whose name starts at at, past quoted attribute values; 0 for none. Private to core
+fn md_tag_end(cs: list<text>, at: number, closing: bool): number {
+    mut quote: text = "";
+    for (k in at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        if (quote != "") {
+            if (c == quote) {
+                quote = "";
+            }
+        } else if (c == "\"" || c == "'") {
+            if (closing) {
+                return 0;
+            }
+            quote = c;
+        } else if (c == ">") {
+            return k + 1;
+        } else if (c == "<" || c == "\u{fffc}" || c == "`") {
+            return 0;
+        }
+    }
+    return 0;
 }
 
 // Where text that started at start ends once close is found after from; 0 when it never is. Private to core
@@ -754,19 +742,7 @@ fn md_close_bracket(cs: list<text>, at: number, brackets: list<md_bracket>, link
         }
         // a full reference [text][label], a collapsed one [text][], or a shortcut [text]
         if (cs[at + 1].or("") == "[") {
-            mut close: number = 0;
-            mut stop: bool = false;
-            for (k in (at + 2)..(cs.len() - 1)) {
-                let c: text = cs[k].or("");
-                let escaped: bool = cs[k - 1].or("") == "\\" && cs[k - 2].or("") != "\\";
-                if (!stop && close == 0 && !escaped) {
-                    if (c == "]") {
-                        close = k;
-                    } else if (c == "[") {
-                        stop = true;
-                    }
-                }
-            }
+            let close: number = md_label_end(cs, at + 2);
             if (close > 0) {
                 let inner: text = md_join(cs, at + 2, close);
                 let key: text = md_label(inner == "" ? label : inner);
@@ -785,6 +761,23 @@ fn md_close_bracket(cs: list<text>, at: number, brackets: list<md_bracket>, link
     return md_link { };
 }
 
+// The ] that ends a link label from at, or 0 when an unescaped [ comes first. Private to core
+fn md_label_end(cs: list<text>, at: number): number {
+    for (k in at..(cs.len() - 1)) {
+        let c: text = cs[k].or("");
+        let escaped: bool = cs[k - 1].or("") == "\\" && cs[k - 2].or("") != "\\";
+        if (!escaped) {
+            if (c == "]") {
+                return k;
+            }
+            if (c == "[") {
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
 // A label as CommonMark matches them: case folded, spaces collapsed. Private to core
 fn md_label(s: text): text {
     let flat: text = s.replace("\n", " ").replace("\t", " ").lower().replace("ß", "ss");
@@ -796,60 +789,15 @@ fn md_inline_link(cs: list<text>, from: number): md_link {
     mut k: number = md_after_blank(cs, from);
     mut dest: text = "";
     if (cs[k].or("") == "<") {
-        mut close: number = 0;
-        mut stop: bool = false;
-        mut escaped: bool = false;
-        for (j in (k + 1)..(cs.len() - 1)) {
-            let c: text = cs[j].or("");
-            if (!stop && close == 0) {
-                if (escaped) {
-                    escaped = false;
-                } else if (c == "\\") {
-                    escaped = true;
-                } else if (c == ">") {
-                    close = j;
-                } else if (c == "\n" || c == "<") {
-                    stop = true;
-                }
-            }
-        }
+        let close: number = md_dest_close(cs, k + 1);
         if (close == 0) {
             return md_link { };
         }
         dest = md_unescape(md_join(cs, k + 1, close));
         k = close + 1;
     } else {
-        mut depth: number = 0;
-        mut end: number = k;
-        mut stop: bool = false;
-        mut escaped: bool = false;
-        for (j in k..(cs.len() - 1)) {
-            let c: text = cs[j].or("");
-            if (!stop) {
-                if (escaped) {
-                    escaped = false;
-                    end = j + 1;
-                } else if (c == "\\") {
-                    escaped = true;
-                    end = j + 1;
-                } else if ([" ", "\t", "\n", "\u{b}", "\u{c}", "\u{d}", "\u{fffc}"].has(c)) {
-                    stop = true;
-                } else if (c == "(") {
-                    depth = depth + 1;
-                    end = j + 1;
-                } else if (c == ")") {
-                    if (depth == 0) {
-                        stop = true;
-                    } else {
-                        depth = depth - 1;
-                        end = j + 1;
-                    }
-                } else {
-                    end = j + 1;
-                }
-            }
-        }
-        if (depth != 0) {
+        let end: number = md_dest_end(cs, k);
+        if (end < 0) {
             return md_link { };
         }
         dest = md_unescape(md_join(cs, k, end));
@@ -860,18 +808,7 @@ fn md_inline_link(cs: list<text>, from: number): md_link {
     let q: text = cs[k].or("");
     if (k > before_title && (q == "\"" || q == "'" || q == "(")) {
         let close: text = q == "(" ? ")" : q;
-        mut end: number = 0;
-        mut stop: bool = false;
-        for (j in (k + 1)..(cs.len() - 1)) {
-            let c: text = cs[j].or("");
-            if (!stop && end == 0) {
-                if (c == close && cs[j - 1].or("") != "\\") {
-                    end = j;
-                } else if (c == "(" && q == "(") {
-                    stop = true;
-                }
-            }
-        }
+        let end: number = md_title_end(cs, k + 1, q, close);
         if (end == 0) {
             return md_link { };
         }
@@ -883,23 +820,77 @@ fn md_inline_link(cs: list<text>, from: number): md_link {
     return md_link { end = k + 1, dest = dest };
 }
 
+// The > that ends a destination in <…>, from at, or 0 when a line break or a < comes first. Private to core
+fn md_dest_close(cs: list<text>, at: number): number {
+    mut escaped: bool = false;
+    for (j in at..(cs.len() - 1)) {
+        let c: text = cs[j].or("");
+        if (escaped) {
+            escaped = false;
+        } else if (c == "\\") {
+            escaped = true;
+        } else if (c == ">") {
+            return j;
+        } else if (c == "\n" || c == "<") {
+            return 0;
+        }
+    }
+    return 0;
+}
+
+// Where a bare destination ends, from at: at a space or an unmatched ); -1 when its brackets don't match. Private to core
+fn md_dest_end(cs: list<text>, at: number): number {
+    mut depth: number = 0;
+    mut escaped: bool = false;
+    for (j in at..(cs.len() - 1)) {
+        let c: text = cs[j].or("");
+        if (escaped) {
+            escaped = false;
+        } else if (c == "\\") {
+            escaped = true;
+        } else if ([" ", "\t", "\n", "\u{b}", "\u{c}", "\u{d}", "\u{fffc}"].has(c)) {
+            return depth == 0 ? j : -1;
+        } else if (c == "(") {
+            depth = depth + 1;
+        } else if (c == ")") {
+            if (depth == 0) {
+                return j;
+            }
+            depth = depth - 1;
+        }
+    }
+    if (depth != 0) {
+        return -1;
+    }
+    return cs.len() > at ? cs.len() : at;
+}
+
+// The quote or ) that ends a link title opened before at, or 0. Private to core
+fn md_title_end(cs: list<text>, at: number, q: text, close: text): number {
+    for (j in at..(cs.len() - 1)) {
+        let c: text = cs[j].or("");
+        if (c == close && cs[j - 1].or("") != "\\") {
+            return j;
+        }
+        if (c == "(" && q == "(") {
+            return 0;
+        }
+    }
+    return 0;
+}
+
 // After spaces, tabs and at most one line break. Private to core
 fn md_after_blank(cs: list<text>, at: number): number {
-    mut k: number = at;
-    mut going: bool = true;
     mut lines: number = 0;
     for (j in at..(cs.len() - 1)) {
         let c: text = cs[j].or("");
-        if (going && (c == " " || c == "\t" || (c == "\n" && lines == 0))) {
-            if (c == "\n") {
-                lines = 1;
-            }
-            k = j + 1;
-        } else {
-            going = false;
+        if (c == "\n" && lines == 0) {
+            lines = 1;
+        } else if (c != " " && c != "\t") {
+            return j;
         }
     }
-    return k;
+    return at > cs.len() ? at : cs.len();
 }
 
 // Backslash escapes and entities in a destination. Private to core
@@ -973,8 +964,10 @@ fn md_make_link(mut pieces: list<md_piece>, b: md_bracket, found: md_link) {
 fn md_emphasis(mut pieces: list<md_piece>, bottom: number) {
     let n: number = pieces.len();
     for (c in bottom..(n - 1)) {
-        // a closer may close several openers, two characters at a time
-        for (round in 0..32) {
+        // only a run that can close starts a search; it may close several openers, two
+        // characters at a time
+        let first: md_piece = pieces[c].or(md_piece { part = part.BREAK });
+        for (round in 0..(first.run != "" && first.closes ? 32 : -1)) {
             let closer: md_piece = pieces[c].or(md_piece { part = part.BREAK });
             if (closer.live && closer.closes && closer.left > 0) {
                 let o: number = md_opener(pieces, bottom, c);
@@ -984,8 +977,8 @@ fn md_emphasis(mut pieces: list<md_piece>, bottom: number) {
                     if (closer.run == "~") {
                         used = closer.left;
                     }
-                    mut for (k, t in pieces) {
-                        if (mut x: md_piece = t) {
+                    for (k in (o + 1)..(c - 1)) {
+                        if (mut x: md_piece = pieces[k]) {
                             if (k > o && k < c) {
                                 if (!x.gone && x.run == "") {
                                     if (closer.run == "~") {
