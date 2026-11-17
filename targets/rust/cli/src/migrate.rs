@@ -13,12 +13,13 @@ use mkp_syntax::ast::{self, DeclKind, Item};
 use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
-                  [--dry-run | --check | --diff] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
+                  [--dry-run | --check | --diff | --stdout] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
                   [--allow-todos] [--allow-errors] [--format json] [--report report.md|report.json]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
   Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
-  --dry-run and --diff show what would change, --check fails if anything would.
+  --dry-run and --diff show what would change, --check fails if anything would, and --stdout prints
+  one document's result instead of writing it (what it says goes to stderr).
   What a migration can't do refuses the file; --allow-todos leaves that code as it was, with a TODO
   above it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.
   A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
@@ -70,6 +71,7 @@ struct Outcome {
 pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let flag = |f: &str| args.iter().any(|a| a == f);
     let (dry, check, diff, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--allow-dirty"));
+    let stdout = flag("--stdout");
     crate::migrate_step::TODO.store(flag("--allow-todos"), std::sync::atomic::Ordering::Relaxed);
     // JSON is for a program: nothing is asked in a terminal
     crate::migrate_step::NO_ASKING.store(args.windows(2).any(|w| w[0] == "--format" && w[1] == "json"), std::sync::atomic::Ordering::Relaxed);
@@ -148,7 +150,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 yes_to.extend(ns);
                 k += 1;
             }
-            "--dry-run" | "--check" | "--diff" | "--allow-dirty" | "--allow-todos" | "--allow-errors" => k += 1,
+            "--dry-run" | "--check" | "--diff" | "--stdout" | "--allow-dirty" | "--allow-todos" | "--allow-errors" => k += 1,
             "--help" | "-h" => {
                 println!("{}", USAGE);
                 return ExitCode::SUCCESS;
@@ -172,6 +174,10 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         }
     };
     let targets = if targets.is_empty() { vec![".".to_string()] } else { targets };
+    if stdout && (json || targets.len() != 1 || !targets[0].ends_with(".mkp.md")) {
+        eprintln!("--stdout prints one document's result: name one .mkp.md file{}", if json { ", and leave out --format json" } else { "" });
+        return ExitCode::from(2);
+    }
     let mut docs: Vec<PathBuf> = Vec::new();
     for t in &targets {
         let p = Path::new(t);
@@ -279,7 +285,9 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let human = !json;
     macro_rules! say {
         ($($t:tt)*) => {
-            if human {
+            if human && stdout {
+                eprintln!($($t)*);
+            } else if human {
                 println!($($t)*);
             }
         };
@@ -369,6 +377,15 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let mut skipped: Vec<PathBuf> = Vec::new();
     let mut moved_record = false;
     let code = 'run: {
+        // --stdout: the one document's result, written nowhere
+        if stdout {
+            let Some((_, _, o)) = results.iter().find(|(p, _, _)| p.display().to_string().ends_with(".mkp.md")) else { break 'run ExitCode::from(2) };
+            if !o.refused.is_empty() {
+                break 'run ExitCode::from(1);
+            }
+            print!("{}", o.text);
+            break 'run if need > 0 || !o.todos.is_empty() || !o.errors.is_empty() { ExitCode::from(1) } else { ExitCode::SUCCESS };
+        }
         if to_write.is_empty() && !record_moves {
             break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
@@ -1185,7 +1202,7 @@ fn git_dirty(paths: &[&Path]) -> Option<Vec<PathBuf>> {
 }
 
 /// A unified diff of one file, line by line.
-fn unified(path: &str, old: &str, new: &str) -> String {
+pub(crate) fn unified(path: &str, old: &str, new: &str) -> String {
     let (a, b): (Vec<&str>, Vec<&str>) = (old.lines().collect(), new.lines().collect());
     let mut out = format!("--- {}\n+++ {}\n", path, path);
     // the longest common subsequence, as a table: small files, small cost

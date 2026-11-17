@@ -488,9 +488,9 @@ fn migrate_leaves_a_statements_semicolon_after_a_record_it_rewrites() {
 fn an_unknown_flag_is_a_warning_and_a_dropped_one_says_what_replaced_it() {
     let dir = kit_tree("migrate-flags", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
     let docs = dir.join("docs");
-    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run", "--stdout"]);
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run", "--quiet"]);
     assert_eq!(code, 0, "{}{}", out, err);
-    assert!(err.contains("warning: mkp migrate has no flag --stdout, so it is ignored") && out.contains("kit@1 → kit@2"), "{}", err);
+    assert!(err.contains("warning: mkp migrate has no flag --quiet, so it is ignored") && out.contains("kit@1 → kit@2"), "{}", err);
     let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--write"]);
     assert_eq!(code, 2);
     assert!(err.contains("error: mkp migrate dropped --write in mkp 0.3.0: mkp migrate writes in place"), "{}", err);
@@ -504,4 +504,36 @@ fn an_unknown_flag_is_a_warning_and_a_dropped_one_says_what_replaced_it() {
     assert_eq!(code, 2);
     assert!(err.contains("error: mkp check dropped --format in mkp 0.3.0: use --json"), "{}", err);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
+}
+
+#[test]
+fn fmt_surface_and_migrate_each_check_show_the_change_or_print_one_file() {
+    let dir = kit_tree("counterparts", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let docs = dir.join("docs");
+    let doc = docs.join("report.mkp.md");
+    // migrate --stdout: the document's result printed, nothing written, what it says on stderr
+    let (code, out, err) = mkp(&["migrate", doc.to_str().unwrap(), "--stdout"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.starts_with("import kit;") && out.contains("@plot(values = [1, 2], tone = color.OK);") && err.contains("kit@1 → kit@2"), "{}\n{}", out, err);
+    assert_eq!(std::fs::read_to_string(&doc).unwrap(), OLD_DOC);
+    assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--stdout"]).0, 2, "a folder isn't one document");
+    // fmt: --diff shows, --stdout prints, --check fails, and none of them writes
+    let messy = dir.join("messy.mkp");
+    std::fs::write(&messy, "package messy;\nlet   x: number = 1;\n").unwrap();
+    let (code, out, _) = mkp(&["fmt", "--diff", messy.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(out.contains("-let   x: number = 1;") && out.contains("+let x: number = 1;"), "{}", out);
+    let (code, out, _) = mkp(&["fmt", "--stdout", messy.to_str().unwrap()]);
+    assert_eq!((code, out.contains("let x: number = 1;")), (0, true), "{}", out);
+    assert_eq!(mkp(&["fmt", "--check", messy.to_str().unwrap()]).0, 1);
+    assert_eq!(std::fs::read_to_string(&messy).unwrap(), "package messy;\nlet   x: number = 1;\n");
+    // surface: --stdout prints kit@2's, --diff shows it against what isn't written yet
+    let kit = dir.join("kit");
+    let (code, out, _) = mkp(&["surface", kit.to_str().unwrap(), "--stdout"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.starts_with("package kit@2;") && out.contains("extern widget plot("), "{}", out);
+    let (code, out, _) = mkp(&["surface", kit.to_str().unwrap(), "--diff"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("+package kit@2;"), "{}", out);
+    assert!(!kit.join("surfaces/kit@2.mkp").exists());
 }

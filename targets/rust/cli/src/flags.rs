@@ -5,14 +5,14 @@
 fn known(cmd: &str) -> &'static [&'static str] {
     const PACKS: [&str; 3] = ["--pack", "--config", "-c"];
     match cmd {
-        "fmt" => &["--check"],
+        "fmt" => &["--check", "--diff", "--stdout"],
         "parse" => &[],
         "check" => &["--json", PACKS[0], PACKS[1], PACKS[2]],
         "build" => &["--rir", "-o", PACKS[0], PACKS[1], PACKS[2]],
         "md" => &["--json", "-o", PACKS[0], PACKS[1], PACKS[2]],
-        "surface" => &["--check", "--force", "-o", PACKS[0], PACKS[1], PACKS[2]],
+        "surface" => &["--check", "--diff", "--stdout", "--force", "-o", PACKS[0], PACKS[1], PACKS[2]],
         "migrate" => &[
-            "--pack", "--config", "-c", "--from", "--answers", "--format", "--report", "--dry-run", "--check", "--diff", "--yes", "-y", "--allow-dirty", "--allow-errors", "--allow-todos", "--help", "-h",
+            "--pack", "--config", "-c", "--from", "--answers", "--format", "--report", "--dry-run", "--check", "--diff", "--stdout", "--yes", "-y", "--allow-dirty", "--allow-errors", "--allow-todos", "--help", "-h",
         ],
         "target check" => &["--cases", "--defect", "--expect-failures", "--require"],
         _ => &[],
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn an_unknown_flag_is_ignored_and_a_dropped_one_stops_the_command() {
         let args = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-        assert!(ok("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout"])));
+        assert!(ok("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout", "--quiet"])));
         assert!(!ok("migrate", &args(&["docs", "--write"])));
         assert!(!ok("migrate", &args(&["docs", "--to", "0.3.0"])));
         assert!(ok("fmt", &args(&["a.mkp", "--check", "-"])));

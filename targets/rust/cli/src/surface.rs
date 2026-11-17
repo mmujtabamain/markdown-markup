@@ -140,7 +140,9 @@ const USAGE: &str = "usage: mkp surface <pack folder> [--pack a,b] [-o file] [--
 pub fn surface_cmd(args: &[String]) -> ExitCode {
     let check = args.iter().any(|a| a == "--check");
     let force = args.iter().any(|a| a == "--force");
-    let rest: Vec<String> = args.iter().filter(|a| *a != "--check" && *a != "--force").cloned().collect();
+    let diff = args.iter().any(|a| a == "--diff");
+    let stdout = args.iter().any(|a| a == "--stdout");
+    let rest: Vec<String> = args.iter().filter(|a| !matches!(a.as_str(), "--check" | "--force" | "--diff" | "--stdout")).cloned().collect();
     let (dirs, deps, out) = match crate::options(&rest) {
         Ok(x) => x,
         Err(e) => {
@@ -181,6 +183,17 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
     };
     let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.mkp", name, version)));
     let old = std::fs::read_to_string(&path).ok();
+    // --stdout: the surface, written nowhere; --diff: how it differs from the one written
+    if stdout {
+        print!("{}", text);
+        return ExitCode::SUCCESS;
+    }
+    if diff {
+        if old.as_deref() != Some(text.as_str()) {
+            print!("{}", crate::migrate::unified(&path.display().to_string(), old.as_deref().unwrap_or(""), &text));
+        }
+        return ExitCode::SUCCESS;
+    }
     match (&old, check) {
         (Some(o), _) if *o == text => {
             println!("{}: {}@{}'s surface, up to date", path.display(), name, version);

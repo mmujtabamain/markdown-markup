@@ -183,14 +183,16 @@ fn build(args: &[String]) -> ExitCode {
 }
 
 const USAGE: &str = "usage:
-  mkp fmt [--check] <file>...      print each file back in the canonical layout (in place, or check only)
+  mkp fmt [--check|--diff|--stdout] <file>...   print each file back in the canonical layout: in place,
+                                    or only check, show the change, or print one file
   mkp check [--json] [--pack a,b] <file>...   report every error and warning in each file
   mkp parse <file>                  print a file's syntax tree as JSON
   mkp build <file> [--pack a,b] [-o out.ir.json]   write a document's IR, with core and the packs it uses
             [--rir]                 or its resolved IR, what the checker understood, for tools
   mkp md <file> [--pack a,b] [--json] [-o out.md]  write a document's Markdown, with its starting values
-  mkp surface <pack> [--pack a,b] [-o file] [--check] [--force]   write what this version of the pack provides
-  mkp migrate [<file|folder>…] [--pack a,b] [--from kit@1] [--dry-run|--check|--diff] [--yes]
+  mkp surface <pack> [--pack a,b] [-o file] [--check|--diff|--stdout] [--force]
+                                    write what this version of the pack provides
+  mkp migrate [<file|folder>…] [--pack a,b] [--from kit@1] [--dry-run|--check|--diff|--stdout] [--yes]
                                     bring documents up to the versions of the packs they are built with
   mkp target check [target…] [--cases dir] [--defect name] [--expect-failures]
                                     run the target checks on targets, through their check adapters
@@ -213,9 +215,15 @@ fn report(path: &str, src: &str, diags: &[Diagnostic]) {
 
 fn fmt(args: &[String]) -> ExitCode {
     let check = args.iter().any(|a| a == "--check");
+    let diff = args.iter().any(|a| a == "--diff");
+    let stdout = args.iter().any(|a| a == "--stdout");
     let files: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     if files.is_empty() {
         eprintln!("{}", USAGE);
+        return ExitCode::from(2);
+    }
+    if stdout && files.len() != 1 {
+        eprintln!("--stdout prints one file in the canonical layout: name one file");
         return ExitCode::from(2);
     }
     let mut failed = false;
@@ -229,7 +237,10 @@ fn fmt(args: &[String]) -> ExitCode {
             }
         };
         match format(&src, entry) {
+            // --stdout: the file in the canonical layout, written nowhere
+            Ok(out) if stdout => print!("{}", out),
             Ok(out) if out == src => {}
+            Ok(out) if diff => print!("{}", migrate::unified(path, &src, &out)),
             Ok(out) => {
                 if check {
                     eprintln!("{}: not in the canonical layout", path);
