@@ -329,7 +329,7 @@ function withNotes(m, n, args) {
     });
 }
 
-/** A use of a pack's widget (devbench@1's stats, callout, tabs…), through the pack's 0.3 shim. */
+/** A use of a pack's widget (a stats, a callout, tabs…), through the pack's 0.3 shim. */
 function packUse(m, n, d, ctx) {
   let shim = m.packs.get(d.pack);
   if (!shim) m.packs.set(d.pack, (shim = new PackShim(m, d.pack, d.version)));

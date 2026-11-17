@@ -42,15 +42,15 @@ test('prose: what 0.3 reads differently is escaped, the rest passes through', ()
   assert.equal(tex('\\{ x \\}'), '\\\\{ x \\}');
 });
 
-test('a devbench@1 document: blocks become calls, YAML becomes record literals, containers take prose', () => {
-  const r = migrate(bundle('devbench-small.bundle.json'));
-  assert.match(r.doc, /^import devbench;/);
+test('a document using a pack: blocks become calls, YAML becomes record literals, containers take prose', () => {
+  const r = migrate(bundle('pack-small.bundle.json'));
+  assert.match(r.doc, /^import kit;/);
   assert.match(r.doc, /@callout\(title = "Deploys", tone = color\.WARN\) \{\nWe shipped \*\*42\*\* times\.\n\}/);
   assert.match(r.doc, /stat \{ label = "Rollbacks", value = "1", tone = color\.BAD \}/);
   assert.match(r.doc, /summary = "Two numbers from this week\."/);
   assert.match(r.doc, /@tabs \{\n@tab\(title = "Web"\) \{\nThe web app\.\n\}/);
   assert.match(r.doc, /\\@ops is on call/);
-  assert.match(r.packs.get('devbench'), /extern widget stats\(items: list<stat>, summary: text = ""\)/);
+  assert.match(r.packs.get('kit'), /extern widget stats\(items: list<stat>, summary: text = ""\)/);
   assert.equal(r.counts.fallbacks, 0);
   const c = check03(r);
   if (c) assert.deepEqual([c.fmt, c.check], [0, 0], c.out);
@@ -69,8 +69,8 @@ test("a document's own widget: inputs, a mut, events as fns, project md as a mar
 });
 
 test('the pack widgets mode writes a view where the definition migrates', () => {
-  const r = migrate(bundle('devbench-small.bundle.json'), { packWidgets: true });
-  assert.match(r.packs.get('devbench'), /^widget callout\(/m);
+  const r = migrate(bundle('pack-small.bundle.json'), { packWidgets: true });
+  assert.match(r.packs.get('kit'), /^widget callout\(/m);
   assert.ok(r.counts.packWidgetsWritten >= 1);
   const c = check03(r);
   if (c) assert.deepEqual([c.fmt, c.check], [0, 0], c.out);

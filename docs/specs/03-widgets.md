@@ -159,8 +159,6 @@ Layout is done by ordinary widgets wrapped around an element, not by special pro
 - **`min_size`** and **`max_size`** stop a child getting smaller or bigger than a size.
 - **`aspect`** ties its height to its width.
 
-*The six sizing wrappers: an interactive figure, in the DevBench doc.*
-
 ### Loops
 
 ```java

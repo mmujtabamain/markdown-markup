@@ -46,11 +46,11 @@ git archive origin/main | tar -x -C /tmp/mkp02 && cd /tmp/mkp02 && npx -y pnpm@1
 # one document
 node /tmp/mkp02/packages/cli/dist/mkp.cjs build doc.mkp.md --pack <0.2 packs> --target ir --out b
 node bin/migrate.mjs b/doc.ir.json --source doc.mkp.md --out out [--pack-widgets]
-mkp fmt out/doc.mkp.md && mkp check --pack out/packs/devbench out/doc.mkp.md
+mkp fmt out/doc.mkp.md && mkp check --pack out/packs/<pack> out/doc.mkp.md
 
 # the corpus, and its table (RESULTS.md)
 node corpus/run.mjs --root02 /tmp/mkp02 --mkp02 /tmp/mkp02/packages/cli/dist/mkp.cjs \
-  --docs <dir of `devbench doc get` output> --devbench-pack <devbench@1 0.2 pack> --cases <mkp cases output>
+  [--docs <dir of more 0.2 documents> --pack <the 0.2 pack they use>] [--cases <mkp cases output>]
 
 # the probe: 0.3 IR back to source, over the corpus's results
 node probe/roundtrip.mjs <corpus work dir>
@@ -92,7 +92,7 @@ A definition the migration can't write keeps its 0.2 source, quoted in comments 
 | `"a" + b`, `format(x, 2)`, `if(c, a, b)`, `not`/`and`/`or` | `"a\{b}"`, `x.fmt(2)`, `c ? a : b`, `!`/`&&`/`\|\|` |
 | `project md = …` | a `markdown` block. Text joined with `+` becomes prose with holes, `join(map(…))` becomes `@for`, `if` becomes `@if` |
 | a ```` ```state ```` block | `$state` fields; a slider becomes `@slider`, a toggle a switch `@press` |
-| a pack (devbench@1, a conformance pack, an example's) | a 0.3 pack. By default it is a shim: each widget an `extern widget` with the same signature and a generic markdown block. With `--pack-widgets`, each widget whose 0.2 view migrates is written with its view |
+| a pack (a conformance pack, an example's, any other) | a 0.3 pack. By default it is a shim: each widget an `extern widget` with the same signature and a generic markdown block. With `--pack-widgets`, each widget whose 0.2 view migrates is written with its view |
 
 Anything the tool can't write isn't dropped:
 

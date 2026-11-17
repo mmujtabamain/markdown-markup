@@ -1,4 +1,4 @@
-// A 0.2 pack (devbench@1, or any other a document uses) as a 0.3 shim: the same widgets with the same
+// A 0.2 pack (any pack a document uses) as a 0.3 shim: the same widgets with the same
 // inputs, records and choices, declared `extern widget` with a markdown block each. It is the pack's
 // interface, migrated mechanically from the definitions the bundle carries; how each widget is drawn
 // is the pack owner's to write in 0.3 (a view over core's widgets), against this same signature.

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Runs the migration over a corpus of real MKP 0.2 documents and writes a table of the results.
 //
-//   node corpus/run.mjs --root02 <0.2 tree> --mkp02 <0.2 cli> [--docs <dir of DevBench docs>]
-//        [--devbench-pack <devbench@1 0.2 pack>] [--mkp03 <0.3 mkp>] [--work <dir>] [--table RESULTS.md]
+//   node corpus/run.mjs --root02 <0.2 tree> --mkp02 <0.2 cli> [--docs <dir of 0.2 documents as .md>]
+//        [--pack <0.2 pack they use>] [--mkp03 <0.3 mkp>] [--work <dir>] [--table RESULTS.md]
 //        [--cases <dir of mkp cases output>] [--extra <dir of .mkp.md>] [--pack-widgets] [--no-source]
 //
 // For each document: 0.2 builds its bundle (mkp build --target ir) and its Markdown (--target md); the
@@ -13,7 +13,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { migrate } from '../src/migrate.mjs';
@@ -28,7 +28,8 @@ const opt = (name, d) => {
 const root02 = opt('--root02');
 const mkp02 = opt('--mkp02');
 const docsDir = opt('--docs');
-const devbenchPack = opt('--devbench-pack');
+// the pack --docs and --extra documents are built with
+const docsPack = opt('--pack');
 // cases 0.2 made from a pack's fixtures (mkp cases --pack <pack> --out <dir>): one bundle per widget
 const casesDir = opt('--cases');
 const mkp03 = resolve(opt('--mkp03', join(here, '../../../targets/rust/target/release/mkp')));
@@ -38,7 +39,7 @@ const packWidgets = args.includes('--pack-widgets');
 // --no-source: migrate from the IR alone, as the first prototype did
 const noSource = args.includes('--no-source');
 if (!root02 || !mkp02) {
-  console.error('usage: node corpus/run.mjs --root02 <0.2 tree> --mkp02 <0.2 cli> [--docs dir] [--devbench-pack dir] [--mkp03 mkp] [--work dir] [--table file]');
+  console.error('usage: node corpus/run.mjs --root02 <0.2 tree> --mkp02 <0.2 cli> [--docs dir] [--pack dir] [--mkp03 mkp] [--work dir] [--table file]');
   process.exit(2);
 }
 
@@ -62,7 +63,7 @@ for (const [dir, label] of [['changelog', 'changelog'], ['apps/site/docs-src', '
 const extra = opt('--extra');
 if (extra)
   for (const f of readdirSync(extra).filter((x) => x.endsWith('.mkp.md')).sort())
-    corpus.push({ id: `extra ${f.replace('.mkp.md', '')}`, group: 'written for this test', src: join(extra, f), packs: devbenchPack ? [devbenchPack] : [] });
+    corpus.push({ id: `extra ${f.replace('.mkp.md', '')}`, group: 'written for this test', src: join(extra, f), packs: docsPack ? [docsPack] : [] });
 for (const f of readdirSync(join(root02, 'docs')).filter((x) => x.endsWith('.md')).sort())
   corpus.push({ id: `docs ${f.replace('.md', '')}`, group: 'guides', src: join(root02, 'docs', f), packs: [], rename: true });
 for (const f of readdirSync(join(root02, 'conformance', 'cases')).filter((x) => /^base\..*\.json$/.test(x)).sort())
@@ -71,8 +72,8 @@ if (casesDir)
   for (const f of readdirSync(casesDir).filter((x) => x.endsWith('.cases.json')).sort())
     corpus.push({ id: `fixture ${f.replace('.cases.json', '')}`, group: 'pack fixtures (IR only)', cases: join(casesDir, f) });
 if (docsDir)
-  for (const f of readdirSync(docsDir).filter((x) => /^\d+\.md$/.test(x)).sort((a, b) => parseInt(a) - parseInt(b)))
-    corpus.push({ id: `DevBench #${f.replace('.md', '')}`, group: 'DevBench docs', src: join(docsDir, f), packs: devbenchPack ? [devbenchPack] : [], rename: true });
+  for (const f of readdirSync(docsDir).filter((x) => x.endsWith('.md')).sort())
+    corpus.push({ id: `doc ${f.replace(/(\.mkp)?\.md$/, '')}`, group: 'more documents', src: join(docsDir, f), packs: docsPack ? [docsPack] : [], rename: !f.endsWith('.mkp.md') });
 
 // ---------------------------------------------------------------------------------------------
 
@@ -115,7 +116,7 @@ for (const c of corpus) {
     bundle = kase.bundle;
     md02 = typeof kase.md === 'string' ? kase.md : typeof kase.md?.md === 'string' ? kase.md.md : null;
   } else {
-    // a 0.2 document is named .mkp.md; the guides and DevBench docs are plain .md
+    // a 0.2 document is named .mkp.md; the guides and --docs' documents may be plain .md
     const src = c.rename ? join(dir, 'source.mkp.md') : c.src;
     if (c.rename) copyFileSync(c.src, src);
     source = readFileSync(src, 'utf8');
@@ -127,7 +128,8 @@ for (const c of corpus) {
     const irFile = out.find((f) => f.endsWith('.ir.json'));
     if (!irFile) {
       r.result = 'not built by 0.2';
-      r.why = (b.stdout + b.stderr).trim().split('\n')[0];
+      // 0.2 names the file from where this runs: named here from the 0.2 tree, wherever that is
+      r.why = (b.stdout + b.stderr).trim().split('\n')[0].replaceAll(relative(process.cwd(), root02) + '/', '');
       continue;
     }
     bundle = JSON.parse(readFileSync(join(dir, '02', irFile), 'utf8'));

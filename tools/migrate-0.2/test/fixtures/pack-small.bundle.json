@@ -55,7 +55,7 @@
    },
    {
     "node": "callout",
-    "def": "devbench:callout@1",
+    "def": "kit:callout@1",
     "props": {
      "title": {
       "text": "Deploys"
@@ -90,7 +90,7 @@
    },
    {
     "node": "stats",
-    "def": "devbench:stats@1",
+    "def": "kit:stats@1",
     "props": {},
     "pos": [
      9,
@@ -166,7 +166,7 @@
    },
    {
     "node": "tabs",
-    "def": "devbench:tabs@1",
+    "def": "kit:tabs@1",
     "props": {},
     "pos": [
      16,
@@ -270,14 +270,14 @@
    ],
    "digest": "sha256:d773eda64d4ea0e7df9559ec0ae9841f5165f26f890c8e4ea385ab29676420e5"
   },
-  "devbench:tabs@1": {
+  "kit:tabs@1": {
    "ir": 1,
    "kind": "widget",
-   "id": "devbench:tabs@1",
+   "id": "kit:tabs@1",
    "name": "tabs",
    "version": 1,
-   "pack": "devbench",
-   "file": "devbench/tabs.mkp",
+   "pack": "kit",
+   "file": "kit/tabs.mkp",
    "about": "Panels under a row of tabs, one shown at a time.",
    "inputs": [
     {
@@ -1655,14 +1655,14 @@
    ],
    "digest": "sha256:371107047626bb3fd092ff55b9d94572ffb4947e6b75a475f7f9f162d6fc657f"
   },
-  "devbench:stats@1": {
+  "kit:stats@1": {
    "ir": 1,
    "kind": "widget",
-   "id": "devbench:stats@1",
+   "id": "kit:stats@1",
    "name": "stats",
    "version": 1,
-   "pack": "devbench",
-   "file": "devbench/stats.mkp",
+   "pack": "kit",
+   "file": "kit/stats.mkp",
    "about": "Key numbers in tiles: a label, the number large, how it changed, and a sparkline of its trend.",
    "inputs": [
     {
@@ -1735,7 +1735,7 @@
     {
      "k": "fn",
      "name": "moved",
-     "fn": "local:devbench:stats@1:moved#0",
+     "fn": "local:kit:stats@1:moved#0",
      "params": [
       {
        "name": "s",
@@ -1758,7 +1758,7 @@
     {
      "k": "fn",
      "name": "arrow",
-     "fn": "local:devbench:stats@1:arrow#0",
+     "fn": "local:kit:stats@1:arrow#0",
      "params": [
       {
        "name": "s",
@@ -1781,7 +1781,7 @@
     {
      "k": "fn",
      "name": "lo",
-     "fn": "local:devbench:stats@1:lo#0",
+     "fn": "local:kit:stats@1:lo#0",
      "params": [
       {
        "name": "xs",
@@ -1805,7 +1805,7 @@
     {
      "k": "fn",
      "name": "hi",
-     "fn": "local:devbench:stats@1:hi#0",
+     "fn": "local:kit:stats@1:hi#0",
      "params": [
       {
        "name": "xs",
@@ -1829,7 +1829,7 @@
     {
      "k": "fn",
      "name": "spark",
-     "fn": "local:devbench:stats@1:spark#0",
+     "fn": "local:kit:stats@1:spark#0",
      "params": [
       {
        "name": "xs",
@@ -2171,13 +2171,13 @@
             },
             {
              "node": "pill",
-             "def": "devbench:pill@1",
+             "def": "kit:pill@1",
              "props": {
               "icon": {
                "expr": "arrow(items[k])",
                "ast": {
                 "t": "call",
-                "fn": "local:devbench:stats@1:arrow#0",
+                "fn": "local:kit:stats@1:arrow#0",
                 "args": [
                  {
                   "t": "index",
@@ -2234,7 +2234,7 @@
                "expr": "moved(items[k])",
                "ast": {
                 "t": "call",
-                "fn": "local:devbench:stats@1:moved#0",
+                "fn": "local:kit:stats@1:moved#0",
                 "args": [
                  {
                   "t": "index",
@@ -2574,7 +2574,7 @@
                   "args": [
                    {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:lo#0",
+                    "fn": "local:kit:stats@1:lo#0",
                     "args": [
                      {
                       "t": "field",
@@ -2609,7 +2609,7 @@
                       "args": [
                        {
                         "t": "call",
-                        "fn": "local:devbench:stats@1:hi#0",
+                        "fn": "local:kit:stats@1:hi#0",
                         "args": [
                          {
                           "t": "field",
@@ -2632,7 +2632,7 @@
                        },
                        {
                         "t": "call",
-                        "fn": "local:devbench:stats@1:lo#0",
+                        "fn": "local:kit:stats@1:lo#0",
                         "args": [
                          {
                           "t": "field",
@@ -2675,7 +2675,7 @@
                   "args": [
                    {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:hi#0",
+                    "fn": "local:kit:stats@1:hi#0",
                     "args": [
                      {
                       "t": "field",
@@ -2710,7 +2710,7 @@
                       "args": [
                        {
                         "t": "call",
-                        "fn": "local:devbench:stats@1:hi#0",
+                        "fn": "local:kit:stats@1:hi#0",
                         "args": [
                          {
                           "t": "field",
@@ -2733,7 +2733,7 @@
                        },
                        {
                         "t": "call",
-                        "fn": "local:devbench:stats@1:lo#0",
+                        "fn": "local:kit:stats@1:lo#0",
                         "args": [
                          {
                           "t": "field",
@@ -2849,7 +2849,7 @@
                    "expr": "moved(items[k])",
                    "ast": {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:moved#0",
+                    "fn": "local:kit:stats@1:moved#0",
                     "args": [
                      {
                       "t": "index",
@@ -2907,7 +2907,7 @@
                            "args": [
                             {
                              "t": "call",
-                             "fn": "local:devbench:stats@1:lo#0",
+                             "fn": "local:kit:stats@1:lo#0",
                              "args": [
                               {
                                "t": "field",
@@ -2942,7 +2942,7 @@
                                "args": [
                                 {
                                  "t": "call",
-                                 "fn": "local:devbench:stats@1:hi#0",
+                                 "fn": "local:kit:stats@1:hi#0",
                                  "args": [
                                   {
                                    "t": "field",
@@ -2965,7 +2965,7 @@
                                 },
                                 {
                                  "t": "call",
-                                 "fn": "local:devbench:stats@1:lo#0",
+                                 "fn": "local:kit:stats@1:lo#0",
                                  "args": [
                                   {
                                    "t": "field",
@@ -2997,7 +2997,7 @@
                        },
                        {
                         "t": "call",
-                        "fn": "local:devbench:stats@1:spark#0",
+                        "fn": "local:kit:stats@1:spark#0",
                         "args": [
                          {
                           "t": "field",
@@ -3064,7 +3064,7 @@
                          "args": [
                           {
                            "t": "call",
-                           "fn": "local:devbench:stats@1:lo#0",
+                           "fn": "local:kit:stats@1:lo#0",
                            "args": [
                             {
                              "t": "field",
@@ -3099,7 +3099,7 @@
                              "args": [
                               {
                                "t": "call",
-                               "fn": "local:devbench:stats@1:hi#0",
+                               "fn": "local:kit:stats@1:hi#0",
                                "args": [
                                 {
                                  "t": "field",
@@ -3122,7 +3122,7 @@
                               },
                               {
                                "t": "call",
-                               "fn": "local:devbench:stats@1:lo#0",
+                               "fn": "local:kit:stats@1:lo#0",
                                "args": [
                                 {
                                  "t": "field",
@@ -3192,7 +3192,7 @@
                    "expr": "moved(items[k])",
                    "ast": {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:moved#0",
+                    "fn": "local:kit:stats@1:moved#0",
                     "args": [
                      {
                       "t": "index",
@@ -3225,7 +3225,7 @@
                    "expr": "spark(items[k].trend)",
                    "ast": {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:spark#0",
+                    "fn": "local:kit:stats@1:spark#0",
                     "args": [
                      {
                       "t": "field",
@@ -3294,7 +3294,7 @@
                    "expr": "moved(items[k])",
                    "ast": {
                     "t": "call",
-                    "fn": "local:devbench:stats@1:moved#0",
+                    "fn": "local:kit:stats@1:moved#0",
                     "args": [
                      {
                       "t": "index",
@@ -3620,7 +3620,7 @@
     }
    },
    "fns": {
-    "local:devbench:stats@1:moved#0": {
+    "local:kit:stats@1:moved#0": {
      "name": "moved",
      "params": [
       "s"
@@ -3750,9 +3750,9 @@
       4,
       3
      ],
-     "file": "devbench/stats.mkp"
+     "file": "kit/stats.mkp"
     },
-    "local:devbench:stats@1:arrow#0": {
+    "local:kit:stats@1:arrow#0": {
      "name": "arrow",
      "params": [
       "s"
@@ -3851,9 +3851,9 @@
       5,
       3
      ],
-     "file": "devbench/stats.mkp"
+     "file": "kit/stats.mkp"
     },
-    "local:devbench:stats@1:lo#0": {
+    "local:kit:stats@1:lo#0": {
      "name": "lo",
      "params": [
       "xs"
@@ -3928,9 +3928,9 @@
       6,
       3
      ],
-     "file": "devbench/stats.mkp"
+     "file": "kit/stats.mkp"
     },
-    "local:devbench:stats@1:hi#0": {
+    "local:kit:stats@1:hi#0": {
      "name": "hi",
      "params": [
       "xs"
@@ -4009,7 +4009,7 @@
         "args": [
          {
           "t": "call",
-          "fn": "local:devbench:stats@1:lo#0",
+          "fn": "local:kit:stats@1:lo#0",
           "args": [
            {
             "t": "var",
@@ -4032,9 +4032,9 @@
       7,
       3
      ],
-     "file": "devbench/stats.mkp"
+     "file": "kit/stats.mkp"
     },
-    "local:devbench:stats@1:spark#0": {
+    "local:kit:stats@1:spark#0": {
      "name": "spark",
      "params": [
       "xs"
@@ -4123,7 +4123,7 @@
       8,
       3
      ],
-     "file": "devbench/stats.mkp"
+     "file": "kit/stats.mkp"
     }
    },
    "digest": "sha256:52b9ca48ac58638814c1e394317a822b198926b75e158a1699e3019e31ff1fc8"
@@ -4786,14 +4786,14 @@
    ],
    "digest": "sha256:03d79534a74aaae74ec4acd6f7b3a2c60e1b5a98e7de2126d7089e274aadbf30"
   },
-  "devbench:pill@1": {
+  "kit:pill@1": {
    "ir": 1,
    "kind": "part",
-   "id": "devbench:pill@1",
+   "id": "kit:pill@1",
    "name": "pill",
    "version": 1,
-   "pack": "devbench",
-   "file": "devbench/pill.mkp",
+   "pack": "kit",
+   "file": "kit/pill.mkp",
    "about": "A short label on a pill in a tone, with an optional icon: a state, a version, a platform, a change.",
    "inputs": [
     {
@@ -5557,14 +5557,14 @@
    ],
    "digest": "sha256:c2b0a671edd1706ead5523c3142f50a5f8624a2651eb16edf221aa6f23af92b5"
   },
-  "devbench:callout@1": {
+  "kit:callout@1": {
    "ir": 1,
    "kind": "widget",
-   "id": "devbench:callout@1",
+   "id": "kit:callout@1",
    "name": "callout",
    "version": 1,
-   "pack": "devbench",
-   "file": "devbench/callout.mkp",
+   "pack": "kit",
+   "file": "kit/callout.mkp",
    "about": "A note set off from the text in its tone: a soft wash and a border all round, the icon and title in the tone over the message.",
    "inputs": [
     {
@@ -5631,7 +5631,7 @@
     {
      "k": "fn",
      "name": "glyph",
-     "fn": "local:devbench:callout@1:glyph#0",
+     "fn": "local:kit:callout@1:glyph#0",
      "params": [
       {
        "name": "t",
@@ -5786,7 +5786,7 @@
             },
             "a": {
              "t": "call",
-             "fn": "local:devbench:callout@1:glyph#0",
+             "fn": "local:kit:callout@1:glyph#0",
              "args": [
               {
                "t": "var",
@@ -6089,7 +6089,7 @@
             },
             "a": {
              "t": "call",
-             "fn": "local:devbench:callout@1:glyph#0",
+             "fn": "local:kit:callout@1:glyph#0",
              "args": [
               {
                "t": "var",
@@ -6252,7 +6252,7 @@
     }
    ],
    "fns": {
-    "local:devbench:callout@1:glyph#0": {
+    "local:kit:callout@1:glyph#0": {
      "name": "glyph",
      "params": [
       "t"
@@ -6361,7 +6361,7 @@
       7,
       3
      ],
-     "file": "devbench/callout.mkp"
+     "file": "kit/callout.mkp"
     }
    },
    "digest": "sha256:e77bf5f56e428f60c7c5b491323518ddaa010e7d6a582e70a5474fddad07be4c"
@@ -6529,7 +6529,7 @@
   "core:track": {
    "t": "text"
   },
-  "devbench:state": {
+  "kit:state": {
    "t": "choice",
    "opts": [
     "none",
@@ -6699,24 +6699,24 @@
     "digest": "sha256:371888c7c9b32b01fe72eb83d79674e0e3e66e6a1e0a70f533d592bcead7692f"
    },
    {
-    "pack": "devbench",
+    "pack": "kit",
     "version": 1,
     "digest": "sha256:bda3257618fe4f3c5cb58d51976d60d159035344b8093edeb7d790630e1537d9"
    }
   ],
   "defs": {
    "core:paragraph@1": "sha256:d773eda64d4ea0e7df9559ec0ae9841f5165f26f890c8e4ea385ab29676420e5",
-   "devbench:tabs@1": "sha256:4cb38fe8cc83786b21cdf61f26c2654bb66c431e08fa48dfb27a2e28b8e3f476",
+   "kit:tabs@1": "sha256:4cb38fe8cc83786b21cdf61f26c2654bb66c431e08fa48dfb27a2e28b8e3f476",
    "core:text@1": "sha256:38079126794bd3259f279b04e6f9ef019c6e560cecaa2fa4bff5847551070d3e",
    "core:press@1": "sha256:b0978320d2537aa692f4b2f2a4f9d191058317d6344619bd8c97cc565cc59215",
    "core:row@1": "sha256:791d50b1fab7f5db235c3b6fdd96802ebc3c74e63823dff14e6fccf7f702c063",
    "core:column@1": "sha256:371107047626bb3fd092ff55b9d94572ffb4947e6b75a475f7f9f162d6fc657f",
-   "devbench:stats@1": "sha256:52b9ca48ac58638814c1e394317a822b198926b75e158a1699e3019e31ff1fc8",
+   "kit:stats@1": "sha256:52b9ca48ac58638814c1e394317a822b198926b75e158a1699e3019e31ff1fc8",
    "core:canvas@1": "sha256:03d79534a74aaae74ec4acd6f7b3a2c60e1b5a98e7de2126d7089e274aadbf30",
-   "devbench:pill@1": "sha256:252586ffe0552ca9c98cc3f95dbf476f292c8c6fa9b58cc040b556c1bc8f6b64",
+   "kit:pill@1": "sha256:252586ffe0552ca9c98cc3f95dbf476f292c8c6fa9b58cc040b556c1bc8f6b64",
    "core:icon@1": "sha256:190d44531868c4552ab8931446d3520e3a40844dfc1aefef230389839a7b681b",
    "core:grid@1": "sha256:c2b0a671edd1706ead5523c3142f50a5f8624a2651eb16edf221aa6f23af92b5",
-   "devbench:callout@1": "sha256:e77bf5f56e428f60c7c5b491323518ddaa010e7d6a582e70a5474fddad07be4c",
+   "kit:callout@1": "sha256:e77bf5f56e428f60c7c5b491323518ddaa010e7d6a582e70a5474fddad07be4c",
    "core:heading@1": "sha256:6751348292b1b5da8b927ce763e71f06720e4aa8e96c8243a2c0477ea3a5f50d"
   }
  }
