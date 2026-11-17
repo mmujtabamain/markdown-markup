@@ -442,7 +442,7 @@ fn migrate_writes_json_lines_and_a_report() {
     let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--report", md.to_str().unwrap()]);
     assert_eq!(code, 0, "{}{}", out, err);
     let text = std::fs::read_to_string(&md).unwrap();
-    assert!(text.starts_with("# mkp migrate\n\n") && text.contains("1 migrated") && text.contains("report.mkp.md\n\nmigrated: kit@1 → kit@2.\n") && text.contains("\nDeleted:\n\n- "), "{}", text);
+    assert!(text.starts_with("# mkp migrate\n\n") && text.contains(": 1 file, 1 migrated") && text.contains("report.mkp.md\n\nmigrated: kit@1 → kit@2.\n") && text.contains("\nDeleted:\n\n- "), "{}", text);
     let js = dir.join("report.json");
     let (code, _, _) = mkp(&["migrate", docs.to_str().unwrap(), "--check", "--report", js.to_str().unwrap()]);
     assert_eq!(code, 0);

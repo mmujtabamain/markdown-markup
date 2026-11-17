@@ -579,8 +579,8 @@ impl Report<'_> {
     fn markdown(&self) -> String {
         let s = self.summary();
         let mut out = format!(
-            "# mkp migrate\n\nmkp {}, from mkp {}: {} files, {} migrated, {} to migrate, {} not written, {} skipped, {} up to date.\n",
-            RELEASE, self.from, s["files"], s["migrated"], s["to_migrate"], s["not_written"], s["skipped"], s["up_to_date"]
+            "# mkp migrate\n\nmkp {}, from mkp {}: {} file{}, {} migrated, {} to migrate, {} not written, {} skipped, {} up to date.\n",
+            RELEASE, self.from, s["files"], if self.results.len() == 1 { "" } else { "s" }, s["migrated"], s["to_migrate"], s["not_written"], s["skipped"], s["up_to_date"]
         );
         for (p, old, o) in self.results {
             out.push_str(&format!("\n## {}\n\n{}{}.\n", p.display(), self.result(p, old, o), if o.moved.is_empty() { String::new() } else { format!(": {}", o.moved.join(", ")) }));
