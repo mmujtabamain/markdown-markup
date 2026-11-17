@@ -642,3 +642,12 @@ fn every_command_takes_format_json_and_out() {
     assert_eq!((code, out.as_str()), (0, ""));
     assert_eq!(lines(&std::fs::read_to_string(dir.join("plan.jsonl")).unwrap()).last().unwrap()["type"], "summary");
 }
+
+#[test]
+fn surface_reads_a_pack_once_when_its_mkp_toml_lists_it_too() {
+    let dir = kit_tree("surface-toml", "packs = [\"kit\"]\n");
+    let out = Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(&dir).args(["surface", "kit", "--stdout"]).output().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(text.starts_with("package kit@2;"), "{}", text);
+}

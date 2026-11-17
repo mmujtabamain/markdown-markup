@@ -283,9 +283,11 @@ fn compare(base: &mkp_check::Checker, dir: &Path, want: &Value, got: &Value) -> 
 }
 
 fn repo() -> PathBuf {
-    // the repository: where `targets/checks` is, from here or above
+    // the repository: where `targets/checks` is, from here or above, else the one this mkp was
+    // built from, so the checks run from any folder
     let here = std::env::current_dir().unwrap_or_default();
-    here.ancestors().find(|d| d.join("targets/checks/cases").is_dir()).map(Path::to_path_buf).unwrap_or(here)
+    let built = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    here.ancestors().find(|d| d.join("targets/checks/cases").is_dir()).map(Path::to_path_buf).or_else(|| built.join("targets/checks/cases").is_dir().then(|| built.canonicalize().unwrap_or(built.clone()))).unwrap_or(here)
 }
 
 /// The cases that run on targets: every one whose source compiles. A case that expects a compile

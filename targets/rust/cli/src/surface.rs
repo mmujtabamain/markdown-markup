@@ -169,7 +169,9 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         }
     };
     let dir_path = Path::new(dir);
-    let deps: Vec<mkp_check::Source> = deps.into_iter().filter(|s| !Path::new(&s.path).starts_with(dir_path)).collect();
+    // the pack's own files aren't its dependencies, however an mkp.toml names them
+    let mine = std::fs::canonicalize(dir_path).ok();
+    let deps: Vec<mkp_check::Source> = deps.into_iter().filter(|s| !Path::new(&s.path).starts_with(dir_path) && mine.as_ref().map_or(true, |m| !std::fs::canonicalize(&s.path).map_or(false, |p| p.starts_with(m)))).collect();
     // the pack has to compile: a surface of a broken pack would promise what nothing provides
     let own: Vec<mkp_check::Source> = files.iter().filter(|s| parse(&s.text, Entry::Mkp).file.map_or(true, |f| f.surface.is_none())).cloned().collect();
     let c = mkp_check::compile(&crate::core_sources(), &[deps, files.iter().filter(|s| !own.iter().any(|o| o.path == s.path)).cloned().collect()], &own, "main");
