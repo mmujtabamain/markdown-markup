@@ -65,4 +65,4 @@ def take(t):
     r.run("defect", "target check names its cases, and a defect the target doesn't have…")
     t.beat(r.out("defect", "the target's adapter didn't run"), "…is an error, exit 2, never \"caught\".", 3.4)
 
-    r.end("All of it is in the merge request, with a test for each.", 3.0)
+    r.end("All of it is on the branch, in f6a1596, with a test for each.", 3.0)
