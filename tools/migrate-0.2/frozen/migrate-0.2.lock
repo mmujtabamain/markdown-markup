@@ -1,0 +1,7 @@
+# The frozen 0.2 → 0.3 step, built once by frozen/build.mjs for MKP 0.3.0. mkp checks the file
+# against sha256 before it runs it.
+file = "migrate-0.2.cjs"
+sha256 = "e49357cfbe9dccad17176407b69343838f076b6f9d1fabb30bc64b69479b13b3"
+mkp02 = "0.2.10"
+mkp02_commit = "e896e6b2f73ba99ffb86261ad795d1489fbeee72"
+esbuild = "0.24.2"

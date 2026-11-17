@@ -16,7 +16,7 @@ pub mod proof;
 pub mod ty;
 mod migrations;
 mod rir;
-pub use rir::compile_rir;
+pub use rir::{compile_rir, sha256_hex};
 mod versions;
 mod view;
 

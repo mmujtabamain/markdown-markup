@@ -334,3 +334,60 @@ fn migrate_takes_a_prose_calls_block_from_the_parser_fences_and_all() {
     assert_eq!(code, 0, "{}{}", out, err);
     assert_eq!(std::fs::read_to_string(docs.join("code.mkp.md")).unwrap(), "import kit;\n@@@\n# Code\n\n@holder(title = \"Q3\") {\n@card {\n```js\nif (x) {\n}\n```\n}\n}\n\nAfter.\n");
 }
+
+const COUNTER_02: &str = "---\nteaches: \"reader state, a press and an event\"\n---\n# A counter\n\n```mkp\ncounter \"A number the reader steps up or down.\"\n  in start int = 0 \"where it begins\"\n  var n int = start\n  row gap=m align=center\n    press label=\"one less\"\n      icon name=minus\n      @click set n=(n - 1)\n    text \"\\val{n}\" font=mono size=large weight=bold\n    press label=\"one more\"\n      icon name=plus\n      @click set n=(n + 1)\n  project md = \"Count: \" + format(n, 0)\n```\n\n```counter\nstart: 3\nsummary: A counter that starts at 3.\n```\n";
+const RUNS_02: &str = "---\nmkp: 0.2.10\nir: 1\n---\n# Two runs\n\n```distance@1\nkm: 21.0975\nlabel: A half marathon\nsummary: A half marathon's distance.\n```\n";
+const UNITS_02_MANIFEST: &str = "pack units@1 \"Distances shown in kilometres and miles.\"\n  requires core@1\n  provides distance\n";
+const UNITS_02_DISTANCE: &str = "distance@1 \"A distance in kilometres, with its miles beside it.\"\n  in km num \"the distance in kilometres\"\n  in label text = \"\" \"what the distance is\"\n  miles = km / 1.609344\n  row gap=s align=baseline\n    text label tone=muted if=(label != \"\")\n    text \"\\val{format(km, 1)} km\" font=mono weight=bold\n    text \"(\\val{format(miles, 1)} mi)\" tone=muted\n  project md = (if(label != \"\", label + \": \", \"\")) + format(km, 1) + \" km (\" + format(miles, 1) + \" mi)\"\n";
+
+#[test]
+fn migrate_moves_a_0_2_document_with_0_2_10s_own_compiler() {
+    let plain = "# Notes\n\n```js\nlet x = 1;\n```\n";
+    let files = [("docs/counter.mkp.md", COUNTER_02), ("docs/runs.mkp.md", RUNS_02), ("docs/plain.mkp.md", plain), ("old/units/manifest.mkp", UNITS_02_MANIFEST), ("old/units/distance.mkp", UNITS_02_DISTANCE)];
+    let dir = scratch("migrate-02", &files);
+    let (docs, old) = (dir.join("docs"), dir.join("old/units"));
+    let (d, o) = (docs.to_str().unwrap(), old.to_str().unwrap());
+    // the counter is 0.2's by what 0.2.10 finds in it, runs.mkp.md by its stamp; plain Markdown reads the same in both
+    let (code, out, _) = mkp(&["migrate", d, "--pack", o, "--dry-run"]);
+    assert_eq!(code, 1, "{}", out);
+    assert!(out.contains("counter.mkp.md  mkp 0.2 → 0.3  1 change; 1 to know (written for MKP 0.2, as 0.2.10 builds it)"), "{}", out);
+    assert!(out.contains("plain.mkp.md    up to date"), "{}", out);
+    // units has no 0.3 release here: only a stand-in, so runs.mkp.md is refused without --todo
+    assert!(out.contains("runs.mkp.md     mkp 0.2 → 0.3  not written: 0.3 can't yet say 1 thing") && out.contains("--todo writes it"), "{}", out);
+    let (code, out, err) = mkp(&["migrate", d, "--pack", o, "--yes", "--todo"]);
+    assert_eq!(code, 1, "a stand-in is a person's to replace: {}{}", out, err);
+    let counter = std::fs::read_to_string(docs.join("counter.mkp.md")).unwrap();
+    assert!(counter.contains("widget counter(start: int = 0) {") && counter.contains("\n@@@\n") && counter.contains("@counter(start = 3);"), "{}", counter);
+    assert_eq!(std::fs::read_to_string(docs.join("plain.mkp.md")).unwrap(), plain);
+    let stand_in = std::fs::read_to_string(docs.join("stand-ins/units/units.mkp")).unwrap();
+    assert!(stand_in.starts_with("package units;\n// TODO(mkp migrate): a stand-in made from the 0.2 definitions of units,") && stand_in.contains("extern widget distance(km: number"), "{}", stand_in);
+    let runs = std::fs::read_to_string(docs.join("runs.mkp.md")).unwrap();
+    assert!(!runs.contains("mkp: 0.2.10") && runs.contains("import units;") && runs.contains("@distance(km = 21.0975, label = \"A half marathon\""), "{}", runs);
+    let stand_ins = docs.join("stand-ins");
+    assert_eq!(mkp(&["check", "--pack", stand_ins.to_str().unwrap(), docs.join("runs.mkp.md").to_str().unwrap(), docs.join("counter.mkp.md").to_str().unwrap()]).0, 0);
+    // now 0.3: a second run leaves them alone
+    let (code, out, _) = mkp(&["migrate", d, "--pack", &format!("{},{}", stand_ins.display(), o), "--check"]);
+    assert_eq!(code, 0, "{}", out);
+}
+
+#[test]
+fn migrate_uses_a_packs_own_0_3_release_and_checks_the_0_2_step_it_runs() {
+    let units3 = "package units;\n\npack units@1 {\n    uses core@1;\n    provides distance;\n}\n\nextern widget distance(km: number, label: text = \"\", summary: text = \"\");\n";
+    let dir = scratch("migrate-02-own", &[("docs/runs.mkp.md", RUNS_02), ("old/units/manifest.mkp", UNITS_02_MANIFEST), ("old/units/distance.mkp", UNITS_02_DISTANCE), ("units/units.mkp", units3)]);
+    let docs = dir.join("docs");
+    let packs = format!("{},{}", dir.join("old/units").display(), dir.join("units").display());
+    // with units' own 0.3 release in the build, nothing is a stand-in and nothing needs --todo
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--pack", &packs, "--yes"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(!docs.join("stand-ins").exists());
+    assert_eq!(mkp(&["check", "--pack", dir.join("units").to_str().unwrap(), docs.join("runs.mkp.md").to_str().unwrap()]).0, 0);
+    // a frozen step that isn't the one mkp was built with is never run
+    std::fs::write(docs.join("runs.mkp.md"), RUNS_02).unwrap();
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tools/migrate-0.2/frozen/migrate-0.2.cjs");
+    let changed = dir.join("migrate-0.2.cjs");
+    std::fs::write(&changed, format!("{}\n// changed\n", std::fs::read_to_string(repo).unwrap())).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(["migrate", docs.to_str().unwrap(), "--pack", &packs, "--dry-run"]).env("MKP_MIGRATE_02", &changed).output().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(text.contains("isn't the 0.2 → 0.3 step this mkp was built with (its SHA-256 differs): not run"), "{}", text);
+}

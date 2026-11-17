@@ -20,7 +20,9 @@ const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.
   Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
   --dry-run and --diff show what would change, --check fails if anything would.
   What a migration can't do refuses the file; --todo leaves that code as it was with a TODO above
-  it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.";
+  it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.
+  A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
+  only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.";
 
 /// `--allow-errors`: a file that doesn't compile afterwards is written all the same.
 static ALLOW_ERRORS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -52,6 +54,8 @@ struct Outcome {
     /// What `--todo` left for a person, and the errors `--allow-errors` wrote it with.
     todos: Vec<String>,
     errors: Vec<String>,
+    /// The stand-in packs it is checked against, written with it.
+    stand_ins: Vec<String>,
 }
 
 pub fn migrate_cmd(args: &[String]) -> ExitCode {
@@ -119,6 +123,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         }
     }
+    // a 0.2 pack (a folder with a manifest.mkp, or a .zip) is the 0.2 step's; the rest are 0.3's
+    let (rest, packs02) = split_02_packs(rest);
     if yes {
         *crate::migrate_step::YES.lock().unwrap() = Some(if yes_to.is_empty() { crate::migrate_step::Yes::All } else { crate::migrate_step::Yes::Numbers(yes_to) });
     }
@@ -160,12 +166,18 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             results.push((path, old, o));
         }
     }
+    // stand-ins for the 0.2 packs that have no 0.3 release here, beside the documents
+    let stand_in_dir = targets.first().map(|t| if Path::new(t).is_dir() { PathBuf::from(t) } else { Path::new(t).parent().map(Path::to_path_buf).unwrap_or_default() }).unwrap_or_default().join("stand-ins");
+    let mut stand_ins: BTreeMap<String, (PathBuf, String)> = BTreeMap::new();
     for d in &docs {
         let Ok(text) = std::fs::read_to_string(d) else {
             eprintln!("{}: can't be read", d.display());
             return ExitCode::from(2);
         };
-        let o = migrate_doc(&base, &packs, &sources, &now, d, &text, &from, &uses);
+        let o = match migrate_02_doc(&base, &packs, &sources, &now, d, &text, &packs02, &mut stand_ins, &stand_in_dir, &uses) {
+            Some(o) => o,
+            None => migrate_doc(&base, &packs, &sources, &now, d, &text, &from, &uses),
+        };
         results.push((d.clone(), text, o));
     }
 
@@ -291,6 +303,21 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
         written += 1;
+        for name in &o.stand_ins {
+            let (file, text) = &stand_ins[name];
+            if std::fs::read_to_string(file).ok().as_deref() == Some(text.as_str()) {
+                continue;
+            }
+            let wrote = std::fs::create_dir_all(file.parent().unwrap_or(Path::new("."))).and_then(|_| std::fs::write(file, text));
+            if let Err(e) = wrote {
+                eprintln!("{}: {}", file.display(), e);
+                return ExitCode::from(2);
+            }
+            println!("{}: a stand-in for {}, written from its 0.2 definitions.", file.display(), name);
+        }
+    }
+    if to_write.iter().any(|(_, _, o)| !o.stand_ins.is_empty()) {
+        println!("The documents are checked against the stand-ins with: mkp check --pack {} …", stand_in_dir.display());
     }
     println!("Wrote {} file{}.", written, if written == 1 { "" } else { "s" });
     // the tree is written for the newer versions once every file in it moved
@@ -426,6 +453,116 @@ fn stamp(text: &str) -> BTreeMap<String, u32> {
         }
     }
     out
+}
+
+/// The `--pack` folders and files that are 0.2 packs, taken out of the arguments the 0.3 build reads.
+fn split_02_packs(args: Vec<String>) -> (Vec<String>, Vec<PathBuf>) {
+    let (mut rest, mut old) = (Vec::new(), Vec::new());
+    let mut k = 0;
+    while k < args.len() {
+        let list = match args[k].as_str() {
+            "--pack" if k + 1 < args.len() => {
+                k += 1;
+                Some(args[k].clone())
+            }
+            a if a.starts_with("--pack=") => Some(a["--pack=".len()..].to_string()),
+            _ => None,
+        };
+        match list {
+            Some(list) => {
+                let (o2, o3): (Vec<&str>, Vec<&str>) = list.split(',').filter(|x| !x.is_empty()).partition(|x| crate::migrate_02::is_pack(Path::new(x)));
+                old.extend(o2.into_iter().map(PathBuf::from));
+                if !o3.is_empty() {
+                    rest.push("--pack".to_string());
+                    rest.push(o3.join(","));
+                }
+            }
+            None => rest.push(args[k].clone()),
+        }
+        k += 1;
+    }
+    (rest, old)
+}
+
+/// A document written for MKP 0.2: moved by the frozen 0.2 step, then through the packs'
+/// migrations as a 0.3 document is. `None` for a document that is 0.3's: one with a `@@@` line, one
+/// that compiles, or one 0.2.10 doesn't build either.
+#[allow(clippy::too_many_arguments)]
+fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, packs02: &[PathBuf], stand_ins: &mut BTreeMap<String, (PathBuf, String)>, stand_in_dir: &Path, uses: &BTreeMap<String, u32>) -> Option<Outcome> {
+    let doc_path = path.display().to_string();
+    let compiles = |world: &[Source], text: &str| mkp_check::compile_on(base, &[world.to_vec()], &[Source { path: doc_path.clone(), text: text.to_string() }], "doc");
+    let stamped = crate::migrate_02::stamped(text);
+    // 0.3's: a `@@@` line, or 0.3 in its prose; Markdown alone reads the same in both
+    if !stamped && (text.lines().any(|l| l.trim_end() == "@@@") || crate::migrate_02::speaks_03(text)) {
+        return None;
+    }
+    let mut o = Outcome { text: text.to_string(), moved: vec!["mkp 0.2 → 0.3".to_string()], ..Outcome::default() };
+    let m = match crate::migrate_02::run(path, packs02) {
+        Ok(m) => m,
+        Err(e) if stamped => {
+            o.refused.push(e);
+            return Some(o);
+        }
+        Err(_) => return None,
+    };
+    if m.plain && !stamped {
+        return None;
+    }
+    if !stamped {
+        o.inferred.push("written for MKP 0.2, as 0.2.10 builds it".to_string());
+    }
+    o.text = m.doc;
+    o.changes = 1;
+    o.notices = m.notes;
+    o.todos = m.todos;
+    // each pack it uses: its own 0.3 release where the build has one, else a stand-in made from its
+    // 0.2 definitions, which is a person's to replace
+    let mut world = now.to_vec();
+    let mut from: BTreeMap<String, u32> = BTreeMap::new();
+    for (name, shim) in &m.packs {
+        if packs.iter().any(|p| p.name == *name) {
+            from.insert(name.clone(), crate::migrate_02::version_of(shim).unwrap_or(1));
+            continue;
+        }
+        let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.mkp", name)), String::new()));
+        entry.1 = if entry.1.is_empty() { crate::migrate_02::marked(shim, name) } else { crate::migrate_02::merge(&entry.1, shim) };
+        o.todos.push(format!("{} has no 0.3 release here: a stand-in made from its 0.2 definitions ({}) until its own replaces it", name, entry.0.display()));
+        o.stand_ins.push(name.clone());
+        world.push(Source { path: entry.0.display().to_string(), text: entry.1.clone() });
+    }
+    if !o.todos.is_empty() && !crate::migrate_step::TODO.load(std::sync::atomic::Ordering::Relaxed) {
+        let n = o.todos.len();
+        o.refused.push(format!("0.3 can't yet say {} thing{} the way 0.2 did ({}): --todo writes it with a TODO at each", n, if n == 1 { "" } else { "s" }, o.todos.join("; ")));
+        return Some(o);
+    }
+    // then up to the versions of the 0.3 packs it uses, through their migrations
+    if !from.is_empty() {
+        let next = migrate_doc(base, packs, sources, &world, path, &o.text, &from, uses);
+        o.moved.extend(next.moved.iter().cloned());
+        o.changes += next.changes;
+        o.deletions.extend(next.deletions);
+        o.notices.extend(next.notices);
+        o.todos.extend(next.todos);
+        o.errors.extend(next.errors);
+        o.refused.extend(next.refused);
+        o.inferred.extend(next.inferred);
+        o.text = next.text;
+        if !o.refused.is_empty() || next.moved.len() > 0 {
+            return Some(o);
+        }
+    }
+    let c = compiles(&world, &o.text);
+    if c.module.is_none() {
+        let lines = Lines::new(&o.text);
+        let errs: Vec<String> = c.errors().filter(|d| d.file == doc_path).take(3).map(|d| format!("line {}: {}", lines.place(d.diagnostic.span.start).line, d.diagnostic.message)).collect();
+        let why = format!("it doesn't compile as 0.3 ({})", if errs.is_empty() { "an error in a pack".to_string() } else { errs.join("; ") });
+        if ALLOW_ERRORS.load(std::sync::atomic::Ordering::Relaxed) {
+            o.errors.push(why);
+        } else {
+            o.refused.push(why);
+        }
+    }
+    Some(o)
 }
 
 #[allow(clippy::too_many_arguments)]

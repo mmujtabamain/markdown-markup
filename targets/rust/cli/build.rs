@@ -16,4 +16,15 @@ fn main() {
     out.push_str("];\n");
     let dest = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("core.rs");
     std::fs::write(dest, out).unwrap();
+
+    // the frozen 0.2 → 0.3 step (tools/migrate-0.2/frozen): its SHA-256 from its lock, and where it
+    // is in the repository, when this build is made from one that has it
+    let frozen = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tools/migrate-0.2/frozen");
+    let lock = frozen.join("migrate-0.2.lock");
+    println!("cargo:rerun-if-changed={}", lock.display());
+    let sha = std::fs::read_to_string(&lock).ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("sha256 = ").map(|v| v.trim_matches('"').to_string()))).unwrap_or_default();
+    let file = frozen.join("migrate-0.2.cjs");
+    let in_repo = if sha.is_empty() || !file.is_file() { String::new() } else { file.canonicalize().unwrap().display().to_string() };
+    println!("cargo:rustc-env=MKP_MIGRATE_02_SHA256={}", sha);
+    println!("cargo:rustc-env=MKP_MIGRATE_02_REPO={}", in_repo);
 }

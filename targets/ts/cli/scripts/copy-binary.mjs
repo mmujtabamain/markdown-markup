@@ -22,3 +22,10 @@ if (!existsSync(join(dir, "package.json"))) {
 copyFileSync(built, join(dir, "bin", exe));
 chmodSync(join(dir, "bin", exe), 0o755);
 console.log(`${platform}: ${join(dir, "bin", exe)}`);
+// MKP 0.3.0 only: the frozen 0.2 → 0.3 step beside the binary, where `mkp migrate` looks for it
+// (tools/migrate-0.2/frozen; later releases build without it)
+const frozen = join(here, "..", "..", "..", "..", "tools", "migrate-0.2", "frozen", "migrate-0.2.cjs");
+if (existsSync(frozen)) {
+  copyFileSync(frozen, join(dir, "bin", "migrate-0.2.cjs"));
+  console.log(`${platform}: ${join(dir, "bin", "migrate-0.2.cjs")}`);
+}

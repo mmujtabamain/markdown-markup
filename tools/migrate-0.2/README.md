@@ -1,6 +1,7 @@
 # migrate-0.2: MKP 0.2 documents to MKP 0.3, by way of the IR
 
-A prototype. It takes a document's **0.2 IR** (shape 1, the bundle `mkp build --target ir` writes) and
+`mkp migrate` runs it, frozen with 0.2.10's compiler into one file: see [frozen/](frozen/README.md).
+On its own, it takes a document's **0.2 IR** (shape 1, the bundle `mkp build --target ir` writes) and
 writes an **MKP 0.3 document** in canonical form, along with the 0.3 packs it imports. The 0.3 compiler
 then formats it (`mkp fmt`), checks it (`mkp check`) and makes its 0.3 IR (`mkp build`).
 
