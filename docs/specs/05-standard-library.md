@@ -30,6 +30,7 @@ How a value is shown in a hole:
 | `text` | Itself |
 | `duration` | Whole seconds as `2s`, anything else as `250ms` |
 | `date` | `2026-11-10` |
+| `theme` | `light` or `dark` |
 
 For anything meant for a reader, format it: `price.fmt(2)`.
 
@@ -1205,6 +1206,18 @@ enum head { NONE, ARROW, DOT }
 enum width { NARROW, MEDIUM, WIDE }
 enum theme { LIGHT, DARK }
 
+//@about The theme in words, as a hole shows it: `light` or `dark`.
+fn theme.show(self): text {
+    match (self) {
+        case theme.LIGHT {
+            return "light";
+        }
+        case theme.DARK {
+            return "dark";
+        }
+    }
+}
+
 enum track {
     AUTO,
     FR(share: int 1...),
@@ -1228,7 +1241,7 @@ enum glyph {
 }
 ```
 
-These are ordinary enums, so `match` on any of them has to cover every case. Tokens are open, which is why a `match` on one needs `case else`.
+These are ordinary enums, so `match` on any of them has to cover every case. Tokens are open, which is why a `match` on one needs `case else`. `theme` fits shown, through its `show`, so a page can say which theme it is drawn in: `\{$state.theme}` in prose shows `light` or `dark`.
 
 #### page
 

@@ -13,6 +13,18 @@ enum head { NONE, ARROW, DOT }
 enum width { NARROW, MEDIUM, WIDE }
 enum theme { LIGHT, DARK }
 
+//@about The theme in words, as a hole shows it: `light` or `dark`.
+fn theme.show(self): text {
+    match (self) {
+        case theme.LIGHT {
+            return "light";
+        }
+        case theme.DARK {
+            return "dark";
+        }
+    }
+}
+
 enum track {
     AUTO,
     FR(share: int 1...),
