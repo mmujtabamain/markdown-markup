@@ -36,6 +36,24 @@ pub(crate) fn stamped(text: &str) -> bool {
     })
 }
 
+/// What only MKP 0.2 wrote: a ```mkp fence of definitions, a fence named after a widget and its
+/// version (```distance@1), or a container (:::callout). A file with one is taken for 0.2's when the
+/// 0.2 step can't run to say.
+pub(crate) fn looks_02(text: &str) -> Option<&'static str> {
+    text.lines().map(str::trim_start).find_map(|l| {
+        if let Some(info) = l.strip_prefix("```") {
+            let info = info.trim();
+            if info == "mkp" {
+                return Some("a ```mkp fence");
+            }
+            if info.split_once('@').map_or(false, |(w, v)| !w.is_empty() && w.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') && v.parse::<u32>().is_ok()) {
+                return Some("a widget's fence, ```name@N");
+            }
+        }
+        l.strip_prefix(":::").and_then(|r| r.chars().next()).filter(|c| c.is_ascii_lowercase()).map(|_| "a :::container")
+    })
+}
+
 /// MKP 0.3 in a document's prose: a call, a control line or a hole, as 0.3's parser reads it. A
 /// 0.2 document has none: its widgets are fences and its values `\val{…}`.
 pub(crate) fn speaks_03(text: &str) -> bool {
@@ -71,20 +89,26 @@ fn frozen() -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// Why the step gave no 0.3 document: 0.2.10 doesn't build the file, or the step couldn't run.
+pub(crate) enum Failed {
+    NotBuilt(String),
+    NotRun(String),
+}
+
 /// Runs the frozen step on one document, with the 0.2 packs it is built with.
-pub(crate) fn run(doc: &Path, packs: &[PathBuf]) -> Result<Migrated, String> {
-    let file = frozen()?;
+pub(crate) fn run(doc: &Path, packs: &[PathBuf]) -> Result<Migrated, Failed> {
+    let file = frozen().map_err(Failed::NotRun)?;
     let node = std::env::var_os("MKP_NODE").unwrap_or_else(|| "node".into());
     let mut cmd = Command::new(&node);
     cmd.arg(&file).arg(doc);
     for p in packs {
         cmd.arg("--pack").arg(p);
     }
-    let out = cmd.output().map_err(|e| format!("the 0.2 → 0.3 step runs with Node 20 or later, and `{}` can't be run: {}", node.to_string_lossy(), e))?;
-    let v: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|_| format!("the 0.2 → 0.3 step failed: {}", String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("no output")))?;
+    let out = cmd.output().map_err(|e| Failed::NotRun(format!("the 0.2 → 0.3 step runs with Node 20 or later, and `{}` can't be run: {}", node.to_string_lossy(), e)))?;
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|_| Failed::NotRun(format!("the 0.2 → 0.3 step failed: {}", String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("no output"))))?;
     if let Some(e) = v["error"].as_str() {
         let first = v["diagnostics"].as_array().and_then(|d| d.first()).and_then(|d| d.as_str()).map(|d| format!(": {}", d)).unwrap_or_default();
-        return Err(format!("{}{}", e, first));
+        return Err(Failed::NotBuilt(format!("{}{}", e, first)));
     }
     let counts = v["counts"].as_object().map_or(0, |c| c.values().filter_map(|x| x.as_u64()).sum::<u64>());
     let migrated = v["doc"].as_str().unwrap_or_default();
@@ -166,6 +190,14 @@ mod tests {
         assert_eq!(m.matches("record stat {").count(), 1, "{}", m);
         assert!(m.contains("extern widget stats(") && m.contains("//@about A box.\nextern widget callout("), "{}", m);
         assert_eq!(version_of(&m), Some(1));
+    }
+
+    #[test]
+    fn what_only_0_2_wrote_marks_a_file_as_0_2s() {
+        assert_eq!(looks_02("# A\n\n```mkp\ncounter\n```\n"), Some("a ```mkp fence"));
+        assert_eq!(looks_02("```distance@1\nkm: 1\n```\n"), Some("a widget's fence, ```name@N"));
+        assert_eq!(looks_02(":::callout title=\"x\"\nHi\n:::\n"), Some("a :::container"));
+        assert_eq!(looks_02("# A\n\n```js\nlet a = b@1;\n```\n"), None);
     }
 
     #[test]

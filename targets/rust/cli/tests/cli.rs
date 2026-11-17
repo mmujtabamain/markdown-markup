@@ -537,3 +537,26 @@ fn fmt_surface_and_migrate_each_check_show_the_change_or_print_one_file() {
     assert!(out.contains("+package kit@2;"), "{}", out);
     assert!(!kit.join("surfaces/kit@2.mkp").exists());
 }
+
+#[test]
+fn the_walkthroughs_bugs_stay_fixed() {
+    // every file refused: nothing to write, so no git notice, no "rewrites 0 files", no "Wrote 0 files"
+    let doc = format!("{}\n@badge(label = $state.s == state.LATE ? \"Late\" : \"On time\");\n", OLD_DOC);
+    let dir = scratch("bugs-refused", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", &doc)]);
+    let (code, out, _) = mkp(&["migrate", dir.join("docs").to_str().unwrap(), "--yes", "--allow-dirty"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("not written") && !out.contains("rewrites") && !out.contains("Wrote") && !out.contains("not in git"), "{}", out);
+    // one error, reported once, however many passes read the name
+    let graphs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../examples/graphs/release-flow.mkp.md");
+    let (_, _, err) = mkp(&["check", graphs.to_str().unwrap()]);
+    assert_eq!(err.matches(":5:17: error[names.unknown-type]").count(), 1, "{}", err);
+    // a pack's file named by a relative path, under an mkp.toml that lists its pack, is one file
+    let dir = kit_tree("bugs-relative", "packs = [\"kit\"]\n");
+    let out = Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(&dir).args(["check", "kit/kit.mkp"]).output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    // mkp md --json ends its output with a line break
+    let counter = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../schemas/examples/counter.mkp.md");
+    let (code, out, err) = mkp(&["md", "--json", counter.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert!(out.ends_with("]\n") || out.ends_with("}\n"), "{:?}", out.chars().rev().take(5).collect::<String>());
+}

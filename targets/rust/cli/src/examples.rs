@@ -76,7 +76,8 @@ fn holds(base: &mkp_check::Checker, file: &str, text: &str, packs: &[Source], m:
     let name = m.from.name.name.clone();
     let from: u32 = m.from.version.name.parse().map_err(|_| "the migration's version isn't a number".to_string())?;
     let to: u32 = m.to.version.name.parse().map_err(|_| "the migration's version isn't a number".to_string())?;
-    let mut sources: Vec<Source> = packs.iter().filter(|s| s.path != file).cloned().collect();
+    let me = std::fs::canonicalize(file).ok();
+    let mut sources: Vec<Source> = packs.iter().filter(|s| s.path != file && (me.is_none() || std::fs::canonicalize(&s.path).ok() != me)).cloned().collect();
     sources.push(Source { path: file.to_string(), text: text.to_string() });
     let pack = packs_of(&sources).into_iter().find(|p| p.name == name).ok_or_else(|| format!("{} isn't in the build", name))?;
     let view = matches!(before.kind, ExprKind::View(_));

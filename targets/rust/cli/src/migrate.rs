@@ -313,6 +313,9 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if !o.todos.is_empty() {
                 parts.push(format!("{} TODO{}", o.todos.len(), if o.todos.len() == 1 { "" } else { "s" }));
             }
+            if !o.stand_ins.is_empty() {
+                parts.push(format!("{} stand-in{}", o.stand_ins.len(), if o.stand_ins.len() == 1 { "" } else { "s" }));
+            }
             if !o.errors.is_empty() {
                 parts.push("doesn't compile".to_string());
             }
@@ -348,6 +351,15 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         say!("\nleft for a person, each with a TODO above it:");
         for t in &todos {
             say!("  {}", t);
+        }
+    }
+    let mut needed: Vec<&String> = to_write.iter().flat_map(|(_, _, o)| o.stand_ins.iter()).collect();
+    needed.sort();
+    needed.dedup();
+    if !needed.is_empty() {
+        say!("\nstand-ins, each with a TODO at its top, until the pack's own 0.3 release replaces it:");
+        for name in needed {
+            say!("  {}: {}", stand_ins[name].0.display(), name);
         }
     }
     let errors: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.errors.iter().map(move |e| format!("{}: {}", p.display(), e))).collect();
@@ -386,7 +398,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             print!("{}", o.text);
             break 'run if need > 0 || !o.todos.is_empty() || !o.errors.is_empty() { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
-        if to_write.is_empty() && !record_moves {
+        // nothing to write: no file moves, and the release mkp.toml says moves only with every file
+        if to_write.is_empty() && (!record_moves || need > 0) {
             break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
         if check {
@@ -396,14 +409,21 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
         // git: what can be undone, and what has edits of its own
-        let paths: Vec<&Path> = to_write.iter().map(|(p, _, _)| p.as_path()).collect();
+        let mut paths: Vec<&Path> = to_write.iter().map(|(p, _, _)| p.as_path()).collect();
+        if paths.is_empty() {
+            paths.extend(config.as_deref());
+        }
         let dirty = git_dirty(&paths);
         match &dirty {
             None => say!("\nnot in git: nothing can undo these changes; keep a copy first."),
             Some(d) if d.is_empty() => say!("\ngit: these files are in a git repository, and every change can be undone with git restore."),
             Some(d) => say!("\ngit: these files are in a git repository; {} {} uncommitted changes of {} own, which the migration's would mix with.", d.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "), if d.len() == 1 { "has" } else { "have" }, if d.len() == 1 { "its" } else { "their" }),
         }
-        say!("warning: this rewrites {} file{} in place{}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, if record_moves { ", and the release mkp.toml says" } else { "" });
+        if to_write.is_empty() {
+            say!("warning: this rewrites only the release mkp.toml says.");
+        } else {
+            say!("warning: this rewrites {} file{} in place{}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, if record_moves { ", and the release mkp.toml says" } else { "" });
+        }
         if terminal && !yes {
             print!("Continue? [y/N] ");
             let _ = std::io::stdout().flush();
@@ -444,7 +464,9 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         if to_write.iter().any(|(_, _, o)| !o.stand_ins.is_empty()) {
             say!("The documents are checked against the stand-ins with: mkp check --pack {} …", stand_in_dir.display());
         }
-        say!("Wrote {} file{}.", wrote.len(), if wrote.len() == 1 { "" } else { "s" });
+        if !to_write.is_empty() {
+            say!("Wrote {} file{}.", wrote.len(), if wrote.len() == 1 { "" } else { "s" });
+        }
         // the tree is written for the newer versions once every file in it moved
         if let Some(cfg) = config.as_ref().filter(|_| need == 0 && wrote.len() == to_write.len()) {
             let to: BTreeMap<String, u32> = packs.iter().filter(|p| uses.get(&p.name).map_or(false, |v| *v < p.version)).map(|p| (p.name.clone(), p.version)).collect();
@@ -465,7 +487,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         }
         // a file written with a TODO or with errors is still a person's to finish
-        let left = to_write.iter().any(|(_, _, o)| !o.todos.is_empty() || !o.errors.is_empty());
+        let left = to_write.iter().any(|(_, _, o)| !o.todos.is_empty() || !o.errors.is_empty() || !o.stand_ins.is_empty());
         if need > 0 || wrote.len() < to_write.len() || left {
             ExitCode::from(1)
         } else {
@@ -570,7 +592,7 @@ impl Report<'_> {
             let mut f = self.file(p, old, o, false);
             f["type"] = "file".into();
             out.push(f.to_string());
-            for (kind, xs) in [("inferred", &o.inferred), ("deletion", &o.deletions), ("to_know", &o.notices), ("todo", &o.todos), ("error", &o.errors), ("refused", &o.refused)] {
+            for (kind, xs) in [("inferred", &o.inferred), ("deletion", &o.deletions), ("to_know", &o.notices), ("todo", &o.todos), ("stand_in", &o.stand_ins), ("error", &o.errors), ("refused", &o.refused)] {
                 for x in xs {
                     out.push(serde_json::json!({ "type": "note", "file": p.display().to_string(), "kind": kind, "text": x }).to_string());
                 }
@@ -605,7 +627,7 @@ impl Report<'_> {
         );
         for (p, old, o) in self.results {
             out.push_str(&format!("\n## {}\n\n{}{}.\n", p.display(), self.result(p, old, o), if o.moved.is_empty() { String::new() } else { format!(": {}", o.moved.join(", ")) }));
-            for (title, xs) in [("Inferred", &o.inferred), ("Refused", &o.refused), ("Deleted", &o.deletions), ("To know", &o.notices), ("TODO", &o.todos), ("Errors", &o.errors)] {
+            for (title, xs) in [("Inferred", &o.inferred), ("Refused", &o.refused), ("Deleted", &o.deletions), ("To know", &o.notices), ("TODO", &o.todos), ("Stand-ins", &o.stand_ins), ("Errors", &o.errors)] {
                 if !xs.is_empty() {
                     out.push_str(&format!("\n{}:\n\n", title));
                     for x in xs {
@@ -839,7 +861,15 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
     let mut o = Outcome { text: text.to_string(), moved: vec!["mkp 0.2 → 0.3".to_string()], ..Outcome::default() };
     let m = match crate::migrate_02::run(path, packs02) {
         Ok(m) => m,
-        Err(e) if stamped => {
+        Err(crate::migrate_02::Failed::NotBuilt(e)) if stamped => {
+            o.refused.push(e);
+            return Some(o);
+        }
+        // the step couldn't run, so it can't say: a file that only 0.2 would write is refused
+        Err(crate::migrate_02::Failed::NotRun(e)) if stamped || crate::migrate_02::looks_02(text).is_some() => {
+            if !stamped {
+                o.inferred.push(format!("taken as MKP 0.2's: it has {}", crate::migrate_02::looks_02(text).unwrap_or("0.2's marks")));
+            }
             o.refused.push(e);
             return Some(o);
         }
@@ -880,13 +910,14 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
         }
         let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.mkp", name)), String::new()));
         entry.1 = if entry.1.is_empty() { crate::migrate_02::marked(shim, name) } else { crate::migrate_02::merge(&entry.1, shim) };
-        o.todos.push(format!("{} has no 0.3 release here: a stand-in made from its 0.2 definitions ({}) until its own replaces it", name, entry.0.display()));
         o.stand_ins.push(name.clone());
         world.push(Source { path: entry.0.display().to_string(), text: entry.1.clone() });
     }
-    if !o.todos.is_empty() && !crate::migrate_step::TODO.load(std::sync::atomic::Ordering::Relaxed) {
-        let n = o.todos.len();
-        o.refused.push(format!("0.3 can't yet say {} thing{} the way 0.2 did ({}): --allow-todos writes it with a TODO at each", n, if n == 1 { "" } else { "s" }, o.todos.join("; ")));
+    if (!o.todos.is_empty() || !o.stand_ins.is_empty()) && !crate::migrate_step::TODO.load(std::sync::atomic::Ordering::Relaxed) {
+        let mut what: Vec<String> = o.todos.clone();
+        what.extend(o.stand_ins.iter().map(|p| format!("{} has no 0.3 release here, so it needs a stand-in made from its 0.2 definitions", p)));
+        let n = what.len();
+        o.refused.push(format!("0.3 can't yet say {} thing{} the way 0.2 did ({}): --allow-todos writes it with a TODO at each", n, if n == 1 { "" } else { "s" }, what.join("; ")));
         return Some(o);
     }
     // then up to the versions of the 0.3 packs it uses, through their migrations
@@ -1201,10 +1232,10 @@ fn git_dirty(paths: &[&Path]) -> Option<Vec<PathBuf>> {
     Some(dirty)
 }
 
-/// A unified diff of one file, line by line.
+/// A unified diff of one file: its changes in hunks, with three lines around each, the old lines
+/// before the new.
 pub(crate) fn unified(path: &str, old: &str, new: &str) -> String {
     let (a, b): (Vec<&str>, Vec<&str>) = (old.lines().collect(), new.lines().collect());
-    let mut out = format!("--- {}\n+++ {}\n", path, path);
     // the longest common subsequence, as a table: small files, small cost
     let (n, m) = (a.len(), b.len());
     let mut t = vec![vec![0u32; m + 1]; n + 1];
@@ -1213,17 +1244,45 @@ pub(crate) fn unified(path: &str, old: &str, new: &str) -> String {
             t[i][j] = if a[i] == b[j] { t[i + 1][j + 1] + 1 } else { t[i + 1][j].max(t[i][j + 1]) };
         }
     }
+    // the edit, line by line: (' ' | '-' | '+', old line, new line)
+    let mut ops: Vec<(char, usize, usize)> = Vec::new();
     let (mut i, mut j) = (0, 0);
     while i < n || j < m {
         if i < n && j < m && a[i] == b[j] {
+            ops.push((' ', i, j));
             i += 1;
             j += 1;
-        } else if j < m && (i == n || t[i][j + 1] >= t[i + 1][j]) {
-            out.push_str(&format!("@@ {} @@\n+{}\n", j + 1, b[j]));
-            j += 1;
+        } else if i < n && (j == m || t[i + 1][j] >= t[i][j + 1]) {
+            ops.push(('-', i, j));
+            i += 1;
         } else {
-            out.push_str(&format!("@@ {} @@\n-{}\n", i + 1, a[i]));
-            i += 1;
+            ops.push(('+', i, j));
+            j += 1;
+        }
+    }
+    const AROUND: usize = 3;
+    let changed: Vec<usize> = ops.iter().enumerate().filter(|(_, o)| o.0 != ' ').map(|(k, _)| k).collect();
+    let mut out = format!("--- {}\n+++ {}\n", path, path);
+    let mut k = 0;
+    while k < changed.len() {
+        // one hunk: changes closer than twice the context run together
+        let first = changed[k];
+        let mut last = first;
+        while k + 1 < changed.len() && changed[k + 1] - last <= 2 * AROUND + 1 {
+            k += 1;
+            last = changed[k];
+        }
+        k += 1;
+        let (from, to) = (first.saturating_sub(AROUND), (last + AROUND + 1).min(ops.len()));
+        let part = &ops[from..to];
+        let olds = part.iter().filter(|o| o.0 != '+').count();
+        let news = part.iter().filter(|o| o.0 != '-').count();
+        let (a0, b0) = (part[0].1, part[0].2);
+        let start = |at: usize, len: usize| if len == 0 { at } else { at + 1 };
+        out.push_str(&format!("@@ -{},{} +{},{} @@\n", start(a0, olds), olds, start(b0, news), news));
+        for (op, x, y) in part {
+            let line = if *op == '+' { b[*y] } else { a[*x] };
+            out.push_str(&format!("{}{}\n", op, line));
         }
     }
     out
@@ -1247,5 +1306,20 @@ mod tests {
         let later = crate::releases::between("0.3.2", "0.4.0", crate::releases::tests::STEPS);
         let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.mkp.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "mkp 0.3.2 → 0.4.0");
         assert_eq!((o.text.as_str(), o.refused), (doc, vec!["mkp 0.4.0: a form only a person can rewrite".to_string()]));
+    }
+}
+
+#[cfg(test)]
+mod diff_tests {
+    use super::unified;
+
+    #[test]
+    fn a_diff_is_hunks_with_three_lines_around_each_change_old_before_new() {
+        let old = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\n";
+        let new = "a\nB\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nM\n";
+        assert_eq!(unified("f", old, new), "--- f\n+++ f\n@@ -1,5 +1,5 @@\n a\n-b\n+B\n c\n d\n e\n@@ -10,4 +10,4 @@\n j\n k\n l\n-m\n+M\n");
+        // changes close together share a hunk; a file that was empty starts at line 0
+        assert_eq!(unified("f", "a\nb\nc\n", "a\nx\nc\ny\n"), "--- f\n+++ f\n@@ -1,3 +1,4 @@\n a\n-b\n+x\n c\n+y\n");
+        assert_eq!(unified("f", "", "a\n"), "--- f\n+++ f\n@@ -0,0 +1,1 @@\n+a\n");
     }
 }

@@ -511,7 +511,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
     for t in &targets {
         match run_target(&base, t, &cases, defect.as_deref()) {
             Ok((obs, fails, steps)) => {
-                println!("{}: {} cases, {} steps, {} differ from the case", t.name, cases.len(), steps, fails.len());
+                println!("{}: {} cases, {} steps, {} {} from the case", t.name, cases.len(), steps, fails.len(), if fails.len() == 1 { "differs" } else { "differ" });
                 failures.extend(fails);
                 results.push((t.name.clone(), obs));
             }
@@ -543,7 +543,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
     match (failures.is_empty(), expect_failures) {
         (true, false) => ExitCode::SUCCESS,
         (false, true) => {
-            println!("caught: {} differences", failures.len());
+            println!("caught: {} difference{}", failures.len(), if failures.len() == 1 { "" } else { "s" });
             ExitCode::SUCCESS
         }
         (true, true) => {

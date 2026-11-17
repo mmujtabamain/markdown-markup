@@ -431,7 +431,15 @@ impl Checker {
 
     pub fn error(&mut self, file: usize, code: &'static str, span: Span, message: impl Into<String>) {
         let path = self.files[file].path.clone();
-        self.diags.push(Found { file: path, diagnostic: Diagnostic::error(code, span, message) });
+        self.report(Found { file: path, diagnostic: Diagnostic::error(code, span, message) });
+    }
+
+    /// A diagnostic, once: a name read in several passes is reported where it is, not once a pass.
+    fn report(&mut self, f: Found) {
+        let d = &f.diagnostic;
+        if !self.diags.iter().any(|x| x.file == f.file && x.diagnostic.code == d.code && x.diagnostic.span == d.span && x.diagnostic.message == d.message) {
+            self.diags.push(f);
+        }
     }
 
     /// A reference, logged when the log is on.
@@ -443,7 +451,7 @@ impl Checker {
 
     pub fn warning(&mut self, file: usize, code: &'static str, span: Span, message: impl Into<String>) {
         let path = self.files[file].path.clone();
-        self.diags.push(Found { file: path, diagnostic: Diagnostic::warning(code, span, message) });
+        self.report(Found { file: path, diagnostic: Diagnostic::warning(code, span, message) });
     }
 
     /// Reads a file and adds it to its pack. A file that doesn't read gives its syntax error.

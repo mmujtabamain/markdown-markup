@@ -45,7 +45,7 @@ describe("each defect is caught", { concurrency: 4 }, () => {
     test(`${name}: ${what}`, async () => {
       const r = await check("--defect", name, "--expect-failures");
       assert.equal(r.status, 0, `nothing caught ${name}:\n${r.stdout}${r.stderr}`);
-      assert.match(r.stdout, /caught: \d+ differences/);
+      assert.match(r.stdout, /caught: \d+ differences?/);
     });
   }
 });

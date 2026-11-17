@@ -125,6 +125,13 @@ fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Opti
     Ok((files, all, out))
 }
 
+/// The packs without the file itself, however each names it: a relative path given, and the
+/// same file found through an mkp.toml's absolute one, are one file.
+fn without(packs: &[mkp_check::Source], path: &str) -> Vec<mkp_check::Source> {
+    let me = std::fs::canonicalize(path).ok();
+    packs.iter().filter(|p| std::path::Path::new(&p.path) != std::path::Path::new(path) && (me.is_none() || std::fs::canonicalize(&p.path).ok() != me)).cloned().collect()
+}
+
 /// `mkp build doc.mkp.md [--pack a,b] [--rir] [-o out.ir.json]`: one standalone IR, core and the packs
 /// in it; with `--rir`, the resolved IR of the document and its packs instead.
 fn build(args: &[String]) -> ExitCode {
@@ -149,6 +156,7 @@ fn build(args: &[String]) -> ExitCode {
     let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
     let rir = args.iter().any(|a| a == "--rir");
     let main = [mkp_check::Source { path: path.clone(), text }];
+    let packs = without(&packs, path);
     let (c, resolved) = if rir {
         let base = mkp_check::compile_core(&core_sources());
         mkp_check::compile_rir(&base, &[packs], &main, module)
@@ -318,7 +326,7 @@ fn check(args: &[String]) -> ExitCode {
         };
         // each file with core and the packs: a document, or a pack's file with the rest of its pack
         let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-        let packs: Vec<mkp_check::Source> = packs.iter().filter(|p| std::path::Path::new(&p.path) != std::path::Path::new(path)).cloned().collect();
+        let packs = without(&packs, path);
         let c = mkp_check::compile_on(&base, &[packs.clone()], &[mkp_check::Source { path: path.to_string(), text: src.clone() }], module);
         failed |= c.module.is_none();
         // a pack's migrations: each example run through its block, once the file compiles
@@ -380,7 +388,7 @@ fn md(args: &[String]) -> ExitCode {
         }
     };
     let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-    let c = mkp_check::compile(&core_sources(), &[packs], &[mkp_check::Source { path: path.clone(), text }], module);
+    let c = mkp_check::compile(&core_sources(), &[without(&packs, path)], &[mkp_check::Source { path: path.clone(), text }], module);
     for d in c.diagnostics.iter().filter(|d| d.diagnostic.is_error()) {
         eprintln!("{}", d.diagnostic.render(&d.file, &c.texts[&d.file]));
     }
@@ -393,7 +401,7 @@ fn md(args: &[String]) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let written = if json { serde_json::to_string_pretty(&mkp_markdown::blocks_json(&blocks)).unwrap() } else { mkp_markdown::write_page(m.front_matter.as_deref(), &blocks) };
+    let written = if json { serde_json::to_string_pretty(&mkp_markdown::blocks_json(&blocks)).unwrap() + "\n" } else { mkp_markdown::write_page(m.front_matter.as_deref(), &blocks) };
     match out {
         Some(o) => {
             if let Err(e) = std::fs::write(&o, written) {
