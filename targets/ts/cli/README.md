@@ -19,7 +19,7 @@ import mkp from "@mkp/cli/vite";
 export default { plugins: [mkp({ packs: ["./packs/maps"] })] };
 ```
 
-`npx mkp check|fmt|build|md …` runs the binary with the same arguments.
+`npx mkp check|fmt|build|md|surface|migrate …` runs the binary with the same arguments: `npx mkp surface packs/kit` writes a released version's surface, and `npx mkp migrate docs/` brings documents up to the versions of the packs they are built with (it asks first in a terminal; `--yes` writes elsewhere, `--dry-run` only looks).
 
 ## The binary
 
