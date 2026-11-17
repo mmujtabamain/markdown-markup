@@ -275,3 +275,48 @@ fn migrate_keeps_a_rewritten_uses_lines_and_comments() {
     // what it wrote is canonical
     assert_eq!(mkp(&["fmt", "--check", docs.join("a.mkp.md").to_str().unwrap()]).0, 0);
 }
+
+#[test]
+fn migrate_numbers_its_questions_and_yes_answers_the_ones_named() {
+    let dir = kit_tree("migrate-yes", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let migration = MIGRATION
+        .replace("when = !given(size)", "when = confirm(why = \"Make kit@1's badges small?\")")
+        .replace("rename(input = color, to = tone);", "rename(input = color, to = tone);\n        set(input = tone, value = color.ACCENT, when = confirm(why = \"Reset every chart's tone?\"), why = \"one tone for charts\");");
+    std::fs::write(dir.join("kit/migrations/kit@2.mkp"), migration).unwrap();
+    let docs = dir.join("docs");
+    // no terminal: every question is a no, and the summary says how to answer each
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--dry-run"]);
+    assert_eq!(code, 0, "{}", out);
+    assert!(out.contains("questions:\n  1. Make kit@1's badges small?  no: nobody to ask (--yes 1 answers yes)\n  2. Reset every chart's tone?  no: nobody to ask (--yes 2 answers yes)"), "{}", out);
+    // --yes 2: yes to the second only, and the files are written
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "2", "--allow-dirty"]);
+    assert_eq!(code, 0, "{}{}", out, err);
+    assert!(out.contains("1. Make kit@1's badges small?  no: --yes") && out.contains("2. Reset every chart's tone?  yes: --yes"), "{}", out);
+    let text = std::fs::read_to_string(docs.join("report.mkp.md")).unwrap();
+    assert!(text.contains("@plot(values = [1, 2], tone = color.ACCENT);") && text.contains("@badge(label = \"Beta\");"), "{}", text);
+    // and a number that isn't one is a usage error, as is --yes= with nothing
+    assert_eq!(mkp(&["migrate", docs.to_str().unwrap(), "--yes=", "--dry-run"]).0, 2);
+}
+
+#[test]
+fn migrate_leaves_a_todo_with_todo_and_writes_errors_only_with_allow_errors() {
+    let doc = format!("{}\n@badge(label = $state.s == state.LATE ? \"Late\" : \"On time\");\n", OLD_DOC);
+    let dir = scratch("migrate-todo", &[("kit/kit.mkp", KIT2), ("kit/surfaces/kit@1.mkp", KIT1_SURFACE), ("kit/migrations/kit@2.mkp", &MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");")), ("mkp.toml", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n"), ("docs/report.mkp.md", &doc)]);
+    let docs = dir.join("docs");
+    let file = docs.join("report.mkp.md");
+    // --todo leaves both cases as they were, with a TODO, and the file then doesn't compile
+    let (code, out, _) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--todo"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("not written") && out.contains("it doesn't compile afterwards"), "{}", out);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), doc);
+    // --allow-errors writes it, says so, and the run still fails: a person has to finish it
+    let (code, out, err) = mkp(&["migrate", docs.to_str().unwrap(), "--yes", "--allow-dirty", "--todo", "--allow-errors"]);
+    assert_eq!(code, 1, "{}{}", out, err);
+    assert!(out.contains("left for a person, each with a TODO above it:") && out.contains("written with errors (--allow-errors):"), "{}", out);
+    let text = std::fs::read_to_string(&file).unwrap();
+    // in code, `//`; on a line of prose, `@//`; the rest of the migration is done around them
+    assert!(text.contains("$state {\n    // TODO(mkp migrate): kit@2 splits LATE into OVERDUE or DONE: write the one this is (late is now overdue, or done)\n"), "{}", text);
+    assert!(text.contains("\n    s: state = state.LATE;\n"), "{}", text);
+    assert!(text.contains("\n@// TODO(mkp migrate): kit@2 splits LATE into OVERDUE or DONE: write the one this is (late is now overdue, or done)\n@badge(") && text.contains("\n@badge(label = $state.s == state.LATE ? \"Late\" : \"On time\", size = size.S);\n"), "{}", text);
+    assert!(text.contains("@plot(values = [1, 2], tone = color.OK);"), "{}", text);
+}

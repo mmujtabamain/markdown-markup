@@ -3,7 +3,7 @@
 //! checker finds, in place, after a summary, a warning and a y/n, and never writes a file that
 //! doesn't compile afterwards.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -13,10 +13,17 @@ use mkp_syntax::ast::{self, DeclKind, Item};
 use mkp_syntax::{parse, Entry, Lines};
 
 const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
-                  [--dry-run | --check | --diff] [--yes] [--allow-dirty] [--answers answers.toml]
+                  [--dry-run | --check | --diff] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
+                  [--todo] [--allow-errors]
   brings each document up to the version of each pack it is built with, in place.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
-  --dry-run and --diff show what would change, --check fails if anything would.";
+  Its questions are numbered: --yes answers yes to all of them, --yes 1,3 to those only.
+  --dry-run and --diff show what would change, --check fails if anything would.
+  What a migration can't do refuses the file; --todo leaves that code as it was with a TODO above
+  it. A file that doesn't compile afterwards isn't written; --allow-errors writes it anyway.";
+
+/// `--allow-errors`: a file that doesn't compile afterwards is written all the same.
+static ALLOW_ERRORS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A pack in the build: its version, the surfaces of earlier ones, and its migrations.
 struct Pack {
@@ -42,11 +49,20 @@ struct Outcome {
     /// Why it can't be written: a use only a person can move, or errors after.
     refused: Vec<String>,
     inferred: Vec<String>,
+    /// What `--todo` left for a person, and the errors `--allow-errors` wrote it with.
+    todos: Vec<String>,
+    errors: Vec<String>,
 }
 
 pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let flag = |f: &str| args.iter().any(|a| a == f);
-    let (dry, check, diff, yes, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--yes") || flag("-y"), flag("--allow-dirty"));
+    let (dry, check, diff, dirty_ok) = (flag("--dry-run"), flag("--check"), flag("--diff"), flag("--allow-dirty"));
+    crate::migrate_step::TODO.store(flag("--todo"), std::sync::atomic::Ordering::Relaxed);
+    ALLOW_ERRORS.store(flag("--allow-errors"), std::sync::atomic::Ordering::Relaxed);
+    // `--yes`, or `--yes 1,3` / `--yes 1 3`: the questions to answer yes, by number
+    let numbers = |v: &str| -> Option<Vec<usize>> { v.split(',').filter(|x| !x.is_empty()).map(|x| x.parse().ok()).collect::<Option<Vec<usize>>>().filter(|n| !n.is_empty()) };
+    let mut yes = false;
+    let mut yes_to: BTreeSet<usize> = BTreeSet::new();
     let mut from: BTreeMap<String, u32> = BTreeMap::new();
     let mut answers: Option<PathBuf> = None;
     let mut rest = Vec::new();
@@ -75,7 +91,24 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 answers = Some(PathBuf::from(f));
                 k += 2;
             }
-            "--dry-run" | "--check" | "--diff" | "--yes" | "-y" | "--allow-dirty" => k += 1,
+            "--yes" | "-y" => {
+                yes = true;
+                k += 1;
+                while let Some(ns) = args.get(k).and_then(|v| numbers(v)) {
+                    yes_to.extend(ns);
+                    k += 1;
+                }
+            }
+            a if a.starts_with("--yes=") => {
+                let Some(ns) = numbers(&a["--yes=".len()..]) else {
+                    eprintln!("--yes= takes the numbers of the questions to answer yes: --yes=1,3");
+                    return ExitCode::from(2);
+                };
+                yes = true;
+                yes_to.extend(ns);
+                k += 1;
+            }
+            "--dry-run" | "--check" | "--diff" | "--allow-dirty" | "--todo" | "--allow-errors" => k += 1,
             "--help" | "-h" => {
                 println!("{}", USAGE);
                 return ExitCode::SUCCESS;
@@ -85,6 +118,9 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 k += 1;
             }
         }
+    }
+    if yes {
+        *crate::migrate_step::YES.lock().unwrap() = Some(if yes_to.is_empty() { crate::migrate_step::Yes::All } else { crate::migrate_step::Yes::Numbers(yes_to) });
     }
     let (targets, sources, _) = match crate::options(&rest) {
         Ok(x) => x,
@@ -158,6 +194,12 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if !o.notices.is_empty() {
                 parts.push(format!("{} to know", o.notices.len()));
             }
+            if !o.todos.is_empty() {
+                parts.push(format!("{} TODO{}", o.todos.len(), if o.todos.len() == 1 { "" } else { "s" }));
+            }
+            if !o.errors.is_empty() {
+                parts.push("doesn't compile".to_string());
+            }
             println!("{}  {}  {}{}", name, o.moved.join(", "), parts.join("; "), if o.inferred.is_empty() { String::new() } else { format!(" ({})", o.inferred.join(", ")) });
             to_write.push((p.clone(), old.clone(), o));
         }
@@ -168,6 +210,28 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         println!("\nto know:");
         for n in notices {
             println!("  {}", n);
+        }
+    }
+    let asked = crate::migrate_step::ASKED.lock().unwrap().clone();
+    if !asked.is_empty() {
+        println!("\nquestions:");
+        for (k, (q, a, by)) in asked.iter().enumerate() {
+            let hint = if *by == "nobody to ask" { format!(" (--yes {} answers yes)", k + 1) } else { String::new() };
+            println!("  {}. {}  {}: {}{}", k + 1, q, if *a { "yes" } else { "no" }, by, hint);
+        }
+    }
+    let todos: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.todos.iter().map(move |t| format!("{}: {}", p.display(), t))).collect();
+    if !todos.is_empty() {
+        println!("\nleft for a person, each with a TODO above it:");
+        for t in &todos {
+            println!("  {}", t);
+        }
+    }
+    let errors: Vec<String> = to_write.iter().flat_map(|(p, _, o)| o.errors.iter().map(move |e| format!("{}: {}", p.display(), e))).collect();
+    if !errors.is_empty() {
+        println!("\nwritten with errors (--allow-errors):");
+        for e in &errors {
+            println!("  {}", e);
         }
     }
     let deletions: Vec<&String> = to_write.iter().flat_map(|(_, _, o)| o.deletions.iter()).collect();
@@ -240,7 +304,9 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             println!("{}: now written for {}.", cfg.display(), to.iter().map(|(p, v)| format!("{}@{}", p, v)).collect::<Vec<_>>().join(", "));
         }
     }
-    if need > 0 || written < to_write.len() {
+    // a file written with a TODO or with errors is still a person's to finish
+    let left = to_write.iter().any(|(_, _, o)| !o.todos.is_empty() || !o.errors.is_empty());
+    if need > 0 || written < to_write.len() || left {
         ExitCode::from(1)
     } else {
         ExitCode::SUCCESS
@@ -416,6 +482,7 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
             let _ = step_src;
             o.deletions.extend(done.deletions);
             o.notices.extend(done.notices);
+            o.todos.extend(done.todos);
             if !done.refused.is_empty() {
                 o.refused.extend(done.refused);
                 return o;
@@ -433,7 +500,12 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
     if c.module.is_none() {
         let lines = Lines::new(&o.text);
         let errs: Vec<String> = c.errors().filter(|d| d.file == doc_path).take(3).map(|d| format!("line {}: {}", lines.place(d.diagnostic.span.start).line, d.diagnostic.message)).collect();
-        o.refused.push(format!("it doesn't compile afterwards ({})", if errs.is_empty() { "an error in a pack".to_string() } else { errs.join("; ") }));
+        let why = format!("it doesn't compile afterwards ({})", if errs.is_empty() { "an error in a pack".to_string() } else { errs.join("; ") });
+        if ALLOW_ERRORS.load(std::sync::atomic::Ordering::Relaxed) {
+            o.errors.push(why);
+        } else {
+            o.refused.push(why);
+        }
     }
     o
 }
@@ -481,6 +553,7 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
                 let o = outcomes.get_mut(path).unwrap();
                 o.deletions.extend(done.deletions);
                 o.notices.extend(done.notices);
+                o.todos.extend(done.todos);
                 o.refused.extend(done.refused);
                 o.changes += done.changes;
                 *text = crate::migrate_step::apply(text, &done.edits);
@@ -518,7 +591,12 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
         o.text = text;
         o.moved = moved.clone();
         if !errors.is_empty() && o.refused.is_empty() {
-            o.refused.push(format!("the pack doesn't compile afterwards ({})", errors.join("; ")));
+            let why = format!("the pack doesn't compile afterwards ({})", errors.join("; "));
+            if ALLOW_ERRORS.load(std::sync::atomic::Ordering::Relaxed) {
+                o.errors.push(why);
+            } else {
+                o.refused.push(why);
+            }
         }
         let old = p.files.iter().find(|f| f.path == path).map(|f| f.text.clone()).unwrap_or_default();
         out.push((PathBuf::from(path), old, o));

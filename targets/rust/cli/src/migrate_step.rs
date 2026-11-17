@@ -66,6 +66,10 @@ pub(crate) struct Done {
     pub deletions: Vec<String>,
     pub notices: Vec<String>,
     pub refused: Vec<String>,
+    /// What `--todo` left for a person, each with a TODO above it.
+    pub todos: Vec<String>,
+    /// Where those TODOs go, and what each says: placed once the other edits are known.
+    pending: Vec<(usize, String)>,
 }
 
 /// One statement, with migration fns' calls replaced by their bodies.
@@ -272,18 +276,24 @@ impl<'a> Step<'a> {
                 semi = true;
             }
             let Some(mut model) = read_use(self.text, ws, we, &edits) else {
-                done.refused.push(format!("line {}: a use of {} written in a way {} can't read yet", line_of(ws), plan.key, self.label));
+                self.cannot(&mut done, ws, format!("a use of {} written in a way {} can't read yet", plan.key, self.label), &line_of);
                 continue;
             };
             let before = render(&model, false);
             let mut said = Vec::new();
+            let mut failed = None;
             for op in &plan.ops {
                 if let Err(why) = self.apply_op(op, &mut model, &plan.old, &plan.new, &plan.key, ws, &mut done, &mut said, &line_of) {
-                    done.refused.push(format!("line {}: {}", line_of(ws), why));
+                    failed = Some(why);
                     break;
                 }
             }
             done.notices.extend(said);
+            // a use the statements can't finish is left as it was
+            if let Some(why) = failed {
+                self.cannot(&mut done, ws, why, &line_of);
+                continue;
+            }
             let after = match &model.replaced {
                 Some(None) => {
                     done.deletions.push(format!("{}:{}  {} (kept as a comment){}", self.doc, line_of(ws), first_line(&self.text[ws..u.whole.end as usize]), model.why));
@@ -305,8 +315,27 @@ impl<'a> Step<'a> {
                 edits.push(Edit { start: ws, end: we, text: after });
             }
         }
+        for (at, why) in std::mem::take(&mut done.pending) {
+            place_todo(self.text, &mut edits, at, prose_from, &why);
+        }
         done.edits = edits;
         done
+    }
+
+    /// What a statement can't do to the code at `at`: the file is refused, or with `--todo`, the
+    /// code is left as it was with a TODO above it.
+    fn cannot(&self, done: &mut Done, at: usize, why: String, line_of: &dyn Fn(usize) -> usize) {
+        self.cannot_with(done, at, why.clone(), why, line_of);
+    }
+
+    /// As `cannot`, where the TODO says it for the file and `why` for the run.
+    fn cannot_with(&self, done: &mut Done, at: usize, why: String, todo: String, line_of: &dyn Fn(usize) -> usize) {
+        if TODO.load(std::sync::atomic::Ordering::Relaxed) {
+            done.todos.push(format!("line {}: {}", line_of(at), todo));
+            done.pending.push((at, todo));
+        } else {
+            done.refused.push(format!("line {}: {}", line_of(at), why));
+        }
     }
 
     /// A case's new name: one `rename(from = …)` gives, or the one a person picks for `split`.
@@ -329,7 +358,10 @@ impl<'a> Step<'a> {
                     match ask(&key, &format!("{}:{} uses {}, which {} replaces{}", self.doc, line_of(at), case, self.label, if why.is_empty() { String::new() } else { format!(": {}", why) }), &options) {
                         Some(pick) => return Some(pick),
                         None => {
-                            done.refused.push(format!("line {}: {} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", line_of(at), self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default()));
+                            let why_said = why.clone();
+                            let why = format!("{} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default());
+                            let todo = format!("{} splits {} into {}: write the one this is{}", self.label, case, options.join(" or "), if why_said.is_empty() { String::new() } else { format!(" ({})", why_said) });
+                            self.cannot_with(done, at, why, todo, line_of);
                             return None;
                         }
                     }
@@ -366,10 +398,10 @@ impl<'a> Step<'a> {
                                 done.changes += 1;
                                 edits.push(Edit { start: c, end: c, text: if inner.is_empty() { v } else { format!(", {}", v) } });
                             }
-                            None => done.refused.push(format!("line {}: {} adds an argument to {}, and this call can't be read", line_of(s), self.label, key)),
+                            None => self.cannot(done, s, format!("{} adds an argument to {}, and this call can't be read", self.label, key), line_of),
                         }
                     }
-                    "drop" | "set" | "move" => done.refused.push(format!("line {}: {} changes {}'s arguments ({}): change this call yourself", line_of(s), self.label, key, o)),
+                    "drop" | "set" | "move" => self.cannot(done, s, format!("{} changes {}'s arguments ({}): change this call yourself", self.label, key, o), line_of),
                     _ => {}
                 }
             }
@@ -1106,6 +1138,70 @@ fn comment_out(body: &str, before: &str, prose: bool, note: &str) -> String {
     out
 }
 
+fn line_start(text: &str, at: usize) -> usize {
+    text[..at].rfind('\n').map(|i| i + 1).unwrap_or(0)
+}
+
+/// A TODO line above the code at `at`. Its line takes the comment that is right there: `//` in
+/// code and inside a call's arguments, `@//` on a line of prose. Inside a fence, a maths block or
+/// a case line of `@match`, it goes above the whole block, where a comment is read as one.
+fn place_todo(text: &str, edits: &mut Vec<Edit>, at: usize, prose_from: usize, why: &str) {
+    fn walk(p: &ast::Prose, at: usize, text: &str) -> Option<(usize, &'static str)> {
+        let inside = |s: Span| s.start as usize <= at && at <= s.end as usize;
+        for n in &p.nodes {
+            match n {
+                ast::ProseNode::Fence(ls) | ast::ProseNode::Maths(ls) => {
+                    let (first, last) = (ls.first()?, ls.last()?);
+                    if inside(first.span.to(last.span)) {
+                        return Some((line_start(text, first.span.start as usize), "@//"));
+                    }
+                }
+                ast::ProseNode::Call(c) if inside(c.span) => {
+                    if at <= c.call.span.end as usize {
+                        let ls = line_start(text, at);
+                        return Some((ls, if ls == line_start(text, c.span.start as usize) { "@//" } else { "//" }));
+                    }
+                    return c.block.as_ref().and_then(|(b, _)| walk(b, at, text));
+                }
+                ast::ProseNode::If { branches, otherwise, span, .. } if inside(*span) => {
+                    return branches.iter().map(|(_, b, _)| b).chain(otherwise.iter().map(|(b, _)| b)).find_map(|b| walk(b, at, text));
+                }
+                ast::ProseNode::For { body, span, .. } | ast::ProseNode::Slot { body, span, .. } if inside(*span) => return walk(body, at, text),
+                ast::ProseNode::Match { cases, span, .. } if inside(*span) => {
+                    for c in cases.iter().filter(|c| inside(c.span)) {
+                        if line_start(text, at) == line_start(text, c.span.start as usize) {
+                            return Some((line_start(text, span.start as usize), "@//"));
+                        }
+                        return walk(&c.body, at, text);
+                    }
+                    return None;
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    let ls = line_start(text, at);
+    let (mut ls, mark) = if at < prose_from {
+        (ls, "//")
+    } else {
+        let parsed = parse(text, Entry::Document);
+        parsed.file.as_ref().and_then(|f| f.prose.as_ref()).and_then(|p| walk(p, at, text)).unwrap_or((ls, "@//"))
+    };
+    // above an edit that spans the line, so the TODO is never inside replaced text
+    while let Some(e) = edits.iter().filter(|e| e.start < ls && ls < e.end).min_by_key(|e| e.start) {
+        ls = line_start(text, e.start);
+    }
+    let indent: String = text[ls..].chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+    let line = format!("{}{} TODO(mkp migrate): {}\n", indent, mark, why);
+    // an edit starting on the TODO's own spot takes the line in front of its text
+    if let Some(e) = edits.iter_mut().find(|e| e.start == ls && e.end > ls) {
+        e.text = format!("{}{}", line, e.text);
+    } else {
+        edits.push(Edit { start: ls, end: ls, text: line });
+    }
+}
+
 pub(crate) fn matching(s: &str, open: usize) -> Option<usize> {
     let bytes = s.as_bytes();
     let (o, c) = match bytes.get(open)? {
@@ -1235,23 +1331,48 @@ pub(crate) fn answers_text() -> Option<String> {
     Some(out)
 }
 
-/// A yes or no for the whole run: from the answers, else asked once in a terminal, else no.
+/// `--todo`: what a migration can't do is left as it was, with a TODO above it, instead of the
+/// file being refused.
+pub(crate) static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// `--yes`: every question answered yes, or only the ones numbered (`--yes 1,3`).
+pub(crate) enum Yes {
+    All,
+    Numbers(BTreeSet<usize>),
+}
+
+pub(crate) static YES: std::sync::Mutex<Option<Yes>> = std::sync::Mutex::new(None);
+
+/// Every question asked, numbered in the order they came up: its answer, and who gave it.
+pub(crate) static ASKED: std::sync::Mutex<Vec<(String, bool, &'static str)>> = std::sync::Mutex::new(Vec::new());
+
+/// A yes or no for the whole run: from the answers, else `--yes`, else asked once in a terminal,
+/// else no.
 fn confirm(question: &str) -> Option<bool> {
-    let mut guard = ANSWERS.lock().unwrap();
-    let answers = guard.get_or_insert_with(Answers::default);
-    if let Some(a) = answers.confirm.get(question) {
+    let mut asked = ASKED.lock().unwrap();
+    if let Some((_, a, _)) = asked.iter().find(|(q, _, _)| q == question) {
         return Some(*a);
     }
-    if !std::io::stdin().is_terminal() {
-        return Some(false);
-    }
-    print!("{} [y/N] ", question);
-    let _ = std::io::stdout().flush();
-    let mut s = String::new();
-    let _ = std::io::stdin().read_line(&mut s);
-    let a = matches!(s.trim(), "y" | "Y" | "yes");
-    answers.confirm.insert(question.to_string(), a);
-    answers.changed = true;
+    let n = asked.len() + 1;
+    let mut guard = ANSWERS.lock().unwrap();
+    let answers = guard.get_or_insert_with(Answers::default);
+    let (a, by) = match (answers.confirm.get(question), &*YES.lock().unwrap()) {
+        (Some(a), _) => (*a, "--answers"),
+        (None, Some(Yes::All)) => (true, "--yes"),
+        (None, Some(Yes::Numbers(ns))) => (ns.contains(&n), "--yes"),
+        (None, None) if std::io::stdin().is_terminal() => {
+            print!("{}. {} [y/N] ", n, question);
+            let _ = std::io::stdout().flush();
+            let mut s = String::new();
+            let _ = std::io::stdin().read_line(&mut s);
+            let a = matches!(s.trim(), "y" | "Y" | "yes");
+            answers.confirm.insert(question.to_string(), a);
+            answers.changed = true;
+            (a, "asked")
+        }
+        (None, None) => (false, "nobody to ask"),
+    };
+    asked.push((question.to_string(), a, by));
     Some(a)
 }
 
