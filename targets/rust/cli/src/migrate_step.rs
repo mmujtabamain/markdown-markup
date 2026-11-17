@@ -76,11 +76,34 @@ enum Op {
     Event(String, Vec<Op>),
 }
 
+/// One argument of a use, as MKP's parser read it: its name, its value (with the edits inside it
+/// made), and the comments around it.
+#[derive(Clone, Debug)]
+struct UseArg(String, String, Notes);
+
+/// The comments around an argument, and whether it starts a line of its own.
+#[derive(Clone, Debug, Default)]
+struct Notes {
+    leading: Vec<String>,
+    trailing: Vec<(u32, String)>,
+    newline: bool,
+}
+
+impl UseArg {
+    fn new(name: impl Into<String>, value: impl Into<String>) -> UseArg {
+        UseArg(name.into(), value.into(), Notes::default())
+    }
+}
+
 /// A use as a call: `@name(args) { block }`, or a record literal `name { args }`.
 #[derive(Clone, Debug)]
 struct Use {
     name: String,
-    args: Vec<(String, String)>,
+    args: Vec<UseArg>,
+    /// Written over several lines: kept so, one argument a line, each with its comments.
+    multiline: bool,
+    /// The indentation of the line the use starts on.
+    indent: String,
     parens: bool,
     block: Option<String>,
     record: bool,
@@ -276,13 +299,10 @@ impl<'a> Step<'a> {
                 }
             };
             let before = if semi { format!("{};", before) } else { before };
-            // what the edits inside it already made is part of `before` only through them
-            let unchanged = within(self.text, (ws, we), &edits);
-            if after != before || model.replaced.is_some() || after != unchanged {
-                if after != unchanged {
-                    done.changes += 1;
-                    edits.push(Edit { start: ws, end: we, text: after });
-                }
+            // a use the statements leave as it was isn't written again: the edits inside it stand
+            if after != before || model.replaced.is_some() {
+                done.changes += 1;
+                edits.push(Edit { start: ws, end: we, text: after });
             }
         }
         done.edits = edits;
@@ -378,7 +398,7 @@ impl<'a> Step<'a> {
                 let mut current = name.clone();
                 for i in inner {
                     let Op::Call(o, args) = i else { continue };
-                    let pos = u.args.iter().position(|(n, _)| *n == current);
+                    let pos = u.args.iter().position(|a| a.0 == current);
                     match o.as_str() {
                         "rename" => {
                             if let Some(to) = arg_name(args, "to") {
@@ -414,7 +434,7 @@ impl<'a> Step<'a> {
                 match o.as_str() {
                     "rename" => {
                         if let (Some(m), Some(to)) = (&mem, arg_name(args, "to")) {
-                            if let Some(p) = u.args.iter().position(|(n, _)| n == m) {
+                            if let Some(p) = u.args.iter().position(|a| a.0 == *m) {
                                 u.args[p].0 = to;
                             }
                         } else if let Some(to) = arg_name(args, "to") {
@@ -425,7 +445,7 @@ impl<'a> Step<'a> {
                     }
                     "drop" => match &mem {
                         Some(m) => {
-                            if let Some(p) = u.args.iter().position(|(n, _)| n == m) {
+                            if let Some(p) = u.args.iter().position(|a| a.0 == *m) {
                                 let v = u.args[p].1.clone();
                                 if v.contains('\n') || v.trim_start().starts_with("fn(") {
                                     return Err(format!("{} drops {}.{}, and this use gives it code of its own: move it yourself", self.label, key, m));
@@ -445,9 +465,9 @@ impl<'a> Step<'a> {
                             return Ok(());
                         }
                         let value = args.iter().find(|(n, _)| n == "value").map(|(_, v)| print_expr(&env.subst(v))).ok_or("a set with no value")?;
-                        match u.args.iter().position(|(n, _)| *n == m) {
+                        match u.args.iter().position(|a| a.0 == m) {
                             Some(p) => u.args[p].1 = value,
-                            None => u.args.push((m, value)),
+                            None => u.args.push(UseArg::new(m, value)),
                         }
                         u.parens = true;
                     }
@@ -473,11 +493,11 @@ impl<'a> Step<'a> {
                     }
                     "flatten" => {
                         let r = arg_name(args, "input").ok_or("a flatten with no `input`")?;
-                        if let Some(p) = u.args.iter().position(|(n, _)| *n == r) {
+                        if let Some(p) = u.args.iter().position(|a| a.0 == r) {
                             let (_, fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} flattens {}.{}, and this use gives it something other than a record written out", self.label, key, r))?;
                             u.args.remove(p);
                             for (n, v) in fields.into_iter().rev() {
-                                u.args.insert(p, (n, v));
+                                u.args.insert(p, UseArg::new(n, v));
                             }
                         }
                     }
@@ -498,12 +518,12 @@ impl<'a> Step<'a> {
     fn move_value(&self, u: &mut Use, from: &[String], to: &[String], new: &DeclInfo, key: &str) -> Result<(), String> {
         // take it out
         let value = match from {
-            [m] => match u.args.iter().position(|(n, _)| n == m) {
+            [m] => match u.args.iter().position(|a| a.0 == *m) {
                 Some(p) => u.args.remove(p).1,
                 None => return Ok(()),
             },
             [r, f] => {
-                let Some(p) = u.args.iter().position(|(n, _)| n == r) else { return Ok(()) };
+                let Some(p) = u.args.iter().position(|a| a.0 == *r) else { return Ok(()) };
                 let (ty, mut fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} moves {}.{}.{}, and this use doesn't write {} out as a record", self.label, key, r, f, r))?;
                 let Some(fp) = fields.iter().position(|(n, _)| n == f) else { return Ok(()) };
                 let v = fields.remove(fp).1;
@@ -526,19 +546,19 @@ impl<'a> Step<'a> {
                 u.block = Some(format!("{{\n{}\n}}", as_prose(&value)));
             }
             [m] => {
-                u.args.push((m.clone(), value));
+                u.args.push(UseArg::new(m.clone(), value));
                 u.parens = true;
             }
             [r, f] => {
                 let ty = new.inputs.iter().find(|(n, _, _)| n == r).and_then(|(_, t, _)| t.clone()).ok_or_else(|| format!("{} moves into {}.{}, whose type isn't a record it can write", self.label, r, f))?;
-                match u.args.iter().position(|(n, _)| n == r) {
+                match u.args.iter().position(|a| a.0 == *r) {
                     Some(p) => {
                         let (t, mut fields) = read_record(&u.args[p].1).ok_or_else(|| format!("{} moves into {}.{}, and this use gives {} something other than a record written out", self.label, r, f, r))?;
                         fields.push((f.clone(), value));
                         u.args[p].1 = write_record(&t, &fields);
                     }
                     None => {
-                        u.args.push((r.clone(), write_record(&ty, &[(f.clone(), value)])));
+                        u.args.push(UseArg::new(r.clone(), write_record(&ty, &[(f.clone(), value)])));
                         u.parens = true;
                     }
                 }
@@ -677,7 +697,7 @@ impl Env {
             }
         }
         let mut given = BTreeSet::new();
-        for (n, v) in &u.args {
+        for UseArg(n, v, _) in &u.args {
             vals.insert(n.clone(), v.clone());
             given.insert(n.clone());
         }
@@ -836,33 +856,65 @@ fn is_use(whole: &str, key: &str) -> bool {
     (whole.starts_with('@') && whole[1..].starts_with(key)) || (whole.starts_with(key) && whole[key.len()..].trim_start().starts_with('{'))
 }
 
-/// A use read from the text, its argument values with the edits inside them made.
+/// A use read from the text by MKP's own parser: its head (`@name(…)` or `name { … }`) as a
+/// call or a record, each argument with its value's span, its comments and its line, and a call's
+/// block after it as it stands. Values come with the edits inside them made.
 fn read_use(text: &str, ws: usize, we: usize, edits: &[Edit]) -> Option<Use> {
     let s = &text[ws..we];
     let record = !s.starts_with('@');
     let name_start = if record { 0 } else { 1 };
     let name_len = s[name_start..].find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).unwrap_or(s.len() - name_start);
     let name = s[name_start..name_start + name_len].to_string();
-    let mut k = name_start + name_len;
-    let mut u = Use { name, args: Vec::new(), parens: false, block: None, record, wrappers: Vec::new(), replaced: None, arg_names: Vec::new(), why: String::new() };
+    let line_start = text[..ws].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let indent: String = text[line_start..ws].chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+    let mut u = Use { name, args: Vec::new(), multiline: false, indent, parens: false, block: None, record, wrappers: Vec::new(), replaced: None, arg_names: Vec::new(), why: String::new() };
     let open = if record { '{' } else { '(' };
+    let mut k = name_start + name_len;
     let rest = &s[k..];
     let skip = rest.len() - rest.trim_start().len();
     if s[k + skip..].starts_with(open) {
-        let o = k + skip;
-        let c = matching(s, o)?;
-        u.parens = !record;
-        for (ps, pe) in split_top(s, o + 1, c) {
-            let part = &s[ps..pe];
-            let eq = top_eq(part)?;
-            let n = part[..eq].trim();
-            let n_start = ps + part.find(n)?;
-            let v_start = ps + eq + 1 + (part[eq + 1..].len() - part[eq + 1..].trim_start().len());
-            let v_end = ps + part.trim_end().len();
-            u.arg_names.push((ws + n_start, ws + n_start + n.len()));
-            u.args.push((n.to_string(), within(text, (ws + v_start, ws + v_end), edits)));
+        let close = matching(s, k + skip)?;
+        // the head alone, parsed as a statement: a record literal is a let's value
+        let head = &s[..close + 1];
+        let prefix = if record { "let x: x = " } else { "" };
+        let parsed = parse(&format!("{}{};\n", prefix, head), Entry::Body);
+        if parsed.diagnostics.iter().any(|d| d.is_error()) {
+            return None;
         }
-        k = c + 1;
+        let file = parsed.file?;
+        let at = |pos: u32| ws + pos as usize - prefix.len();
+        let item = &file.items.first()?.item;
+        let group: Vec<(Option<ast::Ident>, Expr, &[ast::Leading], &[mkp_syntax::lexer::Comment], bool)>;
+        let multiline;
+        match item {
+            Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::View(v), .. })) if !record => {
+                let g = v.args.as_ref()?;
+                multiline = g.multiline;
+                group = g.items.iter().map(|n| (n.item.name.clone(), n.item.value.clone(), n.leading.as_slice(), n.trailing.as_slice(), n.newline)).collect();
+            }
+            // a let at the top of a fragment reads as a declaration
+            Item::Stmt(Stmt::Let(var)) | Item::Decl(ast::Decl { kind: DeclKind::Let(var), .. }) if record => {
+                let ExprKind::Record { inits, .. } = &var.value.kind else { return None };
+                multiline = inits.multiline;
+                group = inits.items.iter().map(|n| (Some(n.item.name.clone()), n.item.value.clone(), n.leading.as_slice(), n.trailing.as_slice(), n.newline)).collect();
+            }
+            _ => return None,
+        }
+        u.parens = !record;
+        u.multiline = multiline;
+        for (name, value, leading, trailing, newline) in group {
+            // a positional argument: not a widget's or a record's, so not one a migration reads
+            let name = name?;
+            u.arg_names.push((at(name.span.start), at(name.span.end)));
+            let notes = Notes {
+                leading: leading.iter().filter_map(|l| if let ast::Leading::Comment(c) = l { Some(c.text.clone()) } else { None }).collect(),
+                trailing: trailing.iter().map(|c| (c.gap, c.text.clone())).collect(),
+                newline,
+            };
+            let v = within(text, (at(value.span.start), at(value.span.end)), edits);
+            u.args.push(UseArg(name.name, v, notes));
+        }
+        k = close + 1;
     }
     if !record {
         let rest = &s[k..];
@@ -877,6 +929,39 @@ fn read_use(text: &str, ws: usize, we: usize, edits: &[Edit]) -> Option<Use> {
         return None;
     }
     Some(u)
+}
+
+/// A use's arguments written back: on one line, or one a line, as the use had them, each with
+/// its comments.
+fn write_args(u: &Use) -> String {
+    let commented = u.args.iter().any(|a| !a.2.leading.is_empty() || !a.2.trailing.is_empty());
+    if !u.multiline && !commented {
+        return u.args.iter().map(|a| format!("{} = {}", a.0, a.1)).collect::<Vec<_>>().join(", ");
+    }
+    let inner = format!("{}    ", u.indent);
+    let mut out = String::new();
+    let mut open_line = false;
+    for (k, a) in u.args.iter().enumerate() {
+        let own_line = k == 0 || a.2.newline || !a.2.leading.is_empty() || !open_line;
+        if own_line {
+            for c in &a.2.leading {
+                out.push_str(&format!("\n{}{}", inner, c));
+            }
+            out.push_str(&format!("\n{}", inner));
+        } else {
+            out.push(' ');
+        }
+        out.push_str(&format!("{} = {},", a.0, a.1));
+        open_line = true;
+        for (gap, c) in &a.2.trailing {
+            out.push_str(&" ".repeat((*gap).max(1) as usize));
+            out.push_str(c);
+            open_line = false;
+        }
+    }
+    out.push('\n');
+    out.push_str(&u.indent);
+    out
 }
 
 /// The end of a prose call's block that opens on the line before `from`: its closing `}` line.
@@ -908,9 +993,10 @@ fn render(u: &Use, prose: bool) -> String {
     if let Some(Some(t)) = &u.replaced {
         return t.clone();
     }
-    let args = u.args.iter().map(|(n, v)| format!("{} = {}", n, v)).collect::<Vec<_>>().join(", ");
+    let args = write_args(u);
+    let spread = args.starts_with('\n');
     let mut out = if u.record {
-        if args.is_empty() { format!("{} {{}}", u.name) } else { format!("{} {{ {} }}", u.name, args) }
+        if args.is_empty() { format!("{} {{}}", u.name) } else if spread { format!("{} {{{}}}", u.name, args) } else { format!("{} {{ {} }}", u.name, args) }
     } else {
         let mut t = format!("@{}", u.name);
         if !u.args.is_empty() || (u.parens && u.block.is_none()) {
@@ -930,22 +1016,22 @@ fn render(u: &Use, prose: bool) -> String {
     out
 }
 
-/// `T { a = 1, b = 2 }` read, as its type and its fields.
+/// `T { a = 1, b = 2 }` read by MKP's parser, as its type and its fields as written.
 fn read_record(v: &str) -> Option<(String, Vec<(String, String)>)> {
     let v = v.trim();
-    let open = v.find('{')?;
-    let ty = v[..open].trim().to_string();
-    let close = matching(v, open)?;
-    if close != v.len() - 1 {
+    let prefix = "let x: x = ";
+    let parsed = parse(&format!("{}{};\n", prefix, v), Entry::Body);
+    if parsed.diagnostics.iter().any(|d| d.is_error()) {
         return None;
     }
-    let mut fields = Vec::new();
-    for (ps, pe) in split_top(v, open + 1, close) {
-        let part = &v[ps..pe];
-        let eq = top_eq(part)?;
-        fields.push((part[..eq].trim().to_string(), part[eq + 1..].trim().to_string()));
-    }
-    Some((ty, fields))
+    let file = parsed.file?;
+    let var = match &file.items.first()?.item {
+        Item::Stmt(Stmt::Let(var)) | Item::Decl(ast::Decl { kind: DeclKind::Let(var), .. }) => var.clone(),
+        _ => return None,
+    };
+    let ExprKind::Record { ty: Some(ty), inits } = &var.value.kind else { return None };
+    let text = |e: &Expr| v[e.span.start as usize - prefix.len()..e.span.end as usize - prefix.len()].to_string();
+    Some((ty.name.clone(), inits.iter().map(|i| (i.name.name.clone(), text(&i.value))).collect()))
 }
 
 fn write_record(ty: &str, fields: &[(String, String)]) -> String {
@@ -1018,48 +1104,6 @@ fn comment_out(body: &str, before: &str, prose: bool, note: &str) -> String {
         out = out.trim_start().to_string();
     }
     out
-}
-
-/// The ranges of the top-level, comma-separated parts between `from` and `to`.
-fn split_top(s: &str, from: usize, to: usize) -> Vec<(usize, usize)> {
-    let b = s.as_bytes();
-    let mut out = Vec::new();
-    let (mut depth, mut in_text, mut start) = (0i32, false, from);
-    let mut k = from;
-    while k < to {
-        let c = b[k];
-        if in_text {
-            if c == b'\\' {
-                k += 1;
-            } else if c == b'"' {
-                in_text = false;
-            }
-        } else {
-            match c {
-                b'"' => in_text = true,
-                b'(' | b'[' | b'{' => depth += 1,
-                b')' | b']' | b'}' => depth -= 1,
-                b',' if depth == 0 => {
-                    if !s[start..k].trim().is_empty() {
-                        out.push((start, k));
-                    }
-                    start = k + 1;
-                }
-                _ => {}
-            }
-        }
-        k += 1;
-    }
-    if !s[start..to].trim().is_empty() {
-        out.push((start, to));
-    }
-    out
-}
-
-/// The `=` of `name = value`, not one of `==`, `!=`, `<=` or `>=`.
-fn top_eq(part: &str) -> Option<usize> {
-    let b = part.as_bytes();
-    (0..b.len()).find(|&k| b[k] == b'=' && b.get(k + 1) != Some(&b'=') && (k == 0 || !matches!(b[k - 1], b'=' | b'!' | b'<' | b'>')))
 }
 
 pub(crate) fn matching(s: &str, open: usize) -> Option<usize> {
