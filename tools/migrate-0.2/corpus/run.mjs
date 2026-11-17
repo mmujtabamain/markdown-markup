@@ -7,7 +7,7 @@
 //
 // For each document: 0.2 builds its bundle (mkp build --target ir) and its Markdown (--target md); the
 // migration writes the 0.3 document and pack shims from the bundle alone; 0.3's `mkp fmt` formats it
-// and `mkp check --json` checks it; `mkp md` writes its Markdown. The result is classified as clean,
+// and `mkp check --format json` checks it; `mkp md` writes its Markdown. The result is classified as clean,
 // warnings or fails, and the share of the 0.2 Markdown's words that the 0.3 Markdown still has is
 // measured (word recall), as a rough check that nothing was dropped.
 
@@ -173,10 +173,10 @@ for (const c of corpus) {
   r.fmt = f.status === 0 ? (readFileSync(doc, 'utf8') === before ? 'as written' : 'reformatted') : 'refused';
   if (f.status !== 0) r.fmtError = (f.stdout + f.stderr).trim().split('\n')[0];
   // mkp check
-  const k = run(mkp03, ['check', '--json', ...(packDirs.length ? ['--pack', packDirs.join(',')] : []), doc]);
+  const k = run(mkp03, ['check', '--format', 'json', ...(packDirs.length ? ['--pack', packDirs.join(',')] : []), doc]);
   let diags = [];
   try {
-    diags = JSON.parse(k.stdout || '[]');
+    diags = k.stdout.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).filter((d) => d.type === 'diagnostic');
   } catch {
     diags = [{ severity: 'error', code: 'mkp.crash', message: (k.stdout + k.stderr).trim().split('\n')[0] }];
   }

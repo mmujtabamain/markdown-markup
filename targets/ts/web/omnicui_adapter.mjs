@@ -101,7 +101,7 @@ function buildPage(source) {
     const ir = join(cache, `${hash}.ir.json`);
     writeFileSync(src, source);
     try {
-      execFileSync(mkp, ["build", src, "-o", ir], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+      execFileSync(mkp, ["build", src, "--out", ir], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
     } catch (e) {
       throw new RpcError(STEP_FAILED, `the page didn't build: ${String(e.stdout ?? "") + String(e.stderr ?? "")}`.replace(/\s+/g, " ").trim());
     }

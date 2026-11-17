@@ -11,7 +11,7 @@ npm install @mkp/angular
 ```ts
 import { Component, ViewChild } from "@angular/core";
 import { MkpPage, type Call } from "@mkp/angular";
-import shop from "./shop.ir.json"; // written by: mkp build shop.mkp.md -o shop.ir.json
+import shop from "./shop.ir.json"; // written by: mkp build shop.mkp.md --out shop.ir.json
 
 @Component({
   selector: "app-shop",

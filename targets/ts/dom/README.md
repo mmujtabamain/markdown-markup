@@ -6,7 +6,7 @@ bindings mount pages through it.
 
 ```ts
 import { run } from "@mkp/dom";
-import page from "./sprint.ir.json"; // mkp build sprint.mkp.md -o sprint.ir.json
+import page from "./sprint.ir.json"; // mkp build sprint.mkp.md --out sprint.ir.json
 
 const mounted = run(page, document.getElementById("app")!, { page: { theme: "DARK" } });
 mounted.page.setPage({ theme: "LIGHT" }); // the page redraws itself; the DOM follows

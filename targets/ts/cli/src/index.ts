@@ -64,9 +64,11 @@ function flags(o: Options = {}): string[] {
 
 /** Every error and warning in a file, compiled with core and its packs. */
 export async function check(file: string, options?: Options): Promise<Diagnostic[]> {
-  const r = await run(["check", "--json", ...flags(options), file]);
+  const r = await run(["check", "--format", "json", ...flags(options), file]);
   if (r.code === 2) throw new MkpError(r.stderr.trim(), r.stderr);
-  return JSON.parse(r.stdout) as Diagnostic[];
+  // a JSON object a line: each diagnostic, each file, then the summary
+  const lines = r.stdout.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as { type: string } & Diagnostic);
+  return lines.filter((l) => l.type === "diagnostic").map(({ type: _, ...d }) => d as Diagnostic);
 }
 
 /** A document's IR, lowered: what a runtime runs. */

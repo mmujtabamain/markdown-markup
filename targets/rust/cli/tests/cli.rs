@@ -28,11 +28,14 @@ fn check_reports_the_checker_s_errors() {
     let (code, _, err) = mkp(&["check", dir.join("bad.mkp").to_str().unwrap()]);
     assert_eq!(code, 1);
     assert!(err.contains("bad.mkp:3:17: error[names.unknown-name]"), "{}", err);
-    let (code, out, _) = mkp(&["check", "--json", dir.join("bad.mkp").to_str().unwrap()]);
+    let (code, out, _) = mkp(&["check", "--format", "json", dir.join("bad.mkp").to_str().unwrap()]);
     assert_eq!(code, 1);
-    let found: serde_json::Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(found[0]["code"], "names.unknown-name");
+    // a JSON object a line: the diagnostic, the file, then the summary
+    let found: Vec<serde_json::Value> = out.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!((found[0]["type"].as_str(), found[0]["code"].as_str()), (Some("diagnostic"), Some("names.unknown-name")));
     assert_eq!((found[0]["line"].as_u64(), found[0]["column"].as_u64()), (Some(3), Some(17)));
+    assert_eq!((found[1]["type"].as_str(), found[1]["errors"].as_u64()), (Some("file"), Some(1)));
+    assert_eq!((found[2]["type"].as_str(), found[2]["exit"].as_u64()), (Some("summary"), Some(1)));
 }
 
 #[test]
@@ -46,7 +49,7 @@ fn packs_from_folders_and_files() {
     let (code, _, err) = mkp(&["check", "--pack", &packs, doc.to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
     let out = dir.join("doc.ir.json");
-    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "--pack", &packs, "-o", out.to_str().unwrap()]);
+    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "--pack", &packs, "--out", out.to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
     let ir: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
     assert!(ir.to_string().contains("shelf/row_of_books"), "the pack's widget is in the IR");
@@ -67,7 +70,7 @@ fn an_mkp_toml_names_the_packs() {
     let doc = dir.join("site/pages/doc.mkp.md");
     let (code, _, err) = mkp(&["check", doc.to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
-    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "-c", dir.join("other.toml").to_str().unwrap(), "-o", dir.join("doc.ir.json").to_str().unwrap()]);
+    let (code, _, err) = mkp(&["build", doc.to_str().unwrap(), "--config", dir.join("other.toml").to_str().unwrap(), "--out", dir.join("doc.ir.json").to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
     // a key mkp.toml doesn't have
     let dir = scratch("config-bad", &[("mkp.toml", "pack = [\"packs\"]\n"), ("doc.mkp.md", "# Hi\n")]);
@@ -500,9 +503,12 @@ fn an_unknown_flag_is_a_warning_and_a_dropped_one_says_what_replaced_it() {
     let (code, _, err) = mkp(&["migrate", docs.to_str().unwrap(), "--from", "0.2.1"]);
     assert_eq!(code, 2);
     assert!(err.contains("--from 0.2.1 names a release, as mkp 0.2's did"), "{}", err);
-    let (code, _, err) = mkp(&["check", "--format", "json", docs.join("report.mkp.md").to_str().unwrap()]);
+    let (code, _, err) = mkp(&["check", "--json", docs.join("report.mkp.md").to_str().unwrap()]);
     assert_eq!(code, 2);
-    assert!(err.contains("error: mkp check dropped --format in mkp 0.3.0: use --json"), "{}", err);
+    assert!(err.contains("error: mkp check has no --json: use --format json"), "{}", err);
+    let (code, _, err) = mkp(&["build", docs.join("report.mkp.md").to_str().unwrap(), "-o", "x.json"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("error: mkp build has no -o: use --out"), "{}", err);
     assert_eq!(std::fs::read_to_string(docs.join("report.mkp.md")).unwrap(), OLD_DOC);
 }
 
@@ -553,9 +559,9 @@ fn the_walkthroughs_bugs_stay_fixed() {
     let dir = kit_tree("bugs-relative", "packs = [\"kit\"]\n");
     let out = Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(&dir).args(["check", "kit/kit.mkp"]).output().unwrap();
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
-    // mkp md --json ends its output with a line break
+    // mkp md --format json ends its output with a line break
     let counter = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../schemas/examples/counter.mkp.md");
-    let (code, out, err) = mkp(&["md", "--json", counter.to_str().unwrap()]);
+    let (code, out, err) = mkp(&["md", "--format", "json", counter.to_str().unwrap()]);
     assert_eq!(code, 0, "{}", err);
     assert!(out.ends_with("]\n") || out.ends_with("}\n"), "{:?}", out.chars().rev().take(5).collect::<String>());
 }
@@ -596,4 +602,43 @@ fn in_a_terminal_every_question_is_listed_then_asked_in_turn() {
     let text = std::fs::read_to_string(dir.join("docs/report.mkp.md")).unwrap();
     assert!(text.contains("s: state = state.DONE;") && text.contains("@plot(values = [1, 2], tone = color.ACCENT);") && text.contains("@badge(label = \"Beta\");"), "{}", text);
     assert!(std::fs::read_to_string(dir.join("answers.toml")).unwrap().contains("\"Reset every chart's tone?\" = true"));
+}
+
+#[test]
+fn every_command_takes_format_json_and_out() {
+    let dir = kit_tree("format-out", "packs = [\"kit\"]\n\n[uses]\nkit = 1\n");
+    let counter = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../schemas/examples/counter.mkp.md");
+    let c = counter.to_str().unwrap();
+    let lines = |text: &str| -> Vec<serde_json::Value> { text.lines().map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!("{}: {}", l, e))).collect() };
+    // a command that reports: a JSON object a line, its type on each, the summary last
+    for args in [vec!["fmt", "--check", c], vec!["check", c]] {
+        let mut a = args.clone();
+        a.extend(["--format", "json"]);
+        let (_, out, err) = mkp(&a);
+        let l = lines(&out);
+        assert!(l.iter().all(|x| x["type"].is_string()) && l.last().unwrap()["type"] == "summary", "{:?}: {}{}", args, out, err);
+    }
+    let (_, out, _) = mkp(&["surface", dir.join("kit").to_str().unwrap(), "--check", "--format", "json"]);
+    let l = lines(&out);
+    assert_eq!((l[0]["type"].as_str(), l[0]["pack"].as_str(), l[0]["result"].as_str()), (Some("surface"), Some("kit"), Some("missing")), "{}", out);
+    // a command that writes a document: the document, as JSON, and diagnostics as JSON on stderr
+    let (code, out, _) = mkp(&["md", c, "--format", "json"]);
+    assert_eq!(code, 0);
+    assert!(serde_json::from_str::<serde_json::Value>(&out).is_ok(), "{}", out);
+    let broken = dir.join("broken.mkp.md");
+    std::fs::write(&broken, "@@@\nThe count is \\{$state.m}.\n").unwrap();
+    let (code, _, err) = mkp(&["build", broken.to_str().unwrap(), "--format", "json"]);
+    assert_eq!(code, 1);
+    assert_eq!(lines(&err)[0]["type"], "diagnostic", "{}", err);
+    // --out: what the command prints goes to the file
+    let report = dir.join("check.txt");
+    let (code, out, err) = mkp(&["check", broken.to_str().unwrap(), "--out", report.to_str().unwrap()]);
+    assert_eq!((code, out.as_str(), err.as_str()), (1, "", ""));
+    assert!(std::fs::read_to_string(&report).unwrap().contains("error[names.unknown-field]"));
+    let ir = dir.join("counter.ir.json");
+    assert_eq!(mkp(&["build", c, "--out", ir.to_str().unwrap()]).0, 0);
+    assert!(std::fs::read_to_string(&ir).unwrap().contains("\"version\": 3"));
+    let (code, out, _) = mkp(&["migrate", dir.join("docs").to_str().unwrap(), "--dry-run", "--format", "json", "--out", dir.join("plan.jsonl").to_str().unwrap()]);
+    assert_eq!((code, out.as_str()), (0, ""));
+    assert_eq!(lines(&std::fs::read_to_string(dir.join("plan.jsonl")).unwrap()).last().unwrap()["type"], "summary");
 }

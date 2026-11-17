@@ -37,7 +37,7 @@ export function ir(source, { packs = [] } = {}) {
   writeFileSync(file, source);
   const out = file.replace(/\.mkp\.md$/, ".ir.json");
   try {
-    execFileSync(mkpBinary(), ["build", file, ...packs.flatMap((p) => ["--pack", p]), "-o", out], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    execFileSync(mkpBinary(), ["build", file, ...packs.flatMap((p) => ["--pack", p]), "--out", out], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   } catch (e) {
     throw new Error(`mkp build failed:\n${e.stdout ?? ""}${e.stderr ?? ""}`);
   }

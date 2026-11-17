@@ -3,18 +3,18 @@
 
 /// Each command's flags; one that takes a value takes it as the next argument or after `=`.
 fn known(cmd: &str) -> &'static [&'static str] {
-    const PACKS: [&str; 3] = ["--pack", "--config", "-c"];
+    // every command takes --format and --out (page 1 of `mkp`'s usage); one spelling each
     match cmd {
-        "fmt" => &["--check", "--diff", "--stdout"],
-        "parse" => &[],
-        "check" => &["--json", PACKS[0], PACKS[1], PACKS[2]],
-        "build" => &["--rir", "-o", PACKS[0], PACKS[1], PACKS[2]],
-        "md" => &["--json", "-o", PACKS[0], PACKS[1], PACKS[2]],
-        "surface" => &["--check", "--diff", "--stdout", "--force", "-o", PACKS[0], PACKS[1], PACKS[2]],
+        "fmt" => &["--check", "--diff", "--stdout", "--format", "--out"],
+        "parse" => &["--format", "--out"],
+        "check" => &["--pack", "--config", "--format", "--out"],
+        "build" => &["--rir", "--pack", "--config", "--format", "--out"],
+        "md" => &["--pack", "--config", "--format", "--out"],
+        "surface" => &["--check", "--diff", "--stdout", "--force", "--pack", "--config", "--format", "--out"],
         "migrate" => &[
-            "--pack", "--config", "-c", "--from", "--answers", "--format", "--report", "--dry-run", "--check", "--diff", "--stdout", "--yes", "-y", "--allow-dirty", "--allow-errors", "--allow-todos", "--help", "-h",
+            "--pack", "--config", "--from", "--answers", "--format", "--out", "--report", "--dry-run", "--check", "--diff", "--stdout", "--yes", "--allow-dirty", "--allow-errors", "--allow-todos", "--help",
         ],
-        "target check" => &["--cases", "--defect", "--expect-failures", "--require"],
+        "target check" => &["--cases", "--defect", "--expect-failures", "--require", "--format", "--out"],
         _ => &[],
     }
 }
@@ -24,12 +24,11 @@ fn known(cmd: &str) -> &'static [&'static str] {
 /// here. A release of `""` is a flag mkp never had but is asked for, and why it has none.
 const DROPPED: &[(&str, &str, &str, &str)] = &[
     ("build", "--target", "0.3.0", "mkp build writes the IR and mkp md the Markdown; drawing HTML is a target's"),
-    ("build", "--out", "0.3.0", "use -o, with the file to write"),
     ("build", "--md", "0.3.0", "mkp md writes CommonMark with GitHub's tables, and has no switches"),
     ("build", "--lock", "0.3.0", "the version of each pack is mkp.toml's [uses]"),
     ("build", "--relock", "0.3.0", "the version of each pack is mkp.toml's [uses], which mkp migrate moves"),
     ("build", "--no-lock", "0.3.0", "there is no lock: the version of each pack is mkp.toml's [uses]"),
-    ("build", "--diagnostics", "0.3.0", "use mkp check --json"),
+    ("build", "--diagnostics", "0.3.0", "use --format json"),
     ("build", "--styles", "0.3.0", "the look is a target's to draw, and mkp writes no HTML"),
     ("build", "--profile", "0.3.0", "nothing: a pack has one surface per version"),
     ("build", "--name", "0.3.0", "nothing: mkp build reads a file, named by its path"),
@@ -37,14 +36,26 @@ const DROPPED: &[(&str, &str, &str, &str)] = &[
     ("build", "--no-maths", "0.3.0", "nothing: maths is TeX passed to the target, which draws it"),
     ("build", "--no-speech", "0.3.0", "nothing: maths is TeX passed to the target, which draws it"),
     ("build", "--no-answers", "0.3.0", "nothing: mkp md writes a page with its starting values"),
-    ("check", "--format", "0.3.0", "use --json"),
-    ("check", "--diagnostics", "0.3.0", "use --json"),
+    ("check", "--diagnostics", "0.3.0", "use --format json"),
     ("fmt", "--write", "0.3.0", "mkp fmt writes each file in place; --check only checks"),
     ("migrate", "--write", "0.3.0", "mkp migrate writes in place, asking first in a terminal; elsewhere --yes writes"),
     ("migrate", "--keep", "0.3.0", "a pack's migration asks with confirm, and --yes 1,3 answers its numbered questions (or --answers)"),
     ("migrate", "--take", "0.3.0", "a pack's migration asks with confirm, and --yes answers every question (or --answers)"),
     ("migrate", "--core", "0.3.0", "MKP_MIGRATE_02 names the frozen 0.2 step"),
     ("migrate", "--to", "", "a migration goes one way, to this mkp's release and to the version of each pack in the build"),
+    // one spelling for each flag: the short ones mkp 0.3's development had, and the --json it had
+    ("build", "-o", "", "use --out"),
+    ("md", "-o", "", "use --out"),
+    ("surface", "-o", "", "use --out"),
+    ("check", "-c", "", "use --config"),
+    ("build", "-c", "", "use --config"),
+    ("md", "-c", "", "use --config"),
+    ("surface", "-c", "", "use --config"),
+    ("migrate", "-c", "", "use --config"),
+    ("migrate", "-y", "", "use --yes"),
+    ("migrate", "-h", "", "use --help"),
+    ("check", "--json", "", "use --format json"),
+    ("md", "--json", "", "use --format json"),
 ];
 
 /// Whether a command's flags let it run: each it doesn't know is warned about and ignored, and one a
@@ -90,7 +101,8 @@ mod tests {
         assert!(ok("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout", "--quiet"])));
         assert!(!ok("migrate", &args(&["docs", "--write"])));
         assert!(!ok("migrate", &args(&["docs", "--to", "0.3.0"])));
-        assert!(ok("fmt", &args(&["a.mkp", "--check", "-"])));
+        assert!(ok("fmt", &args(&["a.mkp", "--check", "-", "--format", "json", "--out", "x.txt"])));
+        assert!(!ok("build", &args(&["a.mkp.md", "-o", "a.ir.json"])));
         assert!(!ok("fmt", &args(&["a.mkp", "--write"])));
     }
 }

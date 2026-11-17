@@ -255,11 +255,15 @@ function describeExit(name, r) {
   return { message: `mkp ${name} ${how}`, detail: tail };
 }
 
-/** Whether `mkp check --json` output lists an error. */
+/** `mkp check --format json`'s lines: a JSON object each, its summary last. Throws on a line that isn't one. */
+function checkLines(stdout) {
+  return stdout.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
+}
+
+/** Whether `mkp check --format json` output lists an error. */
 function hasError(stdout) {
   try {
-    const found = JSON.parse(stdout);
-    return Array.isArray(found) && found.some((d) => d?.severity === "error");
+    return checkLines(stdout).some((d) => d?.type === "diagnostic" && d.severity === "error");
   } catch {
     return false;
   }
@@ -271,7 +275,7 @@ function crashed(r) {
 }
 
 /**
- * Compiles a page: `mkp check --json`, `mkp build` and `mkp md`, at once, in a temp dir of its
+ * Compiles a page: `mkp check --format json`, `mkp build` and `mkp md`, at once, in a temp dir of its
  * own that is always removed. Resolves with the result; rejects with a ServerFailure when the
  * binary misbehaves.
  */
@@ -290,12 +294,12 @@ export async function compile({ binary, source, packs = [], timeoutMs, signal })
     const packArgs = packs.length ? ["--pack", packs.map((p) => PACKS[p]).join(",")] : [];
     const opts = { timeoutMs, signal: stop.signal };
 
-    const check = runBinary(binary, ["check", "--json", ...packArgs, file], opts).then((r) => {
+    const check = runBinary(binary, ["check", "--format", "json", ...packArgs, file], opts).then((r) => {
       // a page with errors builds nothing: stop the other two rather than wait for them
       if (!r.aborted && hasError(r.stdout)) stop.abort();
       return r;
     });
-    const build = runBinary(binary, ["build", file, ...packArgs, "-o", out], opts);
+    const build = runBinary(binary, ["build", file, ...packArgs, "--out", out], opts);
     const md = runBinary(binary, ["md", file, ...packArgs], opts);
     // settle all three, so none is left running when the temp dir goes
     const [c, b, m] = await Promise.allSettled([check, build, md]);
@@ -310,13 +314,16 @@ export async function compile({ binary, source, packs = [], timeoutMs, signal })
     }
     let parsed;
     try {
-      parsed = JSON.parse(cr.stdout);
+      parsed = checkLines(cr.stdout);
     } catch {
+      parsed = undefined;
+    }
+    // its lines end with its summary; anything else is a binary that didn't answer
+    if (parsed?.at(-1)?.type !== "summary") {
       const { message, detail } = describeExit("check", cr);
       throw new ServerFailure("crash", `${message} and printed no JSON`, detail);
     }
-    if (!Array.isArray(parsed)) throw new ServerFailure("crash", "mkp check --json printed something other than a list");
-    const diagnostics = parsed.map((d) => fromJson(d, file, dir));
+    const diagnostics = parsed.filter((d) => d.type === "diagnostic").map((d) => fromJson(d, file, dir));
     const hasErrors = diagnostics.some((d) => d.severity === "error");
     const result = { diagnostics, ir: null, markdown: null, ms: { check: cr.ms } };
     if (hasErrors) return result;

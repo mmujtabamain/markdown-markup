@@ -7,7 +7,7 @@ egui, with our default egui widgets for every core extern widget.
 use mkp_egui::{runtime::Page, MkpPage};
 
 fn app(json: &str) -> MkpPage {
-    // once: the IR `mkp build page.mkp.md -o page.ir.json` wrote, with egui's value fns
+    // once: the IR `mkp build page.mkp.md --out page.ir.json` wrote, with egui's value fns
     MkpPage::new(Page::from_json(json, MkpPage::options()).unwrap())
 }
 

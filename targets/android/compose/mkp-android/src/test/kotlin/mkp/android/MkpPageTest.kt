@@ -46,7 +46,7 @@ class MkpPageTest {
     private fun ir(source: File): String {
         assumeTrue("the mkp binary isn't built", mkp.canExecute())
         val out = File.createTempFile("mkp-page", ".ir.json")
-        val p = ProcessBuilder(mkp.path, "build", source.path, "-o", out.path).redirectErrorStream(true).start()
+        val p = ProcessBuilder(mkp.path, "build", source.path, "--out", out.path).redirectErrorStream(true).start()
         val log = p.inputStream.bufferedReader().readText()
         assertEquals(log, 0, p.waitFor())
         return out.readText().also { out.delete() }

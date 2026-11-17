@@ -56,7 +56,7 @@ tasks.withType<Test>().configureEach {
     (project.findProperty("mkp.render") as String?)?.let { systemProperty("mkp.render", file(it).absolutePath) }
 }
 
-// The pages' IR, from their MKP source, by the compiler: `mkp build <page> -o <name>.ir.json`.
+// The pages' IR, from their MKP source, by the compiler: `mkp build <page> --out <name>.ir.json`.
 val mkp = rootProject.file("../../rust/target/release/mkp")
 val sources = mapOf(
     "shop" to rootProject.file("../../../examples/pages/shop.mkp.md"),
@@ -69,7 +69,7 @@ val buildPages = sources.map { (name, src) ->
         val out = pages.map { it.file("$name.ir.json") }
         outputs.file(out)
         doFirst { out.get().asFile.parentFile.mkdirs() }
-        commandLine(mkp.absolutePath, "build", src.absolutePath, "-o", out.get().asFile.absolutePath)
+        commandLine(mkp.absolutePath, "build", src.absolutePath, "--out", out.get().asFile.absolutePath)
     }
 }
 tasks.named("preBuild") { dependsOn(buildPages) }

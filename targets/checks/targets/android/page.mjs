@@ -61,7 +61,7 @@ function build(source) {
     const src = join(cache, `${hash}.mkp.md`);
     writeFileSync(src, source);
     try {
-      execFileSync(mkp, ["build", src, "-o", `${out}.part`], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+      execFileSync(mkp, ["build", src, "--out", `${out}.part`], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
     } catch (e) {
       throw Object.assign(new Error(`the page didn't build: ${String(e.stdout ?? "") + String(e.stderr ?? "")}`.replace(/\s+/g, " ").trim()), { code: STEP_FAILED });
     }

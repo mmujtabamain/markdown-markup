@@ -43,7 +43,7 @@ export function build(dir, name, source) {
   const out = join(dir, `${name}.ir.json`);
   writeFileSync(file, source);
   try {
-    execFileSync(mkpBinary(), ["build", file, "-o", out], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    execFileSync(mkpBinary(), ["build", file, "--out", out], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   } catch (e) {
     const text = `${e.stdout ?? ""}\n${e.stderr ?? ""}`;
     return { ok: false, errors: diagnostics(text, `${name}.mkp`), output: text.trim() };

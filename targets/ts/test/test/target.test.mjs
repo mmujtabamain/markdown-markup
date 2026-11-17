@@ -84,7 +84,7 @@ test("the adapter speaks the check protocol: advertise, load, a step, observe, q
     const src = join(dir, "page.mkp.md");
     writeFileSync(src, '$state {\n    n: int 0..3 = 0;\n}\n@@@\n@slider(value = $state.n, label = "N");\n');
     const ir = join(dir, "page.ir.json");
-    const b = spawnSync(mkp(), ["build", src, "-o", ir], { encoding: "utf8" });
+    const b = spawnSync(mkp(), ["build", src, "--out", ir], { encoding: "utf8" });
     if (b.status !== 0) writeFileSync(ir, spawnSync(mkp(), ["build", src], { encoding: "utf8" }).stdout);
     const a = adapter();
     const ad = await a.call("advertise", { protocol: "1" });

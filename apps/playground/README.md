@@ -49,7 +49,7 @@ For tests and takes, `window.playground` reads the editor without touching it: `
 
 | Request | Answer |
 |---|---|
-| `POST /api/compile` `{source, packs?}` | `{diagnostics: [{line, col, severity, code, message, end?}], ir \| null, markdown \| null, ms}`. Runs `mkp check --json`, `mkp build` and `mkp md` at once in a temp dir of its own, which is always removed. A source over 200 KB is refused (413); `packs` names packs the server knows (`graphs`). |
+| `POST /api/compile` `{source, packs?}` | `{diagnostics: [{line, col, severity, code, message, end?}], ir \| null, markdown \| null, ms}`. Runs `mkp check --format json`, `mkp build` and `mkp md` at once in a temp dir of its own, which is always removed. A source over 200 KB is refused (413); `packs` names packs the server knows (`graphs`). |
 | `GET /api/examples` | `{examples: [{id, title, description, packs, source}], packs}`, from `examples/index.json`. |
 | `GET /healthz` | `200 {ok: true}`, or `503` when the binary is missing. |
 

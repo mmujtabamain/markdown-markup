@@ -133,7 +133,7 @@ fn signature(kind: &DeclKind, provides: &std::collections::HashSet<String>) -> O
     })
 }
 
-const USAGE: &str = "usage: mkp surface <pack folder> [--pack a,b] [-o file] [--check] [--force]
+const USAGE: &str = "usage: mkp surface <pack folder> [--pack a,b] [--out file] [--check|--diff|--stdout] [--force] [--format json]
   writes <pack folder>/surfaces/<name>@<version>.mkp, what this version of the pack provides;
   --check writes nothing and fails if it is missing or differs, --force replaces one that differs";
 
@@ -142,6 +142,13 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
     let force = args.iter().any(|a| a == "--force");
     let diff = args.iter().any(|a| a == "--diff");
     let stdout = args.iter().any(|a| a == "--stdout");
+    let json = match crate::out::wants_json(args) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::from(2);
+        }
+    };
     let rest: Vec<String> = args.iter().filter(|a| !matches!(a.as_str(), "--check" | "--force" | "--diff" | "--stdout")).cloned().collect();
     let (dirs, deps, out) = match crate::options(&rest) {
         Ok(x) => x,
@@ -169,43 +176,45 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
     let errors: Vec<_> = c.errors().collect();
     if !errors.is_empty() {
         for d in errors {
-            eprintln!("{}", d.diagnostic.render(&d.file, c.texts.get(&d.file).map(String::as_str).unwrap_or("")));
+            let text = c.texts.get(&d.file).map(String::as_str).unwrap_or("");
+            if json {
+                crate::out::line(crate::out::diagnostic(&d.file, text, &d.diagnostic));
+            } else {
+                eprintln!("{}", d.diagnostic.render(&d.file, text));
+            }
         }
-        eprintln!("the pack doesn't compile, so it has no surface yet");
-        return ExitCode::from(1);
+        return say(json, None, "doesn't compile", "the pack doesn't compile, so it has no surface yet", 1, serde_json::json!({}));
     }
     let (name, version, text) = match surface_of(&files) {
         Ok(x) => x,
-        Err(e) => {
-            eprintln!("{}", e);
-            return ExitCode::from(1);
-        }
+        Err(e) => return say(json, None, "has no surface", &e, 1, serde_json::json!({})),
     };
     let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.mkp", name, version)));
     let old = std::fs::read_to_string(&path).ok();
+    let this = Some((name.as_str(), version.as_str(), path.as_path()));
     // --stdout: the surface, written nowhere; --diff: how it differs from the one written
     if stdout {
-        print!("{}", text);
-        return ExitCode::SUCCESS;
+        if !json {
+            crate::out::print(&text);
+        }
+        return say(json, this, "printed", "", 0, serde_json::json!({ "text": text }));
     }
     if diff {
-        if old.as_deref() != Some(text.as_str()) {
-            print!("{}", crate::migrate::unified(&path.display().to_string(), old.as_deref().unwrap_or(""), &text));
+        let d = if old.as_deref() != Some(text.as_str()) { crate::migrate::unified(&path.display().to_string(), old.as_deref().unwrap_or(""), &text) } else { String::new() };
+        if !json {
+            crate::out::print(&d);
         }
-        return ExitCode::SUCCESS;
+        return say(json, this, if d.is_empty() { "up to date" } else { "would change" }, "", 0, serde_json::json!({ "diff": d }));
     }
     match (&old, check) {
-        (Some(o), _) if *o == text => {
-            println!("{}: {}@{}'s surface, up to date", path.display(), name, version);
-            return ExitCode::SUCCESS;
-        }
+        (Some(o), _) if *o == text => return say(json, this, "up to date", &format!("{}: {}@{}'s surface, up to date", path.display(), name, version), 0, serde_json::json!({})),
         (_, true) => {
-            eprintln!("{}: {}@{}'s surface is {}", path.display(), name, version, if old.is_some() { "out of date" } else { "missing" });
-            return ExitCode::from(1);
+            let what = if old.is_some() { "out of date" } else { "missing" };
+            return say(json, this, what, &format!("{}: {}@{}'s surface is {}", path.display(), name, version, what), 1, serde_json::json!({}));
         }
         (Some(_), false) if !force => {
-            eprintln!("{}: {}@{}'s surface is already written and differs: a released version's surface doesn't change, so make a new version (pack {}@{}), or pass --force", path.display(), name, version, name, version.parse::<u32>().map(|v| v + 1).unwrap_or(2));
-            return ExitCode::from(1);
+            let why = format!("{}: {}@{}'s surface is already written and differs: a released version's surface doesn't change, so make a new version (pack {}@{}), or pass --force", path.display(), name, version, name, version.parse::<u32>().map(|v| v + 1).unwrap_or(2));
+            return say(json, this, "differs", &why, 1, serde_json::json!({}));
         }
         _ => {}
     }
@@ -213,9 +222,33 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         let _ = std::fs::create_dir_all(parent);
     }
     if let Err(e) = std::fs::write(&path, &text) {
-        eprintln!("{}: {}", path.display(), e);
-        return ExitCode::from(1);
+        return say(json, this, "not written", &format!("{}: {}", path.display(), e), 1, serde_json::json!({}));
     }
-    println!("{}: wrote {}@{}'s surface", path.display(), name, version);
-    ExitCode::SUCCESS
+    say(json, this, "written", &format!("{}: wrote {}@{}'s surface", path.display(), name, version), 0, serde_json::json!({}))
+}
+
+/// What became of the surface: a line of text (on stderr when it failed), or with `--format json`
+/// an object for the surface and the summary.
+fn say(json: bool, surface: Option<(&str, &str, &Path)>, result: &str, text: &str, code: u8, more: serde_json::Value) -> ExitCode {
+    if json {
+        let mut v = serde_json::json!({ "type": "surface", "result": result });
+        if let Some((name, version, path)) = surface {
+            v["pack"] = serde_json::json!(name);
+            v["version"] = serde_json::json!(version.parse::<u32>().ok());
+            v["file"] = serde_json::json!(path.display().to_string());
+        }
+        if !text.is_empty() && code != 0 {
+            v["why"] = serde_json::json!(text);
+        }
+        if let serde_json::Value::Object(m) = more {
+            v.as_object_mut().unwrap().extend(m);
+        }
+        crate::out::line(v);
+        crate::out::line(serde_json::json!({ "type": "summary", "exit": code }));
+    } else if code != 0 {
+        eprintln!("{}", text);
+    } else if !text.is_empty() {
+        crate::out::text(text);
+    }
+    ExitCode::from(code)
 }

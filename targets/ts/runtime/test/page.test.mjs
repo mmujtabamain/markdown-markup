@@ -17,7 +17,7 @@ function page(source, opts = {}) {
   const file = join(dir, `page${n++}.mkp.md`);
   writeFileSync(file, source);
   const out = file.replace(/\.mkp\.md$/, ".ir.json");
-  execFileSync(mkpBinary(), ["build", file, "-o", out], { stdio: ["ignore", "pipe", "pipe"] });
+  execFileSync(mkpBinary(), ["build", file, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   return new Page(JSON.parse(readFileSync(out, "utf8")), opts);
 }
 
@@ -192,7 +192,7 @@ test("an extern widget the target doesn't supply shows its Markdown, and is repo
   const file = join(dir, "pack-page.mkp.md");
   writeFileSync(file, 'import badge;\n@@@\n# Votes\n\n@badge(label = "Votes", count = 2);\n\n@seal(text = "Checked by nobody");\n');
   const out = file.replace(/\.mkp\.md$/, ".ir.json");
-  execFileSync(mkpBinary(), ["build", file, "--pack", pack, "-o", out], { stdio: ["ignore", "pipe", "pipe"] });
+  execFileSync(mkpBinary(), ["build", file, "--pack", pack, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   const ir = JSON.parse(readFileSync(out, "utf8"));
   assert.deepEqual(ir.ir.needs.packs, [{ externs: ["badge/badge", "badge/seal"], name: "badge", version: 1 }]);
   const p = new Page(ir, { supplies: (w) => w.startsWith("core/") || w === "badge/badge" });

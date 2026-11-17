@@ -30,7 +30,7 @@ use mkp_runtime::ir::Expr;
 use mkp_runtime::layout::{Measure, Size};
 use mkp_runtime::{Drawn, Num, Page, PageOptions, Value};
 
-// a page from `mkp build page.mkp.md -o page.ir.json`, mounted and drawn once
+// a page from `mkp build page.mkp.md --out page.ir.json`, mounted and drawn once
 let json = std::fs::read_to_string("page.ir.json").unwrap();
 let mut page = Page::from_json(&json, PageOptions::default()).unwrap();
 

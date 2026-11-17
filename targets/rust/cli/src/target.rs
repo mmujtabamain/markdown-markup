@@ -447,9 +447,19 @@ pub fn target_check(args: &[String]) -> ExitCode {
     let mut cases_dir = root.join("targets/checks/cases");
     let mut defect = None;
     let mut expect_failures = false;
+    let json = match crate::out::wants_json(args) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::from(2);
+        }
+    };
     let mut k = 0;
     while k < args.len() {
         match args[k].as_str() {
+            // read before: --format by out::wants_json, --out by main
+            "--format" | "--out" => k += 2,
+            a if a.starts_with("--format=") || a.starts_with("--out=") => k += 1,
             "--cases" => {
                 cases_dir = PathBuf::from(args.get(k + 1).cloned().unwrap_or_default());
                 k += 2;
@@ -498,7 +508,14 @@ pub fn target_check(args: &[String]) -> ExitCode {
     }
     if !missing.is_empty() {
         for m in &missing {
-            eprintln!("{}", m);
+            if json {
+                crate::out::line(serde_json::json!({ "type": "missing", "text": m }));
+            } else {
+                eprintln!("{}", m);
+            }
+        }
+        if json {
+            crate::out::line(serde_json::json!({ "type": "summary", "targets": targets.len(), "differences": 0, "missing": missing.len(), "exit": 1 }));
         }
         return ExitCode::from(1);
     }
@@ -511,7 +528,11 @@ pub fn target_check(args: &[String]) -> ExitCode {
     for t in &targets {
         match run_target(&base, t, &cases, defect.as_deref()) {
             Ok((obs, fails, steps)) => {
-                println!("{}: {} cases, {} steps, {} {} from the case", t.name, cases.len(), steps, fails.len(), if fails.len() == 1 { "differs" } else { "differ" });
+                if json {
+                    crate::out::line(serde_json::json!({ "type": "target", "target": t.name, "cases": cases.len(), "steps": steps, "differ": fails.len() }));
+                } else {
+                    crate::out::text(&format!("{}: {} cases, {} steps, {} {} from the case", t.name, cases.len(), steps, fails.len(), if fails.len() == 1 { "differs" } else { "differ" }));
+                }
                 failures.extend(fails);
                 results.push((t.name.clone(), obs));
             }
@@ -534,6 +555,18 @@ pub fn target_check(args: &[String]) -> ExitCode {
         }
     }
     let _ = std::fs::remove_dir_all(&tmp);
+    if json {
+        // every difference, as a line of its own; then the summary
+        for f in &failures {
+            crate::out::line(serde_json::json!({ "type": "difference", "text": f }));
+        }
+        let code = match (failures.is_empty(), expect_failures) {
+            (true, false) | (false, true) => 0,
+            _ => 1,
+        };
+        crate::out::line(serde_json::json!({ "type": "summary", "targets": targets.len(), "differences": failures.len(), "expect_failures": expect_failures, "exit": code }));
+        return ExitCode::from(code);
+    }
     for f in failures.iter().take(60) {
         eprintln!("{}", f);
     }
@@ -543,7 +576,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
     match (failures.is_empty(), expect_failures) {
         (true, false) => ExitCode::SUCCESS,
         (false, true) => {
-            println!("caught: {} difference{}", failures.len(), if failures.len() == 1 { "" } else { "s" });
+            crate::out::text(&format!("caught: {} difference{}", failures.len(), if failures.len() == 1 { "" } else { "s" }));
             ExitCode::SUCCESS
         }
         (true, true) => {

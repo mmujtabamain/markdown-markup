@@ -55,7 +55,7 @@ class DragPerfTest {
     private fun ir(source: File): String {
         assumeTrue("the mkp binary isn't built", mkp.canExecute())
         val out = File.createTempFile("mkp-page", ".ir.json")
-        val p = ProcessBuilder(mkp.path, "build", source.path, "-o", out.path).redirectErrorStream(true).start()
+        val p = ProcessBuilder(mkp.path, "build", source.path, "--out", out.path).redirectErrorStream(true).start()
         p.inputStream.bufferedReader().readText()
         check(p.waitFor() == 0)
         return out.readText().also { out.delete() }

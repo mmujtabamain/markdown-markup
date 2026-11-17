@@ -5,7 +5,7 @@
 //! ```no_run
 //! # fn app(ui: &mut egui::Ui, json: &str) {
 //! use mkp_egui::{MkpPage, runtime::{Page, PageOptions}};
-//! // once: the IR `mkp build page.mkp.md -o page.ir.json` wrote
+//! // once: the IR `mkp build page.mkp.md --out page.ir.json` wrote
 //! let mut page = MkpPage::new(Page::from_json(json, MkpPage::options()).unwrap());
 //! // every frame:
 //! page.show(ui);

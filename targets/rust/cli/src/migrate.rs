@@ -12,7 +12,7 @@ use mkp_check::Source;
 use mkp_syntax::ast::{self, DeclKind, Item};
 use mkp_syntax::{parse, Entry, Lines};
 
-const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [-c mkp.toml] [--from kit@1]
+const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [--config mkp.toml] [--from kit@1]
                   [--dry-run | --check | --diff | --stdout] [--yes [1,2,…]] [--allow-dirty] [--answers answers.toml]
                   [--allow-todos] [--allow-errors] [--format json] [--report report.md|report.json]
   brings each document up to the version of each pack it is built with, in place.
@@ -135,7 +135,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 answers = Some(PathBuf::from(f));
                 k += 2;
             }
-            "--yes" | "-y" => {
+            "--yes" => {
                 yes = true;
                 k += 1;
                 while let Some(ns) = args.get(k).and_then(|v| numbers(v)) {
@@ -153,7 +153,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 k += 1;
             }
             "--dry-run" | "--check" | "--diff" | "--stdout" | "--allow-dirty" | "--allow-todos" | "--allow-errors" => k += 1,
-            "--help" | "-h" => {
+            "--help" => {
                 println!("{}", USAGE);
                 return ExitCode::SUCCESS;
             }
@@ -192,7 +192,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    let (uses, config) = uses_in_config(rest.iter().position(|a| a == "-c" || a == "--config").and_then(|i| rest.get(i + 1)).map(String::as_str), docs.first());
+    let (uses, config) = uses_in_config(rest.iter().position(|a| a == "--config").and_then(|i| rest.get(i + 1)).map(String::as_str), docs.first());
     // the release of mkp the tree is written for: mkp.toml's `mkp = "0.3.x"`
     let written_release = config.as_ref().and_then(|c| release_in_config(c));
     if let (Some(cfg), Some(r)) = (&config, &written_release) {
@@ -296,11 +296,11 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         // nobody to ask: nothing is planned or written until each is answered
         if json {
             for (n, q) in &waiting {
-                println!("{}", serde_json::json!({ "type": "question", "question": n, "asks": q.asks, "options": q.options, "answer": null, "how": crate::migrate_step::how_to_answer(*n, q) }));
+                crate::out::line(serde_json::json!({ "type": "question", "question": n, "asks": q.asks, "options": q.options, "answer": null, "how": crate::migrate_step::how_to_answer(*n, q) }));
             }
-            println!("{}", serde_json::json!({ "type": "summary", "files": results.len(), "unanswered": waiting.len(), "exit": 1 }));
+            crate::out::line(serde_json::json!({ "type": "summary", "files": results.len(), "unanswered": waiting.len(), "exit": 1 }));
         } else {
-            let say = |l: String| if stdout { eprintln!("{}", l) } else { println!("{}", l) };
+            let say = |l: String| if stdout { eprintln!("{}", l) } else { crate::out::text(&l) };
             say(format!("{} question{} no one has answered, so nothing is migrated:", waiting.len(), if waiting.len() == 1 { "" } else { "s" }));
             for (n, q) in &waiting {
                 say(format!("  {}. {}{}", n, q.asks, if q.options.is_empty() { String::new() } else { format!(" ({})", q.options.join(" or ")) }));
@@ -324,7 +324,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if human && stdout {
                 eprintln!($($t)*);
             } else if human {
-                println!($($t)*);
+                crate::out::text(&format!($($t)*));
             }
         };
     }
@@ -415,7 +415,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         // what would change, refused files too, so a person can see what's left
         for (p, old, o) in &results {
             if o.text != *old {
-                print!("{}", unified(&p.display().to_string(), old, &o.text));
+                crate::out::print(&unified(&p.display().to_string(), old, &o.text));
             }
         }
     }
@@ -430,7 +430,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if !o.refused.is_empty() {
                 break 'run ExitCode::from(1);
             }
-            print!("{}", o.text);
+            crate::out::print(&o.text);
             break 'run if need > 0 || !o.todos.is_empty() || !o.errors.is_empty() { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
         // nothing to write: no file moves, and the release mkp.toml says moves only with every file
@@ -534,7 +534,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         let r = Report { results: &results, asked: &asked, wrote: &wrote, skipped: &skipped, from: &from_release, record: config.as_ref().map(|c| (c.as_path(), moved_record)), diff, code: if code == ExitCode::SUCCESS { 0 } else { 1 } };
         if json {
             for line in r.lines() {
-                println!("{}", line);
+                crate::out::text(&line);
             }
         }
         if let Some(f) = &report {

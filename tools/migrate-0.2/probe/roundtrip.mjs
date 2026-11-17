@@ -40,7 +40,7 @@ for (const d of readdirSync(work).sort()) {
   if (!existsSync(join(dir, 'doc.mkp.md'))) continue;
   const packs = existsSync(join(dir, 'packs')) ? readdirSync(join(dir, 'packs')).map((p) => join(dir, 'packs', p)) : [];
   const pk = packs.length ? ['--pack', packs.join(',')] : [];
-  const b1 = run([mkp, 'build', join(dir, 'doc.mkp.md'), ...pk, '-o', join(dir, 'a.ir.json')]);
+  const b1 = run([mkp, 'build', join(dir, 'doc.mkp.md'), ...pk, '--out', join(dir, 'a.ir.json')]);
   if (b1.status !== 0) continue; // the migrated document doesn't compile: nothing to write back
   const src = run(['node', join(here, 'ir3-source.mjs'), join(dir, 'a.ir.json')]);
   const out = join(dir, 'from-ir.mkp.md');
@@ -50,7 +50,7 @@ for (const d of readdirSync(work).sort()) {
   const k = run([mkp, 'check', ...pk, out]);
   r.check = k.status === 0 ? 'clean' : (k.stdout + k.stderr).trim().split('\n')[0];
   if (k.status === 0) {
-    run([mkp, 'build', out, ...pk, '-o', join(dir, 'b.ir.json')]);
+    run([mkp, 'build', out, ...pk, '--out', join(dir, 'b.ir.json')]);
     r.same = own(JSON.parse(readFileSync(join(dir, 'a.ir.json'), 'utf8')).ir) === own(JSON.parse(readFileSync(join(dir, 'b.ir.json'), 'utf8')).ir);
   }
   rows.push(r);

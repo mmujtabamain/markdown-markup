@@ -18,7 +18,7 @@ targets/android/
 ## Using it
 
 ```kotlin
-// the IR `mkp build page.mkp.md -o page.ir.json` wrote, in the app's assets
+// the IR `mkp build page.mkp.md --out page.ir.json` wrote, in the app's assets
 val page = remember { CompiledPage.fromAsset(context, "page.ir.json", PageOptions(theme = "DARK")) }
 MkpPage(page)                                         // draws it, and keeps it drawn
 MkpPage(page, Externs(mapOf("acme/chart" to Widget { props, ctx -> MyChart(props, ctx) })))
