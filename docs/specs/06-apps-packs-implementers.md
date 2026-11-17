@@ -120,6 +120,8 @@ A use moves exactly, never by searching the text. Each file is compiled against 
 
 Migrations and surfaces never reach a page: the IR has neither, and building a document never reads them.
 
+The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`), and no target reads the resolved IR.
+
 ### Tokens
 
 A token type is an enum whose cases each stand for a value of one type: `token space: number 0... { XS, S, M, L, XL }`. Core declares `color`, `space`, `size`, `radius`, `font`, `shadow` and `stroke` (page 5), and a pack may declare its own with `token`. A `tokens` block gives the cases their values. The block's own name is a label for people and tools. Lookup never uses it.

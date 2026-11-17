@@ -1,0 +1,3354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/rir.schema.json",
+  "title": "MKP resolved IR 1",
+  "description": "The resolved IR (rir): what the mkp compiler's checker understood of a build, written out. Every name is resolved to what it names, every value has its type, and nothing is lowered: prose is still Markdown, a call still has its arguments by name, and there are no bindings, sites or handlers. Every node keeps its span in its file's source and the comments that sit with it, so a tool can edit the source exactly or print it back. Targets never read it: they run the IR (ir.schema.json). Types are the IR's. `mkp build --rir` writes it.",
+  "$ref": "#/$defs/root",
+  "$defs": {
+    "span": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "Where it is in its file's source: the byte offsets of its start and of its end, UTF-8."
+    },
+    "comments": {
+      "type": "object",
+      "description": "The comments that sit with a node, as written, `//` or `@//` included.",
+      "properties": {
+        "before": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "id": {
+      "type": "string",
+      "description": "A declaration's full name, `kit/chart`; a member's, `kit/chart.color`; a fn on a type, `kit/text.slug`. A surface's declarations are named by their version: `kit@1/chart`."
+    },
+    "root": {
+      "type": "object",
+      "description": "A build, resolved: the files given to the compiler, as its checker understood them.",
+      "properties": {
+        "rir": {
+          "const": 1,
+          "description": "This format's version. A release may add parts; one that changes or removes a part, or what it means, raises it."
+        },
+        "mkp": {
+          "type": "string",
+          "description": "The MKP release that wrote it: `0.3.1`."
+        },
+        "packs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pack"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        }
+      },
+      "required": [
+        "rir",
+        "mkp",
+        "packs",
+        "files"
+      ],
+      "additionalProperties": false
+    },
+    "pack": {
+      "type": "object",
+      "description": "A pack in the build, and the surfaces of its earlier versions.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "surface": {
+          "type": "boolean",
+          "description": "A surface (`package kit@1;`): what an earlier version provided."
+        },
+        "uses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "A pack it uses, at the version it uses.",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "file": {
+      "type": "object",
+      "description": "One source file: a document, a pack's file or a surface.",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "document",
+            "pack",
+            "surface"
+          ]
+        },
+        "package": {
+          "type": "string",
+          "description": "A pack's file's package; left out for a document."
+        },
+        "sha256": {
+          "type": "string",
+          "description": "The SHA-256 of the source the spans are offsets into: a tool reads the source beside this file, and checks it is that one."
+        },
+        "front_matter": {
+          "$ref": "#/$defs/span"
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/import"
+          }
+        },
+        "declarations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/declaration"
+          }
+        },
+        "state": {
+          "$ref": "#/$defs/state"
+        },
+        "expose": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expose"
+          }
+        },
+        "prose": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Comments that sit with no node: at the end of the file."
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "sha256",
+        "imports",
+        "declarations"
+      ],
+      "additionalProperties": false
+    },
+    "import": {
+      "type": "object",
+      "description": "`import kit;`, `import kit.chart;`, `import kit.chart as c;`, and what it brings in.",
+      "properties": {
+        "pack": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "as": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/id"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "pack",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "doc": {
+      "type": "object",
+      "description": "A declaration's doc comments.",
+      "properties": {
+        "about": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "deprecated": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "description": "An input of a widget, a field of a record, a value of an extern block: its name, type and default.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "default": {
+          "$ref": "#/$defs/expr"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "param": {
+          "type": "boolean"
+        },
+        "name_span": {
+          "$ref": "#/$defs/span"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "id",
+        "type",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "param": {
+      "type": "object",
+      "description": "A fn's parameter, or an event's.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "self": {
+          "type": "boolean"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "generic": {
+      "type": "object",
+      "description": "A type parameter and its bounds.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "bounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "declaration": {
+      "description": "A declaration, with its id, its spans, its doc comments and its parts, every name in them resolved.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "An enum.",
+          "properties": {
+            "enum": {
+              "type": "object",
+              "description": "An enum.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A case, with the values it carries.",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/field"
+                        }
+                      },
+                      "span": {
+                        "$ref": "#/$defs/span"
+                      },
+                      "comments": {
+                        "$ref": "#/$defs/comments"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "span"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "enum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A record.",
+          "properties": {
+            "record": {
+              "type": "object",
+              "description": "A record.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "requires": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/require"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "record"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A token type.",
+          "properties": {
+            "token": {
+              "type": "object",
+              "description": "A token type.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "value": {
+                  "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A case.",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/field"
+                        }
+                      },
+                      "span": {
+                        "$ref": "#/$defs/span"
+                      },
+                      "comments": {
+                        "$ref": "#/$defs/comments"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "span"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An alias.",
+          "properties": {
+            "type": {
+              "type": "object",
+              "description": "An alias.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "is": {
+                  "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                }
+              },
+              "required": [
+                "id",
+                "span",
+                "is"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An interface.",
+          "properties": {
+            "interface": {
+              "type": "object",
+              "description": "An interface, or a widget interface.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "widget": {
+                  "type": "boolean"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "fns": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/signature"
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/event"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "interface"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A widget.",
+          "properties": {
+            "widget": {
+              "type": "object",
+              "description": "A widget written in MKP.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "slots": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/slot"
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/event"
+                  }
+                },
+                "requires": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/require"
+                  }
+                },
+                "own": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/var"
+                  }
+                },
+                "lets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/var"
+                  }
+                },
+                "fns": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/fn"
+                  }
+                },
+                "view": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                },
+                "markdown": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/block"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "widget"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A fn.",
+          "properties": {
+            "fn": {
+              "$ref": "#/$defs/fn"
+            }
+          },
+          "required": [
+            "fn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An extern widget.",
+          "properties": {
+            "extern_widget": {
+              "type": "object",
+              "description": "A widget its target or its pack supplies.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "slots": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/slot"
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/event"
+                  }
+                },
+                "markdown": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/block"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "extern_widget"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An extern fn; its body, when it has one, is its default.",
+          "properties": {
+            "extern_fn": {
+              "$ref": "#/$defs/fn"
+            }
+          },
+          "required": [
+            "extern_fn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An extern type.",
+          "properties": {
+            "extern_type": {
+              "type": "object",
+              "description": "An extern type.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "extern_type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An extern block.",
+          "properties": {
+            "extern": {
+              "type": "object",
+              "description": "An extern block: values and fns the app supplies.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                },
+                "fns": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/signature"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "extern"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A let.",
+          "properties": {
+            "let": {
+              "type": "object",
+              "description": "A top-level constant.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "type": {
+                  "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                },
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "id",
+                "span",
+                "type",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "let"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A tokens block.",
+          "properties": {
+            "tokens": {
+              "type": "object",
+              "description": "A tokens block: values for token cases.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "`color.PRIMARY = …;`",
+                    "properties": {
+                      "token": {
+                        "$ref": "#/$defs/id"
+                      },
+                      "case": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "$ref": "#/$defs/expr"
+                      },
+                      "span": {
+                        "$ref": "#/$defs/span"
+                      },
+                      "comments": {
+                        "$ref": "#/$defs/comments"
+                      }
+                    },
+                    "required": [
+                      "token",
+                      "case",
+                      "value",
+                      "span"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "tokens"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A pack block.",
+          "properties": {
+            "pack": {
+              "type": "object",
+              "description": "A pack block.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "uses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A pack used.",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "integer"
+                      },
+                      "span": {
+                        "$ref": "#/$defs/span"
+                      },
+                      "comments": {
+                        "$ref": "#/$defs/comments"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "version"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "provides": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "pack"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A migration.",
+          "properties": {
+            "migration": {
+              "$ref": "#/$defs/migration"
+            }
+          },
+          "required": [
+            "migration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A migration fn.",
+          "properties": {
+            "migration_fn": {
+              "type": "object",
+              "description": "A migration fn: a migration to reuse.",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "doc": {
+                  "$ref": "#/$defs/doc"
+                },
+                "generics": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/generic"
+                  }
+                },
+                "implements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                  }
+                },
+                "span": {
+                  "$ref": "#/$defs/span"
+                },
+                "comments": {
+                  "$ref": "#/$defs/comments"
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/param"
+                  }
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/migration_stmt"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "span"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "migration_fn"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "fn": {
+      "type": "object",
+      "description": "A fn: its signature, every type resolved, and its body.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name_span": {
+          "$ref": "#/$defs/span"
+        },
+        "doc": {
+          "$ref": "#/$defs/doc"
+        },
+        "generics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/generic"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        },
+        "on": {
+          "type": "string",
+          "description": "The type a fn is added to: a built-in's name (`text`), or a declaration's id."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "returns": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "object",
+      "description": "A fn's signature, with no body.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "returns": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "slot": {
+      "type": "object",
+      "description": "A slot.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "id",
+        "type",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "description": "An event.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "id",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "require": {
+      "type": "object",
+      "description": "A `require` block: its message and its body.",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stmt"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "message",
+        "body",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "var": {
+      "type": "object",
+      "description": "A `let` or a `mut` in a widget or a fn.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+        },
+        "value": {
+          "$ref": "#/$defs/expr"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "description": "A document's `$state` block.",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/require"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "fields",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "expose": {
+      "type": "object",
+      "description": "An `expose` block, answering an extern block.",
+      "properties": {
+        "channel": {
+          "$ref": "#/$defs/id"
+        },
+        "fns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fn"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "channel",
+        "fns",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "migration": {
+      "type": "object",
+      "description": "`migration kit@1 to kit@2 { … }`: its blocks, each naming the older version's declaration.",
+      "properties": {
+        "from": {
+          "type": "object",
+          "description": "A pack at a version.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "to": {
+          "type": "object",
+          "description": "A pack at a version.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "fns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fn"
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "A block: what happens to the uses of one older declaration.",
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/$defs/id"
+              },
+              "body": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/migration_stmt"
+                }
+              },
+              "name_span": {
+                "$ref": "#/$defs/span"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              },
+              "comments": {
+                "$ref": "#/$defs/comments"
+              }
+            },
+            "required": [
+              "kind",
+              "target",
+              "body",
+              "span"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "blocks",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "migration_stmt": {
+      "description": "A statement of a migration's block.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A call.",
+          "properties": {
+            "call": {
+              "type": "object",
+              "description": "A statement, `rename(to = plot)`, or a migration fn's call.",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "fn": {
+                  "$ref": "#/$defs/id"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/named"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "args"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "call",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`execute { … }`.",
+          "properties": {
+            "execute": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/stmt"
+              }
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "execute",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`event click { … }`.",
+          "properties": {
+            "event": {
+              "type": "object",
+              "description": "An event's block.",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/migration_stmt"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "body"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "event",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`for` and `if` in a migration fn.",
+          "properties": {
+            "stmt": {
+              "$ref": "#/$defs/stmt"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "stmt",
+            "span"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "named": {
+      "type": "object",
+      "description": "A named argument: of a widget's use (an input, or an event's handler), a record's field, or a migration statement.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/id"
+        },
+        "name_span": {
+          "$ref": "#/$defs/span"
+        },
+        "value": {
+          "$ref": "#/$defs/expr"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "use": {
+      "type": "object",
+      "description": "A call of a widget, `@chart(values = v, color = color.OK) { … }`: the widget, and each argument, slot and handler by what it fills.",
+      "properties": {
+        "widget": {
+          "$ref": "#/$defs/id"
+        },
+        "name_span": {
+          "$ref": "#/$defs/span"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/named"
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "A slot filled: by the call's children, or by name.",
+            "properties": {
+              "slot": {
+                "$ref": "#/$defs/id"
+              },
+              "view": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/stmt"
+                }
+              },
+              "prose": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/block"
+                }
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              },
+              "comments": {
+                "$ref": "#/$defs/comments"
+              }
+            },
+            "required": [
+              "slot",
+              "span"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "comments": {
+          "$ref": "#/$defs/comments"
+        }
+      },
+      "required": [
+        "widget",
+        "args",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "expr": {
+      "description": "An expression, every name resolved, with its type. Its kinds are the IR's, before lowering: no `bind`.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A number, as written.",
+          "properties": {
+            "num": {
+              "type": "string"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "num",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A text with no holes.",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "text",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`true` or `false`.",
+          "properties": {
+            "bool": {
+              "type": "boolean"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "bool",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`250ms`, `2s`.",
+          "properties": {
+            "duration": {
+              "type": "string"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "duration",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A literal with holes.",
+          "properties": {
+            "template": {
+              "type": "object",
+              "description": "A text with holes: its pieces, and a hole between each two.",
+              "properties": {
+                "pieces": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "holes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "pieces",
+                "holes"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "template",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`[a, b]`.",
+          "properties": {
+            "list": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              }
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "list",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`stat { label = \"A\" }`, or an inline record with no `of`.",
+          "properties": {
+            "record": {
+              "type": "object",
+              "description": "A record made.",
+              "properties": {
+                "of": {
+                  "$ref": "#/$defs/id"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/named"
+                  }
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "record",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`state.LATE`.",
+          "properties": {
+            "case": {
+              "type": "object",
+              "description": "An enum's or a token's case.",
+              "properties": {
+                "of": {
+                  "$ref": "#/$defs/id"
+                },
+                "case": {
+                  "type": "string"
+                },
+                "case_span": {
+                  "$ref": "#/$defs/span"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "of",
+                "case"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "case",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`opt.NONE`.",
+          "properties": {
+            "none": {
+              "type": "object",
+              "description": "",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "none",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`opt.SOME(x)`.",
+          "properties": {
+            "some": {
+              "$ref": "#/$defs/expr"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "some",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`a..b`.",
+          "properties": {
+            "range": {
+              "type": "object",
+              "description": "A range.",
+              "properties": {
+                "low": {
+                  "$ref": "#/$defs/expr"
+                },
+                "high": {
+                  "$ref": "#/$defs/expr"
+                },
+                "step": {
+                  "$ref": "#/$defs/expr"
+                },
+                "open": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "range",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A name, resolved.",
+          "properties": {
+            "get": {
+              "type": "object",
+              "description": "A read by name: what the name is.",
+              "properties": {
+                "local": {
+                  "type": "string"
+                },
+                "input": {
+                  "type": "string"
+                },
+                "own": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "let": {
+                  "$ref": "#/$defs/id"
+                },
+                "extern": {
+                  "$ref": "#/$defs/id"
+                },
+                "self": {
+                  "type": "boolean"
+                },
+                "slot": {
+                  "type": "string"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                }
+              },
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "get",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A field read.",
+          "properties": {
+            "field": {
+              "type": "object",
+              "description": "`a.b`.",
+              "properties": {
+                "of": {
+                  "$ref": "#/$defs/expr"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "member": {
+                  "$ref": "#/$defs/id"
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                }
+              },
+              "required": [
+                "of",
+                "field"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "field",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A call.",
+          "properties": {
+            "call": {
+              "type": "object",
+              "description": "A fn called by name, on a value or a type.",
+              "properties": {
+                "fn": {
+                  "$ref": "#/$defs/id"
+                },
+                "self": {
+                  "$ref": "#/$defs/expr"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                },
+                "name_span": {
+                  "$ref": "#/$defs/span"
+                }
+              },
+              "required": [
+                "fn",
+                "args"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "call",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A call of a value.",
+          "properties": {
+            "apply": {
+              "type": "object",
+              "description": "A fn held in a value, called.",
+              "properties": {
+                "fn": {
+                  "$ref": "#/$defs/expr"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "fn",
+                "args"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "apply",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`a + b`, `!a`.",
+          "properties": {
+            "op": {
+              "type": "object",
+              "description": "An operator, by its symbol.",
+              "properties": {
+                "op": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "op",
+                "args"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "op",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A choice.",
+          "properties": {
+            "pick": {
+              "type": "object",
+              "description": "`c ? a : b`.",
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/expr"
+                },
+                "then": {
+                  "$ref": "#/$defs/expr"
+                },
+                "else": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "cond",
+                "then",
+                "else"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "pick",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An item, as an opt.",
+          "properties": {
+            "index": {
+              "type": "object",
+              "description": "`xs[i]`.",
+              "properties": {
+                "of": {
+                  "$ref": "#/$defs/expr"
+                },
+                "index": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "of",
+                "index"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "index",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A record with fields changed.",
+          "properties": {
+            "with": {
+              "type": "object",
+              "description": "`r with { a = 1 }`.",
+              "properties": {
+                "of": {
+                  "$ref": "#/$defs/expr"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/named"
+                  }
+                }
+              },
+              "required": [
+                "of",
+                "fields"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "with",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`try` in front of a record.",
+          "properties": {
+            "try": {
+              "$ref": "#/$defs/expr"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "try",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`fn(x) { … }`.",
+          "properties": {
+            "lambda": {
+              "type": "object",
+              "description": "A fn written in place.",
+              "properties": {
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/param"
+                  }
+                },
+                "returns": {
+                  "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "params",
+                "body"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "lambda",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A view as a value.",
+          "properties": {
+            "use": {
+              "$ref": "#/$defs/use"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "type": {
+              "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/type"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "use",
+            "span"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "stmt": {
+      "description": "A statement of a fn's body, a handler or a view.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "`let x: T = v;`.",
+          "properties": {
+            "let": {
+              "$ref": "#/$defs/var"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "let",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "`mut x: T = v;`.",
+          "properties": {
+            "mut": {
+              "$ref": "#/$defs/var"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "mut",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An assignment.",
+          "properties": {
+            "set": {
+              "type": "object",
+              "description": "`place = value;`.",
+              "properties": {
+                "place": {
+                  "$ref": "#/$defs/expr"
+                },
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": [
+                "place",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "set",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A return.",
+          "properties": {
+            "return": {
+              "type": "object",
+              "description": "`return x;` or `return;`.",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "return",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An if.",
+          "properties": {
+            "if": {
+              "type": "object",
+              "description": "`if … else if … else …`.",
+              "properties": {
+                "branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A branch.",
+                    "properties": {
+                      "cond": {
+                        "$ref": "#/$defs/expr"
+                      },
+                      "opens": {
+                        "$ref": "#/$defs/var"
+                      },
+                      "body": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/stmt"
+                        }
+                      }
+                    },
+                    "required": [
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "else": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "branches"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "if",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A walk.",
+          "properties": {
+            "for": {
+              "type": "object",
+              "description": "`for (x in xs) { … }`.",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "mutable": {
+                  "type": "boolean"
+                },
+                "over": {
+                  "$ref": "#/$defs/expr"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/stmt"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "over",
+                "body"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "for",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A match.",
+          "properties": {
+            "match": {
+              "type": "object",
+              "description": "`match (x) { case … }`.",
+              "properties": {
+                "subject": {
+                  "$ref": "#/$defs/expr"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A case.",
+                    "properties": {
+                      "patterns": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json#/$defs/pattern"
+                        }
+                      },
+                      "body": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/stmt"
+                        }
+                      },
+                      "span": {
+                        "$ref": "#/$defs/span"
+                      },
+                      "comments": {
+                        "$ref": "#/$defs/comments"
+                      }
+                    },
+                    "required": [
+                      "patterns",
+                      "body",
+                      "span"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "subject",
+                "cases"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "match",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An event fired.",
+          "properties": {
+            "invoke": {
+              "type": "object",
+              "description": "`invoke name(args);`.",
+              "properties": {
+                "event": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/expr"
+                  }
+                }
+              },
+              "required": [
+                "event",
+                "args"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "invoke",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A widget placed, in a view.",
+          "properties": {
+            "use": {
+              "$ref": "#/$defs/use"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "use",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An expression as a statement: a call of an action.",
+          "properties": {
+            "expr": {
+              "$ref": "#/$defs/expr"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "expr",
+            "span"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "block": {
+      "description": "A block of prose: Markdown as written, its holes and calls resolved. Nothing is turned into extern calls yet.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A paragraph.",
+          "properties": {
+            "paragraph": {
+              "$ref": "#/$defs/inline"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "paragraph",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A heading.",
+          "properties": {
+            "heading": {
+              "type": "object",
+              "description": "A heading.",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 6
+                },
+                "inline": {
+                  "$ref": "#/$defs/inline"
+                }
+              },
+              "required": [
+                "level",
+                "inline"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "heading",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A list, each item its blocks.",
+          "properties": {
+            "list": {
+              "type": "object",
+              "description": "A list.",
+              "properties": {
+                "ordered": {
+                  "type": "boolean"
+                },
+                "start": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/block"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "items"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "list",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A quote.",
+          "properties": {
+            "quote": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "quote",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Code.",
+          "properties": {
+            "code": {
+              "type": "object",
+              "description": "A fenced or indented code block.",
+              "properties": {
+                "info": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "code",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Maths.",
+          "properties": {
+            "math": {
+              "type": "object",
+              "description": "A maths block.",
+              "properties": {
+                "tex": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tex"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "math",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A table.",
+          "properties": {
+            "table": {
+              "type": "object",
+              "description": "A table.",
+              "properties": {
+                "head": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/inline"
+                  }
+                },
+                "align": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "none",
+                      "left",
+                      "center",
+                      "right"
+                    ]
+                  }
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/inline"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "head",
+                "rows"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "table",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A thematic break.",
+          "properties": {
+            "divider": {
+              "type": "object",
+              "description": "",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "divider",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Raw HTML, shown as text.",
+          "properties": {
+            "html": {
+              "type": "string"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "html",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A footnote.",
+          "properties": {
+            "footnote": {
+              "type": "object",
+              "description": "A footnote's text.",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/block"
+                  }
+                }
+              },
+              "required": [
+                "label",
+                "blocks"
+              ],
+              "additionalProperties": false
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "footnote",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A call on a line of its own; its prose block, if any, is its slot's prose.",
+          "properties": {
+            "call": {
+              "$ref": "#/$defs/use"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "call",
+            "span"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "An `@//` line.",
+          "properties": {
+            "comment": {
+              "type": "string"
+            },
+            "span": {
+              "$ref": "#/$defs/span"
+            },
+            "comments": {
+              "$ref": "#/$defs/comments"
+            }
+          },
+          "required": [
+            "comment",
+            "span"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "inline": {
+      "type": "object",
+      "description": "Inline Markdown as written, with each hole's place marked by U+FFFC and the holes in order.",
+      "properties": {
+        "markdown": {
+          "type": "string"
+        },
+        "holes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expr"
+          }
+        }
+      },
+      "required": [
+        "markdown",
+        "holes"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

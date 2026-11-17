@@ -1,0 +1,218 @@
+{
+  "rir": 1,
+  "mkp": "0.3.0",
+  "packs": [],
+  "files": [
+    {
+      "path": "schemas/examples/counter.mkp.md",
+      "kind": "document",
+      "sha256": "9adc48298447e634b4536955753875e5fd5bd4b61c8868ad95348ebb8757eb02",
+      "imports": [],
+      "declarations": [],
+      "state": {
+        "span": [
+          29,
+          58
+        ],
+        "comments": {
+          "before": [
+            "// the counter from the plan"
+          ]
+        },
+        "fields": [
+          {
+            "name": "n",
+            "id": "$state.n",
+            "type": {
+              "name": "core/number"
+            },
+            "mutable": true,
+            "default": {
+              "num": "0",
+              "type": {
+                "name": "core/number"
+              },
+              "span": [
+                54,
+                55
+              ]
+            },
+            "name_span": [
+              42,
+              43
+            ],
+            "span": [
+              42,
+              55
+            ]
+          }
+        ]
+      },
+      "prose": [
+        {
+          "heading": {
+            "level": 1,
+            "inline": {
+              "markdown": "Counter",
+              "holes": []
+            }
+          },
+          "span": [
+            63,
+            72
+          ]
+        },
+        {
+          "paragraph": {
+            "markdown": "The count is ￼.",
+            "holes": [
+              {
+                "get": {
+                  "state": "n",
+                  "name_span": [
+                    96,
+                    97
+                  ]
+                },
+                "type": {
+                  "name": "core/number"
+                },
+                "span": [
+                  89,
+                  97
+                ]
+              }
+            ]
+          },
+          "span": [
+            74,
+            99
+          ]
+        },
+        {
+          "call": {
+            "widget": "core/press",
+            "name_span": [
+              102,
+              107
+            ],
+            "args": [
+              {
+                "name": "label",
+                "target": "core/press.label",
+                "name_span": [
+                  108,
+                  113
+                ],
+                "value": {
+                  "text": "Add",
+                  "type": {
+                    "name": "core/text"
+                  },
+                  "span": [
+                    116,
+                    121
+                  ]
+                },
+                "span": [
+                  108,
+                  121
+                ]
+              },
+              {
+                "name": "click",
+                "target": "core/press.click",
+                "name_span": [
+                  123,
+                  128
+                ],
+                "value": {
+                  "lambda": {
+                    "params": [],
+                    "body": [
+                      {
+                        "set": {
+                          "place": {
+                            "get": {
+                              "state": "n"
+                            },
+                            "type": {
+                              "name": "core/number"
+                            },
+                            "span": [
+                              138,
+                              146
+                            ]
+                          },
+                          "value": {
+                            "op": {
+                              "op": "+",
+                              "args": [
+                                {
+                                  "get": {
+                                    "state": "n"
+                                  },
+                                  "type": {
+                                    "name": "core/number"
+                                  },
+                                  "span": [
+                                    149,
+                                    157
+                                  ]
+                                },
+                                {
+                                  "num": "1",
+                                  "type": {
+                                    "name": "core/number"
+                                  },
+                                  "span": [
+                                    160,
+                                    161
+                                  ]
+                                }
+                              ]
+                            },
+                            "type": {
+                              "name": "core/number"
+                            },
+                            "span": [
+                              149,
+                              161
+                            ]
+                          }
+                        },
+                        "span": [
+                          138,
+                          162
+                        ]
+                      }
+                    ]
+                  },
+                  "type": {
+                    "name": "fn"
+                  },
+                  "span": [
+                    131,
+                    164
+                  ]
+                },
+                "span": [
+                  123,
+                  164
+                ]
+              }
+            ],
+            "span": [
+              101,
+              165
+            ]
+          },
+          "span": [
+            101,
+            166
+          ]
+        }
+      ]
+    }
+  ]
+}

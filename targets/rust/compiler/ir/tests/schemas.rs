@@ -89,3 +89,43 @@ fn a_value_outside_the_schema_is_refused() {
     assert!(!errors(&v, &doc).is_empty());
     assert!(serde_json::from_value::<mkp_ir::ir::File>(doc).is_err());
 }
+
+#[test]
+fn the_resolved_ir_schema_reads_and_its_examples_fit_it() {
+    let v = validator("rir.schema.json");
+    let dir = repo().join("schemas/examples");
+    let mut n = 0;
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        if !path.to_str().unwrap().ends_with(".rir.json") {
+            continue;
+        }
+        let doc = json(&path);
+        let errs = errors(&v, &doc);
+        assert!(errs.is_empty(), "{}: {:#?}", path.display(), errs);
+        // its spans are offsets into the source beside it, which its hash names
+        let file = &doc["files"][0];
+        let src = std::fs::read_to_string(repo().join(file["path"].as_str().unwrap())).unwrap();
+        let len = src.len() as u64;
+        fn spans(v: &Value, out: &mut Vec<(u64, u64)>) {
+            match v {
+                Value::Object(m) => {
+                    for (k, x) in m {
+                        if (k == "span" || k.ends_with("_span")) && x.is_array() {
+                            out.push((x[0].as_u64().unwrap(), x[1].as_u64().unwrap()));
+                        } else {
+                            spans(x, out);
+                        }
+                    }
+                }
+                Value::Array(a) => a.iter().for_each(|x| spans(x, out)),
+                _ => {}
+            }
+        }
+        let mut all = Vec::new();
+        spans(file, &mut all);
+        assert!(all.iter().all(|(s, e)| s <= e && *e <= len), "{}: a span outside its source", path.display());
+        n += 1;
+    }
+    assert!(n >= 1);
+}
