@@ -112,7 +112,7 @@ pub mod codes {
 }
 
 /// A source file: its path and its text.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Source {
     pub path: String,
     pub text: String,

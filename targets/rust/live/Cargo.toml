@@ -1,0 +1,14 @@
+[package]
+name = "mkp-live"
+description = "What a real-time MKP target embeds: the compiler, with core compiled once, building a document's text into the IR mkp build writes; and a text followed as it is edited, the last IR that compiled kept while a draft has errors"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mkp-syntax = { path = "../compiler/syntax" }
+mkp-check = { path = "../compiler/check" }
+mkp-ir = { path = "../compiler/ir" }
+mkp-lower = { path = "../compiler/lower" }
+serde.workspace = true
+serde_json.workspace = true

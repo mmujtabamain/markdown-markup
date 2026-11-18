@@ -9,8 +9,5 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mkp-syntax = { path = "../compiler/syntax" }
-mkp-check = { path = "../compiler/check" }
-mkp-ir = { path = "../compiler/ir" }
-mkp-lower = { path = "../compiler/lower" }
+mkp-live = { path = "../live" }
 serde_json.workspace = true

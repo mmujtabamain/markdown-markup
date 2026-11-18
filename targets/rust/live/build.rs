@@ -1,5 +1,6 @@
-//! Embeds core's MKP sources in the module, as cli/build.rs embeds them in the binary: the browser
-//! compiles core itself, once, with no files around it. Packs come with each build, as text.
+//! Embeds core's MKP sources in the library, as cli/build.rs embeds them in the binary: an app (or
+//! a browser, through mkp-wasm) compiles core itself, once, with no files around it. Packs come
+//! with each build, as text.
 
 use std::path::{Path, PathBuf};
 

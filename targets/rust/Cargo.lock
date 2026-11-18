@@ -2028,6 +2028,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkp-live"
+version = "0.3.0"
+dependencies = [
+ "mkp-check",
+ "mkp-ir",
+ "mkp-lower",
+ "mkp-syntax",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mkp-lower"
 version = "0.3.0"
 dependencies = [
@@ -2075,10 +2087,7 @@ dependencies = [
 name = "mkp-wasm"
 version = "0.3.0"
 dependencies = [
- "mkp-check",
- "mkp-ir",
- "mkp-lower",
- "mkp-syntax",
+ "mkp-live",
  "serde_json",
 ]
 

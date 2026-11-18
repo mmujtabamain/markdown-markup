@@ -11,6 +11,7 @@ members = [
     "egui",
     "schemagen",
     "cli",
+    "live",
     "wasm",
     "../android/mkp",
 ]
