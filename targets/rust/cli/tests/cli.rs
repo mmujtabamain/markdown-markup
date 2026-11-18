@@ -921,3 +921,42 @@ fn target_check_stops_at_what_it_cant_run_before_counting_anything() {
     assert_eq!(code, 2, "{}{}", out, err);
     assert!(!out.contains("caught") && err.contains("the target's adapter didn't run, so nothing was checked"), "{}{}", out, err);
 }
+
+#[test]
+fn a_pages_ir_holds_only_what_the_page_uses() {
+    let dir = scratch("page-only-ir", &[("page.mkp.md", "let when: moment = \"2026-07-01T12:00+00:00\";\n$state { n: number = 0; }\n@@@\n# Hi\n\nAt \\{when}.\n\n@press(label = \"Add\", click = fn() { $state.n = $state.n + 1; });\n"), ("pack.mkp", "package t;\n"), ("local.mkp.md", "let when: moment = \"2026-07-01T12:00+00:00\";\n@@@\nHere: \\{when.local()}\n")]);
+    let ir_of = |f: &str| -> serde_json::Value {
+        let (code, out, err) = mkp(&["build", dir.join(f).to_str().unwrap()]);
+        assert_eq!(code, 0, "{}", err);
+        serde_json::from_str::<serde_json::Value>(&out).unwrap()["ir"].clone()
+    };
+    let names = |ir: &serde_json::Value| -> Vec<String> {
+        ir["declarations"].as_array().unwrap().iter().filter_map(|d| {
+            let mut v = &d["declare"];
+            for _ in 0..3 {
+                if let Some(n) = v.get("name").and_then(|n| n.as_str()) {
+                    return Some(n.to_string());
+                }
+                v = v.as_object()?.values().next()?;
+            }
+            None
+        }).collect()
+    };
+    let page = ir_of("page.mkp.md");
+    let kept = names(&page);
+    // what it calls, and what a runtime finds by a value's type (a moment in a hole is shown by moment.show)
+    assert!(kept.contains(&"core/press".to_string()) && kept.contains(&"core/moment.show".to_string()), "{:?}", kept);
+    // not core's Markdown reader, nor widgets it never draws
+    assert!(!kept.iter().any(|n| n == "core/entities" || n == "core/slider" || n == "core/canvas"), "{:?}", kept);
+    let needs: Vec<&str> = page["needs"]["core"].as_array().unwrap().iter().filter_map(|n| n.as_str()).collect();
+    assert!(needs.contains(&"core/press") && !needs.contains(&"core/slider"), "{:?}", needs);
+    // core's token types stay: a target styles a page from them by name
+    assert!(kept.iter().any(|n| n == "core/color"), "{:?}", kept);
+    // an implementer builds moment.local on moment.utc and moment_at, so they come with it
+    assert!(!kept.iter().any(|n| n == "core/moment_at"), "{:?}", kept);
+    let local = names(&ir_of("local.mkp.md"));
+    assert!(local.iter().any(|n| n == "core/moment_at") && local.iter().any(|n| n == "core/moment.utc"), "{:?}", local);
+    // a pack's IR keeps all it builds on
+    let pack = names(&ir_of("pack.mkp"));
+    assert!(pack.len() > kept.len() * 3 && pack.contains(&"core/entities".to_string()), "{} vs {}", pack.len(), kept.len());
+}

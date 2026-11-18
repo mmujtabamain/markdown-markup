@@ -314,7 +314,9 @@ fn moment.minutes_to(self, other: moment): int {
 }
 
 // the same moment, with the offset the reader's zone uses on its date.
-// Supplied by the implementer from the platform's zone rules: MKP can never know them
+// Supplied by the implementer from the platform's zone rules: MKP can never know them.
+// It builds on moment.utc for the instant and moment_at for the fields, so a page that
+// calls it has both in its IR
 extern fn moment.local(self): moment;
 
 fn moment.time(self): text {

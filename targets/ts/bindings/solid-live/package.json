@@ -1,0 +1,38 @@
+{
+  "name": "@mkp/solid-live",
+  "version": "0.3.0",
+  "description": "MKP documents in Solid, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/solid's <MkpDoc>",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mkp/solid": "file:../solid",
+    "@mkp/live": "file:../live",
+    "@mkp/view": "file:../view"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.8.0"
+  },
+  "devDependencies": {
+    "@mkp/cli": "file:../../cli",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
+    "solid-js": "1.9.19",
+    "typescript": "5.9.3"
+  }
+}

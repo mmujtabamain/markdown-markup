@@ -8,5 +8,7 @@ none, so every target shows its Markdown instead and reports it as missing (page
 - `supplies.json`: what the pack supplies on each target. Headless targets (test, native) draw
   nothing, so for them the list is the implementation.
 - `web.mjs`: the widget for @mkp/dom, which the web target's check harness registers.
+- `view.mjs`: the widget as an element, for the targets drawn from @mkp/view (React, Vue, Svelte,
+  Solid and Angular, and their live targets), whose check harnesses register it.
 
 Cases using it: targets/checks/cases/packs/.

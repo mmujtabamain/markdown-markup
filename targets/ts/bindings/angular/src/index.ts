@@ -71,3 +71,6 @@ export class MkpPage implements AfterViewInit, OnChanges, OnDestroy {
 }
 
 export type { Call, Given, Handle, Ir, Mounted, Outcome, Page, PageProps, PageValues, Value, Widget, ir } from "@mkp/embed";
+
+export { MkpDoc } from "./doc.js";
+export type { DocError, DocProps, Restored, Snapshot } from "@mkp/view";

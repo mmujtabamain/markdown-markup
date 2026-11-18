@@ -1,0 +1,12 @@
+#!/bin/bash
+# The C compiler cc-rs runs for wasm32-wasip1 (decNumber, under the dec crate): zig's clang, with
+# wasi-libc's headers. Zig is MKP_ZIG (a command, as in "python3 -m ziglang"), or zig on the
+# PATH, or the ziglang Python package (pip install ziglang).
+if [ -n "${MKP_ZIG:-}" ]; then read -ra zig <<< "$MKP_ZIG"
+elif command -v zig >/dev/null; then zig=(zig)
+else zig=(python3 -m ziglang); fi
+# cc-rs names the target its own way; zig is told it below
+args=()
+for a in "$@"; do case "$a" in --target=*) ;; *) args+=("$a") ;; esac; done
+# decContext.c includes signal.h for its traps, which MKP never sets (mkp-wasm gives a raise())
+exec "${zig[@]}" cc -target wasm32-wasi -D_WASI_EMULATED_SIGNAL "${args[@]}"

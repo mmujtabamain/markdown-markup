@@ -64,3 +64,6 @@ export function usePage(): [Handle | null, (h: Handle | null) => void] {
 }
 
 export type { Call, Given, Handle, Ir, Mounted, Outcome, Page, PageProps, PageValues, Value, Widget, ir } from "@mkp/embed";
+
+export { MkpDoc, toReact, type MkpDocHandle, type MkpDocProps } from "./doc.js";
+export type { DocError, DocProps, Restored, Snapshot } from "@mkp/view";

@@ -163,6 +163,10 @@ impl Drop for Adapter {
 struct Case {
     id: String,
     ir: PathBuf,
+    /// Its document or pack file, and its packs' files: a target that compiles itself (a
+    /// real-time one) builds from these, and is checked on what it built.
+    source: PathBuf,
+    packs: Vec<PathBuf>,
     page: Value,
     markdown: Option<Value>,
     steps: Vec<Value>,
@@ -331,6 +335,7 @@ fn cases(base: &mkp_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
                 packs.push(mkp_check::Source { path: f.to_string_lossy().into_owned(), text: std::fs::read_to_string(&f).unwrap_or_default() });
             }
         }
+        let pack_files: Vec<PathBuf> = packs.iter().map(|p| PathBuf::from(&p.path)).collect();
         let path = src.to_string_lossy().into_owned();
         let module = if path.ends_with(".mkp.md") { "doc" } else { "t" };
         let c = mkp_check::compile_on(base, &[packs], &[mkp_check::Source { path, text }], module);
@@ -343,6 +348,8 @@ fn cases(base: &mkp_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
         out.push(Case {
             id: id.to_string(),
             ir,
+            source: src.clone(),
+            packs: pack_files,
             page: case.get("page").cloned().unwrap_or(json!({})),
             markdown: case["expect"].get("markdown").cloned(),
             steps: case["steps"].as_array().cloned().unwrap_or_default(),
@@ -384,7 +391,7 @@ fn run_target(base: &mkp_check::Checker, t: &Target, cases: &[Case], defect: Opt
         }
         let mut seen = Vec::new();
         let mut fail = |what: String| failures.push(format!("{} {}: {}", t.name, c.id, what));
-        if let Err(e) = adapter.call("load", json!({ "ir": c.ir.to_string_lossy(), "page": c.page })) {
+        if let Err(e) = adapter.call("load", json!({ "ir": c.ir.to_string_lossy(), "source": c.source.to_string_lossy(), "packs": c.packs.iter().map(|p| p.to_string_lossy()).collect::<Vec<_>>(), "page": c.page })) {
             fail(e);
             continue;
         }

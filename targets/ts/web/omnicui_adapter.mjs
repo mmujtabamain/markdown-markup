@@ -92,12 +92,13 @@ const cache = join(caches, salt);
 mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
-/** Builds a page's source into IR (or finds it built): its hash, which names its file in the cache. */
-function buildPage(source) {
-  const hash = createHash("sha256").update(source).digest("hex").slice(0, 24);
+/** Builds a page's source into IR (or finds it built): its hash, which names its file in the cache.
+ * A pack's source (`.mkp`) builds an IR with all of core; a page's, only what the page uses. */
+function buildPage(source, ext = ".mkp.md") {
+  const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json.gz`);
   if (!existsSync(out)) {
-    const src = join(cache, `${hash}.mkp.md`);
+    const src = join(cache, `${hash}${ext}`);
     const ir = join(cache, `${hash}.ir.json`);
     writeFileSync(src, source);
     try {
@@ -112,7 +113,8 @@ function buildPage(source) {
   return hash;
 }
 
-const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("@@@\nThe core declarations.\n")}.ir.json.gz`))).toString("utf8")));
+// every core declaration: a pack's IR keeps all of core it builds on
+const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("package omnicui_core;\n", ".mkp")}.ir.json.gz`))).toString("utf8")));
 
 // ---- the harness, served with each page's IR
 

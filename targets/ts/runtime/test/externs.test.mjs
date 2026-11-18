@@ -10,8 +10,9 @@ import { natives } from "../dist/index.js";
 import { mkpBinary, workdir } from "./mkp.mjs";
 
 test("every bodyless core extern fn is a native or target-only", () => {
-  const page = join(workdir(), "page.mkp.md");
-  writeFileSync(page, "@@@\nHello.\n");
+  // a pack's IR keeps all of core it builds on; a page's keeps only what the page uses
+  const page = join(workdir(), "t.mkp");
+  writeFileSync(page, "package t;\n");
   const ir = JSON.parse(execFileSync(mkpBinary(), ["build", page], { maxBuffer: 64 * 1024 * 1024 }).toString());
   const bodyless = ir.ir.declarations
     .map((d) => d.declare.extern?.fn)

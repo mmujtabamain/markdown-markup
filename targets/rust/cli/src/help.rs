@@ -109,8 +109,10 @@ const SURFACE: &str = "usage: mkp surface <pack folder|file> [--pack a,b] [--che
 
 const TARGET_CHECK: &str = "usage: mkp target check [target…] [--cases dir] [--defect name [--expect-failures]] [--require target:name] [--out file] [--format json]
   Runs the conformance cases through each target's check adapter, and reports every difference
-  from a case and between targets. The targets are android, egui, native, test and web; with
-  none named, it runs every one, which takes minutes. It says where the cases come from.
+  from a case and between targets. The targets are each target.yaml under targets/: android,
+  egui, native, test and web, and react, vue, svelte, solid and angular, each also as -live
+  (react-live…), which compiles every case's text in the browser. With none named, it runs
+  every one, which takes minutes. It says where the cases come from.
   --cases dir         the cases to run (default: targets/checks/cases in the repository)
   --defect name       runs the targets with one of their defects switched on, to show the cases
                       catch it; a name the target doesn't have stops the run, listing the ones it has

@@ -1,0 +1,16 @@
+[package]
+name = "mkp-wasm"
+description = "The MKP compiler for the browser: what mkp build does, on a core compiled once, for a real-time target"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mkp-syntax = { path = "../compiler/syntax" }
+mkp-check = { path = "../compiler/check" }
+mkp-ir = { path = "../compiler/ir" }
+mkp-lower = { path = "../compiler/lower" }
+serde_json.workspace = true

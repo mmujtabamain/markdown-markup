@@ -1,0 +1,9 @@
+# targets/ts/bindings/solid/target.yaml: the solid target, run time: <MkpDoc> drawn by solid itself from
+# @mkp/view's elements (core's widgets as the web target draws them), from an IR it is given
+name: solid
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: core                            # @mkp/dom's stylesheet draws core's own tokens
+check_adapter: exec node ../testing/view_adapter.mjs solid check/harness.mjs

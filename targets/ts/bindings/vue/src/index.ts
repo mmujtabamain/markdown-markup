@@ -74,3 +74,6 @@ export interface MkpPageRef extends Pick<Handle, "set" | "expose" | "extern" | "
 }
 
 export type { Call, Given, Handle, Ir, Mounted, Outcome, Page, PageProps, PageValues, Value, Widget, ir } from "@mkp/embed";
+
+export { MkpDoc, docProps, toVue, type MkpDocRef } from "./doc.js";
+export type { DocError, DocProps, Restored, Snapshot } from "@mkp/view";

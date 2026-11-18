@@ -1,7 +1,7 @@
 {
   "name": "@mkp/svelte",
   "version": "0.3.0",
-  "description": "MKP pages in Svelte 5: <MkpPage ir={…} /> or use:mkp, drawn by @mkp/dom",
+  "description": "MKP pages in Svelte 5: <MkpPage ir={\u2026} /> or use:mkp, drawn by @mkp/dom",
   "license": "MIT",
   "type": "module",
   "svelte": "./dist/index.js",
@@ -23,7 +23,8 @@
     "test": "npm run build && npm run check && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/embed": "file:../embed"
+    "@mkp/embed": "file:../embed",
+    "@mkp/view": "file:../view"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

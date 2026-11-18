@@ -80,6 +80,13 @@ export class Tokens {
     this.applied.set(root, theme);
     root.setAttribute("data-mkp-theme", theme.toLowerCase());
     root.style.colorScheme = theme === "DARK" ? "dark" : "light";
+    for (const [prop, css] of Object.entries(this.properties())) root.style.setProperty(prop, css);
+  }
+
+  /** Every token's custom property and its CSS, for the theme the page has now: what `apply` writes
+   * on a root, for a target that renders the root's style itself. */
+  properties(): Record<string, string> {
+    const out: Record<string, string> = {};
     for (const t of this.page.program.tokens.values()) {
       for (const name of Object.keys(t.values)) {
         let v: Value;
@@ -89,9 +96,10 @@ export class Tokens {
           continue;
         }
         const prop = tokenVar(t.name, name);
-        for (const [suffix, css] of this.cssOf(v)) root.style.setProperty(prop + suffix, css);
+        for (const [suffix, css] of this.cssOf(v)) out[prop + suffix] = css;
       }
     }
+    return out;
   }
 
   /** Removes what apply wrote, when the page is unmounted. */

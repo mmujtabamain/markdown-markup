@@ -2072,6 +2072,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkp-wasm"
+version = "0.3.0"
+dependencies = [
+ "mkp-check",
+ "mkp-ir",
+ "mkp-lower",
+ "mkp-syntax",
+ "serde_json",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

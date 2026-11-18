@@ -531,6 +531,72 @@ export class Page {
     return pageMarkdown(this);
   }
 
+  // ---- widgets' own variables, for a snapshot
+
+  /** Every drawn widget's own variables now, by the place it is drawn at (`s0/s4[2]/s1`): a widget
+   * written in MKP, its variables; an extern widget, the `mut` inputs no caller gave a variable. */
+  observeOwn(): Record<string, Record<string, ir.Expr>> {
+    const out: Record<string, Record<string, ir.Expr>> = {};
+    for (const [path, inst] of this.atPath) {
+      if (inst.cells.size) out[path] = Object.fromEntries([...inst.cells].map(([k, v]) => [k, toIr(v)]));
+    }
+    const walk = (nodes: Drawn[]) => {
+      for (const n of nodes) {
+        const own = [...(this.own.get(n.key) ?? [])].filter(([k]) => !n.writes.has(k));
+        if (own.length) out[n.path] = { ...out[n.path], ...Object.fromEntries(own.map(([k, v]) => [k, toIr(v)])) };
+        for (const kids of n.slots.values()) walk(kids);
+      }
+    };
+    walk(this.drawn);
+    return out;
+  }
+
+  /** Widgets' own variables put back by place, as one change: each value checked against its
+   * variable's type. One that doesn't fit, or whose widget isn't drawn at that place, is left out,
+   * and returned as `place.name`. */
+  restoreOwn(values: Record<string, Record<string, ir.Expr>>): string[] {
+    this.changes++;
+    this.machine.resetSteps();
+    const nodes = new Map<string, Drawn>();
+    const walk = (ns: Drawn[]) => {
+      for (const n of ns) {
+        nodes.set(n.path, n);
+        for (const kids of n.slots.values()) walk(kids);
+      }
+    };
+    walk(this.drawn);
+    const left: string[] = [];
+    for (const [path, vars] of Object.entries(values)) {
+      const inst = this.atPath.get(path);
+      const node = nodes.get(path);
+      for (const [name, x] of Object.entries(vars)) {
+        let v: V;
+        try {
+          v = this.value(x);
+        } catch {
+          left.push(`${path}.${name}`);
+          continue;
+        }
+        const cell = inst?.template.cells.find((c) => c.name === name);
+        if (inst && cell && this.machine.fits(v, cell.type)) {
+          inst.cells.set(name, v);
+          continue;
+        }
+        const input = node ? this.externWidgets.get(node.widget)?.inputs.find((f) => f.name === name && f.mut) : undefined;
+        if (node && input && !node.writes.has(name) && this.machine.fits(v, input.type)) {
+          if (!this.own.has(node.key)) this.own.set(node.key, new Map());
+          this.own.get(node.key)!.set(name, v);
+          continue;
+        }
+        left.push(`${path}.${name}`);
+      }
+    }
+    // every memo read the old values
+    this.epoch++;
+    this.redraw();
+    return left;
+  }
+
   // ---- inside
 
   /** Whether a defect is switched on: only the test target ever does. */
@@ -802,7 +868,8 @@ export class Page {
     this.redraw();
   }
 
-  private find(path: string): Drawn | undefined {
+  /** The widget drawn at a path now, if there is one. */
+  find(path: string): Drawn | undefined {
     const walk = (nodes: Drawn[]): Drawn | undefined => {
       for (const n of nodes) {
         if (n.path === path) return n;

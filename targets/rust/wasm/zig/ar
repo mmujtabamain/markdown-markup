@@ -1,0 +1,6 @@
+#!/bin/bash
+# The archiver cc-rs runs for wasm32-wasip1: zig's, found as zig/cc finds zig.
+if [ -n "${MKP_ZIG:-}" ]; then read -ra zig <<< "$MKP_ZIG"
+elif command -v zig >/dev/null; then zig=(zig)
+else zig=(python3 -m ziglang); fi
+exec "${zig[@]}" ar "$@"

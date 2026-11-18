@@ -1,0 +1,9 @@
+# targets/ts/bindings/vue/target.yaml: the vue target, run time: <MkpDoc> drawn by vue itself from
+# @mkp/view's elements (core's widgets as the web target draws them), from an IR it is given
+name: vue
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: core                            # @mkp/dom's stylesheet draws core's own tokens
+check_adapter: exec node ../testing/view_adapter.mjs vue check/harness.mjs

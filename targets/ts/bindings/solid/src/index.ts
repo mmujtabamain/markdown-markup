@@ -60,3 +60,6 @@ export function MkpPage(props: MkpPageProps): JSX.Element {
 }
 
 export type { Call, Given, Handle, Ir, Mounted, Outcome, Page, PageProps, PageValues, Value, Widget, ir } from "@mkp/embed";
+
+export { MkpDoc, MkpNode, type MkpDocHandle, type MkpDocProps } from "./doc.js";
+export type { DocError, DocProps, Restored, Snapshot } from "@mkp/view";

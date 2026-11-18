@@ -120,7 +120,7 @@ A use moves exactly, never by searching the text. Each file is compiled against 
 
 Migrations and surfaces never reach a page: the IR has neither, and building a document never reads them.
 
-The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`): `mkp build` writes the IR and `mkp build --rir` the resolved IR, and no target reads the resolved IR.
+The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. A page's IR is whole, and holds only what the page uses: its own declarations, and the ones from core and its packs that its calls, types and fns reach, with what an extern fn of core is said to build on (page 5). The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`): `mkp build` writes the IR and `mkp build --rir` the resolved IR, and no target reads the resolved IR.
 
 ### Tokens
 
@@ -210,6 +210,8 @@ widget tally(mut points: int) {
 
 This spec doesn't depend on how MKP is built, or in what language. MKP is the spec, the `core` pack written in MKP itself, and the target checks. An implementer makes a target, MKP on one platform such as the web or Android, and the target supplies every `extern` in `core`: the extern widgets, `page`, `moment.local`, and the native fns on numbers, text and lists. Passing the target checks is what implementing MKP means.
 
+MKP ends at the IR. How a target comes by a page's IR, and how it draws it, are the target's: built ahead and fetched or bundled with an app, or compiled where the page is read, as an editor does with every change. The targets that come with MKP are templates: an implementer takes one as it is, changes it, or writes their own.
+
 ```java
 package acme;
 
@@ -245,7 +247,9 @@ extern widget jump(to: opt<view>, label: text) {
 
 The compiler works out the level each call needs from the table. A call in a document that needs a level the target doesn't have shows its Markdown instead.
 
-A target has written obligations, each proved by the target checks: evaluation exactly as page 2 defines it, exact base-10 numbers, events run in order with one redraw, the limits below, failures contained as below, untrusted content kept sandboxed, extern values and the app's writes to `$state` checked, and accessible controls. How it manages memory is its own choice: MKP code can't make a reference cycle, so freeing a widget's values when it leaves the page, or plain reference counting, is enough.
+A target has written obligations, each proved by the target checks: evaluation exactly as page 2 defines it, exact base-10 numbers, events run in order with one redraw, the limits below, failures contained as below, untrusted content kept sandboxed, extern values and the app's writes to `$state` checked, and accessible controls.
+
+A write to `$state`, a reader's through a widget or the app's, is checked against every contract and `require` block it touches (page 2), and is done whole or refused with the rule's message. A `$state` the app gives a page as it starts is checked the same way: a field that doesn't fit is refused and reported, never set unchecked. The rest of input is the target's: whether a widget writes on every keystroke or only when the reader submits, how a refusal is shown, and what to do with state an app saved from an earlier version of the document. How it manages memory is its own choice: MKP code can't make a reference cycle, so freeing a widget's values when it leaves the page, or plain reference counting, is enough.
 
 ### Failures
 
