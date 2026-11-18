@@ -77,4 +77,10 @@ tasks.withType<Test>().configureEach {
     val runtime = project(":mkp-android").layout.projectDirectory.dir("native/host/linux-x86-64").asFile
     systemProperty("jna.library.path", listOf(native.dir("host/linux-x86-64").asFile, runtime).joinToString(File.pathSeparator) { it.absolutePath })
     maxHeapSize = "2g"
+    // `-Pmkp.video.out=<folder>`: TargetsVideo writes its frames there
+    (project.findProperty("mkp.video.out") as String?)?.let {
+        systemProperty("mkp.video.out", it)
+        // captureToImage copies the pixels the hardware renderer drew
+        systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+    }
 }

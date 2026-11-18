@@ -212,6 +212,15 @@ pub fn press(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
     }
     let indicator = matches!(kind, "SWITCH" | "CHECK" | "RADIO");
     let framed = !indicator && kind != "PLAIN";
+    let pad = if framed { egui::vec2(10.0, 4.0) } else { egui::vec2(2.0, 2.0) };
+    // a row centred across takes all the height it is offered, so a press with a text gets its
+    // own: its line (or its indicator) and its padding, wherever it is drawn
+    let fitted = !content;
+    if fitted {
+        let line = ui.ctx().fonts_mut(|f| f.row_height(&kit::font_id(&font))).max(if indicator { 18.0 } else { 0.0 });
+        let room = ui.available_rect_before_wrap();
+        b = b.max_rect(Rect::from_min_size(room.min, egui::vec2(room.width(), line + 2.0 * pad.y)));
+    }
     let r = ctx.root(ui, b, |ui, ctx| {
         let resp = ui.response();
         let id = ui.unique_id();
@@ -225,7 +234,6 @@ pub fn press(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
         });
         let v = ui.style().interact_selectable(&resp, selected && framed);
         let bg = kit::behind(ui);
-        let pad = if framed { egui::vec2(10.0, 4.0) } else { egui::vec2(2.0, 2.0) };
         ui.add_space(pad.x);
         let text_color = if disabled {
             ui.visuals().widgets.noninteractive.fg_stroke.color
@@ -286,7 +294,8 @@ pub fn press(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
             ctx.part(ui, l.response.id, "label");
         }
         ui.add_space(pad.x);
-        let rect = ui.min_rect().expand2(egui::vec2(0.0, pad.y));
+        // a fitted press's area holds its padding already
+        let rect = if fitted { ui.min_rect() } else { ui.min_rect().expand2(egui::vec2(0.0, pad.y)) };
         if framed {
             let fill = if let Some(t) = tone { if resp.hovered() { t.gamma_multiply(0.9) } else { t } } else { v.weak_bg_fill };
             kit::fill_behind(ui, bg, egui::Shape::rect_filled(rect, v.corner_radius, fill));

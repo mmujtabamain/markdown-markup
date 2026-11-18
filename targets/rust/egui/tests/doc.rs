@@ -31,12 +31,14 @@ fn items() -> Vec<(String, State)> {
 fn frame(ctx: &egui::Context, doc: &mut MkpDoc, controlled: Option<&mut State>) -> mkp_egui::doc::DocResponse {
     let mut out = None;
     let mut controlled = controlled;
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
         out = Some(match controlled.as_deref_mut() {
             Some(s) => doc.show_controlled(ui, s),
             None => doc.show(ui),
         });
     });
+    // no painter here to take the font atlas's changes
+    output.textures_delta.clear();
     out.unwrap()
 }
 

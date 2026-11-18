@@ -2022,6 +2022,7 @@ dependencies = [
 name = "mkp-egui-live"
 version = "0.3.0"
 dependencies = [
+ "eframe",
  "egui",
  "mkp-egui",
  "mkp-live",

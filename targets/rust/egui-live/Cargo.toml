@@ -14,14 +14,21 @@ name = "mkp_egui_live_check_adapter"
 path = "src/bin/mkp_egui_live_check_adapter.rs"
 required-features = ["check"]
 
+# Both kinds in one window, driving itself, for a video (examples/targets.rs).
+[[example]]
+name = "targets"
+required-features = ["app"]
+
 [features]
 default = ["check"]
 check = ["mkp-egui/check"]
+app = ["mkp-egui/app", "dep:eframe"]
 
 [dependencies]
 mkp-egui = { path = "../egui", default-features = false, features = ["fonts"] }
 mkp-live = { path = "../live" }
 egui = "0.37"
+eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [dev-dependencies]
 serde_json.workspace = true

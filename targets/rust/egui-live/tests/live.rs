@@ -24,7 +24,9 @@ fn items() -> DocOptions {
 
 fn frame(ctx: &egui::Context, doc: &mut MkpLiveDoc) -> mkp_egui::doc::DocResponse {
     let mut out = None;
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| out = Some(doc.show(ui)));
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| out = Some(doc.show(ui)));
+    // no painter here to take the font atlas's changes
+    output.textures_delta.clear();
     out.unwrap()
 }
 
