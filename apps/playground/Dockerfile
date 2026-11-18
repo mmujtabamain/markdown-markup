@@ -33,40 +33,32 @@ RUN targets/rust/wasm/build.sh /src/mkp.wasm && test -s /src/mkp.wasm
 FROM node:22-bookworm-slim AS ui
 ENV npm_config_fund=false npm_config_audit=false npm_config_update_notifier=false
 WORKDIR /src
-# the manifests first, so the installs stay cached while only sources change
-COPY targets/ts/runtime/package*.json targets/ts/runtime/.npmr[c] ./targets/ts/runtime/
-COPY targets/ts/dom/package*.json targets/ts/dom/.npmr[c] ./targets/ts/dom/
-COPY targets/ts/wasm/package*.json ./targets/ts/wasm/
-COPY targets/ts/bindings/embed/package*.json ./targets/ts/bindings/embed/
-COPY targets/ts/bindings/live/package.json ./targets/ts/bindings/live/
-COPY targets/ts/bindings/embed-live/package.json ./targets/ts/bindings/embed-live/
-COPY apps/playground/package*.json apps/playground/.npmr[c] ./apps/playground/
-# the packages' tests compare them with the binary (@mkp/cli) and @mkp/view, which aren't built here
+COPY targets/ts/runtime ./targets/ts/runtime
+COPY targets/ts/dom ./targets/ts/dom
+COPY targets/ts/wasm ./targets/ts/wasm
+COPY --from=compiler /src/mkp.wasm ./targets/ts/wasm/mkp.wasm
+COPY targets/ts/bindings/embed ./targets/ts/bindings/embed
+COPY targets/ts/bindings/live ./targets/ts/bindings/live
+COPY targets/ts/bindings/embed-live ./targets/ts/bindings/embed-live
+COPY apps/playground ./apps/playground
+# each package installed, then built, in the order they need each other: npm copies a file:
+# package (or links it) as it is then, so what it needs is built first. The packages' tests
+# compare them with the binary (@mkp/cli) and @mkp/view, which aren't built here
 RUN set -e; \
     cd /src/targets/ts/wasm && npm pkg delete devDependencies.@mkp/cli; \
     cd /src/targets/ts/bindings/embed && npm pkg delete devDependencies.@mkp/cli && rm -f package-lock.json; \
     cd /src/targets/ts/bindings/live && npm pkg delete devDependencies.@mkp/view; \
-    for d in targets/ts/runtime targets/ts/dom targets/ts/wasm targets/ts/bindings/embed targets/ts/bindings/live targets/ts/bindings/embed-live apps/playground; do \
+    for d in targets/ts/runtime targets/ts/dom targets/ts/wasm targets/ts/bindings/embed targets/ts/bindings/live targets/ts/bindings/embed-live; do \
       cd "/src/$d"; \
+      rm -rf node_modules dist; \
       if [ -f package-lock.json ]; then npm ci; else npm install; fi; \
-    done
-# the sources: .dockerignore leaves out node_modules and dist, so the installs above stay
-COPY targets/ts/runtime ./targets/ts/runtime
-RUN cd targets/ts/runtime && npm run build
-COPY targets/ts/dom ./targets/ts/dom
-RUN cd targets/ts/dom && npm run build
-COPY targets/ts/wasm/src targets/ts/wasm/tsconfig.json ./targets/ts/wasm/
-COPY --from=compiler /src/mkp.wasm ./targets/ts/wasm/mkp.wasm
-# built, and a page compiled with it: a broken mkp.wasm stops the build here
-RUN cd targets/ts/wasm && npm run build \
- && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.mkp.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"
-# the plain web's targets: the Targets page draws one page with both
-COPY targets/ts/bindings/embed/src targets/ts/bindings/embed/tsconfig.json ./targets/ts/bindings/embed/
-COPY targets/ts/bindings/live/src targets/ts/bindings/live/tsconfig.json ./targets/ts/bindings/live/
-COPY targets/ts/bindings/embed-live/src targets/ts/bindings/embed-live/tsconfig.json ./targets/ts/bindings/embed-live/
-RUN for d in embed live embed-live; do (cd targets/ts/bindings/$d && npm run build) || exit 1; done
-COPY apps/playground ./apps/playground
-RUN cd apps/playground && npm run build && test -s dist/targets.js && test -s dist/targets-counter.ir.json && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/mkp.wasm && ls dist/codicon-*.ttf
+      npm run build; \
+    done; \
+    # a page compiled with mkp.wasm: a broken one stops the build here
+    cd /src/targets/ts/wasm && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.mkp.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"; \
+    cd /src/apps/playground && rm -rf node_modules dist && npm ci && npm run build \
+ && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/mkp.wasm \
+ && test -s dist/targets.js && test -s dist/targets-counter.ir.json && ls dist/codicon-*.ttf
 
 # ---- 3. what runs
 

@@ -21,7 +21,9 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@mkp/dom": "file:../../dom",
     "@mkp/embed": "file:../embed",
+    "@mkp/runtime": "file:../../runtime",
     "@mkp/wasm": "file:../../wasm"
   },
   "devDependencies": {

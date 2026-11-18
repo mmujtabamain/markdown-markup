@@ -21,8 +21,9 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/solid": "file:../solid",
+    "@mkp/embed": "file:../embed",
     "@mkp/live": "file:../live",
+    "@mkp/solid": "file:../solid",
     "@mkp/view": "file:../view"
   },
   "peerDependencies": {

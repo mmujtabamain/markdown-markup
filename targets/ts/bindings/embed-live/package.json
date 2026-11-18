@@ -21,8 +21,11 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@mkp/dom": "file:../../dom",
     "@mkp/embed": "file:../embed",
-    "@mkp/live": "file:../live"
+    "@mkp/live": "file:../live",
+    "@mkp/runtime": "file:../../runtime",
+    "@mkp/wasm": "file:../../wasm"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
