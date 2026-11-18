@@ -21,9 +21,13 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/react": "file:../react",
+    "@mkp/dom": "file:../../dom",
+    "@mkp/embed": "file:../embed",
     "@mkp/live": "file:../live",
-    "@mkp/view": "file:../view"
+    "@mkp/react": "file:../react",
+    "@mkp/runtime": "file:../../runtime",
+    "@mkp/view": "file:../view",
+    "@mkp/wasm": "file:../../wasm"
   },
   "peerDependencies": {
     "react": "^19.0.0"

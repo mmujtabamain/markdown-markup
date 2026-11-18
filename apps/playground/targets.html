@@ -36,8 +36,10 @@
       header a { color: var(--accent); text-decoration: none; font-size: 14px; }
       h1 { font-size: 24px; margin: 8px 0 4px; }
       header p { margin: 0; color: var(--muted); max-width: 70ch; }
-      main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 24px 32px; max-width: 1200px; margin: 0 auto; }
-      @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+      main { padding: 8px 24px 32px; max-width: 1200px; margin: 0 auto; }
+      .row-title { font-size: 15px; font-weight: 650; color: var(--muted); margin: 18px 0 10px; text-transform: none; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
       section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
       h2 { font-size: 18px; margin: 0; }
       .kind { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); margin-left: 8px; vertical-align: 2px; }
@@ -58,9 +60,11 @@
     <header>
       <a href="/">← Playground</a>
       <h1>One page, two kinds of target</h1>
-      <p>The same MKP page, drawn by the plain web's two targets. Run time draws an IR built ahead, with no compiler in the page; real time compiles the text in the browser, with mkp.wasm, every time it changes.</p>
+      <p>The same MKP page, drawn by two kinds of target: on the plain web, and in React. Run time draws an IR built ahead, with no compiler in the page; real time compiles the text in the browser, with mkp.wasm, every time it changes. Vue, Svelte, Solid and Angular have the same pair.</p>
     </header>
     <main>
+      <h2 class="row-title" id="web-row">The plain web: @mkp/dom's widgets</h2>
+      <div class="grid">
       <section data-testid="run-time" aria-labelledby="run-title">
         <h2 id="run-title">Run time<span class="kind">@mkp/embed</span></h2>
         <p class="sub"><code>new MkpDoc(element, { src })</code>: the IR fetched from <code>/targets-counter.ir.json</code>, built ahead.</p>
@@ -79,6 +83,9 @@
         <div id="live-page" class="page" data-testid="live-page"></div>
         <div class="state" data-testid="live-state">$state: <span id="live-state"></span></div>
       </section>
+      </div>
+      <h2 class="row-title" id="react-row">React: drawn by React itself</h2>
+      <div id="react" data-testid="react-row"></div>
     </main>
     <script type="module" src="/targets.js"></script>
   </body>

@@ -19,11 +19,17 @@
     "@mkp/embed": "file:../../targets/ts/bindings/embed",
     "@mkp/embed-live": "file:../../targets/ts/bindings/embed-live",
     "@mkp/live": "file:../../targets/ts/bindings/live",
+    "@mkp/react": "file:../../targets/ts/bindings/react",
+    "@mkp/react-live": "file:../../targets/ts/bindings/react-live",
     "@mkp/runtime": "file:../../targets/ts/runtime",
+    "@mkp/view": "file:../../targets/ts/bindings/view",
     "@mkp/wasm": "file:../../targets/ts/wasm",
-    "monaco-editor": "0.57.0"
+    "monaco-editor": "0.57.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3"

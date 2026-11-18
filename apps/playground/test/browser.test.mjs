@@ -400,7 +400,7 @@ describe("the playground in Chromium", { skip }, () => {
     }
   });
 
-  test("the Targets page: one page from an IR built ahead, and the same compiled as it is typed", async () => {
+  test("the Targets page: one page from an IR built ahead, and the same compiled as it is typed, on the plain web and in React", async () => {
     const t = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errors = [];
     t.on("pageerror", (e) => errors.push(String(e)));
@@ -430,6 +430,26 @@ describe("the playground in Chromium", { skip }, () => {
       await t.waitForFunction(() => document.getElementById("live-status").dataset.state === "errors");
       assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.mkp\.md:\d+:\d+: /);
       assert.ok(await live.getByRole("button", { name: "Add 5" }).isVisible(), "the last page that compiled stays");
+
+      // React: <MkpDoc>, its $state in React's own state, and a snapshot that brings it back
+      const rrun = t.getByTestId("react-run-page");
+      await rrun.getByRole("button", { name: "Add 1" }).click();
+      await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 1");
+      await t.getByTestId("react-snapshot").click();
+      await rrun.getByRole("button", { name: "Add 1" }).click();
+      await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 2");
+      await t.getByTestId("react-restore").click();
+      await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 1");
+      // React: <MkpLiveDoc>, compiled in the tab, an edit drawn, a broken draft kept back
+      const rlive = t.getByTestId("react-live-page");
+      await t.waitForFunction(() => document.querySelector("[data-testid=react-live-status]").dataset.state === "ok");
+      const rbox = t.getByTestId("react-live-source");
+      await rbox.fill((await rbox.inputValue()).replace("@counter;", "@counter(by = 5);"));
+      await rlive.getByRole("button", { name: "Add 5" }).waitFor();
+      await rbox.fill((await rbox.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
+      await t.waitForFunction(() => document.querySelector("[data-testid=react-live-status]").dataset.state === "errors");
+      assert.match(await t.getByTestId("react-live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.mkp\.md:\d+:\d+: /);
+      assert.ok(await rlive.getByRole("button", { name: "Add 5" }).isVisible(), "React keeps the last page that compiled");
       assert.deepEqual(errors, []);
     } finally {
       await t.close();

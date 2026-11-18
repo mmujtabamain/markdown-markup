@@ -5,6 +5,7 @@
 import { MkpDoc, type Snapshot } from "@mkp/embed";
 import { MkpLiveDoc, type LiveDocProps } from "@mkp/embed-live";
 import type { ir } from "@mkp/runtime";
+import { mountReact } from "./targets-react.js";
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -91,6 +92,9 @@ async function start(): Promise<void> {
   source.value = examples.find((e) => e.id === "counter")?.source ?? "";
   props = { ...props, source: source.value };
   live = new MkpLiveDoc(el("live-page"), props);
+  // the same page and text, in React
+  const irFile = await (await fetch("/targets-counter.ir.json")).json();
+  mountReact(el("react"), irFile, source.value);
 }
 
 void start();

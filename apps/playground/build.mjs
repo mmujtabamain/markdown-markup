@@ -66,6 +66,8 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
     build({
       ...common,
       entryPoints: { targets: join(here, "src/targets.ts") },
+      // React's production build, for the Targets page's React row
+      define: { "process.env.NODE_ENV": '"production"' },
     }),
   ]);
 }
