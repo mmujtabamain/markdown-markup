@@ -2005,6 +2005,17 @@ dependencies = [
  "mkp-ir",
  "mkp-lower",
  "mkp-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mkp-egui-live"
+version = "0.3.0"
+dependencies = [
+ "egui",
+ "mkp-egui",
+ "mkp-live",
  "serde_json",
 ]
 

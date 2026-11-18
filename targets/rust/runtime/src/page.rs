@@ -1702,6 +1702,75 @@ impl Page {
         self.rt.w.borrow().state.iter().map(|(k, v)| (k.clone(), v.to_ir())).collect()
     }
 
+    /// Every widget's own variables, by the place it is drawn at: an MKP widget's `mut` variables,
+    /// and an extern widget's own values for `mut` inputs its caller gave no variable. With
+    /// `$state`, what a snapshot holds.
+    pub fn observe_own(&self) -> BTreeMap<String, BTreeMap<String, Expr>> {
+        let w = self.rt.w.borrow();
+        let mut out: BTreeMap<String, BTreeMap<String, Expr>> = BTreeMap::new();
+        for (path, id) in &w.at_path {
+            if let Some(i) = w.instances.get(id).filter(|i| !i.cells.is_empty()) {
+                out.insert(path.clone(), i.cells.iter().map(|(k, v)| (k.clone(), v.to_ir())).collect());
+            }
+        }
+        fn walk(nodes: &[Drawn], w: &World, out: &mut BTreeMap<String, BTreeMap<String, Expr>>) {
+            for n in nodes {
+                if let Some(own) = w.own.get(&n.key) {
+                    for (k, v) in own.iter().filter(|(k, _)| !n.writes.contains_key(*k)) {
+                        out.entry(n.path.clone()).or_default().insert(k.clone(), v.to_ir());
+                    }
+                }
+                for kids in n.slots.values() {
+                    walk(kids, w, out);
+                }
+            }
+        }
+        walk(&self.drawn, &w, &mut out);
+        out
+    }
+
+    /// Widgets' own variables put back by place, as one change: each value checked against its
+    /// variable's type. One that doesn't fit, or whose widget isn't drawn at that place, is left
+    /// out, and returned as `place.name`.
+    pub fn restore_own(&mut self, values: &BTreeMap<String, BTreeMap<String, Expr>>) -> R<Vec<String>> {
+        self.changes += 1;
+        self.reset_steps();
+        let mut left = Vec::new();
+        for (path, vars) in values {
+            let node = self.find(path).cloned();
+            let id = self.rt.w.borrow().at_path.get(path).copied();
+            for (name, x) in vars {
+                let Ok(v) = self.value(x) else {
+                    left.push(format!("{}.{}", path, name));
+                    continue;
+                };
+                let cell = id.and_then(|id| self.rt.w.borrow().instances.get(&id).and_then(|i| i.template.cells.iter().find(|c| c.name == *name).map(|c| c.ty.clone())));
+                if let (Some(id), Some(ty)) = (id, cell) {
+                    if self.with_machine(|_, m| m.fits(&v, &ty))? {
+                        let mut w = self.rt.w();
+                        if let Some(i) = w.instances.get_mut(&id) {
+                            i.cells.insert(name.clone(), v);
+                        }
+                        w.bump(format!("c:{}:{}", id, name));
+                        continue;
+                    }
+                }
+                let input = node.as_ref().filter(|n| !n.writes.contains_key(name)).and_then(|n| self.rt.s.extern_widgets.get(&n.widget).and_then(|w| w.inputs.iter().find(|f| f.name == *name && f.mutable)).map(|f| (n.key.clone(), f.ty.clone())));
+                if let Some((key, ty)) = input {
+                    if self.with_machine(|_, m| m.fits(&v, &ty))? {
+                        let mut w = self.rt.w();
+                        w.own.entry(key.clone()).or_default().insert(name.clone(), v);
+                        w.bump(format!("o:{}", key));
+                        continue;
+                    }
+                }
+                left.push(format!("{}.{}", path, name));
+            }
+        }
+        self.redraw()?;
+        Ok(left)
+    }
+
     /// One of `$state`'s values.
     pub fn state_value(&self, name: &str) -> Option<Value> {
         self.rt.w.borrow().state_get(name)

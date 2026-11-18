@@ -39,6 +39,7 @@ app = ["dep:eframe"]
 mkp-runtime = { path = "../runtime" }
 mkp-eval = { path = "../eval" }
 mkp-ir = { path = "../compiler/ir" }
+serde.workspace = true
 serde_json.workspace = true
 egui = "0.37"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

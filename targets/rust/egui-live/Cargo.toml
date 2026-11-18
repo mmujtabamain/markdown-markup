@@ -1,0 +1,27 @@
+[package]
+name = "mkp-egui-live"
+description = "MKP's real-time desktop target: a document's text compiled in the app as it is edited (mkp-live's compiler, core compiled once), and drawn by mkp-egui's MkpDoc. The run-time target, mkp-egui, carries no compiler; this one does."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mkp_egui_live"
+
+# The check adapter: `mkp target check egui-live` (target.yaml), compiling each case's own text.
+[[bin]]
+name = "mkp_egui_live_check_adapter"
+path = "src/bin/mkp_egui_live_check_adapter.rs"
+required-features = ["check"]
+
+[features]
+default = ["check"]
+check = ["mkp-egui/check"]
+
+[dependencies]
+mkp-egui = { path = "../egui", default-features = false, features = ["fonts"] }
+mkp-live = { path = "../live" }
+egui = "0.37"
+
+[dev-dependencies]
+serde_json.workspace = true

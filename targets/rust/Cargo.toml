@@ -9,6 +9,7 @@ members = [
     "eval",
     "runtime",
     "egui",
+    "egui-live",
     "schemagen",
     "cli",
     "live",

@@ -1,10 +1,12 @@
-//! Driving a page headless, as the check adapters do: an [`MkpPage`] in egui_kittest's harness,
+//! Driving a page headless, as the check adapters do: an [`MkpPage`] (or a document around one,
+//! [`crate::doc::MkpDoc`]) in egui_kittest's harness,
 //! with real egui input (pointer, keys, text) aimed at the nodes of its AccessKit tree, and the
 //! tree read back the way a screen reader reads it.
 //!
 //! Nodes are found by their author ids ([`crate::a11y`]): a widget's root by its path, its parts
 //! by `<short name>.<part>`.
 
+pub mod adapter;
 pub mod source;
 
 use egui::accesskit::{self, Role, Toggled};
@@ -17,14 +19,36 @@ use crate::MkpPage;
 /// Simulated time per frame: 60 frames a second.
 pub const STEP_DT: f32 = 1.0 / 60.0;
 
-/// An [`MkpPage`] in a headless harness.
-pub struct Headless {
-    pub harness: Harness<'static, MkpPage>,
+/// What the harness draws every frame: a page ([`MkpPage`]), or a document around one.
+pub trait Drawable: 'static {
+    fn draw(&mut self, ui: &mut egui::Ui);
+    /// The page it draws, to act on its widgets and read it.
+    fn view(&mut self) -> &mut MkpPage;
+    fn view_ref(&self) -> &MkpPage;
 }
 
-impl Headless {
+impl Drawable for MkpPage {
+    fn draw(&mut self, ui: &mut egui::Ui) {
+        self.show(ui);
+    }
+
+    fn view(&mut self) -> &mut MkpPage {
+        self
+    }
+
+    fn view_ref(&self) -> &MkpPage {
+        self
+    }
+}
+
+/// A page, or a document, in a headless harness.
+pub struct Headless<D: Drawable = MkpPage> {
+    pub harness: Harness<'static, D>,
+}
+
+impl<D: Drawable> Headless<D> {
     /// The page in a window of a size, light or dark, its widgets 8 points from the corner.
-    pub fn new(page: MkpPage, size: Vec2, dark: bool) -> Headless {
+    pub fn new(page: D, size: Vec2, dark: bool) -> Headless<D> {
         let harness = Harness::builder()
             .with_size(size)
             .with_pixels_per_point(1.0)
@@ -38,12 +62,12 @@ impl Headless {
                 ctx.all_styles_mut(|s| s.animation_time = 0.0);
             })
             .build_ui_state(
-                |ui, page: &mut MkpPage| {
+                |ui, page: &mut D| {
                     let screen = ui.ctx().content_rect();
                     ui.painter().rect_filled(screen, 0.0, ui.visuals().panel_fill);
                     let inner = screen.shrink(8.0);
                     ui.scope_builder(egui::UiBuilder::new().max_rect(inner), |ui| {
-                        page.show(ui);
+                        page.draw(ui);
                     });
                 },
                 page,
@@ -52,6 +76,11 @@ impl Headless {
     }
 
     pub fn page(&mut self) -> &mut MkpPage {
+        self.harness.state_mut().view()
+    }
+
+    /// What it draws.
+    pub fn drawn(&mut self) -> &mut D {
         self.harness.state_mut()
     }
 
@@ -59,7 +88,7 @@ impl Headless {
     pub fn settle(&mut self) -> Result<(), String> {
         for _ in 0..4 {
             self.harness.try_run().map_err(|e| format!("the page did not settle: {}", e))?;
-            if !self.harness.state().acting() {
+            if !self.harness.state().view_ref().acting() {
                 return Ok(());
             }
             self.harness.step();

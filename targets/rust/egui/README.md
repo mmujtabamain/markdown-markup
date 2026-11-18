@@ -1,7 +1,40 @@
 # mkp-egui
 
-MKP's desktop target: pages run on the native runtime ([mkp-runtime](../runtime)) and drawn with
-egui, with our default egui widgets for every core extern widget.
+MKP's desktop target, run time: pages run on the native runtime ([mkp-runtime](../runtime)) and
+drawn with egui, with our default egui widgets for every core extern widget, from an IR they are
+given. It needs no compiler (an app turns the `check` feature off, which the check adapters need).
+The real-time target, which compiles a document's text in the app, is
+[mkp-egui-live](../egui-live).
+
+A document as an app holds one is an `MkpDoc` (`src/doc.rs`): from the IR in hand
+(`MkpDoc::new`, `from_json`) or where it is (`MkpDoc::open(path)`), with `$state` the app's to
+control or to start from, every write checked by mkp, and a snapshot of everything the page holds.
+
+```rust,no_run
+use mkp_egui::doc::{DocOptions, MkpDoc, State};
+
+fn app(json: &str) -> MkpDoc {
+    MkpDoc::from_json(json, DocOptions::default()).unwrap()
+}
+
+fn frame(doc: &mut MkpDoc, state: &mut State, ui: &mut egui::Ui) {
+    // `state` is the app's: a change it made is written (checked), a change the page made comes back
+    let r = doc.show_controlled(ui, state);
+    for e in r.errors {
+        eprintln!("{}", e); // a write mkp refused, a widget that failed
+    }
+}
+```
+
+| `MkpDoc` | |
+|---|---|
+| `new(ir, options)`, `from_json(text, options)`, `open(path, options)` | A document; `DocOptions` has the page's values, the `$state` (or `snapshot`) to start from (checked: what doesn't fit is refused), the externs by channel, value fns over egui's, the registry and a measure. An IR that can't be had is `DocError::Load`. |
+| `show(ui)`, `show_controlled(ui, &mut state)` | One frame. Its `DocResponse` has the page's response, `state` if it changed, the app's extern fns called, and `errors`: `Refused` and `Failed`, as the web targets' `onError`. |
+| `set(state)`, `state()`, `expose(channel, name, args)`, `set_extern(channel, values)`, `set_page(values)`, `markdown()` | What an app does to a document; `set` is one checked write, refused whole. |
+| `snapshot()`, `restore(&snap)` | `$state` and every widget's own variables, as serde-able JSON; with the same IR all of it goes back, with another only `$state` (`RestoredHow`). |
+| `replace(ir, externs)` | A new IR for the same document, `$state` kept where its fields still exist and fit. |
+
+The page under it, `MkpPage`:
 
 ```rust,no_run
 use mkp_egui::{runtime::Page, MkpPage};

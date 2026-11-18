@@ -25,6 +25,7 @@
 //!   parts carries an author id ([`a11y`]), which is how the check adapters find them.
 
 pub mod a11y;
+pub mod doc;
 pub mod fns;
 pub mod look;
 pub mod measure;
@@ -564,6 +565,19 @@ impl MkpPage {
         p
     }
 
+    /// Draws another page in this one's place, with the same widgets, measure and id: a new IR for
+    /// the same document. Nothing drawn for the last page is kept.
+    pub fn replace(&mut self, page: Page) {
+        self.page = page;
+        self.tree = Rc::new(Vec::new());
+        self.revision = None;
+        self.pushed = None;
+        self.streak = (0, 0);
+        self.held = None;
+        self.frame.instances.clear();
+        self.tell_supplies();
+    }
+
     /// Page options with egui's value fns: what [`Page::from_json`] wants for a page drawn here.
     pub fn options() -> PageOptions {
         PageOptions { fns: fns::egui_fns(), ..PageOptions::default() }
@@ -595,6 +609,11 @@ impl MkpPage {
     pub fn follow_theme(mut self, follow: bool) -> MkpPage {
         self.follow_theme = follow;
         self
+    }
+
+    /// [`MkpPage::follow_theme`], on a page already made.
+    pub fn set_follow_theme(&mut self, follow: bool) {
+        self.follow_theme = follow;
     }
 
     /// The egui id of the page's own ui, and every widget's in it: two pages in one window each
