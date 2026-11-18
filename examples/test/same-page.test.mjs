@@ -97,7 +97,8 @@ function observe(page) {
     return {
       markdown,
       state: window.__mkp.page.observeState(),
-      text: shop.textContent.replace(/\s+/g, " ").trim(),
+      // what the page shows: a stylesheet in it (MkpDoc's) isn't text the reader sees
+      text: [...shop.childNodes].filter((n) => n.nodeName !== "STYLE").map((n) => n.textContent).join("").replace(/\s+/g, " ").trim(),
       widgets: [...shop.querySelectorAll("[data-mkp-site]")].map((e) => `${e.getAttribute("data-mkp-site")} ${e.getAttribute("data-mkp-widget")}`),
       slider: slider?.value ?? null,
       calls: window.__calls,
@@ -198,10 +199,11 @@ const STEPS = [
   },
 ];
 
-test("Next.js pre-renders the page's Markdown into the element MkpPage takes over", () => {
-  const html = apps.next.html;
-  assert.match(html, /<div id="shop" data-mkp-page=""><h1>Shop<\/h1>\s*<p>The basket holds 3 items for 36 € of a 60 € budget\.<\/p>/);
-  assert.match(html, /<li>Tea: 12 €<\/li>/);
+test("Next.js renders the page itself on the server: MkpDoc's widgets, in the HTML", () => {
+  const html = apps.next.html.replace(/<!--[^>]*-->/g, "");
+  assert.match(html, /<div[^>]* id="shop"[^>]*class="mkp-root[^"]*"|<div[^>]* class="mkp-root[^"]*"[^>]* id="shop"/);
+  assert.match(html, /The basket holds 3 items for 36 € of a 60 € budget\./);
+  assert.match(html, /data-mkp-widget="core\/slider"/);
 });
 
 test("the same page from plain TypeScript, React and Next.js agrees after every step", async () => {

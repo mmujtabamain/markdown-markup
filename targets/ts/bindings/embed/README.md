@@ -1,30 +1,39 @@
 # @mkp/embed
 
-An MKP page in an element, the way every framework binding mounts it, and a page's Markdown as
-HTML for a server. The bindings (`@mkp/react`, `@mkp/next`, `@mkp/vue`, `@mkp/svelte`,
-`@mkp/solid`, `@mkp/angular`) are thin wrappers around it, so they all behave the same.
+MKP documents on the plain web, the run-time target: `MkpDoc` draws a page from an IR built ahead,
+with @mkp/dom's widgets, into an element, and needs no framework, no compiler and no WebAssembly. It
+takes the same props as the frameworks' `<MkpDoc>`. The real-time target, which compiles a document's
+text in the browser, is [@mkp/embed-live](../embed-live). Under `MkpDoc` is `Embed`, a page in an
+element following the props it is given; and `@mkp/embed/html` writes a page's Markdown as HTML,
+with no DOM, for a server.
 
 ```sh
 npm install @mkp/embed
 ```
 
 ```ts
-import { Embed } from "@mkp/embed";
-import page from "./shop.mkp.md"; // compiled by @mkp/cli/vite or @mkp/next/config
+import { MkpDoc } from "@mkp/embed";
 
-const shop = new Embed(document.getElementById("shop")!, {
-  ir: page,
-  onCalls: (calls) => console.log(calls), // the app's extern fns the page called
+const doc = new MkpDoc(document.getElementById("shop")!, {
+  src: "/pages/shop.ir.json",                   // or ir: the IR in hand
+  defaultState: saved,                          // or state + onStateChange, controlled
+  externs: { shop: { currency: { text: "EUR" } } },
+  onError: (e) => console.warn(e),              // refused, failed, load
+  onCalls: (calls) => handle(calls),
 });
-shop.update({ ir: page, page: { theme: "DARK" } }); // what a framework does when props change
-shop.set({ budget: { num: "45" } });               // the handle: set, expose, extern, state, markdown
-shop.destroy();
+doc.update({ ...props, page: { theme: "DARK" } }); // the props changed
+const snap = doc.snapshot();                       // $state and every widget's own variables
+doc.restore(snap);                                 // all of it with the same IR, $state only with another
+doc.destroy();
 ```
 
-On a server, with no DOM: `import { pageHtml } from "@mkp/embed/html"` gives the page's Markdown
-as HTML, with its starting values, to put in the element before the page mounts.
+`MkpDoc`'s props are the frameworks' (`src` or `ir`, `state` and `onStateChange` or `defaultState`,
+`defaultSnapshot`, `onError`, `onCalls`, `externs`, `fns`, `page`, `widgets`, `measure`, and
+`onMount`); its handle is `set`, `state`, `markdown`, `expose`, `extern`, `snapshot`, `restore`,
+`running` and `mounted`. `mkp target check embed` runs the conformance cases through it
+(`check/harness.mjs`), and `npm test` puts it through the frameworks' shared steps in Chromium.
 
-## Props
+## Embed's props
 
 | Prop | What it does |
 |---|---|

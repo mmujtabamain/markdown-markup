@@ -212,6 +212,8 @@ This spec doesn't depend on how MKP is built, or in what language. MKP is the sp
 
 MKP ends at the IR. How a target comes by a page's IR, and how it draws it, are the target's: built ahead and fetched or bundled with an app, or compiled where the page is read, as an editor does with every change. The targets that come with MKP are templates: an implementer takes one as it is, changes it, or writes their own.
 
+The targets that come with MKP each come in two kinds, and an app picks one. A **run-time** target draws an IR built ahead, and carries no compiler. A **real-time** target is given the document's text and compiles it where it runs, with the compiler built into the target (WebAssembly in a browser, a native library in an app), for an editor or a live preview. It draws the IR `mkp build` would write, the way its run-time twin draws it. While a draft has errors, it keeps the last page that compiled and says why. Either kind can take what a page holds, its `$state` and every widget's own variables, and put it back. The shape of that snapshot is the target's, and all of it goes back only into the IR it was taken from: into another, only `$state` goes back, checked as the app's write. The target checks give a target each case's IR, and also its text and its packs, so a real-time target is checked on what it compiled itself.
+
 ```java
 package acme;
 

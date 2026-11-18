@@ -5,10 +5,12 @@
 // of props does to it, and when the app hears what the page did.
 
 import { toIr, type Call, type Outcome, type Page, type PageOptions, type PageValues, type Value, type ir } from "@mkp/runtime";
-import { mount, type Mounted, type Widget } from "@mkp/dom";
+import { mount, type MountOptions, type Mounted, type Widget } from "@mkp/dom";
 import { channelName, channelsOf, empty, isValue, makePage, moduleOf, type Given, type Ir } from "./page.js";
 
 export { channelName, makePage, stateFields, type Given, type Ir } from "./page.js";
+export { RELEASE, hash, type DocError, type Restored, type Snapshot } from "./snapshot.js";
+export { MkpDoc, type DocProps } from "./doc.js";
 
 /** What every binding takes: the page, what the app gives it, and what the app wants to hear. */
 export interface PageProps {
@@ -26,6 +28,9 @@ export interface PageProps {
   fns?: PageOptions["fns"];
   /** The app's widgets by full name (`core/press`), in place of @mkp/dom's. A change remounts. */
   widgets?: Record<string, Widget>;
+  /** How the plane's spots are measured, for the page it is given: left out, from the DOM. The
+   * checks give fixed sizes. */
+  measure?: (page: Page) => NonNullable<MountOptions["measure"]>;
   /** The app's extern fns the page called, after each change that called any. */
   onCalls?: (calls: Call[], handle: Handle) => void;
   /** `$state`, in the IR's form, after each change to it. */
@@ -187,7 +192,7 @@ export class Embed implements Handle {
     this.held.outcome.failures.push(...outcome.failures);
     // whatever was in the element (a server's pre-rendered Markdown) gives way to the page
     this.root.replaceChildren();
-    const mounted = mount(page, this.root, { widgets: p.widgets });
+    const mounted = mount(page, this.root, { widgets: p.widgets, measure: p.measure?.(page) });
     this.current = mounted;
     this.unlisten = page.onChange(() => this.changed());
     if (first) this.shown = JSON.stringify(page.observeState());

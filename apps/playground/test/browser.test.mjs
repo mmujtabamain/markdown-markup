@@ -400,6 +400,42 @@ describe("the playground in Chromium", { skip }, () => {
     }
   });
 
+  test("the Targets page: one page from an IR built ahead, and the same compiled as it is typed", async () => {
+    const t = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const errors = [];
+    t.on("pageerror", (e) => errors.push(String(e)));
+    try {
+      await t.goto(`${server.url}/targets`);
+      const run = t.getByTestId("run-page");
+      const live = t.getByTestId("live-page");
+      // run time: the page from its IR, a press, and a snapshot that brings it back
+      await run.getByRole("button", { name: "Add 1" }).click();
+      await run.getByRole("button", { name: "Add 1" }).click();
+      await t.waitForFunction(() => document.getElementById("run-state").textContent === "count = 2");
+      await t.getByTestId("snapshot").click();
+      await run.getByRole("button", { name: "Add 1" }).click();
+      await t.waitForFunction(() => document.getElementById("run-state").textContent === "count = 3");
+      await t.getByTestId("restore").click();
+      await t.waitForFunction(() => document.getElementById("run-state").textContent === "count = 2");
+      // real time: compiled in the tab, and an edit drawn
+      await t.waitForFunction(() => document.getElementById("live-status").dataset.state === "ok");
+      await live.getByRole("button", { name: "Add 1" }).click();
+      const box = t.getByTestId("live-source");
+      await box.fill((await box.inputValue()).replace("@counter;", "@counter(by = 5);"));
+      await live.getByRole("button", { name: "Add 5" }).waitFor();
+      // `$state` kept through the edit
+      await t.waitForFunction(() => document.getElementById("live-state").textContent === "count = 1");
+      // a broken draft: the last page stays, and why is said
+      await box.fill((await box.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
+      await t.waitForFunction(() => document.getElementById("live-status").dataset.state === "errors");
+      assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.mkp\.md:\d+:\d+: /);
+      assert.ok(await live.getByRole("button", { name: "Add 5" }).isVisible(), "the last page that compiled stays");
+      assert.deepEqual(errors, []);
+    } finally {
+      await t.close();
+    }
+  });
+
   test("no errors in the browser's console", () => {
     assert.deepEqual(
       pageErrors.map((e) => e.message),

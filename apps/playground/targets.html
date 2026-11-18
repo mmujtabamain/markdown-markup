@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MKP targets</title>
+    <meta name="description" content="One MKP page drawn by the two kinds of target: run time, from an IR built ahead, and real time, compiled in the browser as it is edited." />
+    <style>
+      :root {
+        --ink: #1a1c1f;
+        --muted: #6b7280;
+        --line: #d4d7dc;
+        --surface: #ffffff;
+        --panel: #f6f7f9;
+        --accent: #4257d6;
+        --bad: #c62828;
+        --ok: #15803d;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e6e7ea;
+          --muted: #9aa1ad;
+          --line: #353a43;
+          --surface: #16181c;
+          --panel: #1d2026;
+          --accent: #8b9cff;
+          --bad: #ef6b6b;
+          --ok: #4ade80;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--panel); }
+      header { padding: 20px 24px 8px; max-width: 1200px; margin: 0 auto; }
+      header a { color: var(--accent); text-decoration: none; font-size: 14px; }
+      h1 { font-size: 24px; margin: 8px 0 4px; }
+      header p { margin: 0; color: var(--muted); max-width: 70ch; }
+      main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 24px 32px; max-width: 1200px; margin: 0 auto; }
+      @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+      section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+      h2 { font-size: 18px; margin: 0; }
+      .kind { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); margin-left: 8px; vertical-align: 2px; }
+      .sub { margin: 0; color: var(--muted); font-size: 14px; }
+      code { font: 13px ui-monospace, monospace; }
+      .page { border: 1px dashed var(--line); border-radius: 8px; padding: 12px 14px; min-height: 120px; }
+      textarea { width: 100%; min-height: 220px; font: 13px/1.45 ui-monospace, monospace; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); resize: vertical; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      button { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      .state { font: 13px ui-monospace, monospace; color: var(--muted); }
+      .status { font-size: 14px; }
+      .status[data-state="ok"] { color: var(--ok); }
+      .status[data-state="errors"] { color: var(--bad); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="/">← Playground</a>
+      <h1>One page, two kinds of target</h1>
+      <p>The same MKP page, drawn by the plain web's two targets. Run time draws an IR built ahead, with no compiler in the page; real time compiles the text in the browser, with mkp.wasm, every time it changes.</p>
+    </header>
+    <main>
+      <section data-testid="run-time" aria-labelledby="run-title">
+        <h2 id="run-title">Run time<span class="kind">@mkp/embed</span></h2>
+        <p class="sub"><code>new MkpDoc(element, { src })</code>: the IR fetched from <code>/targets-counter.ir.json</code>, built ahead.</p>
+        <div id="run-page" class="page" data-testid="run-page"></div>
+        <div class="row">
+          <button id="snapshot" type="button" data-testid="snapshot">Take a snapshot</button>
+          <button id="restore" type="button" data-testid="restore" disabled>Restore it</button>
+        </div>
+        <div class="state" data-testid="run-state">$state: <span id="run-state"></span></div>
+      </section>
+      <section data-testid="real-time" aria-labelledby="live-title">
+        <h2 id="live-title">Real time<span class="kind">@mkp/embed-live</span></h2>
+        <p class="sub"><code>new MkpLiveDoc(element, { source })</code>: this text, compiled by mkp.wasm as you type.</p>
+        <textarea id="live-source" data-testid="live-source" spellcheck="false" aria-label="The page's text"></textarea>
+        <div id="live-status" class="status" data-testid="live-status" data-state="loading" aria-live="polite">Loading the compiler…</div>
+        <div id="live-page" class="page" data-testid="live-page"></div>
+        <div class="state" data-testid="live-state">$state: <span id="live-state"></span></div>
+      </section>
+    </main>
+    <script type="module" src="/targets.js"></script>
+  </body>
+</html>

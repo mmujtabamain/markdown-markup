@@ -1,9 +1,15 @@
-// The shop page in React: <MkpPage> draws it, and the app hears each checkout through onCalls.
+// The shop page in React: <MkpDoc> draws it with React's own components, and the app hears each
+// checkout through onCalls.
 import { useState } from "react";
-import { MkpPage, type Call } from "@mkp/react";
+import { MkpDoc, type Call, type MkpDocHandle } from "@mkp/react";
 import shop from "../../pages/shop.mkp.md";
 
 window.__calls = [];
+
+/** The running page, for the same-page test. */
+function seen(h: MkpDocHandle | null) {
+  if (h) window.__mkp = { get page() { return h.doc.running!; } };
+}
 
 export function Shop() {
   const [orders, setOrders] = useState<string[]>([]);
@@ -18,7 +24,7 @@ export function Shop() {
   return (
     <main>
       <p className="from">React</p>
-      <MkpPage id="shop" ir={shop} onCalls={heard} onMount={(mounted) => (window.__mkp = mounted)} />
+      <MkpDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
       <h2>Orders sent to the app</h2>
       <ul id="orders">
         {orders.map((o) => (

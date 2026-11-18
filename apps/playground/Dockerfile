@@ -26,7 +26,8 @@ COPY targets/rust ./targets/rust
 COPY targets/android/mkp ./targets/android/mkp
 RUN targets/rust/wasm/build.sh /src/mkp.wasm && test -s /src/mkp.wasm
 
-# ---- 2. the UI: @mkp/runtime, @mkp/dom and @mkp/wasm built, then bundled with the playground's own code
+# ---- 2. the UI: @mkp/runtime, @mkp/dom, @mkp/wasm and the plain web's targets (@mkp/embed,
+#         @mkp/live, @mkp/embed-live) built, then bundled with the playground's own code
 
 FROM node:22-bookworm-slim AS ui
 ENV npm_config_fund=false npm_config_audit=false npm_config_update_notifier=false
@@ -35,11 +36,16 @@ WORKDIR /src
 COPY targets/ts/runtime/package*.json targets/ts/runtime/.npmr[c] ./targets/ts/runtime/
 COPY targets/ts/dom/package*.json targets/ts/dom/.npmr[c] ./targets/ts/dom/
 COPY targets/ts/wasm/package*.json ./targets/ts/wasm/
+COPY targets/ts/bindings/embed/package*.json ./targets/ts/bindings/embed/
+COPY targets/ts/bindings/live/package.json ./targets/ts/bindings/live/
+COPY targets/ts/bindings/embed-live/package.json ./targets/ts/bindings/embed-live/
 COPY apps/playground/package*.json apps/playground/.npmr[c] ./apps/playground/
-# @mkp/wasm's tests compare it with the binary (@mkp/cli), which isn't built here
+# the packages' tests compare them with the binary (@mkp/cli) and @mkp/view, which aren't built here
 RUN set -e; \
     cd /src/targets/ts/wasm && npm pkg delete devDependencies.@mkp/cli; \
-    for d in targets/ts/runtime targets/ts/dom targets/ts/wasm apps/playground; do \
+    cd /src/targets/ts/bindings/embed && npm pkg delete devDependencies.@mkp/cli && rm -f package-lock.json; \
+    cd /src/targets/ts/bindings/live && npm pkg delete devDependencies.@mkp/view; \
+    for d in targets/ts/runtime targets/ts/dom targets/ts/wasm targets/ts/bindings/embed targets/ts/bindings/live targets/ts/bindings/embed-live apps/playground; do \
       cd "/src/$d"; \
       if [ -f package-lock.json ]; then npm ci; else npm install; fi; \
     done
@@ -53,8 +59,13 @@ COPY --from=compiler /src/mkp.wasm ./targets/ts/wasm/mkp.wasm
 # built, and a page compiled with it: a broken mkp.wasm stops the build here
 RUN cd targets/ts/wasm && npm run build \
  && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.mkp.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"
+# the plain web's targets: the Targets page draws one page with both
+COPY targets/ts/bindings/embed/src targets/ts/bindings/embed/tsconfig.json ./targets/ts/bindings/embed/
+COPY targets/ts/bindings/live/src targets/ts/bindings/live/tsconfig.json ./targets/ts/bindings/live/
+COPY targets/ts/bindings/embed-live/src targets/ts/bindings/embed-live/tsconfig.json ./targets/ts/bindings/embed-live/
+RUN for d in embed live embed-live; do (cd targets/ts/bindings/$d && npm run build) || exit 1; done
 COPY apps/playground ./apps/playground
-RUN cd apps/playground && npm run build && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/mkp.wasm && ls dist/codicon-*.ttf
+RUN cd apps/playground && npm run build && test -s dist/targets.js && test -s dist/targets-counter.ir.json && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/mkp.wasm && ls dist/codicon-*.ttf
 
 # ---- 3. what runs
 
@@ -64,7 +75,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 # the packs a page may import (server.mjs: PACKS), where they are in the repo
 COPY examples/graphs ./examples/graphs
-COPY --from=ui /src/apps/playground/server.mjs /src/apps/playground/index.html /src/apps/playground/package.json ./apps/playground/
+COPY --from=ui /src/apps/playground/server.mjs /src/apps/playground/index.html /src/apps/playground/targets.html /src/apps/playground/package.json ./apps/playground/
 COPY --from=ui /src/apps/playground/examples ./apps/playground/examples
 COPY --from=ui /src/apps/playground/dist ./apps/playground/dist
 USER node

@@ -145,13 +145,16 @@ export async function steps(page) {
  * - `setState(state)`: gives it a new controlled `state` prop (the app also follows onStateChange);
  * - `setTheme(theme)`, `setUnit(text)` (`externs.app.unit`, starting as "items"), `setIr("v1" |
  *   "v2" | "notes")` and `unmount()`, as in `steps`.
+ *
+ * `stylesheet` is where the page's stylesheet is: in the page (@mkp/view's) or in the document (@mkp/dom's).
  */
-export async function docSteps(page) {
+export async function docSteps(page, { stylesheet = "page" } = {}) {
   const app = () => page.evaluate(() => document.querySelector("#app")?.textContent ?? "");
   await until(page, () => document.querySelector("#app")?.textContent?.includes("Count: 0 items"), null, "the page to render");
   assert.equal(await page.evaluate(() => document.querySelectorAll("[data-mkp-root]").length), 1, "one page drawn");
   assert.ok(await page.evaluate(() => document.querySelector('#app [data-mkp-widget="core/press"] [data-part="press.label"]') !== null), "core's press, drawn with its parts");
-  assert.ok(await page.evaluate(() => document.querySelector("#app style[data-mkp-dom]") !== null), "the stylesheet, in the page");
+  // in the page itself (@mkp/view's), or once in the document (@mkp/dom's)
+  assert.ok(await page.evaluate((where) => document.querySelector(where === "page" ? "#app style[data-mkp-dom]" : "style[data-mkp-dom]") !== null, stylesheet), "the stylesheet");
 
   // a reader's click: onStateChange and onCalls hear it
   await page.click('#app [data-mkp-widget="core/press"]');
@@ -183,7 +186,8 @@ export async function docSteps(page) {
   await page.evaluate(() => window.__test.setUnit("pts"));
   await until(page, () => document.querySelector("#app").textContent.includes("Count: 3 pts"), null, "the externs prop");
   await page.evaluate(() => window.__test.setTheme("DARK"));
-  await until(page, () => document.querySelector("#app [data-mkp-root]")?.getAttribute("data-mkp-theme") === "dark", null, "the theme");
+  // the root is a child of #app (@mkp/view's), or #app itself (@mkp/dom's)
+  await until(page, () => (document.querySelector("#app [data-mkp-root]") ?? document.querySelector("#app[data-mkp-root]"))?.getAttribute("data-mkp-theme") === "dark", null, "the theme");
   await page.evaluate(() => window.__test.setIr("v2"));
   await until(page, () => document.querySelector("#app").textContent.includes("Total: 3 pts, by 2"), null, "the new IR");
   assert.deepEqual(await page.evaluate(() => window.__test.handle().state()), { n: { num: "3" }, stride: { num: "2" } });

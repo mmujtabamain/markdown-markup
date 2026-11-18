@@ -5,8 +5,7 @@
 // waits. When to compile (each key, a pause, a save) is the app's: it changes `source`.
 
 import { Compiler, type Built, type PackFile, type WasmSource } from "@mkp/wasm";
-import type { DocError } from "@mkp/view";
-import type { Ir } from "@mkp/embed";
+import type { DocError, Ir } from "@mkp/embed";
 
 export { Compiler, type Built, type PackFile, type WasmSource } from "@mkp/wasm";
 

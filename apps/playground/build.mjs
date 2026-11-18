@@ -1,15 +1,16 @@
 // Bundles the UI into dist/: app.js (the playground, with Monaco's editor API and MKP's language),
 // app.css (ours, and Monaco's), Monaco's codicon font, editor.worker.js, Monaco's web worker, as an
 // entry of its own (src/monaco.ts finds it through MonacoEnvironment.getWorkerUrl), and the
-// compiler: compiler.worker.js, which runs mkp.wasm (@mkp/wasm's, copied beside it).
+// compiler: compiler.worker.js, which runs mkp.wasm (@mkp/wasm's, copied beside it). targets.js is
+// the Targets page's (targets.html), with the counter example's IR built ahead for its run-time half.
 // `npm run build` runs it; the server runs it at startup when dist/app.js is missing.
 // `node build.mjs --dev` leaves the code readable and writes source maps.
 
 import { build } from "esbuild";
-import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,12 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
   rmSync(outdir, { recursive: true, force: true });
   mkdirSync(outdir, { recursive: true });
   copyFileSync(wasm, join(outdir, "mkp.wasm"));
+  // the Targets page's run-time half draws an IR built ahead, as a reader's page is: built here
+  const { Compiler } = await import("@mkp/wasm");
+  const compiler = await Compiler.load(pathToFileURL(wasm));
+  const built = compiler.build("page.mkp.md", readFileSync(join(here, "examples/counter.mkp.md"), "utf8"));
+  if (!built.ir) throw new Error(`the counter example doesn't compile: ${JSON.stringify(built.diagnostics)}`);
+  writeFileSync(join(outdir, "targets-counter.ir.json"), JSON.stringify(built.ir));
   const common = {
     absWorkingDir: here,
     outdir,
@@ -56,10 +63,14 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
       ...common,
       entryPoints: { "compiler.worker": join(here, "src/compiler.worker.ts") },
     }),
+    build({
+      ...common,
+      entryPoints: { targets: join(here, "src/targets.ts") },
+    }),
   ]);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   await buildBundle({ minify: !process.argv.includes("--dev") });
-  process.stderr.write("built dist/: app.js, app.css, editor.worker.js, compiler.worker.js, mkp.wasm and the codicon font\n");
+  process.stderr.write("built dist/: app.js, app.css, editor.worker.js, compiler.worker.js, mkp.wasm, targets.js and the codicon font\n");
 }

@@ -1,7 +1,9 @@
 # @mkp/next
 
-MKP pages in Next.js's app router: `<MkpPage>` as a client component, `.mkp.md` imports compiled by
-mkp at build time, and the page's Markdown as HTML for the server to pre-render.
+MKP documents in Next.js's app router: `<MkpDoc>` (@mkp/react's, run time) as a client component,
+which Next renders on the server and hydrates; `.mkp.md` imports compiled by mkp at build time, as
+`withMkp` sets up; and a page's Markdown as HTML. An editor in a Next app uses
+[@mkp/react-live](../react-live)'s `<MkpLiveDoc>` for real time.
 
 ```sh
 npm install @mkp/next
@@ -14,13 +16,12 @@ export default withMkp({}, { packs: ["./packs/maps"] });
 ```
 
 ```tsx
-// app/page.tsx, a server component: the page's content in the HTML, for search engines
-import { pageHtml } from "@mkp/next/server";
+// app/shop.tsx: "use client". Next renders the page on the server, then React hydrates it
+import { MkpDoc } from "@mkp/next";
 import shop from "./shop.mkp.md";
-import { Shop } from "./shop"; // "use client": <MkpPage ir={shop} html={html} onCalls={…} />
 
-export default function Home() {
-  return <Shop html={pageHtml(shop)} />;
+export function Shop() {
+  return <MkpDoc ir={shop} onCalls={(calls) => handle(calls)} />;
 }
 ```
 
@@ -29,6 +30,6 @@ page outside the app's folder needs `turbopack.root` set to a folder that holds 
 
 ## Exports
 
-- `@mkp/next`: `MkpPage` and `usePage`, as in [@mkp/react](../react/README.md), with `"use client"`.
+- `@mkp/next`: `MkpDoc`, as in [@mkp/react](../react/README.md), with `"use client"`.
 - `@mkp/next/config`: `withMkp(config, { packs, config })`, and `loader`, the loader's path.
-- `@mkp/next/server`: `pageHtml(ir, { state, page, externs })`, with no DOM.
+- `@mkp/next/server`: `pageHtml(ir, { state, page, externs })`, the page's Markdown as HTML, with no DOM.

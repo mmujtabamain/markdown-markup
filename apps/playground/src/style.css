@@ -238,6 +238,19 @@ select:hover {
   font-size: 13px;
 }
 
+.topbar-link {
+  flex: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 550;
+  text-decoration: none;
+  padding: 0 4px;
+}
+
+.topbar-link:hover {
+  text-decoration: underline;
+}
+
 .status {
   display: inline-flex;
   align-items: center;

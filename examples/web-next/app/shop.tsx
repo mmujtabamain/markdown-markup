@@ -1,12 +1,18 @@
 "use client";
-// The shop page in Next.js: <MkpPage> draws it, and the app hears each checkout through onCalls.
+// The shop page in Next.js: <MkpDoc> draws it, rendered on the server and hydrated, and the app
+// hears each checkout through onCalls.
 import { useState } from "react";
-import { MkpPage, type Call } from "@mkp/next";
+import { MkpDoc, type Call, type MkpDocHandle } from "@mkp/next";
 import shop from "../../pages/shop.mkp.md";
 
 if (typeof window !== "undefined") window.__calls = [];
 
-export function Shop({ html }: { html: string }) {
+/** The running page, for the same-page test. */
+function seen(h: MkpDocHandle | null) {
+  if (h) window.__mkp = { get page() { return h.doc.running!; } };
+}
+
+export function Shop() {
   const [orders, setOrders] = useState<string[]>([]);
 
   /** The app's side of `extern shop`: each checkout the page asks for, listed under it. */
@@ -19,7 +25,7 @@ export function Shop({ html }: { html: string }) {
   return (
     <main>
       <p className="from">Next.js</p>
-      <MkpPage id="shop" ir={shop} html={html} onCalls={heard} onMount={(mounted) => (window.__mkp = mounted)} />
+      <MkpDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
       <h2>Orders sent to the app</h2>
       <ul id="orders">
         {orders.map((o) => (

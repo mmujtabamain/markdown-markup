@@ -1,9 +1,7 @@
-// A server component: the page's Markdown as HTML, with its starting values, so search engines and
-// readers without JavaScript get the shop; <MkpPage> takes the element over in the browser.
-import { pageHtml } from "@mkp/next/server";
-import shop from "../../pages/shop.mkp.md";
+// The shop, rendered on the server by <MkpDoc> itself, so search engines and readers without
+// JavaScript get the page; React hydrates it in the browser.
 import { Shop } from "./shop";
 
 export default function Home() {
-  return <Shop html={pageHtml(shop)} />;
+  return <Shop />;
 }

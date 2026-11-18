@@ -44,5 +44,17 @@
   ],
   "angular-live": [
     "badge/badge"
+  ],
+  "embed": [
+    "badge/badge"
+  ],
+  "embed-live": [
+    "badge/badge"
+  ],
+  "egui-live": [
+    "badge/badge"
+  ],
+  "android-live": [
+    "badge/badge"
   ]
 }

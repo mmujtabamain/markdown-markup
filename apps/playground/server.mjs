@@ -2,6 +2,7 @@
 // mkp.wasm in a worker, so there is no compiler here.
 //
 //   GET  /                 the playground (index.html, and dist/: app.js, app.css, the workers, mkp.wasm)
+//   GET  /targets          one page drawn by the plain web's two kinds of target (targets.html, dist/targets.js)
 //   GET  /api/examples     the example pages, and the packs a page may import with their files' text
 //   POST /api/report       {kind, message, bytes?, agent?}: a failure in the browser (the compiler
 //                          couldn't load, or stopped on a page), logged and told to the team
@@ -35,7 +36,7 @@ const SERVICE = "mkp-playground";
 export const PACKS = { graphs: join(repo, "examples/graphs") };
 
 /** The page itself; everything else the UI loads is a file in dist/ (build.mjs). */
-const PAGES = { "/": "index.html", "/index.html": "index.html" };
+const PAGES = { "/": "index.html", "/index.html": "index.html", "/targets": "targets.html" };
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",

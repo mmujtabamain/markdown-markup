@@ -1,0 +1,9 @@
+# targets/ts/bindings/embed/target.yaml: the plain web, run time: MkpDoc (@mkp/embed), drawn by @mkp/dom
+# from an IR it is given, as an app draws one
+name: embed
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: core                            # @mkp/dom draws core's own tokens
+check_adapter: exec node ../testing/view_adapter.mjs embed check/harness.mjs

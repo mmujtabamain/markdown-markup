@@ -21,6 +21,9 @@ targets/rust/wasm/build.sh
 (cd targets/ts/runtime && npm ci && npm run build)
 (cd targets/ts/dom && npm ci && npm run build)
 (cd targets/ts/wasm && npm install && npm run build)
+(cd targets/ts/bindings/embed && npm install && npm run build)       # the Targets page's two targets
+(cd targets/ts/bindings/live && npm install && npm run build)
+(cd targets/ts/bindings/embed-live && npm install && npm run build)
 
 # the playground
 cd apps/playground
@@ -32,7 +35,13 @@ npm start            # http://localhost:8080
 
 `?example=slider` in the URL opens an example directly.
 
-The bundle, in `dist/`: `app.js` (the playground, @mkp/runtime, @mkp/dom and Monaco's editor API: about 3.1 MB, 0.8 MB gzipped), `app.css` (with Monaco's), Monaco's codicon font, `editor.worker.js`, Monaco's web worker, built as an entry of its own and found through `MonacoEnvironment.getWorkerUrl`, `compiler.worker.js` and `mkp.wasm` (about 3.2 MB, 1 MB gzipped). The server serves every file there with an ETag and a gzip it keeps; the font, whose name has a hash, is cached for good.
+**`/targets`** (linked from the top bar) draws one page with the plain web's two kinds of target side
+by side: run time, @mkp/embed's `MkpDoc`, from an IR `build.mjs` builds ahead with mkp.wasm
+(`dist/targets-counter.ir.json`); and real time, @mkp/embed-live's `MkpLiveDoc`, from the text in a
+box, compiled in the browser as it changes. It shows `$state` under each, and a snapshot taken and
+restored. The video's take is `devbench/takes/targets.py`.
+
+The bundle, in `dist/`: `app.js` (the playground, @mkp/runtime, @mkp/dom and Monaco's editor API: about 3.1 MB, 0.8 MB gzipped), `app.css` (with Monaco's), Monaco's codicon font, `editor.worker.js`, Monaco's web worker, built as an entry of its own and found through `MonacoEnvironment.getWorkerUrl`, `compiler.worker.js` and `mkp.wasm` (about 3.2 MB, 1 MB gzipped), and the Targets page's `targets.js` and `targets-counter.ir.json`. The server serves every file there with an ETag and a gzip it keeps; the font, whose name has a hash, is cached for good.
 
 For tests and takes, `window.playground` reads the editor without touching it: `source()`, `caret()`, `markers()`, `tokens(line)`, `language()`, `visibleLines()`, `hasFocus()`, `compiles()` (how many builds were asked for), and `select(text)`, which only moves the selection.
 
