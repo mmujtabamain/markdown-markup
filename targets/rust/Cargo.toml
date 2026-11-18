@@ -15,6 +15,7 @@ members = [
     "live",
     "wasm",
     "../android/mkp",
+    "../android/mkp-live",
 ]
 
 [workspace.package]

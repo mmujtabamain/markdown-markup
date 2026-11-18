@@ -4,3 +4,5 @@ build/
 local.properties
 # written by ../mkp/build.sh: the native libraries and the generated bindings
 mkp-android/native/
+# written by ../mkp-live/build.sh: the compiler's native libraries and its bindings
+mkp-android-live/native/

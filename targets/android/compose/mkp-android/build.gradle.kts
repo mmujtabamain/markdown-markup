@@ -73,6 +73,8 @@ dependencies {
     api(libs.compose.material3)
     implementation("${libs.jna.aar.get()}@aar")
 
+    // the real-time target, for its check adapter (CheckAdapter.kt: LiveCheckAdapter)
+    testImplementation(project(":mkp-android-live"))
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
@@ -106,6 +108,7 @@ tasks.register("checkAdapterArgs") {
     val config = layout.buildDirectory.dir("check_adapter/com/android/tools")
     val module = layout.projectDirectory.asFile
     val host = native.dir("host/linux-x86-64").asFile
+    val liveHost = project(":mkp-android-live").layout.projectDirectory.dir("native/host/linux-x86-64").asFile
     outputs.file(out)
     outputs.dir(config)
     doLast {
@@ -127,16 +130,18 @@ tasks.register("checkAdapterArgs") {
             listOf(
                 "-Xmx2g",
                 "-XX:+UseParallelGC",
-                "-Djna.library.path=\"${host.absolutePath}\"",
+                "-Djna.library.path=\"${host.absolutePath}${File.pathSeparator}${liveHost.absolutePath}\"",
                 "-cp \"${cp.joinToString(File.pathSeparator) { it.absolutePath }}\"",
             ).joinToString("\n") + "\n",
         )
     }
 }
 
-// The unit tests load the host's libmkp_android.so through JNA, as the check adapters do.
+// The unit tests load the host's libmkp_android.so through JNA, as the check adapters do, and the
+// real-time target's libmkp_android_live.so.
 tasks.withType<Test>().configureEach {
-    systemProperty("jna.library.path", native.dir("host/linux-x86-64").asFile.absolutePath)
+    val liveHost = project(":mkp-android-live").layout.projectDirectory.dir("native/host/linux-x86-64").asFile
+    systemProperty("jna.library.path", listOf(native.dir("host/linux-x86-64").asFile, liveHost).joinToString(File.pathSeparator) { it.absolutePath })
     maxHeapSize = "2g"
     // `-Pmkp.jfr=<file>`: a Java Flight Recording of the tests, to see where their time goes
     System.getenv("MKP_ANDROID_TRACE")?.let { environment("MKP_ANDROID_TRACE", it) }

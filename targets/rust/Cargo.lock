@@ -1965,6 +1965,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkp-android-live"
+version = "0.3.0"
+dependencies = [
+ "mkp-live",
+ "serde_json",
+ "uniffi",
+]
+
+[[package]]
 name = "mkp-check"
 version = "0.3.0"
 dependencies = [

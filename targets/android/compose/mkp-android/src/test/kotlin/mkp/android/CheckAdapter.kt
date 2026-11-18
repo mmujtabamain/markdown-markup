@@ -36,6 +36,8 @@ import mkp.android.check.withAction
 import mkp.android.ffi.Broken
 import mkp.android.ffi.ExternCall
 import mkp.android.ffi.Val
+import mkp.android.live.MkpLiveDoc
+import mkp.android.live.ffi.PackFile
 import mkp.android.widgets.sliderEnds
 import org.json.JSONArray
 import org.json.JSONObject
@@ -48,7 +50,7 @@ import org.robolectric.annotation.Config
 /**
  * The Android target's check adapter: `mkp target check android` (target.yaml) drives mkp-android
  * through it over JSON-RPC 2.0, one message per line on standard input and output (plan tab 16).
- * Pages are drawn by MkpPage with our default Compose widgets, under Robolectric on a plain JVM,
+ * Each case's document is drawn by MkpDoc with our default Compose widgets, under Robolectric on a plain JVM,
  * so the checks need no emulator. Each step goes through the drawn widgets' own semantics where
  * it can (a press's click action, a slider's progress, a field's text, an overlay's anchor), as a
  * person would through TalkBack or a keyboard, and through the page where it can't (an exact point
@@ -56,19 +58,30 @@ import org.robolectric.annotation.Config
  * sizes, and the observation is what the runtime decided, with the tree only what Compose drew.
  *
  * `java @build/check_adapter.args mkp.android.CheckAdapter`: build/check_adapter.args is written
- * by `./gradlew :mkp-android:checkAdapterArgs` (README.md).
+ * by `./gradlew :mkp-android:checkAdapterArgs` (README.md). [LiveCheckAdapter] is the real-time
+ * target's, mkp-android-live: the same, with each case's own text compiled on the device by
+ * MkpLiveDoc.
  */
 object CheckAdapter {
     @JvmStatic
-    fun main(args: Array<String>) {
-        // standard output carries replies only: Robolectric's and Compose's logs go to standard error
-        System.setOut(System.err)
-        val started = System.nanoTime()
-        val result = JUnitCore().run(CheckServe::class.java)
-        for (f in result.failures) System.err.println("[android] the adapter stopped: ${f.trace}")
-        System.err.println("[android] served for %.1f s".format((System.nanoTime() - started) / 1e9))
-        exitProcess(if (result.wasSuccessful()) 0 else 1)
-    }
+    fun main(args: Array<String>) = serve(CheckServe::class.java)
+}
+
+/** `mkp target check android-live` (mkp-android-live/target.yaml). */
+object LiveCheckAdapter {
+    @JvmStatic
+    fun main(args: Array<String>) = serve(LiveCheckServe::class.java)
+}
+
+/** Runs the adapter's sandbox for the whole conversation, then exits. */
+private fun serve(sandbox: Class<*>) {
+    // standard output carries replies only: Robolectric's and Compose's logs go to standard error
+    System.setOut(System.err)
+    val started = System.nanoTime()
+    val result = JUnitCore().run(sandbox)
+    for (f in result.failures) System.err.println("[android] the adapter stopped: ${f.trace}")
+    System.err.println("[android] served for %.1f s".format((System.nanoTime() - started) / 1e9))
+    exitProcess(if (result.wasSuccessful()) 0 else 1)
 }
 
 /** The Robolectric sandbox the adapter runs in, for the whole conversation: Android 16, an mdpi
@@ -83,9 +96,23 @@ class CheckServe {
     }
 }
 
-/** A case loaded: what MkpDoc is given, as an app gives it, and its handle. */
+/** The same sandbox, for the real-time target. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36], qualifiers = "w640dp-h1200dp-port-notnight-mdpi")
+class LiveCheckServe {
+    @Test
+    fun serve() {
+        CheckSession(Rpc(FileInputStream(FileDescriptor.`in`), FileOutputStream(FileDescriptor.out)), live = true).run()
+    }
+}
+
+/** A case loaded: what MkpDoc is given, as an app gives it (or the case's text and its packs'
+ * files, which MkpLiveDoc compiles), and its handle. */
 private class Loaded(
     val ir: String,
+    val source: String?,
+    val path: String,
+    val packs: List<PackFile>,
     val width: String?,
     val theme: String?,
     val state: Map<String, Val>,
@@ -93,9 +120,10 @@ private class Loaded(
     val doc: MkpDocState = MkpDocState(),
 )
 
-/** The case loaded now, MkpDoc drawing it, and what it told the app since the last look. */
+/** The case loaded now, MkpDoc drawing it (MkpLiveDoc, `live`, from the case's text), and what it
+ * told the app since the last look. */
 @OptIn(ExperimentalTestApi::class)
-class CheckSession(private val rpc: Rpc) {
+class CheckSession(private val rpc: Rpc, private val live: Boolean = false) {
     private val defects = (System.getenv("MKP_TEST_DEFECT") ?: "").split(",").filter { it.isNotEmpty() }
     private var page: CompiledPage? = null
     private val calls = mutableListOf<ExternCall>()
@@ -109,20 +137,28 @@ class CheckSession(private val rpc: Rpc) {
             var shown by mutableStateOf<Loaded?>(null)
             setContent {
                 shown?.let { c ->
+                    val heard = { e: DocError ->
+                        when (e) {
+                            is DocError.Refused -> refused += e.broken
+                            is DocError.Failed -> failures += e.broken
+                            is DocError.Load -> failedToLoad = e.message
+                            is DocError.Compile -> failedToLoad = e.message
+                        }
+                    }
                     key(c) {
-                        MkpDoc(
-                            ir = c.ir, width = c.width, theme = c.theme, defaultState = c.state, externs = c.externs,
-                            widgets = Externs(checkPacks), measure = FixedMeasure, zone = UtcZone, defects = defects, docState = c.doc,
-                            onCalls = { calls += it },
-                            onError = { e ->
-                                when (e) {
-                                    is DocError.Refused -> refused += e.broken
-                                    is DocError.Failed -> failures += e.broken
-                                    is DocError.Load -> failedToLoad = e.message
-                                    is DocError.Compile -> failedToLoad = e.message
-                                }
-                            },
-                        )
+                        if (live) {
+                            MkpLiveDoc(
+                                source = c.source!!, path = c.path, packs = c.packs, width = c.width, theme = c.theme, defaultState = c.state, externs = c.externs,
+                                widgets = Externs(checkPacks), measure = FixedMeasure, zone = UtcZone, defects = defects, docState = c.doc,
+                                onCalls = { calls += it }, onError = heard,
+                            )
+                        } else {
+                            MkpDoc(
+                                ir = c.ir, width = c.width, theme = c.theme, defaultState = c.state, externs = c.externs,
+                                widgets = Externs(checkPacks), measure = FixedMeasure, zone = UtcZone, defects = defects, docState = c.doc,
+                                onCalls = { calls += it }, onError = heard,
+                            )
+                        }
                     }
                 }
             }
@@ -145,6 +181,12 @@ class CheckSession(private val rpc: Rpc) {
                             failedToLoad = null
                             shown = c
                             settle()
+                            // a live target compiles first, off the main thread
+                            val until = System.nanoTime() + 60_000_000_000L
+                            while (c.doc.page == null && failedToLoad == null && System.nanoTime() < until) {
+                                Thread.sleep(5)
+                                settle()
+                            }
                             page = c.doc.page ?: throw RpcError(FAILED, failedToLoad ?: "the page didn't load")
                             rpc.reply(r.id, emptyMap<String, Any>())
                         }
@@ -172,7 +214,7 @@ class CheckSession(private val rpc: Rpc) {
     }
 
     private fun advertise() = mapOf(
-        "name" to "android",
+        "name" to if (live) "android-live" else "android",
         "protocol" to "1",
         "levels" to listOf("core.draw", "core.live", "core.gfx"),
         "supplies" to listOf("core/*", "core/can_draw_tex", "core/moment.local"),
@@ -187,8 +229,13 @@ class CheckSession(private val rpc: Rpc) {
         val probe = mkp.android.ffi.NativePage(ir, mkp.android.ffi.PageInit(null, null, null, null, emptyList(), emptyList()), UtcZone)
         fun record(o: JSONObject?): Map<String, Val> = o?.keys()?.asSequence()?.associateWith { k -> probe.valueJson(o.get(k).toString()) } ?: emptyMap()
         val externs = p.optJSONObject("externs")?.let { x -> x.keys().asSequence().associateWith { c -> record(x.getJSONObject(c)) } } ?: emptyMap()
+        val packs = p.optJSONArray("packs")?.let { a -> (0 until a.length()).map { k -> a.getString(k).let { f -> PackFile(f, File(f).readText()) } } } ?: emptyList()
+        val source = if (live) File(p.getString("source")).readText() else null
         return Loaded(
             ir = ir,
+            source = source,
+            path = p.optString("source").ifEmpty { "page.mkp.md" },
+            packs = packs,
             width = if (ignores) null else values.optString("width").ifEmpty { null },
             theme = if (ignores) null else values.optString("theme").ifEmpty { null },
             state = record(p.optJSONObject("state")),
