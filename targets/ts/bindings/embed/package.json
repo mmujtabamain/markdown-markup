@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@mkp/cli": "file:../../cli",
+    "@mkp/view": "file:../view",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3"

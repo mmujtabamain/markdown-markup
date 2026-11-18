@@ -27,6 +27,10 @@ doc.restore(snap);                                 // all of it with the same IR
 doc.destroy();
 ```
 
+**On a server**, with no DOM, @mkp/view writes the same page as HTML, its widgets drawn as `MkpDoc`
+draws them: `toHtml(new Doc({ ir }).render())`. Put it in the element, and `MkpDoc` takes the element
+over in the browser.
+
 `MkpDoc`'s props are the frameworks' (`src` or `ir`, `state` and `onStateChange` or `defaultState`,
 `defaultSnapshot`, `onError`, `onCalls`, `externs`, `fns`, `page`, `widgets`, `measure`, and
 `onMount`); its handle is `set`, `state`, `markdown`, `expose`, `extern`, `snapshot`, `restore`,
