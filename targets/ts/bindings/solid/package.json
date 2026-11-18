@@ -1,7 +1,7 @@
 {
   "name": "@mkp/solid",
   "version": "0.3.0",
-  "description": "MKP pages in Solid: <MkpPage ir={\u2026} />, drawn by @mkp/dom, safe to render on a server",
+  "description": "MKP documents in Solid, run time: <MkpDoc src={…} /> or ir={…}, drawn by Solid itself with core's widgets, on a server and in the browser. No compiler; @mkp/solid-live compiles in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

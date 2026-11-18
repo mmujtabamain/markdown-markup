@@ -1,7 +1,7 @@
 {
   "name": "@mkp/react",
   "version": "0.3.0",
-  "description": "MKP pages in React: <MkpDoc src={\u2026} /> (or ir={\u2026}), drawn by React itself with core's widgets, on the server and the client; and <MkpPage ir={\u2026} />, drawn by @mkp/dom",
+  "description": "MKP documents in React 19, run time: <MkpDoc src={…} /> or ir={…}, drawn by React itself with core's widgets, on a server and in the browser. No compiler; @mkp/react-live compiles in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

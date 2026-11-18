@@ -77,7 +77,8 @@ async function until(page, fn, arg, what) {
 }
 
 /**
- * The steps every binding passes, through the test app's `window.__test`:
+ * The steps @mkp/embed's Embed passes (the page in an element that MkpDoc on the plain web is
+ * built on), through the test app's `window.__test`:
  * - `heard`: { calls: Call[][], states: $state[], outcomes: Outcome[], mounts: number }, filled
  *   from onCalls, onState, onOutcome and onMount;
  * - `handle()`: the binding's handle (its ref, or usePage's);

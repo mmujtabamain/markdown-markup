@@ -1,7 +1,7 @@
 {
   "name": "@mkp/angular",
   "version": "0.3.0",
-  "description": "MKP pages in Angular: <mkp-page [ir]=\"…\" />, a standalone component drawn by @mkp/dom, safe to render on a server",
+  "description": "MKP documents in Angular, run time: <MkpDoc src={…} /> or ir={…}, drawn by Angular itself with core's widgets, on a server and in the browser. No compiler; @mkp/angular-live compiles in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
