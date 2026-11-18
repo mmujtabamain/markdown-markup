@@ -41,6 +41,13 @@ pub struct Field {
 /// The runtime's value as Kotlin reads it. Token cases carry their value, worked out once here,
 /// so a composable never calls back into the page while it draws.
 pub fn val(page: &Page, v: &Value) -> Val {
+    val_in(Some(page), v)
+}
+
+/// A value as Kotlin reads it where no page is at hand (an app's value fn is called with its
+/// arguments mid-change): a token case's value is left out.
+pub fn val_in(page: Option<&Page>, v: &Value) -> Val {
+    let val = |_: Option<&Page>, x: &Value| val_in(page, x);
     match v {
         Value::Num(n) => Val::Num { n: n.show() },
         Value::Text(t) => Val::Text { s: t.to_string() },
@@ -49,9 +56,9 @@ pub fn val(page: &Page, v: &Value) -> Val {
         Value::List(l) => Val::Items { items: l.items.iter().map(|i| val(page, &i.value)).collect() },
         Value::Record(r) => Val::Record { ty: r.ty.to_string(), fields: r.fields.iter().map(|(k, x)| Field { name: k.to_string(), value: val(page, x) }).collect() },
         Value::Case(c) => {
-            let token = match page.token_value(v) {
-                Ok(t) => vec![val(page, &t)],
-                Err(_) => Vec::new(),
+            let token = match page.map(|p| p.token_value(v)) {
+                Some(Ok(t)) => vec![val(page, &t)],
+                _ => Vec::new(),
             };
             Val::Case { ty: c.ty.to_string(), name: c.name.to_string(), values: c.values.iter().map(|(k, x)| Field { name: k.to_string(), value: val(page, x) }).collect(), token }
         }

@@ -33,6 +33,8 @@ import mkp.android.check.settle
 import mkp.android.check.waitsForMkp
 import mkp.android.check.widgetAt
 import mkp.android.check.withAction
+import mkp.android.ffi.Broken
+import mkp.android.ffi.ExternCall
 import mkp.android.ffi.Val
 import mkp.android.widgets.sliderEnds
 import org.json.JSONArray
@@ -81,18 +83,48 @@ class CheckServe {
     }
 }
 
-/** The page loaded now, and MkpPage drawing it. */
+/** A case loaded: what MkpDoc is given, as an app gives it, and its handle. */
+private class Loaded(
+    val ir: String,
+    val width: String?,
+    val theme: String?,
+    val state: Map<String, Val>,
+    val externs: Map<String, Map<String, Val>>,
+    val doc: MkpDocState = MkpDocState(),
+)
+
+/** The case loaded now, MkpDoc drawing it, and what it told the app since the last look. */
 @OptIn(ExperimentalTestApi::class)
 class CheckSession(private val rpc: Rpc) {
     private val defects = (System.getenv("MKP_TEST_DEFECT") ?: "").split(",").filter { it.isNotEmpty() }
     private var page: CompiledPage? = null
+    private val calls = mutableListOf<ExternCall>()
+    private val refused = mutableListOf<Broken>()
+    private val failures = mutableListOf<Broken>()
+    private var failedToLoad: String? = null
 
     fun run() {
         runAndroidComposeUiTest<ComponentActivity> {
             waitsForMkp()
-            var shown by mutableStateOf<CompiledPage?>(null)
+            var shown by mutableStateOf<Loaded?>(null)
             setContent {
-                shown?.let { p -> key(p) { MkpPage(p, Externs(checkPacks), measure = FixedMeasure) } }
+                shown?.let { c ->
+                    key(c) {
+                        MkpDoc(
+                            ir = c.ir, width = c.width, theme = c.theme, defaultState = c.state, externs = c.externs,
+                            widgets = Externs(checkPacks), measure = FixedMeasure, zone = UtcZone, defects = defects, docState = c.doc,
+                            onCalls = { calls += it },
+                            onError = { e ->
+                                when (e) {
+                                    is DocError.Refused -> refused += e.broken
+                                    is DocError.Failed -> failures += e.broken
+                                    is DocError.Load -> failedToLoad = e.message
+                                    is DocError.Compile -> failedToLoad = e.message
+                                }
+                            },
+                        )
+                    }
+                }
             }
             settle()
             while (true) {
@@ -106,17 +138,21 @@ class CheckSession(private val rpc: Rpc) {
                             return@runAndroidComposeUiTest
                         }
                         "load" -> {
-                            val p = load(r.params)
-                            page = p
-                            shown = p
+                            val c = load(r.params)
+                            calls.clear()
+                            refused.clear()
+                            failures.clear()
+                            failedToLoad = null
+                            shown = c
                             settle()
+                            page = c.doc.page ?: throw RpcError(FAILED, failedToLoad ?: "the page didn't load")
                             rpc.reply(r.id, emptyMap<String, Any>())
                         }
                         "event", "write", "set", "expose", "extern", "page", "observe" -> {
                             if (loaded == null) throw RpcError(FAILED, "no page is loaded")
                             if (r.method == "observe") {
                                 settle()
-                                rpc.replyRaw(r.id, loaded.native.observeJson(loaded.drawn.toList()))
+                                rpc.replyRaw(r.id, observe(loaded))
                             } else {
                                 step(this, loaded, r)
                                 settle()
@@ -142,20 +178,35 @@ class CheckSession(private val rpc: Rpc) {
         "supplies" to listOf("core/*", "core/can_draw_tex", "core/moment.local"),
     )
 
-    private fun load(p: JSONObject): CompiledPage {
+    /** A case's document, as an app would give MkpDoc it: `$state` and the externs as values. */
+    private fun load(p: JSONObject): Loaded {
         val ir = File(p.getString("ir")).readText()
         val values = p.optJSONObject("page") ?: JSONObject()
         val ignores = "ignores-page" in defects
-        val supplies = (registry.keys + checkPacks.keys).toList()
-        val init = mkp.android.ffi.PageInit(
+        // the case's values, read as the page reads them
+        val probe = mkp.android.ffi.NativePage(ir, mkp.android.ffi.PageInit(null, null, null, null, emptyList(), emptyList()), UtcZone)
+        fun record(o: JSONObject?): Map<String, Val> = o?.keys()?.asSequence()?.associateWith { k -> probe.valueJson(o.get(k).toString()) } ?: emptyMap()
+        val externs = p.optJSONObject("externs")?.let { x -> x.keys().asSequence().associateWith { c -> record(x.getJSONObject(c)) } } ?: emptyMap()
+        return Loaded(
+            ir = ir,
             width = if (ignores) null else values.optString("width").ifEmpty { null },
             theme = if (ignores) null else values.optString("theme").ifEmpty { null },
-            stateJson = p.optJSONObject("state")?.toString(),
-            externsJson = p.optJSONObject("externs")?.toString(),
-            supplies = supplies,
-            defects = defects,
+            state = record(p.optJSONObject("state")),
+            externs = externs,
         )
-        return CompiledPage(mkp.android.ffi.NativePage(ir, init, UtcZone), supplies, init.theme)
+    }
+
+    /** The page as the protocol observes it: its tree, `$state` and Markdown, and the calls and
+     * refusals MkpDoc told the app since the last look. */
+    private fun observe(page: CompiledPage): String {
+        val o = JSONObject(page.native.observeJson(page.drawn.toList()))
+        val broken = { b: Broken -> JSONObject().apply { b.code?.let { put("code", it) }; b.rule?.let { put("rule", it) }; b.site?.let { put("site", it) } } }
+        o.put("calls", JSONArray(calls.map { c -> JSONObject().put("call", JSONObject().put("name", c.name).put("args", JSONArray(c.args.map { JSONObject(it.toIrJson()) }))) }))
+        o.put("outcome", JSONObject().put("refused", JSONArray(refused.map(broken))).put("failures", JSONArray(failures.map(broken))))
+        calls.clear()
+        refused.clear()
+        failures.clear()
+        return o.toString()
     }
 
     /** One step: through the drawn widget's semantics where it can, else through the page. */

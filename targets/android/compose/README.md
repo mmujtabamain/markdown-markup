@@ -17,6 +17,36 @@ targets/android/
 
 ## Using it
 
+A document as an app holds one is `MkpDoc` (`MkpDoc.kt`), the Android run-time target: the IR in
+hand (`ir`) or in the app's assets (`src`), `$state` the app's to control or to start from, every
+write checked by mkp, and a snapshot of everything the page holds. It needs no compiler; the
+real-time target, which compiles a document's text on the device, is mkp-android-live.
+
+```kotlin
+var state by remember { mutableStateOf(mapOf("n" to V.num(0))) }
+val doc = rememberMkpDocState()
+MkpDoc(
+    ir = pageJson,                                     // or src = "page.ir.json", in the assets
+    state = state, onStateChange = { state = it },     // controlled; or defaultState = …, defaultSnapshot = …
+    externs = mapOf("app" to mapOf("unit" to V.text("pts"))),
+    fns = mapOf("acme/rate" to { args -> V.num(2) }),  // the app's value fns
+    onError = { Log.w("app", it.toString()) },          // Refused, Failed, Load
+    onCalls = { calls -> calls.forEach { handle(it.name, it.args) } },
+    docState = doc,
+)
+val snap = doc.snapshot()?.toJson()                    // $state and every widget's own variables
+doc.restore(Snapshot.fromJson(snap!!)!!)               // ALL with the same IR, STATE with another, NONE
+```
+
+- A `$state` the app gives is checked as its writes are: a field that doesn't fit is refused (`onError`) and starts
+  from its default. A controlled `state` the page refuses leaves the page as it was.
+- A new `ir` keeps `$state` where its fields still exist. `width`, `theme` and a channel's values in `externs` are
+  followed as they change.
+- `MkpDocState` is the handle: `set`, `state`, `markdown`, `expose`, `snapshot`, `restore`, and `page`, the
+  running `CompiledPage`.
+
+The page under it:
+
 ```kotlin
 // the IR `mkp build page.mkp.md --out page.ir.json` wrote, in the app's assets
 val page = remember { CompiledPage.fromAsset(context, "page.ir.json", PageOptions(theme = "DARK")) }
@@ -169,14 +199,16 @@ cd targets/rust
 ```
 
 The adapter (`mkp-android/src/test/kotlin/mkp/android/CheckAdapter.kt`) keeps one Robolectric sandbox and one
-activity, at 640 dp wide (mdpi, so 1 dp is 1 px), and draws each page with `MkpPage` and the badge check pack's
-Android widget (`targets/checks/packs/badge/android.kt`). Each step goes through the drawn widget's semantics
+activity, at 640 dp wide (mdpi, so 1 dp is 1 px), and draws each case's document with `MkpDoc`, as an app
+does (its `$state` and externs given as values, checked), and the badge check pack's Android widget
+(`targets/checks/packs/badge/android.kt`). The calls and refusals it observes are the ones `MkpDoc` told the app. Each step goes through the drawn widget's semantics
 where a person could take it: a click is the widget's click action, a submit its IME action, a slider's value
 its progress action (when it is on the grid), a field's text its text action, an overlay's `open` a press on
 its anchor. The rest (an exact point for a handle or a plane, an event with arguments) goes through the page.
 Then Compose settles, the planes are laid out with the checks' fixed sizes (`check/Sizes.kt`, a port of
 targets/ts/test/sizes.mjs, so every target's boxes agree exactly), and the observation is the runtime's, its
-tree only what Compose drew. `core/moment.local` is in UTC there, as on the test target.
+tree only what Compose drew, with `MkpDoc`'s calls and refusals. `core/moment.local` is in UTC there, as on the
+test target. `MkpDocTest` holds `MkpDoc` to the web targets' test pages (targets/ts/bindings/testing).
 
 **omnicui's widget contracts** (targets/checks/targets/android/target.yaml):
 

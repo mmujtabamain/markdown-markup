@@ -9,11 +9,13 @@ import androidx.compose.runtime.setValue
 import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import mkp.android.ffi.AppFns
 import mkp.android.ffi.ExternCall
 import mkp.android.ffi.Field
 import mkp.android.ffi.Measure
 import mkp.android.ffi.NativePage
 import mkp.android.ffi.Node
+import mkp.android.ffi.Outcome
 import mkp.android.ffi.PageInit
 import mkp.android.ffi.Slot
 import mkp.android.ffi.Val
@@ -46,6 +48,9 @@ data class PageOptions(
     val supplies: Collection<String>? = null,
     /** For the checks only: the test targets' defects. */
     val defects: List<String> = emptyList(),
+    /** Value fns the app supplies, by full name (`acme/rate`): called mid-change with the fn's
+     * arguments, on whichever thread the change runs. Null is a fn that can't answer. */
+    val fns: Map<String, (List<Val>) -> Val?> = emptyMap(),
 )
 
 private fun json(m: Map<String, Val>): String = m.entries.joinToString(",", "{", "}") { (k, v) -> "${quote(k)}:${v.toIrJson()}" }
@@ -269,6 +274,27 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
     /** The app's extern fns MKP called since they were last taken. */
     fun takeCalls(): List<ExternCall> = native.takeCalls()
 
+    /** What was refused and what failed since they were last taken. */
+    fun takeOutcome(): Outcome = native.takeOutcome()
+
+    /** `$state` now, every field. */
+    fun state(): Map<String, Val> {
+        val fields = org.json.JSONObject(native.stateJson())
+        return fields.keys().asSequence().mapNotNull { k -> native.state(k)?.let { k to it } }.toMap()
+    }
+
+    /** `$state` now, in the IR's form. */
+    fun stateJson(): String = native.stateJson()
+
+    /** Every widget's own variables, by place, in the IR's form. */
+    fun ownJson(): String = native.ownJson()
+
+    /** Widgets' own variables put back by place, as one change: the `place.name`s left out come back. */
+    fun restoreOwn(ownJson: String): List<String> = change { it.restoreOwnJson(ownJson) }
+
+    /** `$state` written from the IR's form, as one checked change. */
+    fun setJson(stateJson: String) = change { it.setJson(stateJson) }
+
     /** The extern widgets the page uses that nothing here draws: each shows its Markdown. */
     val missing: List<String> get() = native.missing()
 
@@ -284,7 +310,15 @@ class CompiledPage(val native: NativePage, supplies: Collection<String>?, theme:
                 supplies = supplies.toList(),
                 defects = options.defects,
             )
-            return CompiledPage(NativePage(ir, init, options.zone), supplies, options.theme)
+            val native = if (options.fns.isEmpty()) {
+                NativePage(ir, init, options.zone)
+            } else {
+                val fns = options.fns
+                NativePage.withFns(ir, init, options.zone, fns.keys.toList(), object : AppFns {
+                    override fun call(name: String, args: List<Val>): Val? = fns[name]?.invoke(args)
+                })
+            }
+            return CompiledPage(native, supplies, options.theme)
         }
 
         /** A page from an IR file in the app's assets. It reads and mounts the page where it is

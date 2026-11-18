@@ -116,6 +116,29 @@ pub trait Zone: Send + Sync {
     fn offset_minutes(&self, utc_minutes: i64) -> i32;
 }
 
+/// The value fns an app supplies (a page's `extern fn` that gives a value): called with the fn's
+/// full name and its arguments, mid-change, so it must not call the page back. None is a fn that
+/// can't answer, a failure of the page's.
+#[uniffi::export(callback_interface)]
+pub trait AppFns: Send + Sync {
+    fn call(&self, name: String, args: Vec<Val>) -> Option<Val>;
+}
+
+/// A rule a write broke, or a failure: its rule's message or its code, and where.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct Broken {
+    pub code: Option<String>,
+    pub rule: Option<String>,
+    pub site: Option<String>,
+}
+
+/// What the page refused and what failed, since they were last taken.
+#[derive(Clone, Debug, Default, PartialEq, uniffi::Record)]
+pub struct Outcome {
+    pub refused: Vec<Broken>,
+    pub failures: Vec<Broken>,
+}
+
 /// How a page starts: what the app tells it, and what the target draws.
 #[derive(Clone, Debug, Default, uniffi::Record)]
 pub struct PageInit {
@@ -362,6 +385,18 @@ impl NativePage {
     /// gives `core/moment.local` the reader's offset.
     #[uniffi::constructor]
     pub fn new(ir_json: String, init: PageInit, zone: Box<dyn Zone>) -> Res<Arc<Self>> {
+        NativePage::start(ir_json, init, zone, None)
+    }
+
+    /// As [`NativePage::new`], with the value fns the app supplies, by full name (`acme/rate`).
+    #[uniffi::constructor]
+    pub fn with_fns(ir_json: String, init: PageInit, zone: Box<dyn Zone>, names: Vec<String>, fns: Box<dyn AppFns>) -> Res<Arc<Self>> {
+        NativePage::start(ir_json, init, zone, Some((names, Arc::from(fns))))
+    }
+}
+
+impl NativePage {
+    fn start(ir_json: String, init: PageInit, zone: Box<dyn Zone>, app: Option<(Vec<String>, Arc<dyn AppFns>)>) -> Res<Arc<Self>> {
         let file: ir::File = serde_json::from_str(&ir_json).map_err(|e| failed(format!("the IR doesn't read: {}", e)))?;
         let aliases = file.ir.declarations.iter().filter_map(|d| match &d.declare {
             ir::Decl::Type(a) => Some((a.name.clone(), a.is.clone())),
@@ -376,10 +411,27 @@ impl NativePage {
             opts.externs = m.into_iter().map(|(c, v)| (c, v.into_iter().collect())).collect();
         }
         opts.fns = fns::target_fns(Arc::from(zone));
+        if let Some((names, app)) = app {
+            for name in names {
+                let (app, called) = (app.clone(), name.clone());
+                let f: mkp_runtime::ValueFn = Rc::new(move |m, args| {
+                    let given = args.iter().map(|a| convert::val_in(None, a)).collect();
+                    match app.call(called.clone(), given) {
+                        Some(v) => Ok(Some(m.eval(&convert::expr(&v))?)),
+                        None => Err(mkp_runtime::Failure::new(mkp_runtime::FailKind::NotConstant, format!("{} gave no value", called))),
+                    }
+                });
+                opts.fns.insert(name, f);
+            }
+        }
         opts.supplies = supplies_fn(init.supplies);
         let page = Page::new(file, opts)?;
         Ok(Arc::new(NativePage { inner: Mutex::new(Locked(Inner { page, aliases, timings: Timings::default(), sent: Vec::new(), listening: HashMap::new(), sent_revision: None })), owner: AtomicU64::new(0) }))
     }
+}
+
+#[uniffi::export]
+impl NativePage {
 
     // ---- reading it
 
@@ -463,6 +515,35 @@ impl NativePage {
                 out.push(ExternCall { name: c.call.name.clone(), args });
             }
             Ok(out)
+        })
+    }
+
+    /// What was refused and what failed since they were last taken: what a document tells the app.
+    pub fn take_outcome(&self) -> Res<Outcome> {
+        self.with(|i| {
+            let o = i.page.take_outcome();
+            let one = |b: mkp_runtime::Broken| Broken { code: b.code, rule: b.rule, site: b.site };
+            Ok(Outcome { refused: o.refused.into_iter().map(one).collect(), failures: o.failures.into_iter().map(one).collect() })
+        })
+    }
+
+    /// `$state` as it is now, in the IR's form: `{"count": {"num": "3"}}`.
+    pub fn state_json(&self) -> Res<String> {
+        self.with(|i| serde_json::to_string(&i.page.observe_state()).map_err(|e| failed(e.to_string())))
+    }
+
+    /// Every widget's own variables, by the place it is drawn at, in the IR's form: with
+    /// `$state`, what a snapshot holds.
+    pub fn own_json(&self) -> Res<String> {
+        self.with(|i| serde_json::to_string(&i.page.observe_own()).map_err(|e| failed(e.to_string())))
+    }
+
+    /// Widgets' own variables put back by place, as one change, each checked: the `place.name`s
+    /// that didn't fit, or whose widget isn't drawn there, come back.
+    pub fn restore_own_json(&self, own_json: String) -> Res<Vec<String>> {
+        self.change(|i| {
+            let own: BTreeMap<String, BTreeMap<String, Expr>> = serde_json::from_str(&own_json).map_err(|e| failed(format!("not widgets' variables: {}", e)))?;
+            Ok(i.page.restore_own(&own)?)
         })
     }
 
