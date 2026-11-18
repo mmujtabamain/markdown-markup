@@ -66,8 +66,10 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
     build({
       ...common,
       entryPoints: { targets: join(here, "src/targets.ts") },
-      // React's production build, for the Targets page's React row
+      // React's production build, for the Targets page's React row, and one copy of it: @mkp/react
+      // is linked from its own folder, which has a React of its own
       define: { "process.env.NODE_ENV": '"production"' },
+      alias: { react: join(here, "node_modules/react"), "react-dom": join(here, "node_modules/react-dom") },
     }),
   ]);
 }
