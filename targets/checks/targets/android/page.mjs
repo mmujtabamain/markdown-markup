@@ -54,11 +54,11 @@ mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
 /** A page's IR file, built once per source. */
-function build(source) {
-  const hash = createHash("sha256").update(source).digest("hex").slice(0, 24);
+function build(source, ext = ".mkp.md") {
+  const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json`);
   if (!existsSync(out)) {
-    const src = join(cache, `${hash}.mkp.md`);
+    const src = join(cache, `${hash}${ext}`);
     writeFileSync(src, source);
     try {
       execFileSync(mkp, ["build", src, "--out", `${out}.part`], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
@@ -70,7 +70,8 @@ function build(source) {
   return out;
 }
 
-const decls = declarations(JSON.parse(readFileSync(build("@@@\nThe core declarations.\n"), "utf8")));
+// every core declaration: a pack's IR keeps all of core it builds on, a page's only what it uses
+const decls = declarations(JSON.parse(readFileSync(build("package omnicui_core;\n", ".mkp"), "utf8")));
 
 createInterface({ input: process.stdin }).on("line", (line) => {
   if (!line.trim()) return;

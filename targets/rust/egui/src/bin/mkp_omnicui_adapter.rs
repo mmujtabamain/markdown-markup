@@ -133,7 +133,12 @@ fn target_path(nodes: &[Drawn], widget: &str) -> Option<String> {
 
 impl Adapter {
     fn compile(&self, src: &str) -> Result<mkp_egui::runtime::ir::Module, String> {
-        let c = mkp_check::compile_on(&self.core, &[], &[mkp_check::Source { path: "widget.mkp.md".into(), text: src.into() }], "doc");
+        self.compile_as(src, "widget.mkp.md", "doc")
+    }
+
+    /// A file compiled as a page (`doc`) or a pack (`main`).
+    fn compile_as(&self, src: &str, path: &str, module: &str) -> Result<mkp_egui::runtime::ir::Module, String> {
+        let c = mkp_check::compile_on(&self.core, &[], &[mkp_check::Source { path: path.into(), text: src.into() }], module);
         match c.module {
             Some(mut m) => {
                 mkp_lower::lower(&mut m);
@@ -410,7 +415,8 @@ fn main() {
     }
     let core = mkp_check::compile_core(&core_sources(&root));
     let mut adapter = Adapter { root, core, decls: Decls::default(), defaults, mounted: None };
-    match adapter.compile("@@@\nThe core declarations.\n") {
+    // every core declaration: a pack's IR keeps all of core it builds on, a page's only what it uses
+    match adapter.compile_as("package omnicui_core;\n", "omnicui_core.mkp", "main") {
         Ok(m) => adapter.decls = source::declarations(&serde_json::to_value(mkp_egui::runtime::ir::File { ir: m }).unwrap()),
         Err(e) => {
             log(&format!("core doesn't compile: {}", e));
