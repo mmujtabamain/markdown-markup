@@ -1,11 +1,11 @@
 # Releasing MKP
 
-A version tag starts the release: `.github/workflows/release.yml` builds everything on Linux,
-tests it, and publishes it.
-
-```sh
-git tag v0.3.0 && git push origin v0.3.0       # or run the Release workflow by hand
-```
+A merge into main that raises `VERSION` starts the release: `.github/workflows/release.yml` builds
+everything on Linux, tests it, and publishes it as `v<VERSION>`. The merge request raises `VERSION`
+and adds `notes/<VERSION>.md` (notes/README.md); the **Release notes** check holds it to that, and
+the **Types, tests and conformance** check (ci.yml) runs the tests, both required by main's ruleset
+(.github/rulesets/). A merge that leaves `VERSION` as it was releases nothing, and the workflow can
+be run by hand.
 
 What it does, in order:
 
@@ -14,10 +14,11 @@ What it does, in order:
    `@mkp/cli-<os>-<cpu>` package (`targets/ts/cli/scripts/copy-binary.mjs --target <triple>`).
 2. **mkp.wasm**, for `@mkp/wasm` and the real-time targets (`targets/rust/wasm/build.sh`).
 3. **The Android AARs** of mkp-android and mkp-android-live, with the runner's NDK.
-4. **Tests.** The Rust workspace, every npm package's tests (`build-ts.mjs --test`) and every
-   target's conformance checks (`mkp target check`).
-5. **Publishing.** A GitHub release with the binaries, mkp.wasm, the AARs and their SHA-256 sums;
-   then the npm packages (`publish-npm.mjs`) and the crates (`publish-crates.sh`).
+4. **Tests:** the same checks every pull request runs (ci.yml): the Rust workspace, every npm
+   package's and the playground's tests, and every target's conformance checks.
+5. **Publishing.** The GitHub release `v<VERSION>`, titled and described by its note, with the
+   binaries, mkp.wasm, the AARs and their SHA-256 sums; then the npm packages (`publish-npm.mjs`)
+   and the crates (`publish-crates.sh`).
 
 ## What it needs
 
@@ -31,8 +32,11 @@ permissions: read and write).
 
 ## The scripts
 
-- `build-ts.mjs [--test]`: installs and builds every npm package in order, each after what it
-  uses (npm links a `file:` dependency, so it is built first), then tests them all.
+- `build-ts.mjs [--test | --test-only]`: installs and builds every npm package in order, the
+  playground last, each after what it uses (npm links a `file:` dependency, so it is built first),
+  then tests them all.
+- `check-notes.mjs [--base-version x.y.z] | --notes-for x.y.z`: the release-notes check, and a
+  note's title and body for its release.
 - `publish-npm.mjs --version x.y.z [--dry-run]`: publishes each package after its dependencies,
   its `file:` dependencies named by the version for the publish; a platform package without its
   binary is left out.

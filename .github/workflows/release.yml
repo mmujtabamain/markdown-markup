@@ -1,21 +1,23 @@
 # The release of MKP: every platform's mkp binary, mkp.wasm and the Android libraries, built and
 # tested on Linux, then published.
 #
-# Runs on a version tag (v0.3.0) and by hand. Each build job runs on one Linux runner:
+# Runs on a merge into main whose VERSION has no release yet (the merge request raised VERSION and
+# added notes/<VERSION>.md, which the Release notes check holds it to), and by hand. Nothing runs
+# when v<VERSION> is already released. Each build job runs on one Linux runner:
 #   - binaries: mkp for Linux on x64 and arm64 (static, musl), macOS on Intel and Apple silicon,
 #     and Windows on x64, cross-built with cargo-zigbuild; each goes in its @mkp/cli-<os>-<cpu>;
 #   - wasm: mkp.wasm, for @mkp/wasm (wasm32-wasip1, with zig's clang for decNumber's C);
 #   - android: the AARs of mkp-android and mkp-android-live, with the runner's NDK.
-# Then test runs the Rust workspace, every npm package's tests and every target's conformance
-# checks, and publish makes a GitHub release with the binaries, mkp.wasm and the AARs, and
-# publishes the npm packages (needs the NPM_TOKEN secret, an npm token that can publish to the
-# @mkp scope) and the crates (needs CARGO_REGISTRY_TOKEN). Without a token, its step says so and
-# is skipped: the rest of the release still happens.
+# Then test runs the checks every pull request runs (ci.yml), and publish makes the GitHub release
+# v<VERSION>, its notes the note's, with the binaries, mkp.wasm and the AARs, and publishes the npm
+# packages (needs the NPM_TOKEN secret, an npm token that can publish to the @mkp scope) and the
+# crates (needs CARGO_REGISTRY_TOKEN). Without a token, its step says so and is skipped: the rest
+# of the release still happens.
 name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -26,9 +28,41 @@ env:
   ZIGLANG: "0.17.1"
   CARGO_ZIGBUILD: "0.24.1"
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  version:
+    name: The version, and whether it is new
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node tools/release/check-notes.mjs
+          v="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" > /dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "v$v is already released: nothing to do (raise VERSION and add notes/<version>.md to release)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
   binaries:
     name: mkp for ${{ matrix.platform }}
+    needs: version
+    if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -62,6 +96,8 @@ jobs:
 
   wasm:
     name: mkp.wasm
+    needs: version
+    if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -80,6 +116,8 @@ jobs:
 
   android:
     name: Android libraries
+    needs: version
+    if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -108,50 +146,14 @@ jobs:
           if-no-files-found: error
 
   test:
-    name: Tests and conformance
-    needs: [binaries, wasm]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
-      - uses: actions/download-artifact@v4
-        with:
-          name: mkp-wasm
-          path: targets/ts/wasm
-      - name: The compiler, the native runtime's check adapter and egui's
-        working-directory: targets/rust
-        run: |
-          cargo build --release -p mkp-cli -p mkp-runtime -p mkp-egui -p mkp-egui-live --bins
-          echo "$PWD/target/release" >> "$GITHUB_PATH"
-      - name: Rust's tests
-        working-directory: targets/rust
-        run: cargo test --workspace --no-fail-fast
-      - name: The npm packages, built
-        run: node tools/release/build-ts.mjs
-      - name: A browser for the web targets and the packages' tests
-        # every browser test reads MKP_CHROMIUM; the runner has Chrome
-        run: echo "MKP_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
-      - name: The npm packages' tests
-        run: node tools/release/build-ts.mjs --test-only
-      - name: The Android libraries for the JVM
-        run: |
-          targets/android/mkp/build.sh host
-          targets/android/mkp-live/build.sh host
-      - name: Every target's conformance checks
-        run: mkp target check
+    name: The checks every pull request runs
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    uses: ./.github/workflows/ci.yml
 
   publish:
     name: Publish
-    needs: [binaries, wasm, android, test]
+    needs: [version, binaries, wasm, android, test]
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -162,12 +164,6 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
-      - name: The version, from the tag (or @mkp/cli's, run by hand)
-        id: v
-        run: |
-          v="${GITHUB_REF_NAME#v}"
-          case "$v" in [0-9]*) ;; *) v="$(node -p 'require("./targets/ts/cli/package.json").version')" ;; esac
-          echo "version=$v" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -183,7 +179,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          v="${{ steps.v.outputs.version }}"
+          v="${{ needs.version.outputs.version }}"
           mkdir -p release
           for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
             tar -czf "release/mkp-$v-$p.tar.gz" -C "targets/ts/cli/platforms/$p/bin" .
@@ -191,7 +187,10 @@ jobs:
           cp targets/ts/wasm/mkp.wasm "release/mkp-$v.wasm"
           cp artifacts/android/*/build/outputs/aar/*.aar release/ 2>/dev/null || find artifacts/android -name '*.aar' -exec cp {} release/ \;
           (cd release && sha256sum * > SHA256SUMS)
-          gh release view "v$v" > /dev/null 2>&1 || gh release create "v$v" --title "MKP $v" --generate-notes --verify-tag
+          node tools/release/check-notes.mjs --notes-for "$v" > /tmp/notes.md
+          title="$(head -n 1 /tmp/notes.md)"
+          tail -n +2 /tmp/notes.md > /tmp/body.md
+          gh release view "v$v" > /dev/null 2>&1 || gh release create "v$v" --target "$GITHUB_SHA" --title "$title" --notes-file /tmp/body.md
           gh release upload "v$v" release/* --clobber
       - name: npm
         env:
@@ -202,7 +201,7 @@ jobs:
             exit 0
           fi
           node tools/release/build-ts.mjs
-          node tools/release/publish-npm.mjs --version "${{ steps.v.outputs.version }}"
+          node tools/release/publish-npm.mjs --version "${{ needs.version.outputs.version }}"
       - name: crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

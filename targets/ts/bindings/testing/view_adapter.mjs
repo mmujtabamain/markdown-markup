@@ -68,7 +68,15 @@ tab.on("pageerror", (e) => process.stderr.write(`${target} target [page error]: 
 const live = options.includes("live");
 const WASM_URL = "http://mkp.test/mkp.wasm";
 if (live) {
-  const wasm = readFileSync(own.resolve("@mkp/wasm/mkp.wasm"));
+  // the target's own @mkp/wasm, or the one its @mkp/live compiles with
+  const where = (() => {
+    try {
+      return own.resolve("@mkp/wasm/mkp.wasm");
+    } catch {
+      return join(process.cwd(), "node_modules/@mkp/live/node_modules/@mkp/wasm/mkp.wasm");
+    }
+  })();
+  const wasm = readFileSync(where);
   await tab.route(WASM_URL, (r) => r.fulfill({ status: 200, contentType: "application/wasm", headers: { "access-control-allow-origin": "*" }, body: wasm }));
 }
 await tab.setContent("<!doctype html><html lang=en><head><meta charset=utf-8><title>MKP check</title></head><body></body></html>");

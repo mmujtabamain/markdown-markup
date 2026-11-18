@@ -7,13 +7,15 @@ import { fileURLToPath } from "node:url";
 
 export const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-/** Every package with an @mkp name under targets/ts, not a test's or a showcase's; `published`
- * leaves out the private ones (the web target's check adapter). */
+/** Every package with an @mkp name under targets/ts and apps, not a test's or a showcase's;
+ * `published` leaves out the private ones (the web target's check adapter, the playground). */
 export function packages({ published = true } = {}) {
   const out = [];
   const walk = (dir) => {
+    // a package's own tests and fixtures are no package; targets/ts/test (the test target) is one
+    const inPackage = existsSync(join(dir, "package.json"));
     for (const name of readdirSync(dir)) {
-      if (["node_modules", "dist", "test", "testing"].includes(name)) continue;
+      if (["node_modules", "dist"].includes(name) || (inPackage && ["test", "testing"].includes(name))) continue;
       const path = join(dir, name);
       if (!statSync(path).isDirectory()) continue;
       const file = join(path, "package.json");
@@ -26,6 +28,7 @@ export function packages({ published = true } = {}) {
     }
   };
   walk(join(repo, "targets", "ts"));
+  walk(join(repo, "apps"));
   return ordered(out);
 }
 
