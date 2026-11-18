@@ -22,8 +22,9 @@ WORKDIR /src
 # wasm/build.rs embeds ../../../core, and the syntax crate includes core/entities.mkp
 COPY core ./core
 COPY targets/rust ./targets/rust
-# a member of targets/rust's workspace, so cargo can load the workspace
+# members of targets/rust's workspace, so cargo can load the workspace
 COPY targets/android/mkp ./targets/android/mkp
+COPY targets/android/mkp-live ./targets/android/mkp-live
 RUN targets/rust/wasm/build.sh /src/mkp.wasm && test -s /src/mkp.wasm
 
 # ---- 2. the UI: @mkp/runtime, @mkp/dom, @mkp/wasm and the plain web's targets (@mkp/embed,

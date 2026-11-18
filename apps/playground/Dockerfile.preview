@@ -31,6 +31,7 @@ COPY --from=source /src/core /src/core
 COPY --from=source /src/targets/rust /src/targets/rust
 # members of targets/rust's workspace, so cargo can load it
 COPY --from=source /src/targets/android/mkp /src/targets/android/mkp
+COPY --from=source /src/targets/android/mkp-live /src/targets/android/mkp-live
 RUN /src/targets/rust/wasm/build.sh /src/mkp.wasm && test -s /src/mkp.wasm
 
 # ---- 2. the UI: @mkp/runtime, @mkp/dom, @mkp/wasm and the plain web's targets (@mkp/embed,
