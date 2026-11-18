@@ -27,8 +27,9 @@ pub enum Val {
     Range { low: Vec<Val>, high: Vec<Val>, step: Vec<Val> },
     /// A fn the tree holds, by name ("" for a lambda): a shade's shader, which only Rust runs.
     Fn { name: String },
-    /// A view held as a value, by its widget.
-    View { widget: String },
+    /// A view held as a value, by its widget. One in a sentence (a VIEW part of a widget's rich
+    /// text) is drawn from the widget's slot `slot` names, where the part is.
+    View { widget: String, slot: Option<String> },
 }
 
 /// A named value: a record's field, a case's value, a prop.
@@ -69,7 +70,7 @@ pub fn val_in(page: Option<&Page>, v: &Value) -> Val {
             step: r.step.iter().map(|x| val(page, x)).collect(),
         },
         Value::Fn(_) => Val::Fn { name: crate::shader_name(v) },
-        Value::View(view) => Val::View { widget: view.widget.to_string() },
+        Value::View(view) => Val::View { widget: view.widget.to_string(), slot: mkp_runtime::inline_slot(Some(v)) },
     }
 }
 

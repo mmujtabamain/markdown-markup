@@ -113,7 +113,10 @@ author id `<short name>@<path>` (`press@s0/s0`), and each of its parts `<short n
   moves at every redraw) is held after 8 frames, since egui lays out every frame.
 - **`shade`** samples its shader on the CPU: at most 65,536 samples, fewer for a slow shader
   (a coarse 16×16 pass first, the rest in slices of 12 ms, within 1.5 s in all).
-- **Not drawn**: a widget in a sentence (`rich_text`'s VIEW part) shows nothing here.
+- **A widget in a sentence** (`rich_text`'s VIEW part) is drawn from the slot the runtime puts it in
+  (`~0`, `~1` …): the sentence is laid out as egui's wrapped line, each run of text starting where
+  the last thing on the line ended, so the widget sits in its words and takes its events as any
+  widget of the page does. Such a line starts at the left: a paragraph's `align` doesn't move it.
 
 ## The checks
 

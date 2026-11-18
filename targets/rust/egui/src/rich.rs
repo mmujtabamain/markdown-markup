@@ -83,17 +83,58 @@ fn part_words(part: Option<&Value>) -> String {
         Some("MATH") => tex(field(part, "tex")),
         Some("NOTE") => text(field(part, "mark")),
         Some("BREAK") => "\n".into(),
-        // a picture's words are its alt text, which it is named by; a view in a sentence isn't drawn here
+        // a picture's words are its alt text, which it is named by; a view in a sentence is
+        // drawn as a widget of its own, from its slot
         Some("IMAGE") => text(field(part, "alt")),
         _ => String::new(),
     }
 }
 
+/// A rich_text cut at the views in its sentence: runs of segments, and between them the slot of
+/// the widget each view is drawn from.
+pub enum Piece<'a> {
+    Run(Vec<&'a Value>),
+    View(String),
+}
+
+/// Whether a rich_text's sentence holds a view.
+pub fn has_views(v: Option<&Value>) -> bool {
+    list(field(v, "segments")).into_iter().any(|seg| case(field(Some(seg), "part")) == Some("VIEW"))
+}
+
+/// A rich_text's runs of text, and the slot of each view in its sentence, in order.
+pub fn pieces(v: Option<&Value>) -> Vec<Piece<'_>> {
+    let mut out = Vec::new();
+    let mut run = Vec::new();
+    for seg in list(field(v, "segments")) {
+        let part = field(Some(seg), "part");
+        if case(part) != Some("VIEW") {
+            run.push(seg);
+            continue;
+        }
+        if !run.is_empty() {
+            out.push(Piece::Run(std::mem::take(&mut run)));
+        }
+        if let Some(slot) = mkp_runtime::inline_slot(field(part, "child")) {
+            out.push(Piece::View(slot));
+        }
+    }
+    if !run.is_empty() {
+        out.push(Piece::Run(run));
+    }
+    out
+}
+
 /// Lays a rich_text out for egui.
 pub fn layout(v: Option<&Value>, s: Style) -> Laid {
+    layout_run(&list(field(v, "segments")), s)
+}
+
+/// Lays a run of a rich_text's segments out for egui.
+pub fn layout_run(segments: &[&Value], s: Style) -> Laid {
     let mut job = LayoutJob::default();
     let mut links = Vec::new();
-    for seg in list(field(v, "segments")) {
+    for &seg in segments {
         let part = field(Some(seg), "part");
         let marks = field(Some(seg), "marks");
         let on = |n: &str| flag(field(marks, n), false);

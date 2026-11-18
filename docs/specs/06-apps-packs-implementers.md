@@ -249,7 +249,7 @@ extern widget jump(to: opt<view>, label: text) {
 
 The compiler works out the level each call needs from the table. A call in a document that needs a level the target doesn't have shows its Markdown instead.
 
-A target has written obligations, each proved by the target checks: evaluation exactly as page 2 defines it, exact base-10 numbers, events run in order with one redraw, the limits below, failures contained as below, untrusted content kept sandboxed, extern values and the app's writes to `$state` checked, and accessible controls.
+A target has written obligations, each proved by the target checks: evaluation exactly as page 2 defines it, exact base-10 numbers, events run in order with one redraw, the limits below, failures contained as below, untrusted content kept sandboxed, extern values and the app's writes to `$state` checked, a widget in a sentence (`Press \{@press(…)} to start`) drawn among its words and taking its events like any other, and accessible controls.
 
 A write to `$state`, a reader's through a widget or the app's, is checked against every contract and `require` block it touches (page 2), and is done whole or refused with the rule's message. A `$state` the app gives a page as it starts is checked the same way: a field that doesn't fit is refused and reported, never set unchecked. The rest of input is the target's: whether a widget writes on every keystroke or only when the reader submits, how a refusal is shown, and what to do with state an app saved from an earlier version of the document. How it manages memory is its own choice: MKP code can't make a reference cycle, so freeing a widget's values when it leaves the page, or plain reference counting, is enough.
 

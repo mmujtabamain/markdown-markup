@@ -9,6 +9,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
@@ -94,6 +95,35 @@ class MkpPageTest {
         onNodeWithText("Remove Honey").performClick()
         settle()
         assertTrue(page.markdown().contains("2 items for 18 €"))
+    }
+
+    @Test
+    fun aPressInASentenceIsDrawnAmongItsWordsAndClicked() = runAndroidComposeUiTest<ComponentActivity> {
+        waitsForMkp()
+        val source = File.createTempFile("sentence", ".mkp.md")
+        source.writeText(
+            """
+            ${'$'}state {
+                count: int = 0;
+            }
+            @@@
+            Press \{@press(label = "Add one", click = fn() { ${'$'}state.count = ${'$'}state.count + 1; })} and the count goes up.
+            """.trimIndent() + "\n",
+        )
+        val page = CompiledPage.fromJson(ir(source).also { source.delete() }, PageOptions(zone = UtcZone))
+        setContent { MkpPage(page) }
+        settle()
+        // the press is the paragraph's slot, drawn in its line after "Press"
+        val tree = JSONObject(page.native.observeJson(null)).getJSONObject("tree")
+        assertEquals("core/press", tree.getJSONObject("m0/~0").getString("widget"))
+        assertEquals(tree.keys().asSequence().toSet(), page.drawn)
+        val para = onNode(hasText("Press", substring = true)).fetchSemanticsNode().boundsInRoot
+        val press = onNodeWithText("Add one").fetchSemanticsNode().boundsInRoot
+        assertTrue("$press isn't in $para", para.inflate(1f).contains(press.topLeft) && para.inflate(1f).contains(press.bottomRight))
+        assertTrue("$press isn't after Press in $para", press.left > para.left + 20f && press.top < para.top + 8f)
+        onNodeWithText("Add one").performClick()
+        settle()
+        assertEquals("{\"num\":\"1\"}", state(page, "count"))
     }
 
     @Test

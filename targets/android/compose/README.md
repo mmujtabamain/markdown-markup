@@ -104,7 +104,7 @@ other parts have `testTag`s as @mkp/dom's `data-part`s (targets/ts/dom/README.md
 
 | Widget | Parts (`testTag`) | Semantics |
 |---|---|---|
-| paragraph, heading | `paragraph`, `heading` | Rich text as an `AnnotatedString`; a heading is `heading()` |
+| paragraph, heading | `paragraph`, `heading` | Rich text as an `AnnotatedString`; a heading is `heading()`; a widget in a sentence is inline content drawn from the slot the runtime puts it in (`~0`, `~1` …), its room the size it measured |
 | bullets, item | `bullets`; `item`, `item.check`, `item.body` | `collectionInfo`; the marker is hidden; the task box is a disabled checkbox named Done or Not done |
 | quote, code, math | `quote`; `code`, `code.text`; `math` | Code scrolls sideways and is selectable; maths is named by its TeX |
 | table, footnote, divider | `table`, `table.grid`, `table.header`, `table.cell`; `footnote`, `footnote.mark`, `footnote.body`; `divider` | A table is as @mkp/dom draws it: each column as wide as its widest cell, a line under each row, and it scrolls when wider than the page; a footnote is named "Footnote <mark>" |
@@ -252,7 +252,6 @@ killed for memory, so omnicui runs it on its own.
 
 ## Gaps
 
-- Inline views in rich text (`\{@icon(…)}` in a sentence) aren't drawn: the native runtime has no `drawView` yet.
 - Pictures inside rich text show their alt text; `image` loads http, https and data: pictures itself, with no cache
   beyond the composition.
 - Maths in a sentence is one line of text: a fraction there is a/b, not stacked; on a line of its own it is laid

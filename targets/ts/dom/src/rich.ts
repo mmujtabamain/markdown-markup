@@ -2,7 +2,7 @@
 // them, so what is drawn and what is written as Markdown say the same words. Links and pictures
 // are checked before use, and nothing in a value is ever read as HTML.
 
-import type { Drawn, Env, Value } from "@mkp/runtime";
+import { inlineSlot, type Drawn, type Value } from "@mkp/runtime";
 import type { WidgetContext } from "./api.js";
 import { kit } from "./kit.js";
 import { drawTex } from "./tex.js";
@@ -44,8 +44,8 @@ export function noteId(uid: string, mark: string): string {
   return `${uid}fn-${encodeURIComponent(mark)}`;
 }
 
-/** Draws a rich_text into an element, replacing what it held. `d` is the widget it belongs to:
- * a view in a sentence is drawn as its child. */
+/** Draws a rich_text into an element, replacing what it held. `d` is the widget it belongs to: a
+ * view in a sentence is drawn from its slot. */
 export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext, d: Drawn): void {
   const k = kit(ctx);
   const uid = k.uid;
@@ -53,7 +53,7 @@ export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext
   into.replaceChildren();
   let link: { href: string | undefined; el: Element } | undefined;
   const views: { span: HTMLElement; nodes: Drawn[] }[] = [];
-  list(field(v, "segments")).forEach((seg, k) => {
+  list(field(v, "segments")).forEach((seg) => {
     const part = inner(field(seg, "part"));
     if (!part || part.kind !== "case") return;
     const marks = field(seg, "marks");
@@ -106,14 +106,11 @@ export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext
         node = document.createElement("br");
         break;
       case "VIEW": {
+        // the runtime drew the view as this widget's slot, which is drawn here
         const span = document.createElement("span");
         span.className = "mkp-inline";
-        const env: Env = { owner: undefined, bindings: [], path: d.path, key: d.key };
-        try {
-          views.push({ span, nodes: ctx.page.drawView(field(part, "child") ?? { kind: "opt", value: null }, `${d.path}/~${k}`, env) });
-        } catch {
-          span.textContent = "";
-        }
+        const slot = inlineSlot(field(part, "child"));
+        views.push({ span, nodes: (slot && d.slots.get(slot)) || [] });
         node = span;
         break;
       }

@@ -1065,9 +1065,53 @@ export class Page {
     }
     const slots = new Map<string, Drawn[]>();
     for (const [s, nodes] of Object.entries(x.slots ?? {})) slots.set(s, this.drawNodes(nodes, env));
+    this.inlineViews(props, slots, path, key);
     const events = new Map<string, { handler: string; env: Env }>();
     for (const [e, h] of Object.entries(x.events ?? {})) events.set(e, { handler: h, env });
     return [{ path, key, widget: x.name, props, slots, events, writes, levels: x.levels ?? [] }];
+  }
+
+  /** A sentence's views, in the tree: each VIEW part of a rich_text in a widget's props is drawn
+   * as its slot `~n`, numbered in the props' order, and holds an `#inline` view with the number
+   * instead, so a target draws the slot where the part is. Its widgets are the page's like any
+   * slot's, their events and writes found by path. */
+  private inlineViews(props: Map<string, V>, slots: Map<string, Drawn[]>, path: string, key: string): void {
+    let n = 0;
+    const walk = (v: V): V => {
+      switch (v.kind) {
+        case "list": {
+          const items = v.items.map((i) => {
+            const w = walk(i.value);
+            return w === i.value ? i : { id: i.id, value: w };
+          });
+          return items.every((i, k) => i === v.items[k]) ? v : { ...v, items };
+        }
+        case "record": {
+          const fields = v.fields.map(([f, x]) => [f, walk(x)] as const);
+          return fields.every(([, x], k) => x === v.fields[k][1]) ? v : { ...v, fields };
+        }
+        case "case": {
+          if (v.ty === "core/part" && v.name === "VIEW") {
+            const id = n++;
+            const child = v.values.find(([f]) => f === "child")?.[1] ?? none();
+            slots.set(`~${id}`, this.drawView(child, join(path, `~${id}`), { owner: undefined, bindings: [], path, key }));
+            return caseOf(v.ty, v.name, [["child", inlineView(id)]]);
+          }
+          const values = v.values.map(([f, x]) => [f, walk(x)] as const);
+          return values.every(([, x], k) => x === v.values[k][1]) ? v : { ...v, values };
+        }
+        case "opt": {
+          const w = v.value && walk(v.value);
+          return w === v.value ? v : { kind: "opt", value: w };
+        }
+        default:
+          return v;
+      }
+    };
+    for (const [k, v] of props) {
+      const w = walk(v);
+      if (w !== v) props.set(k, w);
+    }
   }
 
   /** A widget written in MKP: its instance, kept by its path, and its view. */
@@ -1285,7 +1329,7 @@ export class Page {
   drawView(v: V, path: string, env: Env): Drawn[] {
     if (v.kind === "opt") return v.value ? this.drawView(v.value, path, env) : [];
     if (v.kind === "list") return v.items.flatMap((i, k) => this.drawView(i.value, `${path}[${k}]`, env));
-    if (v.kind !== "view") return [];
+    if (v.kind !== "view" || v.widget === "#inline") return [];
     if (v.widget === "#slot") {
       const id = v.args.get("id");
       const held = id && id.kind === "num" ? this.held[Number(id.n.show())] : undefined;
@@ -1303,9 +1347,11 @@ export class Page {
     }
     const slots = new Map<string, Drawn[]>();
     for (const [s, nodes] of Object.entries(v.slots)) slots.set(s, this.drawNodes(nodes as ir.Node[], made));
+    const key = join(env.key ?? env.path, path.split("/").pop()!);
+    this.inlineViews(props, slots, path, key);
     const events = new Map<string, { handler: string; env: Env }>();
     for (const [e, h] of Object.entries(v.events)) events.set(e, { handler: h as string, env: made });
-    return [{ path, key: join(env.key ?? env.path, path.split("/").pop()!), widget: v.widget, props, slots, events, writes: new Map(), levels: w?.levels ?? [] }];
+    return [{ path, key, widget: v.widget, props, slots, events, writes: new Map(), levels: w?.levels ?? [] }];
   }
 
   /** The live instance at a path, for the Markdown writer. */
@@ -1336,6 +1382,19 @@ function sameRecord<T>(a: Record<string, T>, b: Record<string, T>): boolean {
   if (a === b) return true;
   const ka = Object.keys(a);
   return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+}
+
+/** The widget's slot a VIEW part of its rich text is drawn in: what the part's `#inline` view
+ * names. A target draws that slot where the part is. */
+export function inlineSlot(child: V | undefined): string | undefined {
+  if (child?.kind !== "view" || child.widget !== "#inline") return undefined;
+  const id = child.args.get("id");
+  return id?.kind === "num" ? `~${id.n.show()}` : undefined;
+}
+
+/** What a VIEW part holds once its view is drawn as the widget's slot `~id`. */
+function inlineView(id: number): V {
+  return { kind: "view", widget: "#inline", args: new Map([["id", numOf(id)]]), slots: {}, events: {}, exprs: {}, captured: [], owner: undefined } as V;
 }
 
 function numOf(n: number) {

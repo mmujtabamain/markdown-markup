@@ -3,7 +3,7 @@
 // words. Links and pictures are checked before use, and nothing in a value is ever read as HTML.
 // TeX is given as its text, and drawn as MathML by a hook once the element is live.
 
-import type { Drawn, Env, Value } from "@mkp/runtime";
+import { inlineSlot, type Drawn, type Value } from "@mkp/runtime";
 import { field, inner, list, noteId, safeHref, safeSrc, str, texOf, texToMathML } from "@mkp/dom/shared";
 import type { ViewContext } from "../render.js";
 import { cls, h, type Child, type Hook, type VNode } from "../vnode.js";
@@ -52,7 +52,7 @@ export function richChildren(v: Value | undefined, ctx: ViewContext, d: Drawn): 
   const uid = ctx.uid;
   const out: Child[] = [];
   let link: { href: string; el: VNode } | undefined;
-  list(field(v, "segments")).forEach((seg, k) => {
+  list(field(v, "segments")).forEach((seg) => {
     const part = inner(field(seg, "part"));
     if (!part || part.kind !== "case") return;
     const marks = field(seg, "marks");
@@ -87,14 +87,9 @@ export function richChildren(v: Value | undefined, ctx: ViewContext, d: Drawn): 
         node = h("br");
         break;
       case "VIEW": {
-        const env: Env = { owner: undefined, bindings: [], path: d.path, key: d.key };
-        let nodes: Drawn[] = [];
-        try {
-          nodes = ctx.page.drawView(field(part, "child") ?? { kind: "opt", value: null }, `${d.path}/~${k}`, env);
-        } catch {
-          nodes = [];
-        }
-        node = h("span", undefined, { class: "mkp-inline" }, ctx.children(nodes));
+        // the runtime drew the view as this widget's slot, which is drawn here
+        const slot = inlineSlot(field(part, "child"));
+        node = h("span", undefined, { class: "mkp-inline" }, ctx.children((slot && d.slots.get(slot)) || []));
         break;
       }
       default:

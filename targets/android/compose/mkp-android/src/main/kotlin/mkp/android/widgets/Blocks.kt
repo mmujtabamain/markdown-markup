@@ -63,6 +63,19 @@ import mkp.android.headingStyle
 import mkp.android.inner
 import mkp.android.items
 import mkp.android.richText
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
+import mkp.android.inlineSlots
 import mkp.android.site
 import mkp.android.str
 import mkp.android.templateText
@@ -83,10 +96,44 @@ internal fun textAlign(a: String?): TextAlign? = when (a) {
 @Composable
 internal fun rich(v: Val?) = richText(v, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.surfaceVariant)
 
+/** A rich text's Text, with each view in its sentence drawn from the widget's slot where its part
+ * is, as a widget of the page. Its room in the line is the size the view measured, so a view is
+ * set in place a frame after it is first drawn. A sentence with views has no fixed line height:
+ * a line grows to the view it holds, as on the web, where a fixed one would let the view cover
+ * the line below. */
+@Composable
+internal fun RichText(
+    v: Val?,
+    p: Props,
+    ctx: WidgetContext,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    textAlign: TextAlign? = null,
+    fontWeight: FontWeight? = null,
+    style: TextStyle = LocalTextStyle.current,
+) {
+    val slots = inlineSlots(v)
+    val sizes = remember { mutableStateMapOf<String, IntSize>() }
+    val density = LocalDensity.current
+    val inline = slots.associateWith { slot ->
+        val size = sizes[slot]
+        val room = with(density) { Placeholder(size?.width?.toSp() ?: 1.em, size?.height?.toSp() ?: 1.em, PlaceholderVerticalAlign.TextCenter) }
+        InlineTextContent(room) {
+            Box(Modifier.wrapContentSize(Alignment.TopStart, unbounded = true).onSizeChanged { sizes[slot] = it }) {
+                ctx.Children(p.slot(slot))
+            }
+        }
+    }
+    val lines = if (slots.isEmpty()) style else style.copy(lineHeight = TextUnit.Unspecified)
+    Text(rich(v), modifier, color = color, textAlign = textAlign, fontWeight = fontWeight, style = lines, inlineContent = inline)
+}
+
 @Composable
 fun MkpParagraph(p: Props, ctx: WidgetContext) {
-    Text(
-        rich(p["value"]),
+    RichText(
+        p["value"],
+        p,
+        ctx,
         Modifier.site(ctx, "paragraph").fillMaxWidth(),
         color = color(p["tone"]) ?: MaterialTheme.colorScheme.onSurface,
         textAlign = textAlign(p.case("align")),
@@ -97,8 +144,10 @@ fun MkpParagraph(p: Props, ctx: WidgetContext) {
 @Composable
 fun MkpHeading(p: Props, ctx: WidgetContext) {
     val level = (p.num("level") ?: 1.0).toInt().coerceIn(1, 6)
-    Text(
-        rich(p["value"]),
+    RichText(
+        p["value"],
+        p,
+        ctx,
         Modifier.site(ctx, "heading").fillMaxWidth().semantics { heading() },
         style = headingStyle(MaterialTheme.typography, level),
         color = MaterialTheme.colorScheme.onSurface,
@@ -217,8 +266,10 @@ fun MkpTable(p: Props, ctx: WidgetContext) {
             content = {
                 for ((r, cells) in (listOf(head) + rows).withIndex()) {
                     for (k in 0 until cols) {
-                        Text(
-                            rich(cells.getOrNull(k)),
+                        RichText(
+                            cells.getOrNull(k),
+                            p,
+                            ctx,
                             Modifier.testTag(if (r == 0) "table.header" else "table.cell").padding(horizontal = 12.dp, vertical = 6.dp),
                             textAlign = textAlign(align.getOrNull(k)) ?: TextAlign.Start,
                             fontWeight = if (r == 0) FontWeight.SemiBold else null,

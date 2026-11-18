@@ -97,28 +97,72 @@ pub fn style(ctx: &Ctx<'_>, f: &Font, color: Color32) -> Style {
     Style { size: f.size, bold: f.bold, mono: f.mono, color, accent: ctx.core_color("ACCENT"), code_bg, line: f.line }
 }
 
+/// A rich text: one leaf, or, when its sentence holds views, flowed with them ([`rich_flow`]).
+pub fn rich(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&mkp_runtime::Value>, s: Style, lay: Lay) {
+    if rich::has_views(v) {
+        rich_flow(ui, ctx, id, v, s);
+    } else {
+        rich_leaf(ui, id, v, s, lay);
+    }
+}
+
 /// A rich text leaf; a click on a link in it opens the link.
 pub fn rich_leaf(ui: &mut Ui, id: Id, v: Option<&mkp_runtime::Value>, s: Style, lay: Lay) -> Leaf {
     let laid = rich::layout(v, s);
     let words = rich::words(v);
     let text = laid.job.text.clone();
     let l = leaf(ui, id, laid.job, &words, lay);
-    if !laid.links.is_empty() {
-        let r = ui.interact(l.response.rect, id.with("links"), Sense::click());
-        let at = r.interact_pointer_pos().or_else(|| r.hover_pos());
-        let hit = at.and_then(|p| {
-            let c = l.galley.cursor_from_pos(p - l.pos);
-            let byte = text.char_indices().nth(c.index.into()).map_or(text.len(), |(b, _)| b);
-            laid.links.iter().find(|(range, _)| range.contains(&byte)).map(|(_, url)| url.clone())
-        });
-        if hit.is_some() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-        if let (true, Some(url)) = (r.clicked(), hit) {
-            ui.ctx().open_url(egui::OpenUrl::new_tab(url));
-        }
-    }
+    follow_links(ui, id, &l, &text, &laid.links);
     l
+}
+
+/// A rich text whose sentence holds views: its runs of text in one wrapped line, each starting
+/// where the last thing on the line ended, and each view drawn from the widget's slot where its
+/// part is, as a widget of the page. A click on a link opens it.
+pub fn rich_flow(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&mkp_runtime::Value>, s: Style) {
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        for (k, piece) in rich::pieces(v).into_iter().enumerate() {
+            match piece {
+                rich::Piece::Run(segments) => {
+                    let laid = rich::layout_run(&segments, s);
+                    let text = laid.job.text.clone();
+                    let (pos, galley, response) = egui::Label::new(laid.job).selectable(false).wrap().layout_in_ui(ui);
+                    if ui.is_rect_visible(response.rect) {
+                        ui.painter().galley(pos, galley.clone(), Color32::PLACEHOLDER);
+                    }
+                    let words = text.clone();
+                    a11y::edit(ui, response.id, |n| {
+                        n.set_role(Role::Label);
+                        n.set_value(words);
+                    });
+                    let l = Leaf { response, galley, pos };
+                    follow_links(ui, id.with(k), &l, &text, &laid.links);
+                }
+                rich::Piece::View(slot) => ctx.slot(ui, &slot),
+            }
+        }
+    });
+}
+
+/// A link in a leaf of rich text: the hand over it, and opened on a click.
+fn follow_links(ui: &mut Ui, id: Id, l: &Leaf, text: &str, links: &[(std::ops::Range<usize>, String)]) {
+    if links.is_empty() {
+        return;
+    }
+    let r = ui.interact(l.response.rect, id.with("links"), Sense::click());
+    let at = r.interact_pointer_pos().or_else(|| r.hover_pos());
+    let hit = at.and_then(|p| {
+        let c = l.galley.cursor_from_pos(p - l.pos);
+        let byte = text.char_indices().nth(c.index.into()).map_or(text.len(), |(b, _)| b);
+        links.iter().find(|(range, _)| range.contains(&byte)).map(|(_, url)| url.clone())
+    });
+    if hit.is_some() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if let (true, Some(url)) = (r.clicked(), hit) {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+    }
 }
 
 /// A slot of space kept for a shape painted under what is drawn next: the frame's fill.

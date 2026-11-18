@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use mkp_eval::interp::{Outer, Place, PlaceRoot, Step, R};
-use mkp_eval::value::{Case, Closure, ViewValue};
+use mkp_eval::value::{Case, Closure, List, Record, ViewValue};
 use mkp_eval::{Binding, Constants, FailKind, Failure, Host, Machine, Num, Program, Row, Value};
 use mkp_ir::check::{Call, CallCall, Mounted, PageTheme, PageWidth};
 use mkp_ir::ir::{self, Expr, Node, Stmt};
@@ -216,6 +216,25 @@ fn outer_kind(o: &Outer) -> (&'static str, &str) {
 
 pub(crate) fn num_value(n: i64) -> Value {
     Value::Num(Num::int(n))
+}
+
+/// The widget's slot a VIEW part of its rich text is drawn in: what the part's `#inline` view
+/// names. A target draws that slot where the part is.
+pub fn inline_slot(child: Option<&Value>) -> Option<String> {
+    match child {
+        Some(Value::View(v)) if &*v.widget == "#inline" => match v.args.get("id") {
+            Some(Value::Num(n)) => Some(format!("~{}", n.show())),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// What a VIEW part holds once its view is drawn as the widget's slot `~id`.
+fn inline_view(id: usize) -> Value {
+    let mut args = BTreeMap::new();
+    args.insert("id".to_string(), num_value(id as i64));
+    Value::View(Rc::new(ViewValue { widget: Rc::from("#inline"), args, slots: BTreeMap::new(), events: BTreeMap::new(), exprs: BTreeMap::new(), captured: Vec::new(), owner: None }))
 }
 
 pub(crate) fn case_value(ty: &str, name: &str) -> Value {
@@ -1142,8 +1161,67 @@ impl Rt {
         for (s, nodes) in slots {
             drawn_slots.insert(s.clone(), self.draw_nodes(m, nodes, env)?);
         }
+        self.inline_views(m, &mut props, &mut drawn_slots, &path, &key)?;
         let events = events.iter().map(|(e, h)| (e.clone(), Handle { handler: h.clone(), env: env.clone() })).collect();
         Ok(vec![Drawn::new(DrawnNode { path, key, widget: name.to_string(), props, slots: drawn_slots, events, writes: written, levels: levels.to_vec() })])
+    }
+
+    /// A sentence's views, in the tree: each VIEW part of a rich_text in a widget's props is
+    /// drawn as its slot `~n`, numbered in the props' order, and holds an `#inline` view with the
+    /// number instead, so a target draws the slot where the part is. Its widgets are the page's
+    /// like any slot's, their events and writes found by path.
+    fn inline_views(&self, m: &mut Machine, props: &mut BTreeMap<String, Value>, slots: &mut BTreeMap<String, Vec<Drawn>>, path: &str, key: &str) -> R<()> {
+        let mut n = 0;
+        for v in props.values_mut() {
+            if let Some(w) = self.inline_in(m, v, slots, path, key, &mut n)? {
+                *v = w;
+            }
+        }
+        Ok(())
+    }
+
+    /// `v` with its sentences' views drawn, or None when it holds none.
+    fn inline_in(&self, m: &mut Machine, v: &Value, slots: &mut BTreeMap<String, Vec<Drawn>>, path: &str, key: &str, n: &mut usize) -> R<Option<Value>> {
+        Ok(match v {
+            Value::List(l) => {
+                let mut items = None;
+                for (k, i) in l.items.iter().enumerate() {
+                    if let Some(w) = self.inline_in(m, &i.value, slots, path, key, n)? {
+                        items.get_or_insert_with(|| l.items.clone())[k].value = w;
+                    }
+                }
+                items.map(|items| Value::List(Rc::new(List { items })))
+            }
+            Value::Record(r) => {
+                let mut fields = None;
+                for (k, (_, x)) in r.fields.iter().enumerate() {
+                    if let Some(w) = self.inline_in(m, x, slots, path, key, n)? {
+                        fields.get_or_insert_with(|| r.fields.clone())[k].1 = w;
+                    }
+                }
+                fields.map(|fields| Value::Record(Rc::new(Record { ty: r.ty.clone(), fields })))
+            }
+            Value::Case(c) if &*c.ty == "core/part" && &*c.name == "VIEW" => {
+                let id = *n;
+                *n += 1;
+                let child = c.values.iter().find(|(f, _)| &**f == "child").map_or_else(Value::none, |(_, x)| x.clone());
+                let at = Env { owner: None, bindings: Vec::new(), path: path.to_string(), key: Some(key.to_string()) };
+                let drawn = self.draw_view(m, &child, &join(path, &format!("~{}", id)), &at)?;
+                slots.insert(format!("~{}", id), drawn);
+                Some(Value::Case(Rc::new(Case { ty: c.ty.clone(), name: c.name.clone(), values: vec![(Rc::from("child"), inline_view(id))] })))
+            }
+            Value::Case(c) => {
+                let mut values = None;
+                for (k, (_, x)) in c.values.iter().enumerate() {
+                    if let Some(w) = self.inline_in(m, x, slots, path, key, n)? {
+                        values.get_or_insert_with(|| c.values.clone())[k].1 = w;
+                    }
+                }
+                values.map(|values| Value::Case(Rc::new(Case { ty: c.ty.clone(), name: c.name.clone(), values })))
+            }
+            Value::Opt(Some(x)) => self.inline_in(m, x, slots, path, key, n)?.map(Value::some),
+            _ => None,
+        })
     }
 
     /// A widget written in MKP: its instance, kept by its key, and its view.
@@ -1366,7 +1444,7 @@ impl Rt {
                 }
                 return Ok(out);
             }
-            Value::View(view) => view.clone(),
+            Value::View(view) if &*view.widget != "#inline" => view.clone(),
             _ => return Ok(Vec::new()),
         };
         if &*view.widget == "#slot" {
@@ -1394,10 +1472,12 @@ impl Rt {
         for (s, nodes) in &view.slots {
             slots.insert(s.clone(), self.draw_nodes(m, nodes, &made)?);
         }
+        let key = join(env.key_or_path(), last_part(path));
+        self.inline_views(m, &mut props, &mut slots, path, &key)?;
         let events = view.events.iter().map(|(e, h)| (e.clone(), Handle { handler: h.clone(), env: made.clone() })).collect();
         Ok(vec![Drawn::new(DrawnNode {
             path: path.to_string(),
-            key: join(env.key_or_path(), last_part(path)),
+            key,
             widget: view.widget.to_string(),
             props,
             slots,

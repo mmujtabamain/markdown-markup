@@ -1,0 +1,75 @@
+{
+  "id": "views.a-press-in-a-sentence-is-clicked",
+  "about": "a view in a sentence is drawn as its paragraph's slot, so a press there is in the page's tree and a click on it runs its handler",
+  "source": "a-press-in-a-sentence-is-clicked.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {
+      "blocks": [
+        {
+          "paragraph": [
+            {
+              "text": {
+                "value": "Press Add one and the count, 0, goes up."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "do": {
+        "event": {
+          "site": "m0/~0",
+          "name": "click"
+        }
+      },
+      "expect": {
+        "state": {
+          "count": {
+            "num": "1"
+          }
+        },
+        "tree": {
+          "m0": {
+            "widget": "core/paragraph",
+            "slots": {
+              "~0": [
+                "m0/~0"
+              ]
+            }
+          },
+          "m0/~0": {
+            "widget": "core/press",
+            "props": {
+              "label": {
+                "text": "Add one"
+              }
+            }
+          }
+        },
+        "markdown": {
+          "blocks": [
+            {
+              "paragraph": [
+                {
+                  "text": {
+                    "value": "Press Add one and the count, 1, goes up."
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

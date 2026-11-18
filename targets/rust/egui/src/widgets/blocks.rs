@@ -23,7 +23,8 @@ pub fn paragraph(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
     let s = kit::style(ctx, &font, color);
     let lay = Lay { align: align_of(p.case("align")), ..Lay::default() };
     ctx.root(ui, UiBuilder::new().accessibility_role(Role::Paragraph), |ui, ctx| {
-        kit::rich_leaf(ui, ctx.sub_id("text"), p.get("value"), s, lay);
+        let id = ctx.sub_id("text");
+        kit::rich(ui, ctx, id, p.get("value"), s, lay);
     });
 }
 
@@ -49,7 +50,8 @@ pub fn heading(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
             n.set_level(level);
             n.set_class_name(format!("h{}", level));
         });
-        kit::rich_leaf(ui, ctx.sub_id("text"), p.get("value"), s, Lay::default());
+        let id = ctx.sub_id("text");
+        kit::rich(ui, ctx, id, p.get("value"), s, Lay::default());
     });
 }
 
@@ -188,7 +190,7 @@ pub fn table(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
                         let a = align.get(k).copied().unwrap_or(Align::Min);
                         let r = ui.scope_builder(UiBuilder::new().scope_id(id).accessibility_role(role), |ui| {
                             ctx.part(ui, ui.unique_id(), part);
-                            kit::rich_leaf(ui, id.with("text"), Some(v), s, Lay { align: a, wrap: false, ..Lay::default() });
+                            kit::rich(ui, ctx, id.with("text"), Some(v), s, Lay { align: a, wrap: false, ..Lay::default() });
                         });
                         a11y::bounds(ui, id, r.response.rect);
                     };

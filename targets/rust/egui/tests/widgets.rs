@@ -227,6 +227,31 @@ fn blocks_have_their_roles_and_words() {
     assert_eq!(check::text(math), "x^2");
 }
 
+const SENTENCE: &str = r#"$state {
+    count: int = 0;
+}
+@@@
+Press \{@press(label = "Add one", click = fn() { $state.count = $state.count + 1; })} and the count goes up.
+"#;
+
+#[test]
+fn a_press_in_a_sentence_is_drawn_among_its_words_and_clicked() {
+    let mut h = common::mount(SENTENCE);
+    let (para, press) = {
+        let n = node(&h, "press@m0/~0");
+        assert_eq!(n.role(), Role::Button);
+        assert_eq!(n.label().as_deref(), Some("Add one"));
+        let para = check::all(h.root()).into_iter().find(|n| n.role() == Role::Paragraph).unwrap();
+        (check::rect(&para).unwrap(), check::rect(&n).unwrap())
+    };
+    // in the paragraph, after its first word and on its first line
+    assert!(para.expand(1.0).contains_rect(press), "{:?} isn't in {:?}", press, para);
+    assert!(press.left() > para.left() + 20.0 && press.top() < para.top() + 8.0, "{:?} isn't after Press in {:?}", press, para);
+    h.click_at(press.center());
+    h.settle().unwrap();
+    assert_eq!(num(&mut h, "count"), "1");
+}
+
 #[test]
 fn an_extern_nobody_supplies_shows_its_markdown_and_is_reported() {
     let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/packs/a-pack-supplies-its-externs.mkp.md")).unwrap();

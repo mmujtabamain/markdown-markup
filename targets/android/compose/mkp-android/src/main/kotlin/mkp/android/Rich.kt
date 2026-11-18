@@ -1,5 +1,6 @@
 package mkp.android
 
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -37,8 +38,13 @@ fun safeSrc(url: String): String? {
     return if (scheme.groupValues[1].lowercase() in setOf("http", "https")) url.trim() else null
 }
 
+/** The widget's slot each view in a rich_text's sentence is drawn from, in order. */
+fun inlineSlots(v: Val?): List<String> =
+    v.field("segments").items().mapNotNull { seg -> seg.field("part").takeIf { it.case() == "VIEW" }?.let { (it.field("child") as? Val.View)?.slot } }
+
 /** A rich_text as the text Compose draws: marks as spans, links as links, code in the mono font,
- * maths as its Unicode, footnote marks raised. A view in a sentence isn't drawn (README: gaps). */
+ * maths as its Unicode, footnote marks raised, and a view in the sentence as inline content
+ * named by its slot ([inlineSlots]), which the Text that draws it is given. */
 fun richText(v: Val?, linkColor: Color, codeBackground: Color): AnnotatedString = buildAnnotatedString {
     for (seg in v.field("segments").items()) {
         val part = seg.field("part")
@@ -57,6 +63,7 @@ fun richText(v: Val?, linkColor: Color, codeBackground: Color): AnnotatedString 
                     "IMAGE" -> append(part.field("alt").str())
                     "NOTE" -> withStyle(SpanStyle(baselineShift = BaselineShift.Superscript, fontSize = 0.75.em, color = linkColor)) { append(part.field("mark").str()) }
                     "BREAK" -> append("\n")
+                    "VIEW" -> (part.field("child") as? Val.View)?.slot?.let { appendInlineContent(it) }
                     else -> {}
                 }
             }
