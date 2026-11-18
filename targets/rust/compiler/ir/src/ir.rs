@@ -591,9 +591,6 @@ pub struct Needs {
 pub struct NodeExtern {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub events: BTreeMap<String, String>,
-    /// Its Markdown, for a target without its level or without the widget.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fallback: Vec<Node>,
     /// The levels this call needs (page 6), its slots' included.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub levels: Vec<Level>,
@@ -614,8 +611,6 @@ pub struct NodeUse {
     pub args: BTreeMap<String, Expr>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub events: BTreeMap<String, String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fallback: Vec<Node>,
     /// The levels this call needs (page 6), its slots' included.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub levels: Vec<Level>,

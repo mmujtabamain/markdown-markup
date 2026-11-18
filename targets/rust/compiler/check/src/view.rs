@@ -220,13 +220,13 @@ impl Checker {
         let full = self.defs[d].full.clone();
         let external = matches!(self.defs[d].kind, DefKind::Widget { external: true, .. });
         if external {
-            vec![ir::Node::Extern(ir::NodeExtern { name: full, site, props: parts.props, slots: parts.slots, events: parts.events, writes: parts.places, levels: Vec::new(), fallback: Vec::new() })]
+            vec![ir::Node::Extern(ir::NodeExtern { name: full, site, props: parts.props, slots: parts.slots, events: parts.events, writes: parts.places, levels: Vec::new() })]
         } else {
             let mut args = parts.props;
             for (k, p) in parts.places {
                 args.insert(k, ir::Expr::Place(p));
             }
-            vec![ir::Node::Use(ir::NodeUse { name: full, site, args, slots: parts.slots, events: parts.events, levels: Vec::new(), fallback: Vec::new() })]
+            vec![ir::Node::Use(ir::NodeUse { name: full, site, args, slots: parts.slots, events: parts.events, levels: Vec::new() })]
         }
     }
 
@@ -919,7 +919,6 @@ fn extern_node(name: &str, site: String, props: Vec<(&str, ir::Expr)>, slots: BT
         events: BTreeMap::new(),
         writes: BTreeMap::new(),
         levels: Vec::new(),
-        fallback: Vec::new(),
     })
 }
 

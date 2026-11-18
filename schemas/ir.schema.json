@@ -2525,13 +2525,6 @@
                   },
                   "uniqueItems": true,
                   "description": "The levels this call needs (page 6), its slots' included."
-                },
-                "fallback": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/node"
-                  },
-                  "description": "Its Markdown, for a target without its level or without the widget."
                 }
               },
               "required": [
@@ -2588,12 +2581,6 @@
                   },
                   "uniqueItems": true,
                   "description": "The levels this call needs (page 6), its slots' included."
-                },
-                "fallback": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/node"
-                  }
                 }
               },
               "required": [

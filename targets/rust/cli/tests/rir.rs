@@ -71,6 +71,11 @@ fn spans(v: &Value, out: &mut Vec<(u64, u64)>) {
 
 #[test]
 fn every_compiling_case_writes_a_resolved_ir_that_fits_its_schema() {
+    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    std::thread::Builder::new().stack_size(64 << 20).spawn(write_every_case).unwrap().join().unwrap();
+}
+
+fn write_every_case() {
     let v = validator();
     let core = sources(&repo().join("core"), &["."]);
     let base = mkp_check::compile_core(&core);

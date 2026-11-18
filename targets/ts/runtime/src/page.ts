@@ -1075,7 +1075,7 @@ export class Page {
     const t = this.templates.get(name);
     if (!t) {
       // an extern widget held as a view value
-      return this.drawExtern({ name, site: path.split("/").pop()!, props: args, slots, events, writes: {}, levels, fallback: [] } as ir.NodeExtern, { ...env, path: path.split("/").slice(0, -1).join("/") });
+      return this.drawExtern({ name, site: path.split("/").pop()!, props: args, slots, events, writes: {}, levels } as ir.NodeExtern, { ...env, path: path.split("/").slice(0, -1).join("/") });
     }
     // a failure working out whether it can be reused is left to drawing it, so it fails there,
     // as it would with no reuse at all

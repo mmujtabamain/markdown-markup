@@ -322,13 +322,9 @@ impl Stable {
                 (Node::Extern(xo), Node::Extern(xc)) => {
                     self.externs.insert(addr(xo), addr(xo));
                     self.externs.insert(addr(xc), addr(xo));
-                    self.link(&xo.fallback, &xc.fallback);
                     self.slots(&xo.slots, &xc.slots);
                 }
-                (Node::Use(uo), Node::Use(uc)) => {
-                    self.link(&uo.fallback, &uc.fallback);
-                    self.slots(&uo.slots, &uc.slots);
-                }
+                (Node::Use(uo), Node::Use(uc)) => self.slots(&uo.slots, &uc.slots),
                 (Node::For(fo), Node::For(fc)) => self.link(&fo.body, &fc.body),
                 (Node::If(io), Node::If(ic)) => {
                     for (bo, bc) in io.branches.iter().zip(&ic.branches) {

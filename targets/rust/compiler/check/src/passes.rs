@@ -691,14 +691,12 @@ pub(crate) fn walk_node(n: &mut ir::Node, f: &mut dyn FnMut(&mut ir::Expr)) {
                 ns.iter_mut().for_each(|n| walk_node(n, f));
             }
             e.writes.values_mut().for_each(|p| walk_place(p, f));
-            e.fallback.iter_mut().for_each(|n| walk_node(n, f));
         }
         N::Use(u) => {
             u.args.values_mut().for_each(|x| walk_expr(x, f));
             for ns in u.slots.values_mut() {
                 ns.iter_mut().for_each(|n| walk_node(n, f));
             }
-            u.fallback.iter_mut().for_each(|n| walk_node(n, f));
         }
         N::For(x) => {
             walk_expr(&mut x.over, f);

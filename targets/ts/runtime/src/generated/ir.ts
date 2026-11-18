@@ -357,8 +357,6 @@ export interface Needs {
 /** An extern widget, drawn by the target. */
 export interface NodeExtern {
   events?: { [key: string]: string };
-  /** Its Markdown, for a target without its level or without the widget. */
-  fallback?: Node[];
   /** The levels this call needs (page 6), its slots' included. */
   levels?: Level[];
   name: string;
@@ -373,7 +371,6 @@ export interface NodeExtern {
 export interface NodeUse {
   args: { [key: string]: Expr };
   events?: { [key: string]: string };
-  fallback?: Node[];
   /** The levels this call needs (page 6), its slots' included. */
   levels?: Level[];
   name: string;
