@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runAndroidComposeUiTest
 import androidx.compose.ui.text.font.FontFamily
@@ -191,6 +192,72 @@ class TargetsVideo {
         broken = false
         frame(2.8)
         say("Compose: MkpDoc and MkpLiveDoc, each held to the 62 conformance cases.", 3.6)
+        File(dir, "list.txt").writeText(list.toString() + "file '${File(dir, "f%04d.png".format(n - 1)).absolutePath}'\n")
+    }
+
+    /** A widget in a sentence: drawn among its words, and clicked like any other. Frames go in
+     * `<mkp.video.out>/inline`. */
+    @Test
+    fun aPressInASentence() = runAndroidComposeUiTest<ComponentActivity> {
+        assumeTrue("set -Pmkp.video.out to write the frames", out != null)
+        val dir = File(out!!, "inline").apply { mkdirs() }
+        val source = """
+            ${'$'}state {
+                count: int = 0;
+            }
+            @@@
+            # A press in a sentence
+
+            Press \{@press(label = "Add one", click = fn() { ${'$'}state.count = ${'$'}state.count + 1; })} and the count, **\{${'$'}state.count}**, goes up. The sentence wraps around the press, which is a widget of the page like any other: its click runs its handler.
+        """.trimIndent() + "\n"
+        val live = MkpDocState()
+        var caption by mutableStateOf("")
+        setContent {
+            MaterialTheme {
+                Box(Modifier.fillMaxSize().background(Color(0xFFF6F7F9))) {
+                    Column(Modifier.fillMaxSize().padding(16.dp)) {
+                        Text("A widget in a sentence, in Compose", fontSize = 20.sp, color = Color(0xFF1A1C1F))
+                        Text("MkpLiveDoc compiles the page on the device; the press is the paragraph's slot, drawn as inline content.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Box(Modifier.padding(top = 8.dp).fillMaxWidth(0.5f).border(1.dp, Color(0xFFD4D7DC)).background(Color.White).padding(8.dp)) {
+                            MkpLiveDoc(source = source, docState = live)
+                        }
+                        Text(source, Modifier.padding(top = 12.dp), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Color(0xFF6B7280))
+                    }
+                    if (caption.isNotEmpty()) {
+                        Text(
+                            caption,
+                            Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp).background(Color(0xE6141619)).padding(horizontal = 14.dp, vertical = 8.dp),
+                            color = Color.White, fontSize = 20.sp,
+                        )
+                    }
+                }
+            }
+        }
+        done()
+        var n = 0
+        val list = StringBuilder()
+        fun frame(seconds: Double) {
+            done()
+            val view = activity!!.window.decorView
+            val bmp = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            runOnUiThread { view.draw(android.graphics.Canvas(bmp)) }
+            val f = File(dir, "f%04d.png".format(n++))
+            f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            list.append("file '${f.absolutePath}'\nduration $seconds\n")
+        }
+        caption = "A press inside a sentence, drawn among its words."
+        frame(3.2)
+        caption = "The line it sits in grows to it; the words wrap around it."
+        frame(3.2)
+        caption = "A click runs its handler: the count in the same sentence goes up."
+        onNodeWithText("Add one").performClick()
+        frame(1.6)
+        onNodeWithText("Add one").performClick()
+        frame(1.6)
+        onNodeWithText("Add one").performClick()
+        frame(2.4)
+        caption = "egui and the web do the same, held to one conformance case."
+        frame(3.4)
         File(dir, "list.txt").writeText(list.toString() + "file '${File(dir, "f%04d.png".format(n - 1)).absolutePath}'\n")
     }
 }
