@@ -4,6 +4,9 @@ description = "MKP's native runtime for Android: mkp-runtime behind a UniFFI int
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+publish = false
 # a member of the Rust workspace in targets/rust, which isn't above this folder
 workspace = "../../rust"
 
@@ -22,9 +25,9 @@ required-features = ["bindgen"]
 bindgen = ["uniffi/cli"]
 
 [dependencies]
-mkp-runtime = { path = "../../rust/runtime" }
-mkp-eval = { path = "../../rust/eval" }
-mkp-ir = { path = "../../rust/compiler/ir" }
+mkp-runtime = { path = "../../rust/runtime", version = "0.3.0" }
+mkp-eval = { path = "../../rust/eval", version = "0.3.0" }
+mkp-ir = { path = "../../rust/compiler/ir", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true
 uniffi = "=0.29.5"

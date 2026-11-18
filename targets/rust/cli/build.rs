@@ -3,7 +3,9 @@
 use std::path::PathBuf;
 
 fn main() {
-    let core = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
+    // the crate's own copy when it is packaged (the release puts core's files in), else the repository's
+    let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let core = if here.join("core").is_dir() { here.join("core") } else { here.join("../../../core") };
     println!("cargo:rerun-if-changed={}", core.display());
     let mut files: Vec<PathBuf> = std::fs::read_dir(&core).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
     files.sort();

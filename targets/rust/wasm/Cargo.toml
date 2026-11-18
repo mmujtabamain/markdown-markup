@@ -4,10 +4,13 @@ description = "The MKP compiler for the browser: what mkp build does, on a core 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mkp-live = { path = "../live" }
+mkp-live = { path = "../live", version = "0.3.0" }
 serde_json.workspace = true

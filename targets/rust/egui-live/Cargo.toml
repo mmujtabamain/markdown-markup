@@ -4,6 +4,7 @@ description = "MKP's real-time desktop target: a document's text compiled in the
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "mkp_egui_live"
@@ -25,8 +26,8 @@ check = ["mkp-egui/check"]
 app = ["mkp-egui/app", "dep:eframe"]
 
 [dependencies]
-mkp-egui = { path = "../egui", default-features = false, features = ["fonts"] }
-mkp-live = { path = "../live" }
+mkp-egui = { path = "../egui", version = "0.3.0", default-features = false, features = ["fonts"] }
+mkp-live = { path = "../live", version = "0.3.0" }
 egui = "0.37"
 eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 

@@ -4,6 +4,9 @@ description = "MKP's real-time Android target, native side: mkp-live's compiler 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+publish = false
 # a member of the Rust workspace in targets/rust, which isn't above this folder
 workspace = "../../rust"
 
@@ -13,6 +16,6 @@ name = "mkp_android_live"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-mkp-live = { path = "../../rust/live" }
+mkp-live = { path = "../../rust/live", version = "0.3.0" }
 serde_json.workspace = true
 uniffi = "=0.29.5"

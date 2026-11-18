@@ -4,6 +4,9 @@ description = "Writes the Rust and TypeScript types of schemas/: the IR and the 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+publish = false
 
 [dependencies]
 serde_json.workspace = true

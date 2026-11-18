@@ -1,0 +1,9 @@
+{
+  "name": "@mkp/cli-win32-x64",
+  "version": "0.3.0",
+  "description": "The mkp binary for Windows on x64",
+  "license": "MIT",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["bin"]
+}

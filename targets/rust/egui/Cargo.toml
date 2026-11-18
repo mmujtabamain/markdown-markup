@@ -4,6 +4,7 @@ description = "MKP's desktop target: the native runtime drawn with egui. Our def
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "mkp_egui"
@@ -36,17 +37,17 @@ check = ["dep:egui_kittest", "dep:mkp-check", "dep:mkp-lower"]
 app = ["dep:eframe"]
 
 [dependencies]
-mkp-runtime = { path = "../runtime" }
-mkp-eval = { path = "../eval" }
-mkp-ir = { path = "../compiler/ir" }
+mkp-runtime = { path = "../runtime", version = "0.3.0" }
+mkp-eval = { path = "../eval", version = "0.3.0" }
+mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true
 egui = "0.37"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 egui_kittest = { version = "0.37", optional = true }
 # the omnicui adapter compiles each contract's page itself, as the mkp binary does
-mkp-check = { path = "../compiler/check", optional = true }
-mkp-lower = { path = "../compiler/lower", optional = true }
+mkp-check = { path = "../compiler/check", version = "0.3.0", optional = true }
+mkp-lower = { path = "../compiler/lower", version = "0.3.0", optional = true }
 eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [dev-dependencies]

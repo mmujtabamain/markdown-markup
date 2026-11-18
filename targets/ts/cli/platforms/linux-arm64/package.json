@@ -1,0 +1,9 @@
+{
+  "name": "@mkp/cli-linux-arm64",
+  "version": "0.3.0",
+  "description": "The mkp binary for Linux on arm64",
+  "license": "MIT",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["bin"]
+}

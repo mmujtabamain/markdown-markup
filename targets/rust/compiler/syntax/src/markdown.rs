@@ -866,7 +866,7 @@ fn entities() -> &'static std::collections::HashMap<String, String> {
     static TABLE: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
         let mut m = std::collections::HashMap::new();
-        for line in include_str!("../../../../../core/entities.mkp").lines() {
+        for line in include_str!(env!("MKP_ENTITIES")).lines() {
             let line = line.trim();
             let Some(rest) = line.strip_prefix("{ key = \"") else { continue };
             let Some((key, rest)) = rest.split_once("\", value = \"") else { continue };

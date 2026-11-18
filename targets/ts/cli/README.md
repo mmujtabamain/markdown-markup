@@ -1,7 +1,9 @@
 # @mkp/cli
 
 The mkp compiler for build tools. Every call runs the native `mkp` binary: there is one compiler
-(targets/rust), and nothing here turns source into IR itself.
+(targets/rust), and nothing here turns source into IR itself. On a platform with no binary,
+`build` and `check` run the same compiler built as WebAssembly (@mkp/wasm), so they work wherever
+Node does.
 
 ```js
 import { build, check, md, format } from "@mkp/cli";
@@ -25,11 +27,19 @@ export default { plugins: [mkp({ packs: ["./packs/maps"] })] };
 
 `@mkp/cli` finds it, in order: `MKP_BINARY`; the package for this platform,
 `@mkp/cli-<os>-<cpu>`, an optional dependency; inside this repository, `targets/rust/target`'s
-release or debug build. Each platform package is built on its platform:
+release or debug build. With none of them, `build` and `check` compile with @mkp/wasm, which
+gives the same IR and the same diagnostics; it reads no `mkp.toml`, so a document whose packs'
+versions one names needs the binary, and `md`, `format` and the `mkp` command need it too.
+
+There is a package for Linux on x64 and arm64, macOS on Intel and Apple silicon, and Windows on
+x64. The release builds every one on Linux with cargo-zigbuild (.github/workflows/release.yml);
+by hand:
 
 ```sh
 cd targets/rust && cargo build --release -p mkp-cli
-cd ../ts/cli && npm run binary   # copies it to platforms/<os>-<cpu>/bin
+cd ../ts/cli && npm run binary                  # this machine's, to platforms/<os>-<cpu>/bin
+cd ../../rust && cargo zigbuild --release -p mkp-cli --target aarch64-apple-darwin
+cd ../ts/cli && npm run binary -- --target aarch64-apple-darwin   # to platforms/darwin-arm64/bin
 ```
 
 `npm test` runs the JS API against the binary and builds `test/vite-app` with Vite.

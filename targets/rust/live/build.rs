@@ -11,7 +11,9 @@ fn mkp_files(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn main() {
-    let core = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
+    // the crate's own copy when it is packaged (the release puts core's files in), else the repository's
+    let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let core = if here.join("core").is_dir() { here.join("core") } else { here.join("../../../core") };
     println!("cargo:rerun-if-changed={}", core.display());
     let mut out = String::from("/// core's sources, as (path, text).\npub const CORE: &[(&str, &str)] = &[\n");
     for f in mkp_files(&core) {

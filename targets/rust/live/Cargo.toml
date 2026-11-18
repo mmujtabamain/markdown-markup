@@ -4,11 +4,12 @@ description = "What a real-time MKP target embeds: the compiler, with core compi
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [dependencies]
-mkp-syntax = { path = "../compiler/syntax" }
-mkp-check = { path = "../compiler/check" }
-mkp-ir = { path = "../compiler/ir" }
-mkp-lower = { path = "../compiler/lower" }
+mkp-syntax = { path = "../compiler/syntax", version = "0.3.0" }
+mkp-check = { path = "../compiler/check", version = "0.3.0" }
+mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
+mkp-lower = { path = "../compiler/lower", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true

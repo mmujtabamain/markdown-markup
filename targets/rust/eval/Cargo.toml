@@ -4,8 +4,9 @@ description = "MKP's evaluator: exact decimal128 numbers, values, the native fns
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [dependencies]
 dec = "0.4.11"
-mkp-ir = { path = "../compiler/ir" }
+mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
 serde_json.workspace = true

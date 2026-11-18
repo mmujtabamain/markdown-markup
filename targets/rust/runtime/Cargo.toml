@@ -4,6 +4,7 @@ description = "MKP's native runtime: runs the IR the mkp compiler writes, with t
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "mkp_runtime"
@@ -13,9 +14,9 @@ name = "mkp_runtime_check"
 path = "src/bin/mkp_runtime_check/main.rs"
 
 [dependencies]
-mkp-ir = { path = "../compiler/ir" }
-mkp-eval = { path = "../eval" }
-mkp-markdown = { path = "../compiler/markdown" }
+mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
+mkp-eval = { path = "../eval", version = "0.3.0" }
+mkp-markdown = { path = "../compiler/markdown", version = "0.3.0" }
 serde_json.workspace = true
 
 [dev-dependencies]

@@ -4,11 +4,12 @@ description = "The checker: names and types, constants worked out at compile tim
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [dependencies]
-mkp-syntax = { path = "../syntax" }
-mkp-ir = { path = "../ir" }
-mkp-eval = { path = "../../eval" }
+mkp-syntax = { path = "../syntax", version = "0.3.0" }
+mkp-ir = { path = "../ir", version = "0.3.0" }
+mkp-eval = { path = "../../eval", version = "0.3.0" }
 serde_json.workspace = true
 
 [dev-dependencies]

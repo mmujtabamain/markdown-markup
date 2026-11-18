@@ -1,10 +1,14 @@
 // The mkp compiler, run for build tools. Every call runs the native binary: there is one
-// compiler, and nothing here turns source into IR itself.
+// compiler, and nothing here turns source into IR itself. On a platform with no binary, `build`
+// and `check` run the same compiler built as WebAssembly (@mkp/wasm).
 
 import { execFile } from "node:child_process";
-import { findBinary } from "./binary.js";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
+import type { Built, Compiler, PackFile } from "@mkp/wasm";
+import { findBinary, locateBinary } from "./binary.js";
 
-export { findBinary } from "./binary.js";
+export { findBinary, locateBinary } from "./binary.js";
 
 export interface Options {
   /** Packs the document uses: folders and .mkp files. */
@@ -62,8 +66,47 @@ function flags(o: Options = {}): string[] {
   return out;
 }
 
+// ---- with no binary: the compiler as WebAssembly
+
+let wasm: Promise<Compiler> | undefined;
+
+/** A pack's files, as the compiler reads them: each `.mkp` in a folder, and each file named. */
+async function packFiles(packs: string[] = []): Promise<PackFile[]> {
+  const out: PackFile[] = [];
+  const add = async (path: string): Promise<void> => {
+    if ((await stat(path)).isDirectory()) {
+      for (const name of (await readdir(path)).sort()) await add(join(path, name));
+    } else if (path.endsWith(".mkp")) {
+      out.push({ path, text: await readFile(path, "utf8") });
+    }
+  };
+  for (const p of packs) await add(p);
+  return out;
+}
+
+/** A file built by @mkp/wasm, the same compiler: what `build` and `check` give where no binary
+ * fits the platform. It reads no mkp.toml, so a document whose packs' versions it names needs
+ * the binary. */
+async function wasmBuild(file: string, options: Options = {}): Promise<Built> {
+  if (options.config) throw new MkpError(`no mkp binary for ${process.platform}-${process.arch}, and @mkp/wasm reads no mkp.toml (${options.config})`, "");
+  wasm ??= import("@mkp/wasm").then((m) => m.Compiler.load());
+  const compiler = await wasm;
+  return compiler.build(file, await readFile(file, "utf8"), await packFiles(options.packs));
+}
+
+/** Diagnostics as `mkp check` prints them: `file:line:column: severity[code]: message`. */
+function said(ds: Diagnostic[]): string {
+  return ds.map((d) => `${d.file}:${d.line}:${d.column}: ${d.severity}[${d.code}]: ${d.message}`).join("\n");
+}
+
+// ---- the commands
+
 /** Every error and warning in a file, compiled with core and its packs. */
 export async function check(file: string, options?: Options): Promise<Diagnostic[]> {
+  if (!locateBinary()) {
+    const b = await wasmBuild(file, options);
+    return b.diagnostics.filter((d) => d.severity !== "note").map(({ type: _, ...d }) => d as Diagnostic);
+  }
   const r = await run(["check", "--format", "json", ...flags(options), file]);
   if (r.code === 2) throw new MkpError(r.stderr.trim(), r.stderr);
   // a JSON object a line: each diagnostic, each file, then the summary
@@ -73,6 +116,14 @@ export async function check(file: string, options?: Options): Promise<Diagnostic
 
 /** A document's IR, lowered: what a runtime runs. */
 export async function build(file: string, options?: Options): Promise<IrFile> {
+  if (!locateBinary()) {
+    const b = await wasmBuild(file, options);
+    if (!b.ir) {
+      const text = said(b.diagnostics.filter((d) => d.severity === "error").map(({ type: _, ...d }) => d as Diagnostic));
+      throw new MkpError(`${file} doesn't compile:\n${text}`, text);
+    }
+    return b.ir as unknown as IrFile;
+  }
   const r = await run(["build", ...flags(options), file]);
   if (r.code !== 0) throw new MkpError(`${file} doesn't compile:\n${r.stderr.trim()}`, r.stderr);
   return JSON.parse(r.stdout) as IrFile;
