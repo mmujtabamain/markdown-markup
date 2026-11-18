@@ -1,0 +1,12 @@
+package shapes;
+
+import kit@1;
+
+pack shapes@1 {
+    uses kit@1;
+    provides double;
+}
+
+fn double(x: number): number {
+    return x * 2;
+}

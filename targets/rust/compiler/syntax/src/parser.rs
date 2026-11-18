@@ -514,6 +514,18 @@ impl<'a> Parser<'a> {
         if self.eat(P::Dot)? {
             path.push(self.ident("a name the pack provides")?);
         }
+        // a version is the build's to choose, or a pack's `uses` line's (page 6)
+        if self.at(P::At)? {
+            let at = self.here()?;
+            let pack = path[0].name.clone();
+            let why = if self.in_pack() {
+                format!("an import writes no version: the pack block's `uses {}@…;` says which version of `{}` this pack builds on", pack, pack)
+            } else {
+                let names: Vec<&str> = path.iter().map(|n| n.name.as_str()).collect();
+                format!("a document writes no versions: `import {};`. Whoever builds it decides which version it gets, by the packs it is built with (an mkp.toml's `[uses]`)", names.join("."))
+            };
+            return Err(Diagnostic::error(codes::VERSION_IN_IMPORT, at, why));
+        }
         let alias = if self.eat_kw(Kw::As)? { Some(self.ident("a new name")?) } else { None };
         self.semi()?;
         Ok(Import { path, alias, span: start.to(Span::at(self.prev_end)) })

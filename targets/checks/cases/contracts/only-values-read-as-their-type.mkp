@@ -1,0 +1,15 @@
+package t;
+
+// a date's values are read as dates, and a list's, an opt's and an inline record's compare
+// when what they hold does
+fn day(d: date only ("2026-11-10", "2026-12-01")): date {
+    return d;
+}
+
+record pick {
+    pair: list<number> only ([1, 2], [3]);
+    maybe: opt<text> only (opt.NONE, "x");
+    at: { x: number, y: number } only ({ x = 0, y = 0 });
+}
+
+let first: date = day("2026-11-10");

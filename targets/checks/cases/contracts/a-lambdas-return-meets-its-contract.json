@@ -1,0 +1,13 @@
+{
+  "id": "contracts.a-lambdas-return-meets-its-contract",
+  "about": "a lambda's return meets the contract it writes, or, when it writes none, the return contract of the fn type it is given to",
+  "source": "a-lambdas-return-meets-its-contract.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.needs-proof", "line": 9, "column": 73},
+      {"code": "contracts.outside", "line": 10, "column": 73},
+      {"code": "contracts.needs-proof", "line": 11, "column": 57},
+      {"code": "contracts.needs-proof", "line": 12, "column": 33}
+    ]
+  }
+}

@@ -68,11 +68,13 @@ pub struct Cx {
     pub fn_id: Option<usize>,
     /// The plain `for` loops around: their depth, variable, and the list they walk.
     pub walking: Vec<(usize, String, Option<String>)>,
+    /// In an exposed fn, which the app calls and reads nothing back from.
+    pub exposed: bool,
 }
 
 impl Cx {
     pub fn new(file: usize) -> Cx {
-        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false, ret_ir: None, trying: false, facts: Vec::new(), action: false, fn_depth: 0, fn_id: None, walking: Vec::new() }
+        Cx { file, scopes: vec![Vec::new()], bounds: Vec::new(), generics: Vec::new(), ret: None, widget: None, state: None, state_rules: false, ret_ir: None, trying: false, facts: Vec::new(), action: false, fn_depth: 0, fn_id: None, walking: Vec::new(), exposed: false }
     }
 
     pub fn push(&mut self) {
@@ -289,7 +291,7 @@ impl Checker {
                         let it = self.ir_ty(&t);
                         (op(ir::OpName::Minus, vec![x], it), t)
                     }
-                    other => match self.methods_of(&other, "scale", &cx.bounds.clone()).first().copied() {
+                    other => match self.methods_of(cx.file, &other, "scale", &cx.bounds.clone()).first().copied() {
                         Some(f) => {
                             let name = self.fns[f].full.clone();
                             (call(&name, vec![x, ir::Expr::Num("-1".into())], Some(self.ir_ty(&other))), other)
@@ -421,17 +423,29 @@ impl Checker {
         let mut holes = Vec::new();
         let mut piece = String::new();
         let mut opt_hole = None;
+        let mut first_hole: Option<&ast::Expr> = None;
+        // each hole that holds an opt, opened: the name it is opened as, its type and the opt
+        let mut opened: Vec<(String, Ty, ir::Expr)> = Vec::new();
         let as_template = self.template_literal(expect);
         for part in &t.parts {
             match part {
                 ast::TextPart::Piece { raw, .. } => piece.push_str(&decode_piece(raw)),
                 ast::TextPart::Hole(h) => {
+                    first_hole = first_hole.or(Some(h));
                     pieces.push(std::mem::take(&mut piece));
                     let (x, ht) = self.expr(cx, h, None);
                     let ht = self.vars.resolve(&ht);
-                    if matches!(ht, Ty::Opt(_)) {
-                        opt_hole = opt_hole.or(Some(h.span));
-                    }
+                    // a hole that holds an opt makes the literal an opt: the literal is built
+                    // from the value inside, once every such hole is opened (page 4)
+                    let (x, ht) = match ht {
+                        Ty::Opt(inner) => {
+                            opt_hole = opt_hole.or(Some(h.span));
+                            let name = format!("#hole{}_{}", span.start, opened.len());
+                            opened.push((name.clone(), (*inner).clone(), x));
+                            (ir::Expr::Get(ir::Get::Local(name)), *inner)
+                        }
+                        other => (x, other),
+                    };
                     // a text holds no view; a literal of a type that places its holes may
                     self.check_hole(cx, &ht, h.span, as_template.is_some());
                     let as_is = ht == Ty::Text || (as_template.is_some() && self.is_view_type(&ht));
@@ -444,15 +458,21 @@ impl Checker {
         pieces.push(piece);
         // a literal where a type that fits literal<template> is wanted reaches its `from` as a template, at compile time
         if let Some(target) = as_template {
-            if let Some(at) = opt_hole {
-                self.error(cx.file, codes::OPT_HOLE, at, "this literal is read by its type's `from`, which places each hole as a value: give this hole a fallback, `\\{x.or(…)}`, or open it first with `if (let …)`");
-            }
             let name = self.defs[match &target { Ty::Def(d, _) => *d, _ => unreachable!() }].full.clone();
             let x = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named(&name) }));
             let id = self.pending.len();
             self.pending.push(Pending { file: cx.file, span, ty: format!("literal:{}", name.rsplit('/').next().unwrap_or(&name)) });
-            return (ir::Expr::Call(Box::new(ir::Call { name: format!("{}#{}", crate::view::PROSE_MARK, id), args: vec![x], ty: None })), target);
+            let x = ir::Expr::Call(Box::new(ir::Call { name: format!("{}#{}", crate::view::PROSE_MARK, id), args: vec![x], ty: None }));
+            if opened.is_empty() {
+                return (x, target);
+            }
+            if self.plain_wanted(cx.file, expect, &target, opt_hole.unwrap()) {
+                return (x, target);
+            }
+            let t_ir = self.ir_ty(&target);
+            return (self.open_holes(opened, x, t_ir), Ty::opt(target));
         }
+        let opt_at = opt_hole;
         let opt_hole = opt_hole.is_some();
         if holes.is_empty() {
             let x = ir::Expr::Text(pieces.pop().unwrap());
@@ -465,8 +485,74 @@ impl Checker {
             }
             return (x, Ty::Text);
         }
-        let ty = if opt_hole { Ty::opt(Ty::Text) } else { Ty::Text };
-        (ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named("core/text") })), ty)
+        // a type read by its `from` from a text, with a hole in the literal: `from` would have to
+        // read the hole, which isn't known when the page is built (page 4)
+        if let (Some(want), Some(h)) = (expect, first_hole) {
+            if let Some(d) = self.text_literal_type(cx, want) {
+                let hole = match &h.kind {
+                    E::Name(n) => format!("`\\{{{}}}`", n.name),
+                    _ => "this hole".to_string(),
+                };
+                let name = self.defs[d].name.clone();
+                let build = match &self.defs[d].kind {
+                    DefKind::Record { fields } => format!(": build it instead, `{} {{ {} }}`", name, fields.iter().map(|f| match &h.kind {
+                        E::Name(n) if n.name == f.name => format!("{} = {}", f.name, f.name),
+                        _ => format!("{} = …", f.name),
+                    }).collect::<Vec<_>>().join(", ")),
+                    _ => String::new(),
+                };
+                let a = if name.starts_with(['a', 'e', 'i', 'o', 'u']) { "an" } else { "a" };
+                self.error(cx.file, codes::MISMATCH, h.span, format!("{} {} literal is read by `{}.from` when the page is built, and {} isn't known then{}", a, name, name, hole, build));
+                return (ir::Expr::Num("0".into()), Ty::Err);
+            }
+        }
+        let x = ir::Expr::Template(Box::new(ir::ExprTemplate { pieces, holes, ty: ir::Type::named("core/text") }));
+        if !opt_hole || self.plain_wanted(cx.file, expect, &Ty::Text, opt_at.unwrap()) {
+            return (x, Ty::Text);
+        }
+        (self.open_holes(opened, x, ir::Type::named("core/text")), Ty::opt(Ty::Text))
+    }
+
+    /// Where a literal with a hole that holds an opt is an opt of `t`, and a plain `t` is wanted:
+    /// an error that names the hole, and the literal taken as the `t` wanted, so it is reported
+    /// once.
+    fn plain_wanted(&mut self, file: usize, expect: Option<&Ty>, t: &Ty, hole: Span) -> bool {
+        let Some(want) = expect.map(|w| self.vars.resolve(w)) else { return false };
+        if matches!(want, Ty::Opt(_) | Ty::Var(_) | Ty::Err) {
+            return false;
+        }
+        let shown = self.show(t);
+        self.error(file, codes::MISMATCH, hole, format!("this hole holds an opt, so the literal is an `opt<{}>`, and a {} is wanted here: give the hole a fallback, `\\{{x.or(…)}}`, or open it first with `if (let …)`", shown, shown));
+        true
+    }
+
+    /// A literal built once each of its opt holes is opened, else `opt.NONE`: a lambda applied
+    /// where it is written, which opens the holes in turn and returns the literal in `opt`.
+    fn open_holes(&mut self, opened: Vec<(String, Ty, ir::Expr)>, value: ir::Expr, t: ir::Type) -> ir::Expr {
+        let opt_ty = ir::Type::of("core/opt", vec![t]);
+        let mut body = vec![ir::Stmt::Return(ir::StmtReturn { value: Some(ir::Expr::Some(Box::new(value))) })];
+        for (name, inner, opt) in opened.into_iter().rev() {
+            let when = ir::Cond::Open(ir::CondOpen { mutable: false, name, ty: self.ir_ty(&inner), opt });
+            body = vec![ir::Stmt::If(ir::StmtIf { branches: vec![ir::StmtIfBranches { then: body, when }], else_: Vec::new() })];
+        }
+        body.push(ir::Stmt::Return(ir::StmtReturn { value: Some(ir::Expr::None(ir::Empty {})) }));
+        let lambda = ir::Expr::Fn(Box::new(ir::Lambda { params: Vec::new(), returns: Some(opt_ty.clone()), body }));
+        ir::Expr::Apply(Box::new(ir::ExprApply { fn_: lambda, args: Vec::new(), ty: Some(opt_ty) }))
+    }
+
+    /// The type a text literal is read as, through its `from`, where it is wanted: a date's.
+    fn text_literal_type(&mut self, cx: &Cx, want: &Ty) -> Option<DefId> {
+        let target = match self.vars.resolve(want) {
+            Ty::Opt(inner) => *inner,
+            other => other,
+        };
+        let Ty::Def(d, _) = &target else { return None };
+        if !matches!(self.defs[*d].kind, DefKind::Record { .. } | DefKind::Token { .. } | DefKind::ExternType) {
+            return None;
+        }
+        let from = self.own_fn(&target, "from")?;
+        let p = self.fns[from].params.first()?.ty.clone();
+        self.accepts(&p, &Ty::Text, &cx.bounds.clone()).map(|_| *d)
     }
 
     /// The fields a value has where it is read: a type parameter's, `self` in an interface fn
@@ -554,7 +640,7 @@ impl Checker {
             match fields.iter().find(|f| f.name == i.name.name) {
                 Some(f) => {
                     let ft = f.ty.subst(&map);
-                    let (x, _) = self.expr(cx, &i.value, Some(&ft));
+                    let (x, _) = self.expr_for(cx, &i.value, Some(&ft), &f.ir);
                     if !trying {
                         self.want(cx, &i.value, &x, &f.ir, format!("`{}`'s `{}`", self.defs[d].name, f.name));
                     }
@@ -767,7 +853,7 @@ impl Checker {
                         let bt = self.vars.resolve(&bt);
                         if o == BinOp::Mul && !matches!(bt, Ty::Num | Ty::Err) {
                             // k * a, for a type that fits scaled
-                            if let Some(f) = self.methods_of(&bt, "scale", &bounds).first().copied() {
+                            if let Some(f) = self.methods_of(cx.file, &bt, "scale", &bounds).first().copied() {
                                 let n = self.fns[f].full.clone();
                                 return (call(&n, vec![b, a], Some(self.ir_ty(&bt))), bt);
                             }
@@ -796,7 +882,7 @@ impl Checker {
                             BinOp::Mul | BinOp::Div => ("scale", Ty::Num),
                             _ => ("", Ty::Err),
                         };
-                        let f = if fname.is_empty() { None } else { self.methods_of(&other, fname, &bounds).first().copied() };
+                        let f = if fname.is_empty() { None } else { self.methods_of(cx.file, &other, fname, &bounds).first().copied() };
                         match f {
                             Some(f) => {
                                 let full = self.fns[f].full.clone();
@@ -825,12 +911,20 @@ impl Checker {
             Some(Ty::Fn(ps, r)) => (Some(ps.clone()), Some(r.clone())),
             _ => (None, None),
         };
+        // the fn type it is given to, when that is declared: its return's contract
+        let given = self.lambda_want.take().filter(|t| t.name == "fn");
         let mut inner = cx.clone();
         inner.push();
-        // a lambda's own return; its parameters' contracts are read where it is called
-        inner.ret_ir = None;
+        // its return's contract: the one it writes, else the one of the fn type it is given to;
+        // its parameters' contracts are read where it is called
+        inner.ret_ir = match &l.ret {
+            Some(ast::RetType::Type(t)) => Some(self.ir_type(file, t, &cx.generics.clone())),
+            Some(ast::RetType::Void(_)) => None,
+            None => given.and_then(|t| t.returns.map(|r| *r)),
+        };
         inner.fn_depth = inner.scopes.len() - 1;
         inner.fn_id = None;
+        inner.exposed = false;
         let mut params = Vec::new();
         let mut ptys = Vec::new();
         for (k, p) in l.params.iter().enumerate() {
@@ -866,9 +960,21 @@ impl Checker {
         inner.ret = Some(ret.clone());
         // a lambda with no return type is an action, as a fn with none is
         inner.action = ret.is_none();
+        let declared = inner.ret_ir.clone();
         let body = self.block(&mut inner, &l.body);
-        let ret_ir = ret.as_ref().map(|r| self.ir_ty(r));
+        let ret_ir = ret.as_ref().map(|r| declared.filter(|_| matches!(l.ret, Some(ast::RetType::Type(_)))).unwrap_or_else(|| self.ir_ty(r)));
         (ir::Expr::Fn(Box::new(ir::Lambda { params, returns: ret_ir, body })), Ty::Fn(ptys, ret.map(Box::new)))
+    }
+
+    /// An expression given where a declared type is wanted: a lambda learns the fn type's
+    /// return contract.
+    pub(crate) fn expr_for(&mut self, cx: &mut Cx, e: &ast::Expr, expect: Option<&Ty>, declared: &ir::Type) -> (ir::Expr, Ty) {
+        if matches!(e.kind, E::Lambda(_)) && declared.returns.is_some() {
+            self.lambda_want = Some(declared.clone());
+        }
+        let out = self.expr(cx, e, expect);
+        self.lambda_want = None;
+        out
     }
 
     // ---- calls
@@ -921,7 +1027,7 @@ impl Checker {
                 }
                 let (recv, rt) = self.expr(cx, target, None);
                 let bounds = cx.bounds.clone();
-                let found = self.methods_of(&rt, &name.name, &bounds);
+                let found = self.methods_of(file, &rt, &name.name, &bounds);
                 if let Some(f) = self.pick(cx, &found, &rt) {
                     self.note_ref(file, name.span, span, crate::RefTarget::Fn(f));
                     return self.call_fn(cx, f, Some((recv, rt, target)), args, expect, span);
@@ -930,7 +1036,7 @@ impl Checker {
                 let fields = self.fields_in(cx, &rt);
                 if let Some((_, ft)) = fields.into_iter().find(|(n, _)| *n == name.name) {
                     let fx = ir::Expr::Field(Box::new(ir::ExprField { value: recv, name: name.name.clone() }));
-                    return self.apply_value(cx, fx, ft, args, span);
+                    return self.apply_value(cx, fx, ft, args, span, None);
                 }
                 if !rt.is_err() {
                     let s = self.show(&rt);
@@ -968,10 +1074,18 @@ impl Checker {
 
     fn apply(&mut self, cx: &mut Cx, callee: &ast::Expr, args: &ast::Group<ast::Arg>, span: Span) -> (ir::Expr, Ty) {
         let (f, ft) = self.expr(cx, callee, None);
-        self.apply_value(cx, f, ft, args, span)
+        // the fn type it is declared with: its parameters' contracts and its return's
+        let before = self.diags.len();
+        let declared = self.place_ir(cx, callee).and_then(|t| self.unalias(&t)).filter(|t| t.name == "fn");
+        self.diags.truncate(before);
+        let out = self.apply_value(cx, f, ft, args, span, declared.as_ref());
+        if let Some(r) = declared.as_ref().and_then(|t| t.returns.as_ref()) {
+            self.known_at.insert((cx.file, span.start, span.end), Known::of(r));
+        }
+        out
     }
 
-    fn apply_value(&mut self, cx: &mut Cx, f: ir::Expr, ft: Ty, args: &ast::Group<ast::Arg>, span: Span) -> (ir::Expr, Ty) {
+    fn apply_value(&mut self, cx: &mut Cx, f: ir::Expr, ft: Ty, args: &ast::Group<ast::Arg>, span: Span, declared: Option<&ir::Type>) -> (ir::Expr, Ty) {
         let file = cx.file;
         let Ty::Fn(ps, ret) = self.vars.resolve(&ft) else {
             if !ft.is_err() {
@@ -987,8 +1101,11 @@ impl Checker {
             self.error(file, codes::ARGUMENTS, span, format!("this fn takes {} argument(s), and {} are given", ps.len(), args.len()));
         }
         let mut out = Vec::new();
-        for (p, a) in ps.iter().zip(args.iter()) {
+        for (k, (p, a)) in ps.iter().zip(args.iter()).enumerate() {
             let (x, _) = self.expr(cx, &a.value, Some(&p.ty));
+            if let Some(dp) = declared.and_then(|t| t.params.get(k)) {
+                self.want(cx, &a.value, &x, &dp.ty, format!("this fn's `{}`", dp.name));
+            }
             out.push(x);
         }
         let ret_ty = ret.map(|r| *r);
@@ -1008,8 +1125,12 @@ impl Checker {
         }
         let mut out = Vec::new();
         for (p, a) in ps.iter().zip(args.iter()) {
-            let (x, _) = self.expr(cx, &a.value, Some(&p.ty));
+            let (x, _) = self.expr_for(cx, &a.value, Some(&p.ty), &p.ir);
+            self.want(cx, &a.value, &x, &p.ir, format!("`{}.{}`'s `{}`", ch.name, name.name, p.name));
             out.push(x);
+        }
+        if ret.is_none() {
+            self.check_channel_action(cx, &format!("{}.{}", ch.name, name.name), span);
         }
         (call(&format!("{}.{}", ch.full, name.name), out, ret_ir), ret.unwrap_or(Ty::Err))
     }
@@ -1045,6 +1166,26 @@ impl Checker {
             }
         }
         let rest: Vec<&ParamSym> = params.collect();
+        // a generic fn writing a `mut` place: its type parameters are what the place's declared
+        // type says, contracts included, so what it is given to write has to fit them
+        let generics: Vec<String> = s.generics.iter().map(|g| g.name.clone()).collect();
+        let mut bound: Vec<(String, ir::Type)> = Vec::new();
+        if !generics.is_empty() {
+            let mut places: Vec<(&ParamSym, &ast::Expr)> = rest.iter().zip(args.iter()).filter(|(p, _)| p.mutable).map(|(p, a)| (*p, &a.value)).collect();
+            if let (Some(r), Some(p)) = (recv_src, s.params.first()) {
+                if p.is_self && p.mutable {
+                    places.insert(0, (p, r));
+                }
+            }
+            for (p, e) in places {
+                let before = self.diags.len();
+                let declared = self.place_ir(cx, e);
+                self.diags.truncate(before);
+                if let Some(t) = declared {
+                    self.bind_ir(&generics, &p.ir, &t, &mut bound);
+                }
+            }
+        }
         if args.iter().any(|a| a.name.is_some()) {
             let at = args.iter().find(|a| a.name.is_some()).unwrap().name.as_ref().unwrap().span;
             self.error(file, codes::NAMED_TO_FN, at, format!("`{}` is a fn: its arguments go in order, without names", s.name));
@@ -1070,8 +1211,9 @@ impl Checker {
                 }
                 out.push(place);
             } else {
-                let (x, _) = self.expr(cx, &a.value, Some(&pt));
-                self.want(cx, &a.value, &x, &p.ir, format!("`{}`'s `{}`", s.name, p.name));
+                let (x, _) = self.expr_for(cx, &a.value, Some(&pt), &p.ir);
+                let want = if bound.is_empty() { None } else { crate::proof::subst_ir(&generics, &p.ir, &bound) };
+                self.want(cx, &a.value, &x, want.as_ref().unwrap_or(&p.ir), format!("`{}`'s `{}`", s.name, p.name));
                 out.push(x);
             }
         }
@@ -1227,7 +1369,7 @@ impl Checker {
                     self.error(file, codes::VIEW_IN_MUT, v.name.span, "a view is a description, not a variable: hold it in a `let`, or keep the data it is drawn from in the variable instead");
                 }
                 let ty_ir = self.ir_type(file, &v.ty, &cx.generics.clone());
-                let (x, _) = self.expr(cx, &v.value, Some(&ty));
+                let (x, _) = self.expr_for(cx, &v.value, Some(&ty), &ty_ir);
                 self.want(cx, &v.value, &x, &ty_ir, format!("`{}`", v.name.name));
                 self.declare_local(cx, &v.name, ty, mutable, LocalKind::Plain);
                 crate::proof::set_known(cx, &v.name.name, Known::of(&ty_ir));
@@ -1244,6 +1386,10 @@ impl Checker {
                             self.want(cx, e, &x, &r, "the return value");
                         }
                         Some(x)
+                    }
+                    (Some(e), None) if cx.exposed => {
+                        self.error(file, codes::RETURN, e.span, "an exposed fn returns nothing: the app calls it and reads nothing back, so `return;` ends it");
+                        Some(self.expr(cx, e, None).0)
                     }
                     (Some(e), None) => {
                         self.error(file, codes::RETURN, e.span, "this fn has no return type, so `return` gives back nothing: add a return type to return a value");

@@ -181,6 +181,17 @@ impl Checker {
         }
     }
 
+    /// A channel's fn with no return type is an action sent to the app (page 6): called only
+    /// where things may change, and it changes the world.
+    pub(crate) fn check_channel_action(&mut self, cx: &Cx, name: &str, span: Span) {
+        if !cx.action {
+            let what = self.value_context(cx);
+            self.error(cx.file, codes::ACTION_CALL, span, format!("`{}` is an action sent to the app, and {} changes nothing: call it from a handler or another action", name, what));
+        } else if let Some(me) = cx.fn_id {
+            self.effects.world.insert(me, true);
+        }
+    }
+
     /// Calling a fn value that returns nothing is an action too.
     pub(crate) fn check_apply_action(&mut self, cx: &Cx, span: Span) {
         if !cx.action {
@@ -233,7 +244,7 @@ impl Checker {
         for (file, span, f) in &fx.from_value {
             if world.get(f).copied().unwrap_or(false) {
                 let name = self.fns[*f].name.clone();
-                self.error(*file, codes::ACTION_CALL, *span, format!("`{}` changes more than the locals it is given (`$state`, a variable, an input, an item or an event), so only a handler or another action may call it", name));
+                self.error(*file, codes::ACTION_CALL, *span, format!("`{}` changes more than the locals it is given (`$state`, a variable, an input, an item or an event, or it sends the app an action), so only a handler or another action may call it", name));
             }
         }
         // what later pages compile on top of keeps what was learned here

@@ -1,0 +1,9 @@
+package t;
+
+// `only` compares its values with `same`: a list, an opt or an inline record of something that
+// can't be compared can't have one
+record pick {
+    shown: list<label> only ([]);
+    maybe: opt<label> only (opt.NONE);
+    pair: { l: label } only ({ l = @label(value = "a") });
+}

@@ -1,0 +1,11 @@
+{
+  "id": "contracts.a-channel-fns-arguments-meet-their-contracts",
+  "about": "what a channel's fn is given meets its parameters' contracts: a constant outside one, and a value nothing proves, are refused",
+  "source": "a-channel-fns-arguments-meet-their-contracts.mkp.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.outside", "line": 7, "column": 18},
+      {"code": "contracts.needs-proof", "line": 8, "column": 18}
+    ]
+  }
+}

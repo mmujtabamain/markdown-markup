@@ -50,6 +50,7 @@ pub mod codes {
     pub const MATCH_ELSE: &str = "types.match-on-token-needs-else";
     pub const MATCH_CASES: &str = "types.match-misses-cases";
     pub const RETURN: &str = "types.return";
+    pub const EXPOSED_MUT: &str = "types.exposed-mut-parameter";
     pub const INTERFACE_ALONE: &str = "types.interface-alone";
     pub const CONSTANT: &str = "types.constant-failed";
     pub const POSITIONAL: &str = "views.positional-argument";
@@ -384,6 +385,9 @@ pub struct Checker {
     pub require_checks: Vec<(usize, Span, DefId, BTreeMap<String, ir::Expr>)>,
     /// Lets whose checking reported an error: not reported again when worked out.
     pub failed_lets: std::collections::HashSet<usize>,
+    /// The declared fn type the lambda being checked is given to, contracts and all: what its
+    /// `return`s are held to when it writes no return type.
+    pub(crate) lambda_want: Option<ir::Type>,
 }
 
 impl Checker {
@@ -425,6 +429,7 @@ impl Checker {
             spot_checks: Vec::new(),
             sizing_reported: Default::default(),
             require_checks: Vec::new(),
+            lambda_want: None,
             failed_lets: Default::default(),
         }
     }
@@ -944,13 +949,23 @@ impl Checker {
                         self.error(file, codes::RANGE_UNORDERED, r.span, format!("a range is for numbers, durations, dates and other types that fit `ordered`; `{}` doesn't", b));
                     }
                     (Some(TypeSym::Def(d)), ast::Contract::Range(r)) => self.type_rules.push(declared::TypeRule::Range { file, span: r.span, def: d }),
-                    (Some(TypeSym::Def(d)), ast::Contract::Only(_)) => self.type_rules.push(declared::TypeRule::Only { file, span: t.span, def: d }),
                     _ => {}
                 }
             }
         }
+        // `only (…)`'s values are of the type they narrow, which has to compare them
+        let base = match &t.contract {
+            Some(ast::Contract::Only(_)) => {
+                let before = self.diags.len();
+                let ty = self.resolve(file, t, generics);
+                self.diags.truncate(before);
+                self.type_rules.push(declared::TypeRule::Only { file, span: t.span, ty: ty.clone() });
+                Some(ty)
+            }
+            _ => None,
+        };
         if let Some(c) = &t.contract {
-            let c = self.contract(file, c);
+            let c = self.contract(file, c, base.as_ref());
             if let B::Named { name, .. } = &t.base {
                 if let Some(TypeSym::Def(d)) = self.lookup_type(file, &name.name) {
                     if matches!(self.defs[d].kind, DefKind::Alias { .. }) {
@@ -1019,7 +1034,7 @@ impl Checker {
         }
     }
 
-    fn contract(&mut self, file: usize, c: &ast::Contract) -> ir::Contract {
+    fn contract(&mut self, file: usize, c: &ast::Contract, base: Option<&Ty>) -> ir::Contract {
         let mut out = empty_contract();
         match c {
             ast::Contract::Range(r) => {
@@ -1029,7 +1044,7 @@ impl Checker {
             ast::Contract::Step(s) => out.step = Some(self.bound(file, s)),
             ast::Contract::Only(values) => {
                 for v in values.iter() {
-                    let e = self.constant_expr(file, v);
+                    let e = self.constant_expr_of(file, v, base);
                     // only's values are constants, as bounds are
                     self.bound_checks.push((file, v.span, e.clone()));
                     out.only.push(e);
@@ -1041,9 +1056,35 @@ impl Checker {
 
     /// An expression with nothing but constants around it: a bound, an `only` value.
     pub fn constant_expr(&mut self, file: usize, e: &ast::Expr) -> ir::Expr {
+        self.constant_expr_of(file, e, None)
+    }
+
+    /// A constant of a type: an `only` value is one of the type it narrows, so a text literal
+    /// there is a `date` when the type is. Contracts sit in types, which no later pass rewrites,
+    /// so such a literal is worked out here, by its type's `from`, when that is compiled (core's
+    /// are); one that isn't yet is kept as it is written.
+    fn constant_expr_of(&mut self, file: usize, e: &ast::Expr, ty: Option<&Ty>) -> ir::Expr {
         let mut cx = body::Cx::new(file);
-        let (x, _) = self.expr(&mut cx, e, None);
-        x
+        let (x, _) = self.expr(&mut cx, e, ty);
+        let ir::Expr::Call(c) = &x else { return x };
+        if !c.name.starts_with(body::LITERAL_MARK) {
+            return x;
+        }
+        let inner = c.args[0].clone();
+        let prog = self.program();
+        let mut m = mkp_eval::Machine::new(&prog, Box::new(mkp_eval::interp::Constants));
+        match m.eval(&inner) {
+            Ok(mkp_eval::Value::Opt(Some(v))) => v.to_ir(),
+            Ok(_) => {
+                let why = m.last_rule.clone().map(|r| format!(": {}", r)).unwrap_or_default();
+                self.error(file, codes::LITERAL, e.span, format!("this literal is not a {}{}", self.show(ty.unwrap_or(&Ty::Err)), why));
+                inner
+            }
+            Err(_) => match &inner {
+                ir::Expr::Call(from) => from.args[0].clone(),
+                other => other.clone(),
+            },
+        }
     }
 
     pub fn generics(&mut self, file: usize, g: &Option<ast::Generics>) -> Vec<TParam> {

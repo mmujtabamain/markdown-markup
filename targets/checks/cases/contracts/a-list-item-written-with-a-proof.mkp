@@ -1,0 +1,13 @@
+package t;
+
+// a constant inside the item's contract, a clamp, and a value proved in its block
+fn fill(n: number): list<number 0..10> {
+    mut xs: list<number 0..10> = [];
+    xs.add(7);
+    xs.insert(0, n.clamp(0, 10));
+    if (n in 0..10) {
+        xs.add(n);
+        xs[0] = n;
+    }
+    return xs;
+}

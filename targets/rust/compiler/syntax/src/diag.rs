@@ -80,6 +80,7 @@ pub mod codes {
     pub const EXPECTED: &str = "syntax.expected";
     pub const KEYWORD_AS_NAME: &str = "syntax.keyword-as-name";
     pub const MISSING_SEMICOLON: &str = "syntax.missing-semicolon";
+    pub const VERSION_IN_IMPORT: &str = "syntax.version-in-import";
     pub const MISSING_TYPE: &str = "syntax.missing-type";
     pub const CHAINED_COMPARISON: &str = "syntax.chained-comparison";
     pub const BOUND: &str = "syntax.bound-not-an-atom";

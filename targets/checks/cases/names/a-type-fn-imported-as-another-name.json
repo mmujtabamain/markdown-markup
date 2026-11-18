@@ -1,0 +1,10 @@
+{
+  "id": "names.a-type-fn-imported-as-another-name",
+  "about": "a fn added to a type and imported under another name is called by that name, and the name it had reaches the other pack's fn: a's text.slug lowers, b's, imported as b_slug, raises",
+  "source": "a-type-fn-imported-as-another-name.mkp.md",
+  "packs": ["one-visible-fn-per-name-on-a-type.packs/a.mkp", "one-visible-fn-per-name-on-a-type.packs/b.mkp"],
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "a-type-fn-imported-as-another-name.expected.md"}
+  }
+}

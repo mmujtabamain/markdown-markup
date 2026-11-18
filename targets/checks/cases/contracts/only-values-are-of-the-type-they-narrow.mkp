@@ -1,0 +1,7 @@
+package t;
+
+// `only`'s values are constants of the type it narrows
+record pick {
+    side: text only (1, "left");
+    n: number only ("a", 2);
+}

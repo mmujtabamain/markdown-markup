@@ -1,0 +1,11 @@
+package t;
+
+// what goes into a list, by `add`, `insert` or `xs[i] =`, meets the item's contract
+fn fill(n: number): list<number 0..10> {
+    mut xs: list<number 0..10> = [1];
+    xs.add(11);
+    xs.insert(0, n);
+    xs[0] = 12;
+    xs[0] = n;
+    return xs;
+}

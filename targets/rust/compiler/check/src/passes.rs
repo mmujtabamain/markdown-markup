@@ -191,16 +191,26 @@ impl Checker {
             };
             let mut fns = Vec::new();
             for f in e.fns.iter() {
+                // the app calls it with values of its own and reads nothing back (page 6)
+                if let Some(ast::RetType::Type(t)) = &f.sig.ret {
+                    self.error(file, codes::RETURN, t.span, format!("`{}.{}` is called by the app, which reads nothing back: an exposed fn returns nothing, so leave out its return type", e.name.name, f.sig.name.name));
+                }
+                for p in f.sig.params.iter().filter(|p| p.mutable) {
+                    self.error(file, codes::EXPOSED_MUT, p.name.span, format!("`{}` can't be `mut`: the app gives `{}.{}` its values, and an exposed fn takes them as constants", p.name.name, e.name.name, f.sig.name.name));
+                }
                 let mut cx = Cx::new(file);
                 cx.state = fields.clone();
-                cx.ret = Some(None);
+                // a return type written is reported above, once: its `return`s aren't again
+                cx.ret = Some(if matches!(f.sig.ret, Some(ast::RetType::Type(_))) { Some(Ty::Err) } else { None });
                 // the app calls an exposed fn: an action
                 cx.action = true;
+                cx.exposed = true;
                 cx.fn_depth = cx.scopes.len();
                 cx.push();
                 let ps = self.params(file, &f.sig.params, &[], &Ty::Err, &ir::Type::named("T"));
+                // a `mut` one, reported above, is taken as written, so writing it isn't a second error
                 for p in &ps {
-                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: false, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)), own_origin: false });
+                    cx.scopes.last_mut().unwrap().push(Local { name: p.name.clone(), ty: p.ty.clone(), mutable: p.mutable, kind: LocalKind::Plain, known: Some(crate::proof::Known::of(&p.ir)), own_origin: false });
                 }
                 let body = f.body.as_ref().map(|b| self.block(&mut cx, b)).unwrap_or_default();
                 fns.push(ir::ExposeFns { name: f.sig.name.name.clone(), params: ps.iter().map(|p| ir::Param { name: p.name.clone(), ty: p.ir.clone(), mutable: false }).collect(), body });

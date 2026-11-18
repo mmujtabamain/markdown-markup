@@ -1,0 +1,11 @@
+{
+  "id": "names.a-type-fn-comes-only-with-an-import",
+  "about": "a fn a pack adds to a type comes with an import of the pack, and only then: with no import of a or b, text has no slug",
+  "source": "a-type-fn-comes-only-with-an-import.mkp.md",
+  "packs": ["one-visible-fn-per-name-on-a-type.packs/a.mkp", "one-visible-fn-per-name-on-a-type.packs/b.mkp"],
+  "expect": {
+    "diagnostics": [
+      {"code": "names.unknown-fn", "line": 1, "column": 20}
+    ]
+  }
+}

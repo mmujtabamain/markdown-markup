@@ -653,12 +653,11 @@ impl Checker {
                 p.file,
                 p.span,
                 codes::NEEDS_PROOF,
-                format!(
-                    "{} is a {}, and nothing proves this value is: {}. Prove it first, with `if (x in low..high) {{ … }}`, `.clamp(low, high)` or `try`",
-                    p.what,
-                    show_contract(&p.want),
-                    why
-                ),
+                {
+                    let want = show_contract(&p.want);
+                    let a = if want.starts_with(['a', 'e', 'i', 'o', 'u']) { "an" } else { "a" };
+                    format!("{} is {} {}, and nothing proves this value is: {}. Prove it first, with `if (x in low..high) {{ … }}`, `.clamp(low, high)` or `try`", p.what, a, want, why)
+                },
             ));
         }
         for (file, span, code, msg) in errors {
@@ -957,9 +956,64 @@ impl Checker {
                 let (_, t) = self.place(cx, target)?;
                 self.field_ir(cx, &t, &name.name)
             }
+            // an item of a list: its item type, `xs[0] = v` on a `list<number 0..10>`
+            E::Index { target, .. } => {
+                let t = self.place_ir(cx, target)?;
+                self.unalias(&t).filter(|t| t.name == "core/list").and_then(|t| t.args.first().cloned())
+            }
             _ => None,
         }
     }
+
+    /// A type with its aliases followed to what they name, the alias's own contract kept when it
+    /// is the only one.
+    pub(crate) fn unalias(&self, t: &ir::Type) -> Option<ir::Type> {
+        let mut t = t.clone();
+        for _ in 0..32 {
+            let Some(target) = self.defs.iter().find(|d| d.full == t.name).and_then(|d| match &d.kind {
+                crate::DefKind::Alias { target: Some((_, ir)) } => Some(ir.clone()),
+                _ => None,
+            }) else {
+                return Some(t);
+            };
+            let mut next = target;
+            if next.contract.is_none() {
+                next.contract = t.contract.clone();
+            }
+            t = next;
+        }
+        None
+    }
+
+    /// What a generic fn's type parameters stand for, read from the declared type of a `mut`
+    /// place it writes, contracts and all: `list<T>` given a `list<number 0..10>` makes `T` a
+    /// `number 0..10`.
+    pub(crate) fn bind_ir(&self, generics: &[String], param: &ir::Type, place: &ir::Type, out: &mut Vec<(String, ir::Type)>) {
+        if generics.contains(&param.name) {
+            if !out.iter().any(|(n, _)| *n == param.name) {
+                out.push((param.name.clone(), place.clone()));
+            }
+            return;
+        }
+        let Some(place) = self.unalias(place) else { return };
+        if place.name == param.name {
+            for (p, a) in param.args.iter().zip(&place.args) {
+                self.bind_ir(generics, p, a, out);
+            }
+        }
+    }
+}
+
+/// A declared type with its type parameters put in, or None when one isn't bound.
+pub(crate) fn subst_ir(generics: &[String], t: &ir::Type, bound: &[(String, ir::Type)]) -> Option<ir::Type> {
+    if generics.contains(&t.name) {
+        return bound.iter().find(|(n, _)| *n == t.name).map(|(_, x)| x.clone());
+    }
+    let args = t.args.iter().map(|a| subst_ir(generics, a, bound)).collect::<Option<Vec<_>>>()?;
+    Some(ir::Type { args, ..t.clone() })
+}
+
+impl Checker {
 
     /// What is known of a variable given to a `mut` parameter or input: its declared type.
     pub(crate) fn place_known(&mut self, cx: &mut Cx, e: &ast::Expr) -> Option<Known> {

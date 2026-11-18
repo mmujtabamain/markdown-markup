@@ -1,0 +1,7 @@
+package t;
+
+// where a plain text or rich_text is wanted, a literal with an opt hole is an error on the hole
+fn notes(change: opt<text>): text {
+    let r: rich_text = "Note: \{change}";
+    return "was \{change}";
+}

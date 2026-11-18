@@ -20,7 +20,7 @@ pub enum TypeRule {
     /// A contract written on an alias that has its own.
     Both { file: usize, span: Span, alias: DefId, written: ir::Contract },
     /// `only (…)` on a type that may not fit `same`.
-    Only { file: usize, span: Span, def: DefId },
+    Only { file: usize, span: Span, ty: Ty },
     /// `any` of an interface.
     Any { file: usize, span: Span, iface: DefId },
 }
@@ -103,50 +103,32 @@ impl Checker {
     }
 
     /// Two visible fns with one name on one type are a compile error, on the import that brings
-    /// in the second; one of them is imported under another name instead (page 4).
+    /// in the second; one of them is imported under another name instead (page 4). What a file
+    /// sees is what a call in it reaches (type_fn_seen).
     fn check_fn_clashes(&mut self) {
         for file in self.from.files..self.files.len() {
-            let own = self.files[file].pack.clone();
-            // the packs a file sees whole, and the names it brings in one by one, by import
-            let mut whole: Vec<(String, Span)> = Vec::new();
-            let mut one_by_one: Vec<(String, String, Span)> = Vec::new();
-            let ast = self.files[file].ast.clone();
-            for node in &ast.items {
-                let mkp_syntax::ast::Item::Import(imp) = &node.item else { continue };
-                match imp.path.get(1) {
-                    None => whole.push((imp.path[0].name.clone(), imp.span)),
-                    Some(n) if imp.alias.is_none() => one_by_one.push((imp.path[0].name.clone(), n.name.clone(), imp.span)),
-                    _ => {}
-                }
-            }
-            let provided = |c: &Checker, pack: &str, name: &str| c.packs.get(pack).and_then(|p| p.provides.as_ref()).map_or(false, |ps| ps.contains(name));
             for (recv, by_name) in self.methods.clone() {
                 if !matches!(recv, Recv::Def(_) | Recv::Builtin(_)) {
                     continue;
                 }
-                for (name, fns) in by_name {
-                    // where each visible pack's fn of this name comes into the file
-                    let mut seen: Vec<(String, Option<Span>)> = Vec::new();
-                    for f in fns {
-                        let pack = self.fns[f].pack.clone();
-                        let at = if pack == own || pack == "core" {
-                            Some(None)
-                        } else if let Some((_, s)) = whole.iter().find(|(p, _)| *p == pack).filter(|_| provided(self, &pack, &name)) {
-                            Some(Some(*s))
-                        } else {
-                            one_by_one.iter().find(|(p, n, _)| *p == pack && *n == name).map(|(_, _, s)| Some(*s))
-                        };
-                        if let Some(at) = at {
-                            if !seen.iter().any(|(p, _)| *p == pack) {
-                                seen.push((pack, at));
-                            }
-                        }
+                // each pack's fn on this type the file sees, by the name it sees it by, and where
+                // it comes in
+                let mut seen: std::collections::BTreeMap<String, Vec<(String, Option<Span>)>> = std::collections::BTreeMap::new();
+                for f in by_name.values().flatten() {
+                    let Some((name, at)) = self.type_fn_seen(file, *f) else { continue };
+                    let pack = self.fns[*f].pack.clone();
+                    let packs = seen.entry(name).or_default();
+                    if !packs.iter().any(|(p, _)| *p == pack) {
+                        packs.push((pack, at));
                     }
+                }
+                for (name, seen) in seen {
                     if seen.len() > 1 {
                         let later = seen.iter().filter_map(|(_, s)| *s).max_by_key(|s| s.start);
                         let packs: Vec<String> = seen.iter().map(|(p, _)| format!("`{}`", p)).collect();
                         if let Some(at) = later {
-                            self.error(file, codes::FN_CLASH, at, format!("`{}` comes from {} on one type: import one under another name, `import {}.{} as {}_{};`", name, packs.join(" and "), seen.last().unwrap().0, name, seen.last().unwrap().0, name));
+                            let last = &seen.iter().max_by_key(|(_, s)| s.map_or(0, |s| s.start)).unwrap().0;
+                            self.error(file, codes::FN_CLASH, at, format!("`{}` comes from {} on one type: import one under another name, `import {}.{} as {}_{};`", name, packs.join(" and "), last, name, last, name));
                         }
                     }
                 }
@@ -268,10 +250,9 @@ impl Checker {
                         self.error(file, codes::RANGE_UNORDERED, span, format!("a range is for numbers, durations, dates and other types that fit `ordered`; `{}` doesn't", s));
                     }
                 }
-                TypeRule::Only { file, span, def } => {
-                    let t = self.alias_end(Ty::Def(def, Vec::new()));
-                    if !matches!(t, Ty::Num | Ty::Dur | Ty::Text | Ty::Bool | Ty::Err) && same.map_or(false, |s| !self.fits(&t, s, &[], &[])) {
-                        let s = self.show(&t);
+                TypeRule::Only { file, span, ty } => {
+                    if !self.compares(&ty, same) {
+                        let s = self.show(&ty);
                         self.error(file, codes::ONLY_NOT_SAME, span, format!("`only (…)` lists values of a type that fits `same`, so they can be compared; `{}` doesn't", s));
                     }
                 }
@@ -309,6 +290,22 @@ impl Checker {
     }
 
     /// An alias worked out to the type it names.
+    /// Whether values of a type can be compared, as `only (…)` compares them: a type that fits
+    /// `same`, and a list, an opt, a range or an inline record when what it holds can; never a fn
+    /// or a view.
+    fn compares(&mut self, t: &Ty, same: Option<DefId>) -> bool {
+        match self.alias_end(t.clone()) {
+            Ty::Num | Ty::Dur | Ty::Text | Ty::Bool | Ty::Err | Ty::Param(_) | Ty::Var(_) => true,
+            Ty::List(x) | Ty::Opt(x) | Ty::Range(x) => self.compares(&x, same),
+            Ty::Inline(fields) => fields.iter().all(|(_, t)| self.compares(t, same)),
+            Ty::Fn(..) | Ty::View => false,
+            t => match same {
+                Some(s) => self.fits(&t, s, &[], &[]),
+                None => true,
+            },
+        }
+    }
+
     fn alias_end(&self, t: Ty) -> Ty {
         let mut t = t;
         for _ in 0..16 {

@@ -163,12 +163,17 @@ impl Checker {
     }
 
     /// Every fn named `name` a value of `ty` has: its type's own, then its interfaces'.
-    pub fn methods_of(&mut self, ty: &Ty, name: &str, bounds: &[TParam]) -> Vec<usize> {
+    pub fn methods_of(&mut self, file: usize, ty: &Ty, name: &str, bounds: &[TParam]) -> Vec<usize> {
         let ty = self.vars.resolve(ty);
         let mut out = Vec::new();
         if let Some(key) = self.recv_key(&ty) {
-            if let Some(fs) = self.methods.get(&key).and_then(|m| m.get(name)) {
-                out.extend(fs.iter().copied());
+            // the fns on the type this file sees by this name, under the name it imported them as
+            if let Some(by_name) = self.methods.get(&key) {
+                for f in by_name.values().flatten() {
+                    if self.type_fn_seen(file, *f).map_or(false, |(n, _)| n == name) {
+                        out.push(*f);
+                    }
+                }
             }
         }
         if let Ty::Param(p) = &ty {
@@ -198,6 +203,31 @@ impl Checker {
             }
         }
         out
+    }
+
+    /// Whether a file sees a fn added to a type, the name it sees it by, and the import that
+    /// brings it in (page 6): core's and the file's own pack's always, by their names; another
+    /// pack's when the file imports any of the pack (its fns on types come with it, listed in
+    /// `provides` or not), under the name an `import p.slug as p_slug;` gives it, else its own.
+    pub fn type_fn_seen(&self, file: usize, f: usize) -> Option<(String, Option<Span>)> {
+        let (pack, name) = (&self.fns[f].pack, &self.fns[f].name);
+        if pack == "core" || *pack == self.files[file].pack {
+            return Some((name.clone(), None));
+        }
+        let mut any = None;
+        for node in &self.files[file].ast.items {
+            let mkp_syntax::ast::Item::Import(imp) = &node.item else { continue };
+            if imp.path[0].name != *pack {
+                continue;
+            }
+            match (imp.path.get(1), &imp.alias) {
+                (Some(n), Some(a)) if n.name == *name => return Some((a.name.clone(), Some(imp.span))),
+                // the import that names it brings it in; else the first of the pack
+                (Some(n), None) if n.name == *name => any = Some(imp.span),
+                _ => any = any.or(Some(imp.span)),
+            }
+        }
+        any.map(|at| (name.clone(), Some(at)))
     }
 
     /// How a value of `got` is accepted where `want` is wanted, if it is.

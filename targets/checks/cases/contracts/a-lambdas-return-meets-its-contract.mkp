@@ -1,0 +1,13 @@
+package t;
+
+// a lambda's return meets the contract it writes, or the one of the fn type it is given to
+fn apply(f: fn(x: number): number 0..10, n: number): number 0..10 {
+    return f(n);
+}
+
+fn go(n: number): number {
+    let a: fn(x: number): number = fn(x: number): number 0..10 { return x; };
+    let b: fn(x: number): number = fn(x: number): number 0..10 { return 11; };
+    let c: fn(x: number): number 0..10 = fn(x) { return x; };
+    return apply(fn(x) { return x; }, n) + a(n) + b(n) + c(n);
+}

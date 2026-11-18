@@ -1,0 +1,12 @@
+package t;
+
+// a call through a fn value is known to fit its declared return contract, and a lambda that
+// proves its return compiles
+fn apply(f: fn(x: number): number 0..10, n: number): number 0..10 {
+    return f(n);
+}
+
+fn go(n: number): number 0..10 {
+    let f: fn(x: number): number 0..10 = fn(x) { return x.clamp(0, 10); };
+    return apply(f, n);
+}

@@ -1,0 +1,13 @@
+{
+  "id": "contracts.a-list-item-written-meets-its-contract",
+  "about": "a value written into a list, by a generic fn on it (add, insert) or by xs[i] =, meets the item's contract: a constant outside it, and a value nothing proves, are refused",
+  "source": "a-list-item-written-meets-its-contract.mkp",
+  "expect": {
+    "diagnostics": [
+      {"code": "contracts.outside", "line": 6, "column": 12},
+      {"code": "contracts.needs-proof", "line": 7, "column": 18},
+      {"code": "contracts.outside", "line": 8, "column": 13},
+      {"code": "contracts.needs-proof", "line": 9, "column": 13}
+    ]
+  }
+}

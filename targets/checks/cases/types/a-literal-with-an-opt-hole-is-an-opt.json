@@ -1,0 +1,14 @@
+{
+  "id": "types.a-literal-with-an-opt-hole-is-an-opt",
+  "about": "a literal with a hole that holds an opt is an opt of its type, text or rich_text: opt.NONE when the hole is, else the literal with the value inside; every target works it out",
+  "source": "a-literal-with-an-opt-hole-is-an-opt.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw"
+    ]
+  },
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "a-literal-with-an-opt-hole-is-an-opt.expected.md"}
+  }
+}

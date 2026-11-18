@@ -4,7 +4,7 @@
   "source": "a-document-imports-with-no-version.mkp.md",
   "expect": {
     "diagnostics": [
-      {"code": "syntax.missing-semicolon", "line": 1, "column": 11}
+      {"code": "syntax.version-in-import", "line": 1, "column": 11}
     ]
   }
 }
