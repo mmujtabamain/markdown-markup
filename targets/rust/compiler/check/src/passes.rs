@@ -123,6 +123,7 @@ impl Checker {
     /// The document's prose: its own template, `doc`.
     fn document(&mut self) {
         self.next_site = 0;
+        self.template_now = "doc".into();
         let Some(file) = (0..self.files.len()).find(|f| self.files[*f].ast.prose.is_some()) else { return };
         let ast = self.files[file].ast.clone();
         let mut cx = Cx::new(file);

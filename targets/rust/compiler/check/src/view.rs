@@ -216,6 +216,7 @@ impl Checker {
         self.warn_deprecated(cx.file, self.defs[d].file, self.defs[d].span, call.name.span);
         self.check_sizing_chain(cx, call);
         let site = self.site("s");
+        self.sites.push(crate::SiteRec { template: self.template_now.clone(), site: site.clone(), file: cx.file, span: call.span });
         let parts = self.call_parts(cx, d, call);
         let full = self.defs[d].full.clone();
         let external = matches!(self.defs[d].kind, DefKind::Widget { external: true, .. });
@@ -387,6 +388,7 @@ impl Checker {
     pub(crate) fn widget(&mut self, d: DefId) {
         // each template counts its own sites
         self.next_site = 0;
+        self.template_now = self.defs[d].full.clone();
         let file = self.defs[d].file;
         let (ast::DeclKind::Widget(w) | ast::DeclKind::ExternWidget(w)) = self.decl_of(d) else { return };
         let external = matches!(self.defs[d].kind, DefKind::Widget { external: true, .. });

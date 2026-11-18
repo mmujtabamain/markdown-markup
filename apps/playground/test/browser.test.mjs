@@ -212,6 +212,33 @@ describe("the playground in Chromium", { skip }, () => {
     assert.equal(await tab.locator("[data-testid=editor] .line-numbers.has-error").count(), 0);
   });
 
+  test("a widget that fails while drawn is marked on the call that placed it, until it draws", async () => {
+    // a second counter whose step divides by the count, which starts at 0
+    const call = "@counter(by = (100 / $state.count).round());";
+    await typeAtEnd("\n" + call);
+    await compiled("ok");
+    // the count the tests before left is kept: back to its starting 0
+    await tab.getByTestId("tab-state").click();
+    await tab.getByTestId("state-reset").click();
+    const line = (await source()).split("\n").length;
+    await tab.waitForFunction(() => window.playground.failures().length > 0);
+    const [m] = await tab.evaluate(() => window.playground.failures());
+    assert.equal(m.line, line, `on the line it is written on: ${JSON.stringify(m)}`);
+    assert.equal(m.col, 1);
+    assert.equal(m.severity, "error");
+    assert.match(m.message, /^counter failed: .*division by zero.*, when the page was drawn$/);
+    assert.deepEqual(await markers(), [], "the compiler's markers are its own: this compiled");
+    // a count of 1 draws it, and the mark goes
+    await tab.locator("[data-part=press]").first().click();
+    await tab.waitForFunction(() => window.playground.failures().length === 0);
+    const editor = tab.getByTestId("editor");
+    await editor.click();
+    await editor.press("Control+End");
+    for (let k = 0; k <= call.length; k++) await tab.keyboard.press("Backspace");
+    await compiled("ok");
+    await tab.getByTestId("tab-markdown").click();
+  });
+
   test("an example from the picker, and a $state write refused by its rule", async () => {
     await tab.getByTestId("example-picker").selectOption("slider");
     await tab.waitForSelector("[data-testid=status][data-state=ok]");

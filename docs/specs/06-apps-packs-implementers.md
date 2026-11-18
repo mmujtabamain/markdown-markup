@@ -269,7 +269,7 @@ A failure is a bug that could not be caught at compile time. There are no except
 
 | Where it happens | What the reader sees | What is kept |
 |---|---|---|
-| While drawing a widget | That widget is replaced by a short notice with the message and the line. In Markdown it is a quote block. It is tried again when an input or variable it reads changes | The rest of the page, and all variables |
+| While drawing a widget | That widget is replaced by a short notice with the message. In Markdown it is a quote block. The page has no source to point into: an editor that has it shows where the failed call is written. It is tried again when an input or variable it reads changes | The rest of the page, and all variables |
 | In an event handler | Nothing changes on the page | Everything the handler changed is undone, and the handler stops |
 | In a write from the app | Nothing changes on the page | Everything: the write is refused, and the app is told |
 | At compile time, when the compiler can see it | A compile error on the line | |

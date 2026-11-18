@@ -11,6 +11,7 @@ import { clockExterns, targetFns, themeNow, widthOf } from "./host.js";
 import { plainCases, shapeError, stateDecl, typeSignature, typeText, valueHtml, valueText } from "./values.js";
 import type { Built, PackFile } from "@mkp/wasm";
 import type { Answer, Request } from "./compiler.worker.js";
+import { failedCalls } from "./failures.js";
 
 type Mounted = ReturnType<typeof mount>;
 
@@ -26,6 +27,8 @@ interface CompileResult {
   diagnostics: Diagnostic[];
   ir: ir.File | null;
   ms?: number;
+  /** Where each call in the document is written, for marking a widget that fails. */
+  sites?: Built["sites"];
 }
 
 const DEBOUNCE_MS = 300;
@@ -83,6 +86,8 @@ declare global {
       hasFocus(): boolean;
       visibleLines(): { first: number; last: number };
       markers(): ReturnType<Editor["markers"]>;
+      /** The marks of widgets that failed while the page was drawn. */
+      failures(): ReturnType<Editor["failures"]>;
       tokens(line: number): ReturnType<Editor["tokens"]>;
       language(): string;
       /** Selects the first place `text` is: a test's way to point at something before typing. */
@@ -105,6 +110,7 @@ window.playground = {
     return { first: r[0]?.startLineNumber ?? 0, last: r[r.length - 1]?.endLineNumber ?? 0 };
   },
   markers: () => editor.markers(),
+  failures: () => editor.failures(),
   tokens: (line) => editor.tokens(line),
   language: () => editor.model.getLanguageId(),
   select: (text) => {
@@ -125,6 +131,8 @@ let examples: Example[] = [];
 let knownPacks: Record<string, PackFile[]> = {};
 let mounted: Mounted | undefined;
 let currentIr: ir.File | undefined;
+/** The text the shown page was compiled from, and where each of its calls is written. */
+let shownFrom: { source: string; sites: Built["sites"] } = { source: "", sites: {} };
 let width = widthOf(preview.clientWidth || 800);
 let theme = themeNow();
 let compileTimer: ReturnType<typeof setTimeout> | undefined;
@@ -238,7 +246,7 @@ async function compileNow(opts: { fresh?: boolean } = {}): Promise<void> {
     return;
   }
   const b = a.built!;
-  applyResult({ diagnostics: b.diagnostics.map(shown), ir: b.ir as unknown as ir.File | null, ms: a.ms }, source, opts.fresh ?? false);
+  applyResult({ diagnostics: b.diagnostics.map(shown), ir: b.ir as unknown as ir.File | null, ms: a.ms, sites: b.sites }, source, opts.fresh ?? false);
 }
 
 /** The compiler couldn't be loaded, or stopped on this source: shown, and told to the team. */
@@ -279,6 +287,7 @@ function applyResult(result: CompileResult, source: string, fresh: boolean): voi
   } catch {
     compiledMarkdown = null;
   }
+  shownFrom = { source, sites: result.sites ?? {} };
   const ran = showPage(result.ir, fresh);
   if (!ran.ok) {
     setStatus("error", "Runtime error", ran.error);
@@ -416,6 +425,8 @@ function renderLive(): void {
   const page = mounted.page;
   if (markdownView === "live") renderMarkdown();
   stateView.update(page.observeState());
+  // a widget that failed is marked where its call is written, while that text is the editor's
+  if (currentIr) editor.setFailures(failedCalls(page, currentIr, shownFrom.sites), shownFrom.source);
   for (; errorsLogged < page.errors.length; errorsLogged++) console.warn("[playground] the page caught", page.errors[errorsLogged]);
 }
 

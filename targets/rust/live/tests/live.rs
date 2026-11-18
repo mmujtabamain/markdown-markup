@@ -14,8 +14,15 @@ fn a_document_builds_into_the_binarys_ir() {
     assert_eq!(ir.ir.module, "doc");
     // lowered as mkp build lowers it: the press's label is a constant, its click a handler
     assert!(!ir.ir.handlers.is_empty());
-    let json = mkp_live::Built { ir: Some(ir), diagnostics: b.diagnostics, errors: 0 }.to_json();
+    let sites = b.sites.clone();
+    let json = mkp_live::Built { ir: Some(ir), diagnostics: b.diagnostics, errors: 0, sites: b.sites }.to_json();
     assert!(json.starts_with("{\"ir\":{\"ir\":{"), "{}", &json[..40]);
+    // where each call is written, beside the IR and never in it: the press is a site of the
+    // page's own template, from its line to the line its call ends on
+    assert!(!json.contains("\"at\":{\"line\""), "the IR holds no places");
+    let press = COUNTER.lines().position(|l| l.starts_with("@press(")).unwrap() as u32 + 1;
+    let w = sites["doc"].values().find(|w| w.line == press).unwrap_or_else(|| panic!("{:?}", sites));
+    assert_eq!((w.column, w.end.line), (1, press + 2));
 }
 
 #[test]

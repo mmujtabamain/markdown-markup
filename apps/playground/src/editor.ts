@@ -25,6 +25,8 @@ export interface EditorEvents {
 
 /** Whose markers these are, in Monaco's marker service. */
 export const MARKER_OWNER = "mkp";
+/** The markers of widgets that failed while the page was drawn: the page's, not the compiler's. */
+export const FAILURE_OWNER = "mkp-page";
 
 const FONT = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace';
 /** Where the gutter's border is, past the line numbers' right edge (style.css draws it). */
@@ -186,6 +188,25 @@ export class Editor {
     );
   }
 
+  /** The widgets that failed while the page was drawn, each marked on the call that placed it with
+   * its notice's message. Only for the text the page was compiled from; markers move with edits. */
+  setFailures(failed: { message: string; written: { line: number; column: number; end: { line: number; column: number } } }[], source: string): void {
+    if (source !== this.model.getValue()) return;
+    monaco.editor.setModelMarkers(
+      this.model,
+      FAILURE_OWNER,
+      failed.map((f) => ({
+        severity: monaco.MarkerSeverity.Error,
+        startLineNumber: f.written.line,
+        startColumn: f.written.column,
+        endLineNumber: f.written.end.line,
+        endColumn: f.written.end.column,
+        message: `${f.message}, when the page was drawn`,
+        source: "page",
+      })),
+    );
+  }
+
   /** Puts the caret at a line and column (both from 1), brings it into view, and flashes the line. */
   goTo(line: number, col: number): void {
     const pos = this.model.validatePosition({ lineNumber: line, column: col });
@@ -210,8 +231,13 @@ export class Editor {
   // ---- for the tests and the video: what the editor holds, read only
 
   /** The markers on the source now. */
-  markers(): { line: number; col: number; endLine: number; endCol: number; severity: string; code: string; message: string }[] {
-    return monaco.editor.getModelMarkers({ owner: MARKER_OWNER, resource: this.model.uri }).map((m) => ({
+  /** The marks of widgets that failed while the page was drawn, as `markers()` gives the compiler's. */
+  failures(): { line: number; col: number; endLine: number; endCol: number; severity: string; code: string; message: string }[] {
+    return this.markers(FAILURE_OWNER);
+  }
+
+  markers(owner: string = MARKER_OWNER): { line: number; col: number; endLine: number; endCol: number; severity: string; code: string; message: string }[] {
+    return monaco.editor.getModelMarkers({ owner, resource: this.model.uri }).map((m) => ({
       line: m.startLineNumber,
       col: m.startColumn,
       endLine: m.endLineNumber,

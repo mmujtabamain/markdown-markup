@@ -133,6 +133,26 @@ pub struct Compiled {
     pub texts: HashMap<String, String>,
     /// The constants worked out at compile time, by the let's full name.
     pub constants: HashMap<String, mkp_eval::Value>,
+    /// Where each call this compile made into a node is written, for an editor: no IR holds it.
+    pub sites: Vec<CallSite>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SiteRec {
+    pub template: String,
+    pub site: String,
+    pub file: usize,
+    pub span: Span,
+}
+
+/// A call in a template, `site` in `template` (`doc`, `doc/share`), and where it is written: what
+/// a failed widget's site turns back into, for an editor to mark its line.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CallSite {
+    pub template: String,
+    pub site: String,
+    pub file: String,
+    pub span: Span,
 }
 
 impl Compiled {
@@ -354,6 +374,10 @@ pub struct Checker {
     pub out: decl::Out,
     pub pending: Vec<body::Pending>,
     pub next_site: usize,
+    /// The template whose view is being made: `doc`, or a widget's full name.
+    pub(crate) template_now: String,
+    /// Each call made into a node, in which template, and where it is written.
+    pub(crate) sites: Vec<SiteRec>,
     /// The document's link reference definitions, by their normalized labels.
     pub prose_links: Vec<(String, String)>,
     pub prose_span: Span,
@@ -414,6 +438,8 @@ impl Checker {
             out: decl::Out::default(),
             pending: Vec::new(),
             next_site: 0,
+            template_now: String::new(),
+            sites: Vec::new(),
             prose_links: Vec::new(),
             prose_span: Span::default(),
             from: From::default(),
@@ -1163,7 +1189,7 @@ pub(crate) fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source
     }
     if c.diags[before..].iter().any(|d| d.diagnostic.is_error()) {
         let diagnostics = std::mem::take(&mut c.diags);
-        return (Compiled { module: None, diagnostics, texts, constants: HashMap::new() }, c);
+        return (Compiled { module: None, diagnostics, texts, constants: HashMap::new(), sites: Vec::new() }, c);
     }
     c.collect();
     c.scopes();
@@ -1178,7 +1204,8 @@ pub(crate) fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source
     let module = if failed { None } else { Some(c.module_ir()) };
     let diagnostics = std::mem::take(&mut c.diags);
     let constants = std::mem::take(&mut c.constants);
-    (Compiled { module, diagnostics, texts, constants }, c)
+    let sites = c.sites.iter().filter(|s| s.file >= c.from.files).map(|s| CallSite { template: s.template.clone(), site: s.site.clone(), file: c.files[s.file].path.clone(), span: s.span }).collect();
+    (Compiled { module, diagnostics, texts, constants, sites }, c)
 }
 
 /// A reference in a file, as `mkp migrate` reads it: the declaration's full name (`kit/chart`),

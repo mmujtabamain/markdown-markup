@@ -6,6 +6,8 @@
 //!
 //! mkp-egui-live and mkp-android-live link it into the app; mkp-wasm wraps it for the browser.
 
+use std::collections::BTreeMap;
+
 use mkp_check::Checker;
 use mkp_syntax::Lines;
 use serde::Serialize;
@@ -49,19 +51,30 @@ impl Diagnostic {
     }
 }
 
+/// Where a call is written: its first line and column, and where it ends.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct Written {
+    pub line: u32,
+    pub column: u32,
+    pub end: Place,
+}
+
 /// What a build gives: the IR, or none when there are errors; the file's own diagnostics, and the
-/// errors of the packs it uses; and how many errors in all.
+/// errors of the packs it uses; how many errors in all; and where each call in the file is written,
+/// by its template and site, so an editor can mark the call a failed widget's site names. No IR
+/// holds that: a page runs without its source.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Built {
     pub ir: Option<ir::File>,
     pub diagnostics: Vec<Diagnostic>,
     pub errors: usize,
+    pub sites: BTreeMap<String, BTreeMap<String, Written>>,
 }
 
 impl Built {
-    /// As JSON, `{ "ir", "diagnostics", "errors" }`: the IR as `mkp build` writes it, on one line.
+    /// As JSON, `{ "ir", "diagnostics", "errors", "sites" }`: the IR as `mkp build` writes it, on one line.
     pub fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|e| format!("{{\"ir\":null,\"diagnostics\":[],\"errors\":1,\"why\":{:?}}}", e.to_string()))
+        serde_json::to_string(self).unwrap_or_else(|e| format!("{{\"ir\":null,\"diagnostics\":[],\"errors\":1,\"sites\":{{}},\"why\":{:?}}}", e.to_string()))
     }
 }
 
@@ -112,11 +125,17 @@ impl Compiler {
             })
             .collect();
         let errors = c.diagnostics.iter().filter(|d| d.diagnostic.is_error()).count();
+        let mut sites: BTreeMap<String, BTreeMap<String, Written>> = BTreeMap::new();
+        let lines = Lines::new(text);
+        for s in c.sites.iter().filter(|s| s.file == path) {
+            let (at, end) = (lines.place(s.span.start), lines.place(s.span.end));
+            sites.entry(s.template.clone()).or_default().insert(s.site.clone(), Written { line: at.line, column: at.column, end: Place { line: end.line, column: end.column } });
+        }
         let ir = c.module.map(|mut m| {
             mkp_lower::lower(&mut m);
             ir::File { ir: m }
         });
-        Built { ir: if errors == 0 { ir } else { None }, diagnostics, errors }
+        Built { ir: if errors == 0 { ir } else { None }, diagnostics, errors, sites }
     }
 }
 

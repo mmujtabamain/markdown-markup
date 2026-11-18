@@ -26,12 +26,22 @@ export interface Diagnostic {
   fix?: string | null;
 }
 
-/** What a build gives: the IR file `mkp build` writes, or null when there are errors, and every
- * diagnostic of the file built (and the errors of its packs). */
+/** Where a call is written: its first line and column, and where it ends. */
+export interface Written {
+  line: number;
+  column: number;
+  end: { line: number; column: number };
+}
+
+/** What a build gives: the IR file `mkp build` writes, or null when there are errors; every
+ * diagnostic of the file built (and the errors of its packs); and where each call in the file is
+ * written, by its template (`doc`, `doc/share`) and site (`s1`), so an editor can mark the call a
+ * failed widget's site names. No IR holds that: a page runs without its source. */
 export interface Built {
   ir: { ir: Record<string, unknown> } | null;
   diagnostics: Diagnostic[];
   errors: number;
+  sites: Record<string, Record<string, Written>>;
 }
 
 /** Where the module comes from: its URL, its bytes, a response for it, or the module compiled. */
