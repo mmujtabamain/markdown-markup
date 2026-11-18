@@ -1,5 +1,6 @@
 // The MKP playground: edit a page on the left, see it drawn on the right, and under it its
-// Markdown, its diagnostics and its `$state`, all live.
+// Markdown, its diagnostics and its `$state`, all live. The page compiles here, in the browser:
+// mkp.wasm in a worker (compiler.worker.ts).
 
 import "./style.css";
 import { Num, Page, type Broken, type Outcome, type ir } from "@mkp/runtime";
@@ -8,6 +9,8 @@ import { Editor, type Diagnostic } from "./editor.js";
 import { escapeHtml, proseLines } from "./highlight.js";
 import { clockExterns, targetFns, themeNow, widthOf } from "./host.js";
 import { plainCases, shapeError, stateDecl, typeSignature, typeText, valueHtml, valueText } from "./values.js";
+import type { Built, PackFile } from "@mkp/wasm";
+import type { Answer, Request } from "./compiler.worker.js";
 
 type Mounted = ReturnType<typeof mount>;
 
@@ -22,12 +25,12 @@ interface Example {
 interface CompileResult {
   diagnostics: Diagnostic[];
   ir: ir.File | null;
-  markdown: string | null;
   ms?: number;
-  error?: string;
 }
 
 const DEBOUNCE_MS = 300;
+/** The page's own path, as the compiler names it in diagnostics. */
+const SOURCE_NAME = "page.mkp.md";
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -84,6 +87,8 @@ declare global {
       language(): string;
       /** Selects the first place `text` is: a test's way to point at something before typing. */
       select(text: string): boolean;
+      /** How many builds the compiler was asked for. */
+      compiles(): number;
     };
   }
 }
@@ -110,19 +115,20 @@ window.playground = {
     editor.focus();
     return true;
   },
+  compiles: () => compileSeq,
 };
 
 // ---- what the playground holds
 
 let examples: Example[] = [];
-let knownPacks: string[] = [];
+/** Each pack a page may import, by name: its files' text, given to the compiler with the page. */
+let knownPacks: Record<string, PackFile[]> = {};
 let mounted: Mounted | undefined;
 let currentIr: ir.File | undefined;
 let width = widthOf(preview.clientWidth || 800);
 let theme = themeNow();
 let compileTimer: ReturnType<typeof setTimeout> | undefined;
 let compileSeq = 0;
-let inflight: AbortController | undefined;
 let lastMarkdown = "";
 let compiledMarkdown: string | null = null;
 let markdownView: "live" | "compiled" = "live";
@@ -176,12 +182,33 @@ function drainOutcome(o: Outcome = mounted ? mounted.page.takeOutcome() : { refu
   return o;
 }
 
-// ---- compiling
+// ---- compiling: mkp.wasm, in a worker (src/compiler.worker.ts)
 
-function packsFor(source: string): string[] {
+const compiler = new Worker(new URL("/compiler.worker.js", location.href), { type: "module" });
+const WASM = new URL("/mkp.wasm", location.href).href;
+const waiting = new Map<number, (a: Answer) => void>();
+compiler.onmessage = (e: MessageEvent<Answer>) => {
+  waiting.get(e.data.id)?.(e.data);
+  waiting.delete(e.data.id);
+};
+compiler.onerror = (e) => {
+  const message = e.message || "the compiler's worker stopped";
+  for (const [id, done] of waiting) done({ id, error: message, stage: "load" });
+  waiting.clear();
+};
+let asked = 0;
+function ask(build?: Request["build"]): Promise<Answer> {
+  const id = ++asked;
+  return new Promise((done) => {
+    waiting.set(id, done);
+    compiler.postMessage({ id, wasm: WASM, build } satisfies Request);
+  });
+}
+
+function packsFor(source: string): PackFile[] {
   const found = new Set<string>();
-  for (const m of source.matchAll(/^\s*import\s+([a-z_][a-z0-9_]*)\b/gm)) if (knownPacks.includes(m[1])) found.add(m[1]);
-  return [...found];
+  for (const m of source.matchAll(/^\s*import\s+([a-z_][a-z0-9_]*)\b/gm)) if (Object.hasOwn(knownPacks, m[1])) found.add(m[1]);
+  return [...found].flatMap((p) => knownPacks[p]);
 }
 
 function scheduleCompile(): void {
@@ -190,43 +217,48 @@ function scheduleCompile(): void {
   compileTimer = setTimeout(() => void compileNow(), DEBOUNCE_MS);
 }
 
+/** A diagnostic as the playground shows it: its column as `col`, and a pack's file named. */
+function shown(d: Built["diagnostics"][number]): Diagnostic {
+  const out: Diagnostic = { line: d.line, col: d.column, severity: d.severity, code: d.code, message: d.message };
+  if (d.end) out.end = { line: d.end.line, col: d.end.column };
+  if (d.file !== SOURCE_NAME) out.file = d.file;
+  return out;
+}
+
 async function compileNow(opts: { fresh?: boolean } = {}): Promise<void> {
   clearTimeout(compileTimer);
   const source = editor.value;
   const seq = ++compileSeq;
-  inflight?.abort();
-  const ctl = new AbortController();
-  inflight = ctl;
   setStatus("compiling", "Compiling…");
-  let result: CompileResult;
-  try {
-    const res = await fetch("/api/compile", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ source, packs: packsFor(source) }),
-      signal: ctl.signal,
-    });
-    const body = (await res.json().catch(() => ({}))) as Partial<CompileResult>;
-    if (seq !== compileSeq) return;
-    if (!res.ok) {
-      serverFailed(body.error ?? `The server answered ${res.status}.`, source);
-      return;
-    }
-    result = body as CompileResult;
-  } catch (e) {
-    if ((e as Error).name === "AbortError" || seq !== compileSeq) return;
-    serverFailed("The playground's server can't be reached.", source);
+  const a = await ask({ path: SOURCE_NAME, text: source, packs: packsFor(source) });
+  // a later edit is compiling: its answer is the one shown
+  if (seq !== compileSeq) return;
+  if ("error" in a) {
+    compilerFailed(a.stage, a.error, source);
     return;
   }
-  applyResult(result, source, opts.fresh ?? false);
+  const b = a.built!;
+  applyResult({ diagnostics: b.diagnostics.map(shown), ir: b.ir as unknown as ir.File | null, ms: a.ms }, source, opts.fresh ?? false);
 }
 
-function serverFailed(message: string, source: string): void {
-  setStatus("error", "Server error", message);
+/** The compiler couldn't be loaded, or stopped on this source: shown, and told to the team. */
+function compilerFailed(stage: "load" | "build", message: string, source: string): void {
+  setStatus("error", "Compiler error", message);
   editor.setDiagnostics([], source);
   renderDiagnostics([], message);
-  if (mounted) setStale(true, "The server could not compile this version: the page is the last one that did.");
-  else showEmpty("The compiler did not answer", message);
+  if (mounted) setStale(true, "The compiler stopped on this version: the page is the last one that compiled.");
+  else showEmpty(stage === "load" ? "The compiler could not be loaded" : "The compiler stopped", message);
+  report(stage === "load" ? "compiler-load" : "compiler-crash", message, source);
+}
+
+/** A failure in the browser, sent to the server, which logs it and alerts the team. */
+function report(kind: string, message: string, source?: string): void {
+  console.error(`[playground] ${kind}: ${message}`);
+  void fetch("/api/report", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind, message, bytes: source === undefined ? undefined : new TextEncoder().encode(source).length, agent: navigator.userAgent }),
+  }).catch(() => {});
 }
 
 function applyResult(result: CompileResult, source: string, fresh: boolean): void {
@@ -241,7 +273,12 @@ function applyResult(result: CompileResult, source: string, fresh: boolean): voi
     else showEmpty("This page has errors", "Fix them, and the page is drawn here.");
     return;
   }
-  compiledMarkdown = result.markdown;
+  // `mkp md`'s Markdown: the page as it starts, with its starting values
+  try {
+    compiledMarkdown = makePage(result.ir, {}).markdown();
+  } catch {
+    compiledMarkdown = null;
+  }
   const ran = showPage(result.ir, fresh);
   if (!ran.ok) {
     setStatus("error", "Runtime error", ran.error);
@@ -444,12 +481,12 @@ el("markdown-copy").addEventListener("click", async (e) => {
 
 // ---- diagnostics
 
-function renderDiagnostics(list: Diagnostic[], serverError?: string): void {
+function renderDiagnostics(list: Diagnostic[], compilerError?: string): void {
   const errors = list.filter((d) => d.severity === "error").length;
   diagCount.textContent = list.length ? String(list.length) : "";
   diagCount.dataset.kind = errors ? "error" : list.length ? "warning" : "";
-  if (serverError) {
-    diagList.innerHTML = `<div class="empty small"><div class="empty-title">The compiler did not answer</div><div class="empty-text">${escapeHtml(serverError)}</div></div>`;
+  if (compilerError) {
+    diagList.innerHTML = `<div class="empty small"><div class="empty-title">The compiler did not answer</div><div class="empty-text">${escapeHtml(compilerError)}</div></div>`;
     return;
   }
   if (!list.length) {
@@ -760,12 +797,15 @@ el<HTMLAnchorElement>("brand").addEventListener("click", (e) => {
 
 async function init(): Promise<void> {
   setStatus("loading", "Loading…");
+  // core is compiled as the compiler loads: started while the examples come (a failure shows at
+  // the first build, which tries again)
+  void ask();
   try {
     const res = await fetch("/api/examples");
     if (!res.ok) throw new Error(`the server answered ${res.status}`);
-    const body = (await res.json()) as { examples: Example[]; packs: string[] };
+    const body = (await res.json()) as { examples: Example[]; packs: string[]; packFiles: Record<string, PackFile[]> };
     examples = body.examples;
-    knownPacks = body.packs;
+    knownPacks = body.packFiles;
   } catch (e) {
     setStatus("error", "Server error", `The examples could not be loaded: ${(e as Error).message}`);
     return;

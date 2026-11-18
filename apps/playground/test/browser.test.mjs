@@ -1,13 +1,13 @@
 // The playground in a real Chromium: it loads, draws a page, follows the editor, and the page's
 // Markdown and $state follow the reader. Chromium is MKP_CHROMIUM, or /usr/bin/chromium; none is
-// downloaded. Skipped when @mkp/dom isn't built yet, or there is no Chromium or mkp binary.
+// downloaded. Skipped when @mkp/dom isn't built yet, or there is no Chromium or mkp.wasm.
 
 import { test, before, after, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { findBinary, startServer } from "../server.mjs";
+import { startServer } from "../server.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = join(here, "..");
@@ -18,8 +18,8 @@ const skip = !domBuilt
   ? "@mkp/dom is not built: run npm run build in targets/ts/dom"
   : !existsSync(chromiumPath)
     ? `no Chromium at ${chromiumPath}: set MKP_CHROMIUM`
-    : !findBinary()
-      ? "no mkp binary: build targets/rust"
+    : !existsSync(join(app, "node_modules/@mkp/wasm/mkp.wasm"))
+      ? "no mkp.wasm: run targets/rust/wasm/build.sh"
       : false;
 
 const quiet = { info() {}, warn() {}, error: (m, f) => process.stderr.write(`server: ${m} ${JSON.stringify(f ?? {})}\n`) };
@@ -332,13 +332,10 @@ describe("the playground in Chromium", { skip }, () => {
     await tab.keyboard.press("Backspace");
     await compiled("ok");
     // no edit now, so only Ctrl+S can start a compile
-    const compiles = [];
-    const seen = (r) => r.url().endsWith("/api/compile") && compiles.push(r);
-    tab.on("request", seen);
+    const before = await tab.evaluate(() => window.playground.compiles());
     await tab.keyboard.press("Control+s");
     await tab.waitForTimeout(800);
-    tab.off("request", seen);
-    assert.equal(compiles.length, 1, "one compile, straight away");
+    assert.equal(await tab.evaluate(() => window.playground.compiles()) - before, 1, "one compile, straight away");
     await compiled("ok");
   });
 
@@ -374,6 +371,33 @@ describe("the playground in Chromium", { skip }, () => {
     assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), at), [{ text: "@// a note nobody sees", type: "comment.mkp" }]);
     assert.doesNotMatch(await markdown().textContent(), /a note nobody sees/);
     assert.doesNotMatch(await preview().textContent(), /a note nobody sees/);
+  });
+
+  test("compiles in the browser: no request to the server for a build", async () => {
+    const asked = [];
+    const seen = (r) => r.url().startsWith(server.url) && r.method() === "POST" && asked.push(r.url());
+    tab.on("request", seen);
+    await typeAtEnd("\nCompiled here.\n");
+    await compiled("ok");
+    tab.off("request", seen);
+    assert.deepEqual(asked, []);
+    assert.match(await preview().textContent(), /Compiled here\./);
+  });
+
+  test("a compiler that can't be loaded says so, and the server is told", async () => {
+    const other = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    try {
+      await other.route("**/mkp.wasm", (r) => r.fulfill({ status: 404, body: "gone" }));
+      const reported = other.waitForRequest((r) => r.url().endsWith("/api/report") && r.method() === "POST");
+      await other.goto(server.url);
+      const req = await reported;
+      assert.equal(JSON.parse(req.postData()).kind, "compiler-load");
+      await other.waitForSelector("[data-testid=status][data-state=error]");
+      assert.match(await other.getByTestId("status").textContent(), /Compiler error/);
+      assert.match(await other.getByTestId("preview").textContent(), /The compiler could not be loaded/);
+    } finally {
+      await other.close();
+    }
   });
 
   test("no errors in the browser's console", () => {
