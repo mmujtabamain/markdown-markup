@@ -16,7 +16,7 @@ pub mod proof;
 pub mod ty;
 mod migrations;
 mod rir;
-pub use rir::{compile_rir, sha256_hex};
+pub use rir::{compile_rir, compile_rir_with, sha256_hex, RirOptions};
 mod versions;
 mod view;
 
@@ -1156,7 +1156,22 @@ pub fn duration_ms(t: &str) -> String {
 
 /// Compiles core alone, to build other compiles on.
 pub fn compile_core(core: &[Source]) -> Checker {
+    core_checker(core, false)
+}
+
+/// Core compiled with what each of its names resolved to and each expression's type kept, so a
+/// resolved IR can hold core's own files (`RirOptions::core`). Slower and larger than
+/// `compile_core`: for editors.
+pub fn compile_core_logged(core: &[Source]) -> Checker {
+    core_checker(core, true)
+}
+
+fn core_checker(core: &[Source], logged: bool) -> Checker {
     let mut c = Checker::new();
+    if logged {
+        c.refs = Some(Vec::new());
+        c.typed = Some(HashMap::new());
+    }
     c.module = "core".into();
     for s in core {
         c.add_file(s);

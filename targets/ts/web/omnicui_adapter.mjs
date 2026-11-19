@@ -13,7 +13,7 @@
 // Part ids are `<component id>.<part>`; how a part finds its element is in mark() below and in
 // README.md. Chromium is XTMD_CHROMIUM, or /usr/bin/chromium; none is downloaded.
 //
-//   node omnicui_adapter.mjs [--contracts <file>]
+//   node omnicui_adapter.mjs [--contracts <file>] [--harness <file>]
 //
 // --contracts names the JSON that omnicui/stubs.mjs wrote (every contract, from omnicui's `stubs:`):
 // a prop a test leaves out takes the contract's default from it.
@@ -118,7 +118,10 @@ const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${bui
 
 // ---- the harness, served with each page's IR
 
-const bundle = await build({ entryPoints: [join(here, "omnicui/harness.mjs")], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", logLevel: "silent" });
+// --harness: another target's entry, which sets its widgets and then loads omnicui/harness.mjs
+const harnessArg = process.argv.indexOf("--harness");
+const harnessEntry = harnessArg > 0 ? resolve(process.argv[harnessArg + 1]) : join(here, "omnicui/harness.mjs");
+const bundle = await build({ entryPoints: [harnessEntry], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", logLevel: "silent" });
 const harness = bundle.outputFiles[0].text;
 const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Extended Mark widget</title>
 <style>html, body { margin: 0; } body { padding: 8px; } #page { min-height: 1px; }</style></head><body><main id="page"></main><script src="/harness.js"></script></body></html>`;

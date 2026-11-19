@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Extended Mark (prose)",
+  "scopeName": "text.xtmd.prose",
+  "comment": "An Extended Mark document with no @@@ line: Markdown and widget calls all through.",
+  "patterns": [
+    {
+      "include": "source.xtmd#front-matter"
+    },
+    {
+      "include": "source.xtmd#prose"
+    }
+  ]
+}

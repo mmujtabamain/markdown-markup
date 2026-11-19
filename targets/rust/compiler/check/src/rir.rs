@@ -12,21 +12,44 @@ use serde_json::{json, Map, Value};
 use crate::ty::Ty;
 use crate::{compile_with, Checker, Compiled, DefKind, RefTarget, Source, TypeSym};
 
+/// What else a resolved IR holds, for an editor.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RirOptions {
+    /// Core's own files too, before the build's: what an editor completes, shows and goes to. They
+    /// are resolved when the base was compiled by `compile_core_logged`.
+    pub core: bool,
+    /// Written when the build has errors too, with what the checker resolved before it stopped: an
+    /// editor's draft is often broken, and its names and types still help.
+    pub partial: bool,
+}
+
 /// Compiles as `compile_on` does, and writes the resolved IR of every file it adds when the
 /// build compiles.
 pub fn compile_rir(base: &Checker, packs: &[Vec<Source>], main: &[Source], module: &str) -> (Compiled, Option<Value>) {
+    compile_rir_with(base, packs, main, module, RirOptions::default())
+}
+
+/// `compile_rir`, with core's files and a broken build's resolved IR when asked.
+pub fn compile_rir_with(base: &Checker, packs: &[Vec<Source>], main: &[Source], module: &str, opts: RirOptions) -> (Compiled, Option<Value>) {
     let mut c = base.clone();
-    c.refs = Some(Vec::new());
-    c.typed = Some(HashMap::new());
+    // a base compiled by compile_core_logged keeps what core's names resolved to
+    c.refs.get_or_insert_with(Vec::new);
+    c.typed.get_or_insert_with(HashMap::new);
     let first = c.files.len();
     let (compiled, mut c) = compile_with(c, packs, main, module);
-    if compiled.module.is_none() {
+    if compiled.module.is_none() && !opts.partial {
         return (compiled, None);
     }
     let mut w = Writer::new(&mut c);
-    let files: Vec<Value> = (first..w.c.files.len()).map(|f| w.file(f)).collect();
+    let files: Vec<Value> = (if opts.core { 0 } else { first }..w.c.files.len()).map(|f| w.file(f)).collect();
     let packs = w.packs();
-    let root = json!({ "rir": 1, "xtmd": env!("CARGO_PKG_VERSION"), "packs": packs, "files": files });
+    let mut root = json!({ "rir": 1, "xtmd": env!("CARGO_PKG_VERSION"), "packs": packs, "files": files });
+    // what a document needs to run, as its IR says: the levels
+    if module == "doc" {
+        if let Some(m) = &compiled.module {
+            root["levels"] = serde_json::to_value(&m.levels).unwrap_or_default();
+        }
+    }
     (compiled, Some(root))
 }
 

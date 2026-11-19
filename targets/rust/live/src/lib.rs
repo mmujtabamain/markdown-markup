@@ -62,13 +62,34 @@ pub struct Written {
 /// What a build gives: the IR, or none when there are errors; the file's own diagnostics, and the
 /// errors of the packs it uses; how many errors in all; and where each call in the file is written,
 /// by its template and site, so an editor can mark the call a failed widget's site names. No IR
-/// holds that: a page runs without its source.
+/// holds that: a page runs without its source. With [`BuildOptions::rir`], the resolved IR too.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Built {
     pub ir: Option<ir::File>,
     pub diagnostics: Vec<Diagnostic>,
     pub errors: usize,
     pub sites: BTreeMap<String, BTreeMap<String, Written>>,
+    /// The resolved IR (schemas/rir.schema.json), as `xtmd build --rir` writes it, when asked: for
+    /// an editor, so it is written for a text with errors too, with what was resolved.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rir: Option<serde_json::Value>,
+}
+
+/// What else a build gives, for an editor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct BuildOptions {
+    /// The resolved IR, in [`Built::rir`].
+    pub rir: bool,
+    /// Core's own files in the resolved IR, resolved too: what an editor completes and goes to.
+    pub core: bool,
+}
+
+/// What formatting a text gives: its canonical layout (`xtmd fmt`'s), or the syntax errors that
+/// stop it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Formatted {
+    pub text: Option<String>,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 impl Built {
@@ -81,6 +102,9 @@ impl Built {
 /// The compiler, with core compiled: make it once (that is the slow part) and build every text with it.
 pub struct Compiler {
     base: Checker,
+    /// Core compiled again with its names' resolutions kept, the first time a resolved IR with
+    /// core's files is asked for.
+    logged: std::sync::OnceLock<Checker>,
 }
 
 impl Default for Compiler {
@@ -92,37 +116,36 @@ impl Default for Compiler {
 impl Compiler {
     /// Compiles core, from the sources embedded in this library.
     pub fn new() -> Compiler {
-        let core: Vec<Source> = CORE.iter().map(|(p, t)| Source { path: p.to_string(), text: t.to_string() }).collect();
-        Compiler { base: xtmd_check::compile_core(&core) }
+        Compiler { base: xtmd_check::compile_core(&core()), logged: std::sync::OnceLock::new() }
+    }
+
+    fn core_sources() -> Vec<Source> {
+        core()
     }
 
     /// Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its text;
     /// and the files of the packs it may use. The IR is the one `xtmd build` writes: every prop
     /// that isn't constant a binding, and a page's only what it uses.
     pub fn build(&self, path: &str, text: &str, packs: &[Source]) -> Built {
+        self.build_with(path, text, packs, BuildOptions::default())
+    }
+
+    /// [`Compiler::build`], with the resolved IR when `opts` asks.
+    pub fn build_with(&self, path: &str, text: &str, packs: &[Source], opts: BuildOptions) -> Built {
         let packs: Vec<Source> = packs.iter().filter(|p| p.path != path).cloned().collect();
         let module = if path.ends_with(".xt.md") { "doc" } else { "main" };
-        let c = xtmd_check::compile_on(&self.base, &[packs], &[Source { path: path.to_string(), text: text.to_string() }], module);
+        let main = [Source { path: path.to_string(), text: text.to_string() }];
+        let (c, rir) = if opts.rir {
+            let base = if opts.core { self.logged.get_or_init(|| xtmd_check::compile_core_logged(&Self::core_sources())) } else { &self.base };
+            xtmd_check::compile_rir_with(base, &[packs], &main, module, xtmd_check::RirOptions { core: opts.core, partial: true })
+        } else {
+            (xtmd_check::compile_on(&self.base, &[packs], &main, module), None)
+        };
         let diagnostics = c
             .diagnostics
             .iter()
             .filter(|d| d.file == path || d.diagnostic.is_error())
-            .map(|d| {
-                let text = c.texts.get(&d.file).map(String::as_str).unwrap_or("");
-                let lines = Lines::new(text);
-                let (at, end) = (lines.place(d.diagnostic.span.start), lines.place(d.diagnostic.span.end));
-                Diagnostic {
-                    kind: "diagnostic",
-                    file: d.file.clone(),
-                    code: d.diagnostic.code.to_string(),
-                    severity: d.diagnostic.severity,
-                    line: at.line,
-                    column: at.column,
-                    end: Place { line: end.line, column: end.column },
-                    message: d.diagnostic.message.clone(),
-                    fix: d.diagnostic.fix.clone(),
-                }
-            })
+            .map(|d| diagnostic(&d.file, c.texts.get(&d.file).map(String::as_str).unwrap_or(""), &d.diagnostic))
             .collect();
         let errors = c.diagnostics.iter().filter(|d| d.diagnostic.is_error()).count();
         let mut sites: BTreeMap<String, BTreeMap<String, Written>> = BTreeMap::new();
@@ -135,7 +158,43 @@ impl Compiler {
             xtmd_lower::lower(&mut m);
             ir::File { ir: m }
         });
-        Built { ir: if errors == 0 { ir } else { None }, diagnostics, errors, sites }
+        Built { ir: if errors == 0 { ir } else { None }, diagnostics, errors, sites, rir }
+    }
+
+    /// `text` in the canonical layout, as `xtmd fmt` writes it: `path` says a document
+    /// (`.xt.md`) or a pack's file (`.xtpack`). A text that doesn't read gives its syntax errors.
+    pub fn format(&self, path: &str, text: &str) -> Formatted {
+        let Some(entry) = xtmd_syntax::entry_for(path) else {
+            let d = xtmd_syntax::Diagnostic::error("file.not-extended-mark", xtmd_syntax::Span { start: 0, end: 0 }, format!("{}: not an Extended Mark file (.xtpack or .xt.md)", path));
+            return Formatted { text: None, diagnostics: vec![diagnostic(path, text, &d)] };
+        };
+        match xtmd_syntax::format(text, entry) {
+            Ok(t) => Formatted { text: Some(t), diagnostics: Vec::new() },
+            Err(ds) => Formatted { text: None, diagnostics: ds.iter().map(|d| diagnostic(path, text, d)).collect() },
+        }
+    }
+}
+
+/// Core's own files, as this library compiles them: `core/controls.xtpack` and the rest, with their
+/// text, for an editor that shows core's declarations.
+pub fn core() -> Vec<Source> {
+    CORE.iter().map(|(p, t)| Source { path: p.to_string(), text: t.to_string() }).collect()
+}
+
+/// A diagnostic of `file`, whose text is `text`, as `xtmd check --format json` writes one.
+fn diagnostic(file: &str, text: &str, d: &xtmd_syntax::Diagnostic) -> Diagnostic {
+    let lines = Lines::new(text);
+    let (at, end) = (lines.place(d.span.start), lines.place(d.span.end));
+    Diagnostic {
+        kind: "diagnostic",
+        file: file.to_string(),
+        code: d.code.to_string(),
+        severity: d.severity,
+        line: at.line,
+        column: at.column,
+        end: Place { line: end.line, column: end.column },
+        message: d.message.clone(),
+        fix: d.fix.clone(),
     }
 }
 

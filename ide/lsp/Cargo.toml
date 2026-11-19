@@ -1,0 +1,21 @@
+[package]
+name = "xtmd-lsp"
+description = "Extended Mark's editor features and its language server: diagnostics, hover, definition, outline, completion and formatting, over the Language Server Protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+workspace = "../../targets/rust"
+
+[features]
+default = ["fs"]
+# the server reads xtmd.toml and the packs it names from disk (xtmd lsp); without it, the client
+# gives them (a browser, through @extended-mark/wasm)
+fs = ["dep:toml"]
+
+[dependencies]
+xtmd-live = { path = "../../targets/rust/live", version = "0.3.0" }
+xtmd-syntax = { path = "../../targets/rust/compiler/syntax", version = "0.3.0" }
+serde.workspace = true
+serde_json.workspace = true
+toml = { version = "0.8", optional = true }

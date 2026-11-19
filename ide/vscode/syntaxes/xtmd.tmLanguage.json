@@ -1,0 +1,529 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Extended Mark",
+  "scopeName": "source.xtmd",
+  "comment": "Extended Mark: a document's definitions above its @@@ line, and Markdown with widget calls below it (a .xt.md); a pack's file is definitions only (a .xtpack). The extension gives a document with no @@@ line the prose grammar (text.xtmd.prose).",
+  "patterns": [
+    {
+      "include": "#front-matter"
+    },
+    {
+      "name": "meta.prose.xtmd",
+      "begin": "^(@@@)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.divider.xtmd"
+        }
+      },
+      "end": "(?!)",
+      "patterns": [
+        {
+          "include": "#prose"
+        }
+      ]
+    },
+    {
+      "include": "#code"
+    }
+  ],
+  "repository": {
+    "code": {
+      "patterns": [
+        {
+          "include": "#comment-doc"
+        },
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#string"
+        },
+        {
+          "include": "#number"
+        },
+        {
+          "include": "#state"
+        },
+        {
+          "include": "#call"
+        },
+        {
+          "include": "#decl-type"
+        },
+        {
+          "include": "#decl-fn"
+        },
+        {
+          "include": "#decl-pack"
+        },
+        {
+          "include": "#decl-ns"
+        },
+        {
+          "include": "#type-annotation"
+        },
+        {
+          "include": "#generic"
+        },
+        {
+          "include": "#fn-call"
+        },
+        {
+          "include": "#keyword-control"
+        },
+        {
+          "include": "#keyword-storage"
+        },
+        {
+          "include": "#constant-language"
+        },
+        {
+          "include": "#core-type"
+        },
+        {
+          "include": "#case"
+        },
+        {
+          "include": "#operator"
+        },
+        {
+          "include": "#punctuation"
+        }
+      ]
+    },
+    "comment-doc": {
+      "name": "comment.line.documentation.xtmd",
+      "match": "//@[a-z]+.*$"
+    },
+    "comment": {
+      "name": "comment.line.double-slash.xtmd",
+      "match": "//.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.xtmd",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.xtmd"
+        }
+      },
+      "end": "\"|$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.xtmd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#hole"
+        },
+        {
+          "name": "constant.character.escape.xtmd",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "hole": {
+      "name": "meta.embedded.hole.xtmd",
+      "begin": "\\\\\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.xtmd"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.xtmd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.xtmd",
+      "match": "(?<![A-Za-z0-9_])\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:ms|s|d|h|m)?(?![A-Za-z0-9_])"
+    },
+    "state": {
+      "name": "variable.language.state.xtmd",
+      "match": "\\$state\\b"
+    },
+    "call": {
+      "match": "(@)([a-z_][a-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.call.xtmd"
+        },
+        "2": {
+          "name": "entity.name.tag.widget.xtmd"
+        }
+      }
+    },
+    "decl-type": {
+      "match": "\\b(record|enum|interface|type|token|tokens)\\s+([a-z_][a-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.xtmd"
+        },
+        "2": {
+          "name": "entity.name.type.xtmd"
+        }
+      }
+    },
+    "decl-fn": {
+      "match": "\\b(widget|fn)\\s+([a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)?)",
+      "captures": {
+        "1": {
+          "name": "storage.type.xtmd"
+        },
+        "2": {
+          "name": "entity.name.function.xtmd"
+        }
+      }
+    },
+    "decl-pack": {
+      "match": "\\b(pack)\\s+([a-z_][a-z0-9_]*)(@\\d+)?",
+      "captures": {
+        "1": {
+          "name": "storage.type.xtmd"
+        },
+        "2": {
+          "name": "entity.name.namespace.xtmd"
+        },
+        "3": {
+          "name": "constant.numeric.version.xtmd"
+        }
+      }
+    },
+    "decl-ns": {
+      "match": "\\b(package|import)\\s+([a-z_][a-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.import.xtmd"
+        },
+        "2": {
+          "name": "entity.name.namespace.xtmd"
+        }
+      }
+    },
+    "type-annotation": {
+      "match": "(:)\\s*(?!(?:if|else|for|in|match|case|return|try|with|only|step|invoke|true|false|self|void|any)\\b)([a-z_][a-z0-9_]*)\\b(?!\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "punctuation.separator.type.xtmd"
+        },
+        "2": {
+          "name": "entity.name.type.xtmd"
+        }
+      }
+    },
+    "generic": {
+      "name": "entity.name.type.xtmd",
+      "match": "\\b[a-z_][a-z0-9_]*(?=<[a-z])"
+    },
+    "fn-call": {
+      "name": "entity.name.function.call.xtmd",
+      "match": "\\b(?!(?:if|for|match|fn|return|try|with|while)\\b)[a-z_][a-z0-9_]*(?=\\s*\\()"
+    },
+    "keyword-control": {
+      "name": "keyword.control.xtmd",
+      "match": "\\b(?:if|else|for|in|match|case|return|try|with|only|step|invoke)\\b"
+    },
+    "keyword-storage": {
+      "name": "storage.type.xtmd",
+      "match": "\\b(?:package|import|enum|record|type|interface|implements|widget|extern|expose|fn|pack|tokens|token|mut|let|event|view|markdown|require|param|slot|as|migration|uses|provides)\\b"
+    },
+    "constant-language": {
+      "name": "constant.language.xtmd",
+      "match": "\\b(?:true|false|self|void|any)\\b"
+    },
+    "core-type": {
+      "name": "support.type.xtmd",
+      "match": "\\b(?:int|number|text|bool|list|opt|map|date|moment|duration|range|point|region|size|space|color|radius|font|shadow|stroke|template|md|rich_text|latex)\\b"
+    },
+    "case": {
+      "name": "constant.other.case.xtmd",
+      "match": "\\b[A-Z][A-Z0-9_]*\\b"
+    },
+    "operator": {
+      "name": "keyword.operator.xtmd",
+      "match": "\\.\\.\\.?|[=<>!+\\-*/%&|?:]+"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.braces.xtmd",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.parens.xtmd",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.section.brackets.xtmd",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.separator.xtmd",
+          "match": "[;,.]"
+        }
+      ]
+    },
+    "prose": {
+      "patterns": [
+        {
+          "include": "#fence"
+        },
+        {
+          "include": "#maths"
+        },
+        {
+          "include": "#heading"
+        },
+        {
+          "include": "#prose-comment"
+        },
+        {
+          "include": "#control-line"
+        },
+        {
+          "include": "#call-line"
+        },
+        {
+          "include": "#closer-line"
+        },
+        {
+          "include": "#case-line"
+        },
+        {
+          "include": "#list-marker"
+        },
+        {
+          "include": "#quote-marker"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "fence": {
+      "name": "markup.fenced_code.block.markdown",
+      "begin": "^\\s*(`{3,}|~{3,})\\s*([\\w-]*).*$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.markdown"
+        },
+        "2": {
+          "name": "fenced_code.block.language.markdown"
+        }
+      },
+      "end": "^\\s*\\1\\s*$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.markdown"
+        }
+      }
+    },
+    "maths": {
+      "name": "markup.math.block.xtmd",
+      "begin": "^\\s*\\$\\$\\s*$",
+      "end": "^\\s*\\$\\$\\s*$"
+    },
+    "heading": {
+      "name": "markup.heading.markdown",
+      "begin": "^(#{1,6})(?=\\s|$)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.heading.markdown"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#hole"
+        },
+        {
+          "name": "entity.name.section.markdown",
+          "match": "[^\\\\]+"
+        }
+      ]
+    },
+    "prose-comment": {
+      "name": "comment.line.prose.xtmd",
+      "match": "^ {0,3}@//.*$"
+    },
+    "args": {
+      "begin": "\\(",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.begin.xtmd"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.end.xtmd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#args"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "control-line": {
+      "name": "meta.control.xtmd",
+      "begin": "^ {0,3}(@)(?:(mut)\\s+)?(if|for|match|slot)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.call.xtmd"
+        },
+        "2": {
+          "name": "storage.modifier.xtmd"
+        },
+        "3": {
+          "name": "keyword.control.xtmd"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#args"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "call-line": {
+      "name": "meta.call.xtmd",
+      "begin": "^ {0,3}(@)([a-z_][a-z0-9_]*)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.call.xtmd"
+        },
+        "2": {
+          "name": "entity.name.tag.widget.xtmd"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#args"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "closer-line": {
+      "begin": "^\\s*(?=\\})",
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#args"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "case-line": {
+      "begin": "^\\s*(?=case\\b.*\\{\\s*$)",
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "list-marker": {
+      "match": "^\\s*([-*+]|\\d+\\.)\\s",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.list.begin.markdown"
+        }
+      }
+    },
+    "quote-marker": {
+      "match": "^\\s*(>)\\s?",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.quote.begin.markdown"
+        }
+      }
+    },
+    "inline": {
+      "patterns": [
+        {
+          "include": "#hole"
+        },
+        {
+          "name": "constant.character.escape.xtmd",
+          "match": "\\\\[^{]"
+        },
+        {
+          "name": "markup.inline.raw.string.markdown",
+          "match": "(`+)[^`]+?\\1"
+        },
+        {
+          "name": "markup.bold.markdown",
+          "match": "\\*\\*[^*]+\\*\\*|__[^_]+__"
+        },
+        {
+          "name": "markup.italic.markdown",
+          "match": "\\*[^*\\s](?:[^*]*[^*\\s])?\\*|\\b_[^_\\s](?:[^_]*[^_\\s])?_\\b"
+        },
+        {
+          "match": "(\\[)([^\\]]+)(\\])(\\()([^)]*)(\\))",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.link.title.begin.markdown"
+            },
+            "2": {
+              "name": "string.other.link.title.markdown"
+            },
+            "3": {
+              "name": "punctuation.definition.link.title.end.markdown"
+            },
+            "4": {
+              "name": "punctuation.definition.metadata.markdown"
+            },
+            "5": {
+              "name": "markup.underline.link.markdown"
+            },
+            "6": {
+              "name": "punctuation.definition.metadata.markdown"
+            }
+          }
+        }
+      ]
+    },
+    "front-matter": {
+      "name": "meta.embedded.block.frontmatter",
+      "begin": "\\A(---)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.frontmatter.xtmd"
+        }
+      },
+      "end": "^(---)\\s*$",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.frontmatter.xtmd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    }
+  }
+}

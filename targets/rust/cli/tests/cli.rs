@@ -964,3 +964,92 @@ fn a_pages_ir_holds_only_what_the_page_uses() {
     let pack = names(&ir_of("pack.xtpack"));
     assert!(pack.len() > kept.len() * 3 && pack.contains(&"core/entities".to_string()), "{} vs {}", pack.len(), kept.len());
 }
+
+/// `xtmd` with `input` on stdin.
+fn xtmd_stdin(args: &[&str], input: &str) -> (i32, String, String) {
+    use std::io::Write;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_xtmd")).args(args).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+    // a run that stops at a usage error reads none of it: a closed pipe is no failure
+    let _ = child.stdin.take().unwrap().write_all(input.as_bytes());
+    let out = child.wait_with_output().unwrap();
+    (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+}
+
+#[test]
+fn fmt_stdin_formats_an_unsaved_text_and_never_touches_the_file() {
+    let messy = "$state {\n  n: int = 0;\n}\n@@@\n# Hi\n";
+    let tidy = "$state {\n    n: int = 0;\n}\n@@@\n# Hi\n";
+    // the file named needn't exist: it only says the text is a document
+    let dir = scratch("fmt-stdin", &[("page.xt.md", "# On disk\n")]);
+    let page = dir.join("page.xt.md");
+    let (code, out, _) = xtmd_stdin(&["fmt", "--stdin", page.to_str().unwrap()], messy);
+    assert_eq!((code, out.as_str()), (0, tidy));
+    assert_eq!(std::fs::read_to_string(&page).unwrap(), "# On disk\n");
+    let (code, out, _) = xtmd_stdin(&["fmt", "--stdin", "nowhere/draft.xt.md"], messy);
+    assert_eq!((code, out.as_str()), (0, tidy));
+    // --check fails when it would change, and --diff shows how
+    assert_eq!(xtmd_stdin(&["fmt", "--stdin", "--check", "draft.xt.md"], messy).0, 1);
+    assert_eq!(xtmd_stdin(&["fmt", "--stdin", "--check", "draft.xt.md"], tidy).0, 0);
+    let (_, diff, _) = xtmd_stdin(&["fmt", "--stdin", "--diff", "draft.xt.md"], messy);
+    assert!(diff.contains("-  n: int = 0;") && diff.contains("+    n: int = 0;"), "{}", diff);
+    // --format json: the text in the line
+    let (code, out, _) = xtmd_stdin(&["fmt", "--stdin", "--format", "json", "draft.xt.md"], messy);
+    assert_eq!(code, 0);
+    assert!(out.contains("\"result\":\"printed\"") && out.contains("\"text\":\"$state {\\n    n: int = 0;"), "{}", out);
+    // a text that doesn't read: its syntax error, exit 1
+    let (code, out, err) = xtmd_stdin(&["fmt", "--stdin", "draft.xtpack"], "package t;\nlet = ;\n");
+    assert_eq!((code, out.as_str()), (1, ""), "{}", err);
+    assert!(err.contains("draft.xtpack:2:"), "{}", err);
+    // usage: one path, of an Extended Mark file
+    assert_eq!(xtmd_stdin(&["fmt", "--stdin"], messy).0, 2);
+    assert_eq!(xtmd_stdin(&["fmt", "--stdin", "a.xt.md", "b.xt.md"], messy).0, 2);
+    let (code, _, err) = xtmd_stdin(&["fmt", "--stdin", "notes.md"], messy);
+    assert_eq!(code, 2);
+    assert!(err.contains("not an Extended Mark file"), "{}", err);
+}
+
+#[test]
+fn build_rir_core_writes_cores_files_resolved_before_the_document() {
+    let dir = scratch("rir-core", &[("page.xt.md", "@@@\n@press(label = \"Go\");\n")]);
+    let page = dir.join("page.xt.md");
+    let (code, out, err) = xtmd(&["build", "--rir", "--core", page.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    let rir: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let files = rir["files"].as_array().unwrap();
+    assert!(files.len() > 10 && files[0]["path"].as_str().unwrap().starts_with("core/"), "{}", files.len());
+    assert_eq!(files.last().unwrap()["path"], page.to_str().unwrap());
+    let controls = files.iter().find(|f| f["path"] == "core/controls.xtpack").unwrap();
+    assert!(controls.to_string().contains("\"id\":\"core/press.label\""));
+    // without --core, only the document
+    let (_, out, _) = xtmd(&["build", "--rir", page.to_str().unwrap()]);
+    let rir: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(rir["files"].as_array().unwrap().len(), 1);
+    // --core goes with --rir
+    let (code, _, err) = xtmd(&["build", "--core", page.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("it goes with --rir"), "{}", err);
+}
+
+#[test]
+fn lsp_serves_the_protocol_over_stdio() {
+    let dir = scratch("lsp", &[("xtmd.toml", "packs = [\"shelf\"]\n"), ("shelf/shelf.xtpack", SHELF), ("docs/doc.xt.md", DOC)]);
+    let doc = dir.join("docs/doc.xt.md");
+    let uri = format!("file://{}", doc.display());
+    let msgs = [
+        serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": { "capabilities": {} } }),
+        serde_json::json!({ "jsonrpc": "2.0", "method": "textDocument/didOpen", "params": { "textDocument": { "uri": uri, "languageId": "xtmd", "version": 1, "text": DOC } } }),
+        serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "textDocument/hover", "params": { "textDocument": { "uri": uri }, "position": { "line": 4, "character": 3 } } }),
+        serde_json::json!({ "jsonrpc": "2.0", "id": 3, "method": "shutdown" }),
+        serde_json::json!({ "jsonrpc": "2.0", "method": "exit" }),
+    ];
+    let input: String = msgs.iter().map(|m| format!("Content-Length: {}\r\n\r\n{}", m.to_string().len(), m)).collect();
+    let (code, out, err) = xtmd_stdin(&["lsp"], &input);
+    assert_eq!(code, 0, "{}", err);
+    assert!(out.contains("\"name\":\"xtmd lsp\""), "{}", out);
+    // the document's pack, from its xtmd.toml on disk: no errors, and hover knows the pack's widget
+    assert!(out.contains("\"diagnostics\":[]"), "{}", out);
+    assert!(out.contains("widget row_of_books(title: text)"), "{}", out);
+    // input that ends without shutdown and exit is exit 1
+    assert_eq!(xtmd_stdin(&["lsp"], "").0, 1);
+    assert!(xtmd(&["lsp", "--help"]).1.contains("usage: xtmd lsp"));
+}

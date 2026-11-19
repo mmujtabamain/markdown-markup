@@ -281,13 +281,22 @@ fn build(args: &[String]) -> ExitCode {
     };
     let module = if migrate::is_doc(path) { "doc" } else { "main" };
     let rir = args.iter().any(|a| a == "--rir");
+    let with_core = args.iter().any(|a| a == "--core");
+    if with_core && !rir {
+        eprintln!("--core adds core's files to the resolved IR: it goes with --rir");
+        return ExitCode::from(2);
+    }
     let json_diags = match json_or_exit(args) {
         Ok(j) => j,
         Err(c) => return c,
     };
     let main = [xtmd_check::Source { path: path.clone(), text }];
     let packs = without(&packs, path);
-    let (mut c, resolved) = if rir {
+    let (mut c, resolved) = if rir && with_core {
+        // core compiled with what its names resolve to kept, so its files are written resolved too
+        let base = xtmd_check::compile_core_logged(&core_sources());
+        xtmd_check::compile_rir_with(&base, &[packs], &main, module, xtmd_check::RirOptions { core: true, partial: false })
+    } else if rir {
         let base = xtmd_check::compile_core(&core_sources());
         xtmd_check::compile_rir(&base, &[packs], &main, module)
     } else {
@@ -306,12 +315,7 @@ fn build(args: &[String]) -> ExitCode {
     let Some(mut m) = c.module else { return ExitCode::from(1) };
     let json = match resolved {
         // the resolved IR: what the checker understood, for tools, and what the document needs
-        Some(mut r) => {
-            if module == "doc" {
-                r["levels"] = serde_json::json!(levels_of(&m));
-            }
-            serde_json::to_string_pretty(&r).unwrap()
-        }
+        Some(r) => serde_json::to_string_pretty(&r).unwrap(),
         None => {
             // every prop that isn't constant becomes a binding with what it reads
             xtmd_lower::lower(&mut m);
@@ -381,6 +385,64 @@ fn positional(args: &[String]) -> Vec<&String> {
     out
 }
 
+/// `xtmd fmt --stdin path`: stdin's text in the canonical layout on stdout, or with --check and
+/// --diff, whether and how it would change; the file at `path` is never read or written.
+fn fmt_text(path: &str, check: bool, diff: bool, json: bool) -> ExitCode {
+    let Some(entry) = entry_for(path) else {
+        eprintln!("{}: not an Extended Mark file (.xtpack or .xt.md): --stdin's path says what the text is", path);
+        return ExitCode::from(2);
+    };
+    let mut src = String::new();
+    if let Err(e) = std::io::Read::read_to_string(&mut std::io::stdin(), &mut src) {
+        eprintln!("stdin: {}", e);
+        return ExitCode::from(2);
+    }
+    let line = |result: &str, more: serde_json::Value| {
+        let mut v = serde_json::json!({ "type": "file", "file": path, "result": result });
+        if let serde_json::Value::Object(m) = more {
+            v.as_object_mut().unwrap().extend(m);
+        }
+        out::line(v);
+    };
+    match format(&src, entry) {
+        Ok(text) if check || diff => {
+            let same = text == src;
+            if diff && !same {
+                let d = migrate::unified(path, &src, &text);
+                if json {
+                    line("would change", serde_json::json!({ "diff": d }));
+                } else {
+                    out::print(&d);
+                }
+            } else if json {
+                line(if same { "canonical" } else { "would change" }, serde_json::json!({}));
+            } else if !same {
+                eprintln!("{}: not in the canonical layout", path);
+            }
+            if check && !same {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
+        Ok(text) => {
+            if json {
+                line("printed", serde_json::json!({ "text": text }));
+            } else {
+                out::print(&text);
+            }
+            ExitCode::SUCCESS
+        }
+        Err(diags) => {
+            report(path, &src, &diags, json);
+            if json {
+                line("failed", serde_json::json!({}));
+            }
+            ExitCode::from(1)
+        }
+    }
+}
+
 fn fmt(args: &[String]) -> ExitCode {
     let check = args.iter().any(|a| a == "--check");
     let diff = args.iter().any(|a| a == "--diff");
@@ -391,6 +453,17 @@ fn fmt(args: &[String]) -> ExitCode {
         Ok(j) => j,
         Err(c) => return c,
     };
+    // --stdin: the text comes from stdin, and the one path says what kind of file it is (it needn't
+    // exist): for an editor, whose text isn't saved
+    let stdin = args.iter().any(|a| a == "--stdin");
+    if stdin {
+        let named = positional(args);
+        if named.len() != 1 || std::path::Path::new(named[0]).is_dir() {
+            eprintln!("--stdin formats one text: name the file it is for (xtmd fmt --stdin page.xt.md < page.xt.md)");
+            return ExitCode::from(2);
+        }
+        return fmt_text(named[0], check, diff, json);
+    }
     let files = expand(&positional(args).into_iter().cloned().collect::<Vec<_>>());
     if files.is_empty() {
         eprintln!("{}", help::of("fmt").unwrap());
@@ -720,7 +793,7 @@ fn md(args: &[String]) -> ExitCode {
 }
 
 /// The commands, as `xtmd help` names them.
-const COMMANDS: &[&str] = &["fmt", "check", "parse", "build", "md", "surface", "migrate", "target check"];
+const COMMANDS: &[&str] = &["fmt", "check", "parse", "build", "md", "surface", "migrate", "target check", "lsp"];
 
 /// Flags written before the command (`xtmd --format json check …`), moved to after it, where each
 /// command reads them.
@@ -829,6 +902,8 @@ fn run(args: &[String]) -> ExitCode {
         "md" => md(rest),
         "surface" => surface::surface_cmd(rest),
         "migrate" => migrate::migrate_cmd(rest),
+        // the language server: the protocol over stdin and stdout, for an editor (ide/lsp)
+        "lsp" => ExitCode::from(xtmd_lsp::serve(std::io::stdin().lock(), std::io::stdout().lock()) as u8),
         _ => target::target_check(rest),
     }
 }

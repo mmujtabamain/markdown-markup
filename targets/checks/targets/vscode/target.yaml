@@ -1,0 +1,13 @@
+# targets/checks/targets/vscode/target.yaml: omnicui's target for Extended Mark's widget contracts
+# (targets/checks/contracts/) on the vscode target, the VS Code extension's preview: the web target's
+# omnicui adapter, given the extension's widgets (ide/vscode/checks/omnicui-harness.mjs).
+#
+# This is an omnicui target, not an Extended Mark one: it has no `check_adapter:`, so `xtmd target check`
+# skips it (the vscode target itself is ide/vscode/checks/target.yaml).
+name: vscode
+language: javascript
+stubs: node ../../../ts/web/omnicui/stubs.mjs ../../.omnicui/vscode-contracts.json
+adapter: exec node ../../../ts/web/omnicui_adapter.mjs --contracts ../../.omnicui/vscode-contracts.json --harness ../../../../ide/vscode/checks/omnicui-harness.mjs
+platform: [web]
+stepTimeout: 30s
+startTimeout: 120s

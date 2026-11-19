@@ -13,6 +13,7 @@ usage: xtmd <command> [arguments] [flags]
   xtmd surface <pack>            the release step: record what this version of the pack provides
   xtmd migrate [<file|folder>…]  bring documents and packs up to the packs they are built with
   xtmd target check [target…]    run the conformance cases on targets, through their check adapters
+  xtmd lsp                       the language server, for an editor: the protocol over stdin and stdout
   xtmd help <command>, or xtmd <command> --help: that command's flags, exit codes and an example
   xtmd --version: this xtmd's release
 
@@ -36,11 +37,15 @@ A flag a command doesn't know is warned about and ignored, but a run that would 
 writes nothing.";
 
 const FMT: &str = "usage: xtmd fmt <file|folder>… [--check | --diff | --stdout] [--out file] [--format json]
+       xtmd fmt --stdin <file> [--check | --diff] [--format json]
   Rewrites each file in the canonical layout, in place, and says what it did: the standard
   formatter. A folder means every .xtpack and .xt.md file under it.
   --check        writes nothing: names each file that isn't in the canonical layout, and fails
   --diff         writes nothing: prints each change as a unified diff (with --check, it fails too)
   --stdout       writes nothing: prints one file in the canonical layout
+  --stdin        formats the text on stdin instead, for an editor whose text isn't saved: the file
+                 named says what it is (.xt.md or .xtpack) and is never read or written; the text
+                 goes to stdout, or with --check and --diff, whether and how it would change
   --out f        alone: writes one file's canonical text to f, and leaves the file as it was;
                  with --check or --diff, what they print goes to f
   --format json  a JSON line for each file ({\"type\":\"file\",\"result\":\"canonical\"|\"formatted\"|
@@ -50,7 +55,8 @@ const FMT: &str = "usage: xtmd fmt <file|folder>… [--check | --diff | --stdout
         2 a usage error, or a file that can't be read
   e.g.  xtmd fmt page.xt.md
         xtmd fmt --check src/
-        xtmd fmt page.xt.md --out tidy.xt.md";
+        xtmd fmt page.xt.md --out tidy.xt.md
+        xtmd fmt --stdin page.xt.md < draft.xt.md";
 
 const CHECK: &str = "usage: xtmd check <file|folder>… [--pack a,b] [--config xtmd.toml] [--out file] [--format json]
   Reports every error and warning in each file, then a line for each file and, for several, a
@@ -73,11 +79,23 @@ const PARSE: &str = "usage: xtmd parse <file> [--out tree.json] [--format json]
   exit: 0 it parses; 1 it has syntax errors; 2 a usage error, or a file that can't be read
   e.g.  xtmd parse page.xt.md --out tree.json";
 
-const BUILD: &str = "usage: xtmd build <file> [--pack a,b] [--config xtmd.toml] [--rir] [--out out.ir.json] [--format json]
+const LSP: &str = "usage: xtmd lsp
+  The language server, for an editor: it speaks the Language Server Protocol over stdin and
+  stdout, and an editor starts it. It gives each open document's errors as it is edited, hover,
+  go to definition, references, the outline, completion and formatting, worked out from the
+  same checker xtmd check runs, with core's own declarations. A document's packs are the ones its
+  xtmd.toml names, read from disk, unless the editor gives them (xtmd/packs).
+  It takes no flags but --help. Editors: ide/vscode, and ide/lsp's README for the rest.
+  exit: 0 after the editor's shutdown and exit; 1 when the input ends first
+  e.g.  xtmd lsp";
+
+const BUILD: &str = "usage: xtmd build <file> [--pack a,b] [--config xtmd.toml] [--rir [--core]] [--out out.ir.json] [--format json]
   Writes a document's IR, what a runtime draws: the document, and only what it uses of core and
   its packs. The IR's top-level \"levels\" are what the page needs.
   --rir          the resolved IR instead: every name and type resolved and nothing lowered, for
                  editor tools (schemas/rir.schema.json); its \"levels\" are the document's too
+  --core         with --rir: core's own files first, resolved too, for an editor that completes
+                 core's widgets and goes to their declarations
   --out f        writes it to f, its folder made if need be; without it, it goes to stdout
   --format json  its errors as JSON lines on stderr
   exit: 0 written; 1 it doesn't compile; 2 a usage error, or a file that can't be read
@@ -134,6 +152,7 @@ pub(crate) fn of(cmd: &str) -> Option<&'static str> {
         "surface" => SURFACE,
         "migrate" => crate::migrate::USAGE,
         "target check" | "target" => TARGET_CHECK,
+        "lsp" => LSP,
         _ => return None,
     })
 }

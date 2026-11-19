@@ -1,0 +1,8 @@
+**
+!dist/**
+!syntaxes/**
+!media/**
+!language-configuration.json
+!package.json
+!README.md
+!LICENSE

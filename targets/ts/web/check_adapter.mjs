@@ -4,17 +4,26 @@
 // a real Chromium through Playwright: @extended-mark/runtime and @extended-mark/dom, bundled from harness.mjs.
 //
 // Chromium is XTMD_CHROMIUM, or /usr/bin/chromium.
+//
+// Another target that draws with @extended-mark/dom's mount and widgets of its own runs this adapter
+// with its own harness entry and name: `--harness <file> --name <target>` (ide/vscode/checks).
 
 import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium } from "playwright-core";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const arg = (name) => {
+  const k = process.argv.indexOf(name);
+  return k > 0 ? process.argv[k + 1] : undefined;
+};
+const entry = arg("--harness") ? resolve(arg("--harness")) : join(here, "harness.mjs");
+const targetName = arg("--name") ?? "web";
 
-const bundle = await build({ entryPoints: [join(here, "harness.mjs")], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", logLevel: "silent" });
+const bundle = await build({ entryPoints: [entry], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", logLevel: "silent" });
 const browser = await chromium.launch({ executablePath: process.env.XTMD_CHROMIUM ?? "/usr/bin/chromium", headless: true });
 browser.on("disconnected", () => {
   process.stderr.write("web target: Chromium went away\n");
@@ -30,7 +39,7 @@ let loaded = false;
 
 const methods = {
   advertise() {
-    return { name: "web", protocol: "1", levels: ["core.draw", "core.live", "core.gfx"], supplies: ["core/*", "core/can_draw_tex", "core/moment.local"] };
+    return { name: targetName, protocol: "1", levels: ["core.draw", "core.live", "core.gfx"], supplies: ["core/*", "core/can_draw_tex", "core/moment.local"] };
   },
   async load({ ir, page = {}, state, externs }) {
     await tab.evaluate(([text, p, s, x]) => window.xtmdCheck.load(text, p, s, x), [readFileSync(ir, "utf8"), page, state, externs]);

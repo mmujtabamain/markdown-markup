@@ -6,16 +6,17 @@
 fn known(cmd: &str) -> &'static [&'static str] {
     // every command takes --format, --out and --help (page 1 of `xtmd`'s usage); one spelling each
     match cmd {
-        "fmt" => &["--check", "--diff", "--stdout", "--format", "--out", "--help"],
+        "fmt" => &["--check", "--diff", "--stdout", "--stdin", "--format", "--out", "--help"],
         "parse" => &["--format", "--out", "--help"],
         "check" => &["--pack", "--config", "--format", "--out", "--help"],
-        "build" => &["--rir", "--pack", "--config", "--format", "--out", "--help"],
+        "build" => &["--rir", "--core", "--pack", "--config", "--format", "--out", "--help"],
         "md" => &["--pack", "--config", "--format", "--out", "--help"],
         "surface" => &["--check", "--diff", "--stdout", "--force", "--pack", "--config", "--format", "--out", "--help"],
         "migrate" => &[
             "--pack", "--config", "--from", "--answers", "--format", "--out", "--report", "--dry-run", "--check", "--diff", "--stdout", "--yes", "--allow-dirty", "--allow-errors", "--allow-todos", "--help",
         ],
         "target check" => &["--cases", "--defect", "--expect-failures", "--require", "--format", "--out", "--help"],
+        "lsp" => &["--help"],
         _ => &[],
     }
 }
@@ -28,7 +29,8 @@ pub(crate) const VALUED: &[&str] = &["--format", "--out", "--pack", "--config", 
 pub(crate) fn writes(cmd: &str, args: &[String]) -> bool {
     let has = |f: &str| args.iter().any(|a| a == f);
     match cmd {
-        "fmt" | "surface" => !(has("--check") || has("--diff") || has("--stdout")),
+        "fmt" => !(has("--check") || has("--diff") || has("--stdout") || has("--stdin")),
+        "surface" => !(has("--check") || has("--diff") || has("--stdout")),
         "migrate" => !(has("--dry-run") || has("--check") || has("--diff") || has("--stdout")),
         _ => false,
     }

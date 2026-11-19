@@ -4436,6 +4436,7 @@ dependencies = [
  "xtmd-eval",
  "xtmd-ir",
  "xtmd-lower",
+ "xtmd-lsp",
  "xtmd-markdown",
  "xtmd-syntax",
 ]
@@ -4508,6 +4509,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "xtmd-lsp"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "xtmd-live",
+ "xtmd-syntax",
+]
+
+[[package]]
 name = "xtmd-markdown"
 version = "0.3.0"
 dependencies = [
@@ -4549,6 +4561,7 @@ version = "0.3.0"
 dependencies = [
  "serde_json",
  "xtmd-live",
+ "xtmd-lsp",
 ]
 
 [[package]]

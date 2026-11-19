@@ -86,7 +86,8 @@ fn read_target(path: &Path) -> Result<Target, String> {
     })
 }
 
-/// Every `target.yaml` under the repository's targets folder.
+/// Every `target.yaml` under the repository's targets folder, and under ide/ (an editor's target,
+/// such as the VS Code extension's preview).
 fn find_targets(root: &Path) -> Vec<Target> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
@@ -103,6 +104,7 @@ fn find_targets(root: &Path) -> Vec<Target> {
     }
     let mut files = Vec::new();
     walk(&root.join("targets"), &mut files);
+    walk(&root.join("ide"), &mut files);
     files.iter().filter_map(|f| read_target(f).ok()).collect()
 }
 

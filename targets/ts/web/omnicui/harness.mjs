@@ -120,7 +120,8 @@ window.omnicui = {
     const text = await (await fetch(ir)).text();
     current = { report, events: [], page: undefined, path: undefined };
     const root = document.getElementById("page");
-    const mounted = run(text, root, { page: { theme } });
+    // a target that draws core's widgets its own way (ide/vscode) sets window.xtmdWidgets first
+    const mounted = run(text, root, { page: { theme }, widgets: window.xtmdWidgets });
     current.page = mounted.page;
     current.path ??= targetPath(mounted.page, report.widget);
     window.mounted = mounted;

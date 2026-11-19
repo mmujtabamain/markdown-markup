@@ -1,0 +1,22 @@
+package kit;
+
+pack kit@1 {
+    uses core@1;
+    provides tally;
+}
+
+//@about A count with a name, and a press that adds one.
+widget tally(name: text, mut count: int 0... , by: int 1..10 = 1) {
+    view {
+        @flex(gap = space.M, align = align.CENTER) {
+            @label(value = name, weight = weight.BOLD);
+            @label(value = "\{count}", font = font.MONO);
+            @press(label = "Add \{by}", kind = press_kind.BUTTON, click = fn() {
+                count = (count + by).clamp(0, 1000);
+            });
+        }
+    }
+    markdown {
+        **\{name}**: \{count}
+    }
+}

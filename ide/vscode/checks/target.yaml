@@ -1,0 +1,10 @@
+# ide/vscode/checks/target.yaml: the vscode target, the VS Code extension's preview: @extended-mark/runtime
+# with @extended-mark/dom's mount and the extension's own widgets (src/target/widgets.ts), in a real
+# Chromium, as VS Code's webview is. Its check adapter is the web target's, given this target's harness.
+name: vscode
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: core                            # the page's tokens, drawn in the editor's theme colours
+check_adapter: exec node ../../../targets/ts/web/check_adapter.mjs --name vscode --harness harness.mjs

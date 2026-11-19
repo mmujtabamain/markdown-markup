@@ -10,7 +10,8 @@
 #   - wasm: xtmd.wasm, for @extended-mark/wasm (wasm32-wasip1, with zig's clang for decNumber's C);
 #   - android: the AARs of xtmd-android and xtmd-android-live, with the runner's NDK.
 # Then test runs the checks every pull request runs (ci.yml), and publish makes the GitHub release
-# v<VERSION>, its notes the note's, with the binaries, xtmd.wasm and the AARs, and publishes the npm
+# v<VERSION>, its notes the note's, with the binaries, xtmd.wasm, the AARs and the VS Code extension
+# (xtmd-<VERSION>.vsix), and publishes the npm
 # packages (xtmd, extended-mark and @extended-mark/*) and the crates (xtmd-*). Each registry is published to by
 # trusted publishing once the repository variable says it is set up (NPM_TRUSTED_PUBLISHING,
 # CRATES_TRUSTED_PUBLISHING = true), and otherwise with a token: NPM_TOKEN, CARGO_REGISTRY_TOKEN.
@@ -194,6 +195,9 @@ jobs:
             tar -czf "release/xtmd-$v-$p.tar.gz" -C "targets/ts/cli/platforms/$p/bin" .
           done
           cp targets/ts/wasm/xtmd.wasm "release/xtmd-$v.wasm"
+          # the VS Code extension, to install from the release (Extensions: Install from VSIX…)
+          node tools/release/build-ts.mjs
+          (cd ide/vscode && npm install --no-audit --no-fund && npm run package -- -o "../../release/xtmd-$v.vsix")
           cp artifacts/android/*/build/outputs/aar/*.aar release/ 2>/dev/null || find artifacts/android -name '*.aar' -exec cp {} release/ \;
           (cd release && sha256sum * > SHA256SUMS)
           node tools/release/check-notes.mjs --notes-for "$v" > /tmp/notes.md

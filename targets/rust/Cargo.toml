@@ -16,6 +16,7 @@ members = [
     "wasm",
     "../android/xtmd",
     "../android/xtmd-live",
+    "../../ide/lsp",
 ]
 
 [workspace.package]

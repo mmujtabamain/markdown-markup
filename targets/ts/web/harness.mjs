@@ -54,7 +54,8 @@ window.xtmdCheck = {
     document.body.append(root);
     let p;
     p = new Page(JSON.parse(irText), { page, state, externs, fns: targetFns(() => p) });
-    mounted = mount(p, root, { measure: measure(p), widgets: { ...badge } });
+    // a target that draws core's widgets its own way sets window.xtmdWidgets before this runs
+    mounted = mount(p, root, { measure: measure(p), widgets: { ...(window.xtmdWidgets ?? {}), ...badge } });
     await settle();
   },
   async event(site, name, args) {

@@ -94,6 +94,9 @@ jobs:
         run: node tools/release/build-ts.mjs
       - name: Tested
         run: node tools/release/build-ts.mjs --test-only
+      - name: The VS Code extension, built and tested
+        working-directory: ide/vscode
+        run: npm install --no-audit --no-fund && npm test
 
   conformance:
     name: Every target's conformance checks
@@ -126,6 +129,9 @@ jobs:
           echo "$PWD/target/release" >> "$GITHUB_PATH"
       - name: The npm packages the web targets draw with
         run: node tools/release/build-ts.mjs
+      - name: The VS Code extension's widgets, for the vscode target
+        working-directory: ide/vscode
+        run: npm install --no-audit --no-fund
       - name: The Android libraries for the JVM
         run: |
           targets/android/xtmd/build.sh host
