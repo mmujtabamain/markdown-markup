@@ -627,7 +627,15 @@ impl Rt {
                 };
                 match found {
                     (Some(p), _) => m.eval_with(&p.env.bindings, p.env.owner, &Expr::Place(p.place)),
-                    (None, Some(v)) => Ok(v),
+                    (None, Some(v)) => {
+                        // a slot's content reads its caller's inputs inside the widget it is placed
+                        // in, whose own inputs may not change: the read is what makes that widget
+                        // be drawn again
+                        if let Some(o) = owner {
+                            self.w().track(|| format!("i:{}:{}", o, n));
+                        }
+                        Ok(v)
+                    }
                     (None, None) => Err(Failure::ir(format!("no input {}", n))),
                 }
             }
@@ -1333,7 +1341,7 @@ impl Rt {
                 id
             }
         };
-        {
+        let was = {
             let mut w = self.w();
             w.at_path.insert(path.to_string(), id);
             for f in w.frames.iter_mut() {
@@ -1342,8 +1350,8 @@ impl Rt {
             let it = w.instances.get_mut(&id).unwrap();
             it.seen = true;
             it.places.clear();
-            it.inputs.clear();
-        }
+            std::mem::take(&mut it.inputs)
+        };
         for (k, e) in args {
             match e {
                 Expr::Place(p) => {
@@ -1364,6 +1372,16 @@ impl Rt {
                     None => Value::none(),
                 };
                 self.with_instance(id, |i| i.inputs.insert(f.name.clone(), v));
+            }
+        }
+        // an input given a new value: whatever read it, in the widget's slots too, is out of date
+        if !fresh {
+            let now = self.with_instance(id, |i| i.inputs.clone()).unwrap_or_default();
+            for (k, v) in &now {
+                let same = was.get(k).map_or(false, |b| m.equal(b, v).unwrap_or(false));
+                if !same {
+                    self.w().bump(format!("i:{}:{}", id, k));
+                }
             }
         }
         let held: HashMap<String, (Nodes, Env)> = slots.iter().map(|(s, nodes)| (s.clone(), (self.s.nodes_rc(nodes), env.clone()))).collect();

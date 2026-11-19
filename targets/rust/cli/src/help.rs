@@ -74,8 +74,8 @@ const PARSE: &str = "usage: mkp parse <file> [--out tree.json] [--format json]
   e.g.  mkp parse page.mkp.md --out tree.json";
 
 const BUILD: &str = "usage: mkp build <file> [--pack a,b] [--config mkp.toml] [--rir] [--out out.ir.json] [--format json]
-  Writes a document's IR, what a runtime draws: the document with core and every pack it uses,
-  so even a short page is a few MB. The IR's top-level \"levels\" are what the page needs.
+  Writes a document's IR, what a runtime draws: the document, and only what it uses of core and
+  its packs. The IR's top-level \"levels\" are what the page needs.
   --rir          the resolved IR instead: every name and type resolved and nothing lowered, for
                  editor tools (schemas/rir.schema.json); its \"levels\" are the document's too
   --out f        writes it to f, its folder made if need be; without it, it goes to stdout

@@ -1,0 +1,25 @@
+{
+  "id": "runtime.a-slot-follows-the-inputs-it-reads",
+  "about": "a widget's slot content reads that widget's inputs: when they change, the slot is drawn again even though the widget it is placed in (a row) was given the same inputs",
+  "source": "a-slot-follows-the-inputs-it-reads.mkp.md",
+  "target": {
+    "levels": [
+      "core.draw",
+      "core.live"
+    ]
+  },
+  "expect": {
+    "diagnostics": []
+  },
+  "steps": [
+    {
+      "do": {"event": {"site": "s1/s0", "name": "click"}},
+      "expect": {
+        "state": {"votes": {"num": "1"}},
+        "tree": {
+          "s0/s2": {"widget": "core/label", "props": {"value": {"text": "1"}}}
+        }
+      }
+    }
+  ]
+}

@@ -690,6 +690,9 @@ export class Page {
             if (!inst) throw new Failure("Ir", `no input ${what.name} here`);
             const p = inst.places.get(what.name);
             if (p) return page.machine.evalWith(p.env.bindings, p.env.owner, { place: p.place } as ir.Expr);
+            // a slot's content reads its caller's inputs inside the widget it is placed in, whose
+            // own inputs may not change: the read is what makes that widget be drawn again
+            page.track(`i:${owner}:${what.name}`);
             const v = inst.inputs.get(what.name);
             if (!v) throw new Failure("Ir", `no input ${what.name}`);
             return v;
@@ -1223,8 +1226,9 @@ export class Page {
     it.seen = true;
     this.atPath.set(path, it);
     for (const f of this.frames) f.nested.push([it, path]);
+    const was = it.inputs;
     it.places.clear();
-    it.inputs.clear();
+    it.inputs = new Map();
     for (const [k, e] of Object.entries(args)) {
       if ("place" in e) it.places.set(k, { place: (e as { place: ir.Place }).place, env });
       else it.inputs.set(k, this.evalIn(env, e));
@@ -1232,6 +1236,11 @@ export class Page {
     const own: Env = { owner: it.id, bindings: [], path, key };
     for (const f of t.inputs) {
       if (!it.inputs.has(f.name) && !it.places.has(f.name)) it.inputs.set(f.name, f.default ? this.evalIn(own, f.default) : none());
+    }
+    // an input given a new value: whatever read it, in the widget's slots too, is out of date
+    for (const [k, v] of it.inputs) {
+      const before = was.get(k);
+      if (!fresh && (!before || !this.machine.equal(before, v))) this.bump(`i:${it.id}:${k}`);
     }
     it.slots.clear();
     for (const [s, nodes] of Object.entries(slots)) it.slots.set(s, { nodes, env });
