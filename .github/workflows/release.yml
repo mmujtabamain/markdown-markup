@@ -3,7 +3,8 @@
 #
 # Runs on a merge into main whose VERSION has no release yet (the merge request raised VERSION and
 # added notes/<VERSION>.md, which the Release notes check holds it to), and by hand. Nothing runs
-# when v<VERSION> is already released. Each build job runs on one Linux runner:
+# when v<VERSION> is already released or tagged. Once everything is built and tested, the merge
+# commit is tagged v<VERSION> and released under that tag. Each build job runs on one Linux runner:
 #   - binaries: mkp for Linux on x64 and arm64 (static, musl), macOS on Intel and Apple silicon,
 #     and Windows on x64, cross-built with cargo-zigbuild; each goes in its @mkp/cli-<os>-<cpu>;
 #   - wasm: mkp.wasm, for @mkp/wasm (wasm32-wasip1, with zig's clang for decNumber's C);
@@ -52,9 +53,10 @@ jobs:
           node tools/release/check-notes.mjs
           v="$(tr -d '[:space:]' < VERSION)"
           echo "version=$v" >> "$GITHUB_OUTPUT"
-          if gh release view "v$v" > /dev/null 2>&1; then
+          # a release, or the tag alone (one made by hand), means this version is out
+          if gh release view "v$v" > /dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null 2>&1; then
             echo "new=false" >> "$GITHUB_OUTPUT"
-            echo "v$v is already released: nothing to do (raise VERSION and add notes/<version>.md to release)" >> "$GITHUB_STEP_SUMMARY"
+            echo "v$v is already released or tagged: nothing to do (raise VERSION and add notes/<version>.md to release)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "new=true" >> "$GITHUB_OUTPUT"
           fi
@@ -190,6 +192,7 @@ jobs:
           node tools/release/check-notes.mjs --notes-for "$v" > /tmp/notes.md
           title="$(head -n 1 /tmp/notes.md)"
           tail -n +2 /tmp/notes.md > /tmp/body.md
+          # the tag v<VERSION> is made here, on the commit this run is for: the merge's
           gh release view "v$v" > /dev/null 2>&1 || gh release create "v$v" --target "$GITHUB_SHA" --title "$title" --notes-file /tmp/body.md
           gh release upload "v$v" release/* --clobber
       - name: npm

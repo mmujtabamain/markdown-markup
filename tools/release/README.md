@@ -1,7 +1,7 @@
 # Releasing MKP
 
 A merge into main that raises `VERSION` starts the release: `.github/workflows/release.yml` builds
-everything on Linux, tests it, and publishes it as `v<VERSION>`. The merge request raises `VERSION`
+everything on Linux, tests it, tags the merge commit `v<VERSION>` and publishes it under that tag. The merge request raises `VERSION`
 and adds `notes/<VERSION>.md` (notes/README.md); the **Release notes** check holds it to that, and
 the **Types, tests and conformance** check (ci.yml) runs the tests, both required by main's ruleset
 (.github/rulesets/). A merge that leaves `VERSION` as it was releases nothing, and the workflow can
