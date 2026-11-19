@@ -6,7 +6,7 @@
 //! writes, so `mut for` can find the real item and rows can follow their items.
 
 use crate::num::Num;
-use mkp_ir::ir::{Expr, Node, Param, Stmt};
+use xtmd_ir::ir::{Expr, Node, Param, Stmt};
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -158,7 +158,7 @@ impl Value {
 
     /// The IR's form of a value, for the IR, observations and Markdown.
     pub fn to_ir(&self) -> Expr {
-        use mkp_ir::ir::{Empty, ExprCase, ExprRange, ExprRecord};
+        use xtmd_ir::ir::{Empty, ExprCase, ExprRange, ExprRecord};
         match self {
             Value::Num(n) => Expr::Num(n.show()),
             Value::Text(t) => Expr::Text(t.to_string()),
@@ -182,7 +182,7 @@ impl Value {
                 step: r.step.as_ref().map(|v| v.to_ir()),
             })),
             Value::Fn(_) => Expr::Text("<fn>".into()),
-            Value::View(v) => Expr::View(mkp_ir::ir::ViewValue {
+            Value::View(v) => Expr::View(xtmd_ir::ir::ViewValue {
                 widget: v.widget.to_string(),
                 args: v.args.iter().map(|(k, x)| (k.clone(), x.to_ir())).collect(),
                 slots: v.slots.clone(),

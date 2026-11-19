@@ -1,6 +1,6 @@
 // A light highlighter for the Markdown tab: Markdown, with the `@calls` (and their arguments,
 // across lines while a bracket is open) and the `\{holes}` a page's Markdown may hold. The editor
-// colours its source with Monaco and MKP's own tokenizer (language.ts) in the same colours.
+// colours its source with Monaco and Extended Mark's own tokenizer (language.ts) in the same colours.
 
 const KEYWORDS = new Set(
   "package import enum record type interface implements widget extern expose fn pack tokens mut let event invoke view markdown require if else for in match case return only step void any param slot try with self true false as token".split(

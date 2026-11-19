@@ -1,7 +1,7 @@
 {
   "id": "widgets.grid",
   "about": "claims are checked: a grid with a cell spanning both columns and a sizing",
-  "source": "grid.mkp.md",
+  "source": "grid.xt.md",
   "target": {
     "levels": [
       "core.draw"

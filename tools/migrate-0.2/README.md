@@ -1,5 +1,8 @@
 # migrate-0.2: MKP 0.2 documents to MKP 0.3, by way of the IR
 
+> MKP is now Extended Mark: `mkp` below is the `xtmd` command, and a 0.3 document is `name.xt.md`.
+> This tool is frozen as it was, so it keeps the old names; `xtmd migrate` writes the new ones.
+
 `mkp migrate` runs it, frozen with 0.2.10's compiler into one file: see [frozen/](frozen/README.md).
 On its own, it takes a document's **0.2 IR** (shape 1, the bundle `mkp build --target ir` writes) and
 writes an **MKP 0.3 document** in canonical form, along with the 0.3 packs it imports. The 0.3 compiler

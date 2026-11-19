@@ -1,7 +1,7 @@
 {
   "id": "views.a-prose-slot-must-exist",
   "about": "a `@slot` block in prose names a slot the widget has",
-  "source": "a-prose-slot-must-exist.mkp.md",
+  "source": "a-prose-slot-must-exist.xt.md",
   "expect": {
     "diagnostics": [
       {

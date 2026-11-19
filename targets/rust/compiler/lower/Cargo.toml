@@ -1,5 +1,5 @@
 [package]
-name = "mkp-lower"
+name = "xtmd-lower"
 description = "Lowering: every prop that isn't constant becomes a binding with everything it reads"
 version.workspace = true
 edition.workspace = true
@@ -7,5 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-mkp-ir = { path = "../ir", version = "0.3.0" }
+xtmd-ir = { path = "../ir", version = "0.3.0" }
 serde_json.workspace = true

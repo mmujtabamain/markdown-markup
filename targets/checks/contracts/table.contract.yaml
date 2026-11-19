@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/table (core/blocks.mkp): a header row, rows of cells, and how each column is aligned.
-# @mkp/dom draws a scrolling <div> around a <table>: th[scope=col] header cells, td cells.
+# core/table (core/blocks.xtpack): a header row, rows of cells, and how each column is aligned.
+# @extended-mark/dom draws a scrolling <div> around a <table>: th[scope=col] header cells, td cells.
 id: core.table
 
 props:

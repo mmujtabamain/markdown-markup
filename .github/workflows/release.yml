@@ -1,19 +1,22 @@
-# The release of MKP: every platform's mkp binary, mkp.wasm and the Android libraries, built and
+# The release of Extended Mark: every platform's xtmd binary, xtmd.wasm and the Android libraries, built and
 # tested on Linux, then published.
 #
 # Runs on a merge into main whose VERSION has no release yet (the merge request raised VERSION and
 # added notes/<VERSION>.md, which the Release notes check holds it to), and by hand. Nothing runs
 # when v<VERSION> is already released or tagged. Once everything is built and tested, the merge
 # commit is tagged v<VERSION> and released under that tag. Each build job runs on one Linux runner:
-#   - binaries: mkp for Linux on x64 and arm64 (static, musl), macOS on Intel and Apple silicon,
-#     and Windows on x64, cross-built with cargo-zigbuild; each goes in its @mkp/cli-<os>-<cpu>;
-#   - wasm: mkp.wasm, for @mkp/wasm (wasm32-wasip1, with zig's clang for decNumber's C);
-#   - android: the AARs of mkp-android and mkp-android-live, with the runner's NDK.
+#   - binaries: xtmd for Linux on x64 and arm64 (static, musl), macOS on Intel and Apple silicon,
+#     and Windows on x64, cross-built with cargo-zigbuild; each goes in its @extended-mark/cli-<os>-<cpu>;
+#   - wasm: xtmd.wasm, for @extended-mark/wasm (wasm32-wasip1, with zig's clang for decNumber's C);
+#   - android: the AARs of xtmd-android and xtmd-android-live, with the runner's NDK.
 # Then test runs the checks every pull request runs (ci.yml), and publish makes the GitHub release
-# v<VERSION>, its notes the note's, with the binaries, mkp.wasm and the AARs, and publishes the npm
-# packages (needs the NPM_TOKEN secret, an npm token that can publish to the @mkp scope) and the
-# crates (needs CARGO_REGISTRY_TOKEN). Without a token, its step says so and is skipped: the rest
-# of the release still happens.
+# v<VERSION>, its notes the note's, with the binaries, xtmd.wasm and the AARs, and publishes the npm
+# packages (xtmd and @extended-mark/*) and the crates (xtmd-*). Each registry is published to by
+# trusted publishing once the repository variable says it is set up (NPM_TRUSTED_PUBLISHING,
+# CRATES_TRUSTED_PUBLISHING = true), and otherwise with a token: NPM_TOKEN, CARGO_REGISTRY_TOKEN.
+# A package's first release needs the token, since a registry sets up trusted publishing only for a
+# package it already has. With neither, its step says so and is skipped: the rest of the release
+# still happens.
 name: Release
 
 on:
@@ -62,7 +65,7 @@ jobs:
           fi
 
   binaries:
-    name: mkp for ${{ matrix.platform }}
+    name: xtmd for ${{ matrix.platform }}
     needs: version
     if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
@@ -71,11 +74,11 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { target: x86_64-unknown-linux-musl, platform: linux-x64, exe: mkp }
-          - { target: aarch64-unknown-linux-musl, platform: linux-arm64, exe: mkp }
-          - { target: x86_64-apple-darwin, platform: darwin-x64, exe: mkp }
-          - { target: aarch64-apple-darwin, platform: darwin-arm64, exe: mkp }
-          - { target: x86_64-pc-windows-gnu, platform: win32-x64, exe: mkp.exe }
+          - { target: x86_64-unknown-linux-musl, platform: linux-x64, exe: xtmd }
+          - { target: aarch64-unknown-linux-musl, platform: linux-arm64, exe: xtmd }
+          - { target: x86_64-apple-darwin, platform: darwin-x64, exe: xtmd }
+          - { target: aarch64-apple-darwin, platform: darwin-arm64, exe: xtmd }
+          - { target: x86_64-pc-windows-gnu, platform: win32-x64, exe: xtmd.exe }
     steps:
       - uses: actions/checkout@v4
       - name: Rust, for ${{ matrix.target }}
@@ -84,20 +87,20 @@ jobs:
         run: pip install "ziglang==$ZIGLANG" "cargo-zigbuild==$CARGO_ZIGBUILD"
       - name: Build
         working-directory: targets/rust
-        run: cargo zigbuild --release -p mkp-cli --target ${{ matrix.target }}
+        run: cargo zigbuild --release -p xtmd-cli --target ${{ matrix.target }}
       - name: In its platform package
         run: node targets/ts/cli/scripts/copy-binary.mjs --target ${{ matrix.target }}
       - name: Runs where it was built for
         if: matrix.platform == 'linux-x64'
-        run: targets/ts/cli/platforms/linux-x64/bin/mkp --version
+        run: targets/ts/cli/platforms/linux-x64/bin/xtmd --version
       - uses: actions/upload-artifact@v4
         with:
-          name: mkp-${{ matrix.platform }}
+          name: xtmd-${{ matrix.platform }}
           path: targets/ts/cli/platforms/${{ matrix.platform }}/bin/
           if-no-files-found: error
 
   wasm:
-    name: mkp.wasm
+    name: xtmd.wasm
     needs: version
     if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
@@ -109,11 +112,11 @@ jobs:
       - name: zig
         run: pip install "ziglang==$ZIGLANG"
       - name: Build
-        run: MKP_ZIG="python3 -m ziglang" targets/rust/wasm/build.sh
+        run: XTMD_ZIG="python3 -m ziglang" targets/rust/wasm/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: mkp-wasm
-          path: targets/ts/wasm/mkp.wasm
+          name: xtmd-wasm
+          path: targets/ts/wasm/xtmd.wasm
           if-no-files-found: error
 
   android:
@@ -134,17 +137,17 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
         run: |
-          targets/android/mkp/build.sh
-          targets/android/mkp-live/build.sh
+          targets/android/xtmd/build.sh
+          targets/android/xtmd-live/build.sh
       - name: The AARs
         working-directory: targets/android/compose
-        run: ./gradlew --no-daemon :mkp-android:assembleRelease :mkp-android-live:assembleRelease
+        run: ./gradlew --no-daemon :xtmd-android:assembleRelease :xtmd-android-live:assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: android
           path: |
-            targets/android/compose/mkp-android/build/outputs/aar/*.aar
-            targets/android/compose/mkp-android-live/build/outputs/aar/*.aar
+            targets/android/compose/xtmd-android/build/outputs/aar/*.aar
+            targets/android/compose/xtmd-android-live/build/outputs/aar/*.aar
           if-no-files-found: error
 
   test:
@@ -158,6 +161,10 @@ jobs:
     needs: [version, binaries, wasm, android, test]
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    permissions:
+      contents: write
+      # trusted publishing: npm and crates.io take the run's OIDC token in place of a secret
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -169,14 +176,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Each binary in its platform package, mkp.wasm in @mkp/wasm
+      - name: Each binary in its platform package, xtmd.wasm in @extended-mark/wasm
         run: |
           for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
             mkdir -p "targets/ts/cli/platforms/$p/bin"
-            cp artifacts/mkp-$p/* "targets/ts/cli/platforms/$p/bin/"
-            chmod +x targets/ts/cli/platforms/$p/bin/mkp* || true
+            cp artifacts/xtmd-$p/* "targets/ts/cli/platforms/$p/bin/"
+            chmod +x targets/ts/cli/platforms/$p/bin/xtmd* || true
           done
-          cp artifacts/mkp-wasm/mkp.wasm targets/ts/wasm/
+          cp artifacts/xtmd-wasm/xtmd.wasm targets/ts/wasm/
       - name: The GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -184,9 +191,9 @@ jobs:
           v="${{ needs.version.outputs.version }}"
           mkdir -p release
           for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
-            tar -czf "release/mkp-$v-$p.tar.gz" -C "targets/ts/cli/platforms/$p/bin" .
+            tar -czf "release/xtmd-$v-$p.tar.gz" -C "targets/ts/cli/platforms/$p/bin" .
           done
-          cp targets/ts/wasm/mkp.wasm "release/mkp-$v.wasm"
+          cp targets/ts/wasm/xtmd.wasm "release/xtmd-$v.wasm"
           cp artifacts/android/*/build/outputs/aar/*.aar release/ 2>/dev/null || find artifacts/android -name '*.aar' -exec cp {} release/ \;
           (cd release && sha256sum * > SHA256SUMS)
           node tools/release/check-notes.mjs --notes-for "$v" > /tmp/notes.md
@@ -198,19 +205,26 @@ jobs:
       - name: npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUSTED: ${{ vars.NPM_TRUSTED_PUBLISHING }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::notice::No NPM_TOKEN secret: the npm packages aren't published"
+          if [ "$TRUSTED" != "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::notice::No trusted publishing (NPM_TRUSTED_PUBLISHING) and no NPM_TOKEN secret: the npm packages aren't published"
             exit 0
           fi
+          # trusted publishing needs npm 11.5.1 or later
+          npm install -g npm@11
           node tools/release/build-ts.mjs
           node tools/release/publish-npm.mjs --version "${{ needs.version.outputs.version }}"
+      - name: A crates.io token from trusted publishing
+        id: crates-auth
+        if: vars.CRATES_TRUSTED_PUBLISHING == 'true'
+        uses: rust-lang/crates-io-auth-action@v1
       - name: crates.io
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "::notice::No CARGO_REGISTRY_TOKEN secret: the crates aren't published"
+            echo "::notice::No trusted publishing (CRATES_TRUSTED_PUBLISHING) and no CARGO_REGISTRY_TOKEN secret: the crates aren't published"
             exit 0
           fi
           tools/release/publish-crates.sh

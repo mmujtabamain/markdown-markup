@@ -1,7 +1,7 @@
 {
   "id": "read.a-match-in-prose-with-text-before-its-cases",
   "about": "text inside @match before its cases",
-  "source": "a-match-in-prose-with-text-before-its-cases.mkp.md",
+  "source": "a-match-in-prose-with-text-before-its-cases.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.match-holds-cases", "line": 2, "column": 1}

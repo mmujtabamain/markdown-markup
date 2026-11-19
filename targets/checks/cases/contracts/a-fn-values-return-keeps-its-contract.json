@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-fn-values-return-keeps-its-contract",
   "about": "a call through a fn value is known to fit the return contract its declared type gives, and a lambda that proves its return compiles",
-  "source": "a-fn-values-return-keeps-its-contract.mkp",
+  "source": "a-fn-values-return-keeps-its-contract.xtpack",
   "expect": {
     "diagnostics": []
   }

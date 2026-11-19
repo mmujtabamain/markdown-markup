@@ -1,4 +1,4 @@
-// <mkp-doc>: an MKP page drawn by Angular itself. @mkp/view runs the document and gives the page as
+// <xtmd-doc>: an Extended Mark page drawn by Angular itself. @extended-mark/view runs the document and gives the page as
 // plain elements after every change; they are followed onto the component's element through
 // Angular's Renderer2, the same way Angular makes and changes every element, on a server as in the
 // browser: each element made once, kept by key, and only what changed set on it. What the page does
@@ -6,17 +6,17 @@
 
 import { Component, ElementRef, EventEmitter, Input, NgZone, Output, PLATFORM_ID, Renderer2, RendererStyleFlags2, inject, type OnChanges, type OnDestroy, type OnInit } from "@angular/core";
 import { isPlatformBrowser } from "@angular/common";
-import { Doc, Patcher, type Call, type DocError, type DocProps, type Host, type Restored, type Snapshot, type Value, type ir } from "@mkp/view";
+import { Doc, Patcher, type Call, type DocError, type DocProps, type Host, type Restored, type Snapshot, type Value, type ir } from "@extended-mark/view";
 
 const SVG = "svg";
 
 @Component({
-  selector: "mkp-doc",
+  selector: "xtmd-doc",
   standalone: true,
   template: "",
   host: { style: "display: contents" },
 })
-export class MkpDoc implements OnInit, OnChanges, OnDestroy {
+export class XtmdDoc implements OnInit, OnChanges, OnDestroy {
   /** The page's IR, in hand. */
   @Input() ir?: DocProps["ir"];
   /** Where to fetch the page's IR from. */
@@ -34,7 +34,7 @@ export class MkpDoc implements OnInit, OnChanges, OnDestroy {
 
   /** `$state` after each change to it. */
   @Output() readonly stateChange = new EventEmitter<Record<string, ir.Expr>>();
-  /** A write mkp refused, a widget that failed, or an IR that couldn't be had. */
+  /** A write xtmd refused, a widget that failed, or an IR that couldn't be had. */
   @Output() readonly error = new EventEmitter<DocError>();
   /** The app's extern fns the page called, after each change that called any. */
   @Output() readonly calls = new EventEmitter<Call[]>();

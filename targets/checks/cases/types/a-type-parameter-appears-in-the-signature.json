@@ -1,7 +1,7 @@
 {
   "id": "types.a-type-parameter-appears-in-the-signature",
   "about": "every type parameter appears in a parameter, an input, a field or a slot",
-  "source": "a-type-parameter-appears-in-the-signature.mkp",
+  "source": "a-type-parameter-appears-in-the-signature.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.type-parameter-unused", "line": 3, "column": 8},

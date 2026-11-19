@@ -2,7 +2,7 @@
 build/
 .kotlin/
 local.properties
-# written by ../mkp/build.sh: the native libraries and the generated bindings
-mkp-android/native/
-# written by ../mkp-live/build.sh: the compiler's native libraries and its bindings
-mkp-android-live/native/
+# written by ../xtmd/build.sh: the native libraries and the generated bindings
+xtmd-android/native/
+# written by ../xtmd-live/build.sh: the compiler's native libraries and its bindings
+xtmd-android-live/native/

@@ -5,12 +5,12 @@ use std::process::Command;
 
 #[test]
 fn every_bodyless_core_extern_fn_is_native_or_target_only() {
-    let dir = std::env::temp_dir().join(format!("mkp-externs-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("xtmd-externs-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     // a pack's IR keeps all of core it builds on; a page's keeps only what the page uses
-    let page = dir.join("t.mkp");
+    let page = dir.join("t.xtpack");
     std::fs::write(&page, "package t;\n").unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_mkp")).args(["build", page.to_str().unwrap()]).output().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_xtmd")).args(["build", page.to_str().unwrap()]).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let ir: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let mut seen = 0;
@@ -22,7 +22,7 @@ fn every_bodyless_core_extern_fn_is_native_or_target_only() {
         }
         seen += 1;
         let name = f["name"].as_str().unwrap();
-        if !mkp_eval::natives::exists(name) && !mkp_eval::natives::TARGET_ONLY.contains(&name) {
+        if !xtmd_eval::natives::exists(name) && !xtmd_eval::natives::TARGET_ONLY.contains(&name) {
             missing.push(name.to_string());
         }
     }

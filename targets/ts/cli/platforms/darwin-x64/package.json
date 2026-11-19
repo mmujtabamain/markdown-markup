@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/cli-darwin-x64",
+  "name": "@extended-mark/cli-darwin-x64",
   "version": "0.3.0",
-  "description": "The mkp binary for macOS on Intel",
+  "description": "The xtmd binary for macOS on Intel",
   "license": "MIT",
   "os": ["darwin"],
   "cpu": ["x64"],

@@ -1,7 +1,7 @@
 {
   "id": "effects.a-value-fn-changes-its-own-locals",
   "about": "a fn that returns a value assigns its own locals and calls actions on its own mut locals",
-  "source": "a-value-fn-changes-its-own-locals.mkp",
+  "source": "a-value-fn-changes-its-own-locals.xtpack",
   "expect": {
     "diagnostics": []
   }

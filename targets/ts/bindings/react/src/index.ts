@@ -1,8 +1,8 @@
 "use client";
-// @mkp/react: MKP documents in React, the run-time target. <MkpDoc src={…}> or <MkpDoc ir={…}> draws a
+// @extended-mark/react: Extended Mark documents in React, the run-time target. <XtmdDoc src={…}> or <XtmdDoc ir={…}> draws a
 // page from an IR built ahead with React's own components (doc.ts), on a server and in the browser.
-// The real-time target, which compiles a document's text in the browser, is @mkp/react-live.
+// The real-time target, which compiles a document's text in the browser, is @extended-mark/react-live.
 
-export { MkpDoc, toReact, type MkpDocHandle, type MkpDocProps } from "./doc.js";
-export type { DocError, DocProps, Restored, Snapshot, ViewContext, ViewWidget } from "@mkp/view";
-export type { Call, Given, Ir, Outcome, Page, PageValues, Value, ir } from "@mkp/embed";
+export { XtmdDoc, toReact, type XtmdDocHandle, type XtmdDocProps } from "./doc.js";
+export type { DocError, DocProps, Restored, Snapshot, ViewContext, ViewWidget } from "@extended-mark/view";
+export type { Call, Given, Ir, Outcome, Page, PageValues, Value, ir } from "@extended-mark/embed";

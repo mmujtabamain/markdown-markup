@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/cli-win32-x64",
+  "name": "@extended-mark/cli-win32-x64",
   "version": "0.3.0",
-  "description": "The mkp binary for Windows on x64",
+  "description": "The xtmd binary for Windows on x64",
   "license": "MIT",
   "os": ["win32"],
   "cpu": ["x64"],

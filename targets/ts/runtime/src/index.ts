@@ -1,4 +1,4 @@
-// @mkp/runtime: runs the IR the mkp compiler writes, on the web, agreeing with the native runtime.
+// @extended-mark/runtime: runs the IR the xtmd compiler writes, on the web, agreeing with the native runtime.
 
 export * from "./eval/index.js";
 export { Page, inlineSlot, type PageOptions, type PageValues, type Drawn, type Env, type Broken, type Outcome, type Call } from "./page.js";

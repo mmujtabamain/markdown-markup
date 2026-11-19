@@ -1,7 +1,7 @@
 {
   "id": "read.keyword-as-a-field",
   "about": "keyword as a field",
-  "source": "keyword-as-a-field.mkp",
+  "source": "keyword-as-a-field.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.keyword-as-name", "line": 4, "column": 5}

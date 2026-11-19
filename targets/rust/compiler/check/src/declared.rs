@@ -6,8 +6,8 @@
 
 use std::collections::HashSet;
 
-use mkp_ir::ir;
-use mkp_syntax::Span;
+use xtmd_ir::ir;
+use xtmd_syntax::Span;
 
 use crate::ty::{FnParam, Ty};
 use crate::{codes, Checker, DefId, DefKind, Recv};
@@ -334,7 +334,7 @@ fn disjoint(a: &ir::Bounds, b: &ir::Bounds) -> bool {
 impl Checker {
     /// `==` and `!=` need `same`; `<`, `<=`, `>`, `>=` and `in` need `ordered`. A view, a widget
     /// and a fn fit neither (page 4).
-    pub(crate) fn check_comparable(&mut self, cx: &crate::body::Cx, t: &Ty, iface: &str, op: mkp_syntax::ast::BinOp, span: Span) {
+    pub(crate) fn check_comparable(&mut self, cx: &crate::body::Cx, t: &Ty, iface: &str, op: xtmd_syntax::ast::BinOp, span: Span) {
         let t = self.vars.resolve(t);
         let never = match &t {
             Ty::View | Ty::Fn(..) => true,
@@ -431,7 +431,7 @@ impl Checker {
             let ast = self.files[file].ast.clone();
             for node in &ast.items {
                 let Some(text) = node.docs().find_map(|c| c.text.strip_prefix("//@deprecated").map(|t| t.trim().to_string())) else { continue };
-                if let mkp_syntax::ast::Item::Decl(d) = &node.item {
+                if let xtmd_syntax::ast::Item::Decl(d) = &node.item {
                     self.deprecated.insert((file, d.kind.name().span.start), text);
                 }
             }

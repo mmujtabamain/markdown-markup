@@ -3,9 +3,9 @@
 
 use std::collections::BTreeMap;
 
-use mkp_ir::ir;
-use mkp_syntax::ast::{self, Item};
-use mkp_syntax::span::Span;
+use xtmd_ir::ir;
+use xtmd_syntax::ast::{self, Item};
+use xtmd_syntax::span::Span;
 
 use crate::{codes, Checker, DefKind, Recv};
 
@@ -302,7 +302,7 @@ fn rename_pack(t: &ir::Type, from: &str, to: &str) -> ir::Type {
     t
 }
 
-/// A type as MKP writes it: `list<point>`, without its pack.
+/// A type as Extended Mark writes it: `list<point>`, without its pack.
 pub(crate) fn show_ty(t: &ir::Type) -> String {
     let name = t.name.rsplit('/').next().unwrap_or(&t.name);
     if t.args.is_empty() {

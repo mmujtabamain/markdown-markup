@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>MKP Playground</title>
-    <meta name="description" content="Edit an MKP page and see it drawn, with its Markdown, its diagnostics and its $state, live." />
+    <title>Extended Mark Playground</title>
+    <meta name="description" content="Edit an Extended Mark page and see it drawn, with its Markdown, its diagnostics and its $state, live." />
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234257d6'/%3E%3Cpath d='M8 22V10l5 6 5-6v12M22 13v9m-3-3 3 3 3-3' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
@@ -16,12 +16,12 @@
   <body>
     <div class="app">
       <header class="topbar">
-        <a class="brand" id="brand" data-testid="brand" href="/" aria-label="MKP Playground, start again">
+        <a class="brand" id="brand" data-testid="brand" href="/" aria-label="Extended Mark Playground, start again">
           <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
             <rect width="32" height="32" rx="8" />
             <path d="M8 22V10l5 6 5-6v12M22 13v9m-3-3 3 3 3-3" />
           </svg>
-          <span class="brand-name">MKP <span class="brand-sub">Playground</span></span>
+          <span class="brand-name">Extended Mark <span class="brand-sub">Playground</span></span>
         </a>
         <div class="picker">
           <label for="example-picker" class="picker-label">Example</label>
@@ -38,7 +38,7 @@
         <section class="pane editor-pane" aria-labelledby="editor-title">
           <div class="pane-head">
             <h2 id="editor-title">Source</h2>
-            <span class="pane-sub">page.mkp.md</span>
+            <span class="pane-sub">page.xt.md</span>
             <span class="pane-hint"><kbd>Tab</kbd> indents · <kbd>Ctrl</kbd>+<kbd>S</kbd> compiles now</span>
           </div>
           <div class="editor" id="editor" data-testid="editor"></div>
@@ -79,7 +79,7 @@
               <div class="panel-bar">
                 <div class="segmented" id="markdown-mode" role="group" aria-label="Which Markdown">
                   <button type="button" data-mode="live" aria-pressed="true" title="page.markdown(): the page as it is now">Live</button>
-                  <button type="button" data-mode="compiled" aria-pressed="false" title="mkp md: the page with its starting values">As compiled</button>
+                  <button type="button" data-mode="compiled" aria-pressed="false" title="xtmd md: the page with its starting values">As compiled</button>
                 </div>
                 <button type="button" class="btn small" id="markdown-copy">Copy</button>
               </div>

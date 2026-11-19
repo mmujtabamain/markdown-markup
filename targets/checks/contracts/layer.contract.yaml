@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/layer (core/gfx.mkp): shapes drawn together, in the order written. Mounted in a core/canvas;
-# its shapes slot holds a labelled dot (the adapter's filler). @mkp/dom draws an SVG <g>.
+# core/layer (core/gfx.xtpack): shapes drawn together, in the order written. Mounted in a core/canvas;
+# its shapes slot holds a labelled dot (the adapter's filler). @extended-mark/dom draws an SVG <g>.
 id: core.layer
 
 props:

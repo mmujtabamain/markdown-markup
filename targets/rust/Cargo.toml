@@ -14,8 +14,8 @@ members = [
     "cli",
     "live",
     "wasm",
-    "../android/mkp",
-    "../android/mkp-live",
+    "../android/xtmd",
+    "../android/xtmd-live",
 ]
 
 [workspace.package]

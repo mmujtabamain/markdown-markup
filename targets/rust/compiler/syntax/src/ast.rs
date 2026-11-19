@@ -1,5 +1,5 @@
 //! The syntax tree. It is untyped and lossless: every comment and blank line is kept, and every
-//! bracketed list remembers whether it was written on one line, so `mkp fmt` can print a file
+//! bracketed list remembers whether it was written on one line, so `xtmd fmt` can print a file
 //! back in the canonical layout without losing anything an author wrote.
 
 use crate::lexer::Comment;
@@ -93,9 +93,9 @@ impl<T> Body<T> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileKind {
-    /// A .mkp file: `package`, imports and declarations.
-    Mkp,
-    /// A .mkp.md document: definitions, a `@@@` line and prose.
+    /// A .xtpack file: `package`, imports and declarations.
+    Xtmd,
+    /// A .xt.md document: definitions, a `@@@` line and prose.
     Document,
 }
 
@@ -780,7 +780,7 @@ impl TextLit {
 
 // ---- prose
 
-/// Prose: lines of Markdown, with MKP's own lines among them.
+/// Prose: lines of Markdown, with Extended Mark's own lines among them.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Prose {
     pub nodes: Vec<ProseNode>,

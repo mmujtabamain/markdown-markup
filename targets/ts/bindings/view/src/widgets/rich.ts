@@ -1,10 +1,10 @@
-// rich_text as inline elements, as @mkp/dom's drawRich draws it: its segments with their marks,
+// rich_text as inline elements, as @extended-mark/dom's drawRich draws it: its segments with their marks,
 // read as markdown.ts reads them, so what is drawn and what is written as Markdown say the same
 // words. Links and pictures are checked before use, and nothing in a value is ever read as HTML.
 // TeX is given as its text, and drawn as MathML by a hook once the element is live.
 
-import { inlineSlot, type Drawn, type Value } from "@mkp/runtime";
-import { field, inner, list, noteId, safeHref, safeSrc, str, texOf, texToMathML } from "@mkp/dom/shared";
+import { inlineSlot, type Drawn, type Value } from "@extended-mark/runtime";
+import { field, inner, list, noteId, safeHref, safeSrc, str, texOf, texToMathML } from "@extended-mark/dom/shared";
 import type { ViewContext } from "../render.js";
 import { cls, h, type Child, type Hook, type VNode } from "../vnode.js";
 
@@ -12,7 +12,7 @@ import { cls, h, type Child, type Hook, type VNode } from "../vnode.js";
  * doesn't know, shown as it is written). */
 const drawn = new WeakMap<Element, { tex: string; math: Element | undefined }>();
 
-/** Draws an element's `data-tex` as MathML, as @mkp/dom's drawTex does: read again only when the
+/** Draws an element's `data-tex` as MathML, as @extended-mark/dom's drawTex does: read again only when the
  * TeX changed, and put back when a redraw put the render's text in its place. */
 function texHook(display: boolean): Hook {
   const draw = (el: Element) => {
@@ -24,10 +24,10 @@ function texHook(display: boolean): Hook {
       drawn.set(el, (was = { tex, math }));
     }
     if (was.math) {
-      el.classList.remove("mkp-math-tex");
+      el.classList.remove("xtmd-math-tex");
       if (el.childNodes.length !== 1 || el.firstChild !== was.math) el.replaceChildren(was.math);
     } else {
-      el.classList.add("mkp-math-tex");
+      el.classList.add("xtmd-math-tex");
       if (el.childElementCount || el.textContent !== tex) el.textContent = tex;
     }
   };
@@ -40,7 +40,7 @@ export function withTex(v: VNode, tex: string, display: boolean): VNode {
   v.attrs["data-tex"] = tex;
   v.attrs.role = "math";
   v.attrs["aria-label"] = tex;
-  cls(v, "mkp-math-tex");
+  cls(v, "xtmd-math-tex");
   v.children = [tex];
   v.hook = texHook(display);
   return v;
@@ -71,14 +71,14 @@ export function richChildren(v: Value | undefined, ctx: ViewContext, d: Drawn): 
         node = h("code", undefined, {}, [str(field(part, "value"))]);
         break;
       case "MATH":
-        node = withTex(h("span", undefined, { class: "mkp-math" }), texOf(field(part, "tex")), false);
+        node = withTex(h("span", undefined, { class: "xtmd-math" }), texOf(field(part, "tex")), false);
         break;
       case "IMAGE":
         node = h("img", undefined, { alt: str(field(part, "alt")), src: safeSrc(str(field(part, "src"))) });
         break;
       case "NOTE": {
         const mark = str(field(part, "mark"));
-        node = h("sup", undefined, { class: "mkp-note-ref" }, [
+        node = h("sup", undefined, { class: "xtmd-note-ref" }, [
           h("a", undefined, { href: `#${noteId(uid, mark)}`, id: `${uid}fnref-${encodeURIComponent(mark)}`, "aria-label": `Footnote ${mark}` }, [mark]),
         ]);
         break;
@@ -89,7 +89,7 @@ export function richChildren(v: Value | undefined, ctx: ViewContext, d: Drawn): 
       case "VIEW": {
         // the runtime drew the view as this widget's slot, which is drawn here
         const slot = inlineSlot(field(part, "child"));
-        node = h("span", undefined, { class: "mkp-inline" }, ctx.children((slot && d.slots.get(slot)) || []));
+        node = h("span", undefined, { class: "xtmd-inline" }, ctx.children((slot && d.slots.get(slot)) || []));
         break;
       }
       default:

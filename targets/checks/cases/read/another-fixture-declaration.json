@@ -1,7 +1,7 @@
 {
   "id": "read.another-fixture-declaration",
   "about": "another fixture declaration",
-  "source": "another-fixture-declaration.mkp",
+  "source": "another-fixture-declaration.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-tests-in-the-language", "line": 3, "column": 1}

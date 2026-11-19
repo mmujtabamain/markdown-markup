@@ -1,7 +1,7 @@
 {
   "id": "read.drawing-in-a-file",
   "about": "drawing in a file",
-  "source": "drawing-in-a-file.mkp",
+  "source": "drawing-in-a-file.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "file.drawing-in-definitions", "line": 3, "column": 1}

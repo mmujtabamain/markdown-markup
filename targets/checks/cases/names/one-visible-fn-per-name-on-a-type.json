@@ -1,8 +1,8 @@
 {
   "id": "names.one-visible-fn-per-name-on-a-type",
   "about": "two visible fns with one name on one type are a compile error; one is imported under another name",
-  "source": "one-visible-fn-per-name-on-a-type.mkp.md",
-  "packs": ["one-visible-fn-per-name-on-a-type.packs/a.mkp", "one-visible-fn-per-name-on-a-type.packs/b.mkp"],
+  "source": "one-visible-fn-per-name-on-a-type.xt.md",
+  "packs": ["one-visible-fn-per-name-on-a-type.packs/a.xtpack", "one-visible-fn-per-name-on-a-type.packs/b.xtpack"],
   "expect": {
     "diagnostics": [
       {"code": "names.fn-clash", "line": 2, "column": 1}

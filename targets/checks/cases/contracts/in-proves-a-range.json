@@ -1,7 +1,7 @@
 {
   "id": "contracts.in-proves-a-range",
   "about": "if (x in low..high) proves the range inside its block",
-  "source": "in-proves-a-range.mkp",
+  "source": "in-proves-a-range.xtpack",
   "expect": {
     "diagnostics": []
   }

@@ -1,11 +1,11 @@
-// The page the web target's check adapter loads into Chromium: @mkp/runtime and @mkp/dom, bundled
-// by esbuild, with `window.mkpCheck` for the adapter to call. Every step goes through the drawn
+// The page the web target's check adapter loads into Chromium: @extended-mark/runtime and @extended-mark/dom, bundled
+// by esbuild, with `window.xtmdCheck` for the adapter to call. Every step goes through the drawn
 // widgets' own DOM where it can (Mounted.act), then waits for the page to settle: the DOM drawn,
 // ResizeObserver's callbacks run and the plane's layout written.
 
-import { Page } from "@mkp/runtime";
-import { mount } from "@mkp/dom";
-import { regionOf, toIr } from "@mkp/runtime";
+import { Page } from "@extended-mark/runtime";
+import { mount } from "@extended-mark/dom";
+import { regionOf, toIr } from "@extended-mark/runtime";
 // the checks' fixed sizes, so boxes agree with every other target (README: "Boxes")
 import { measure, targetFns } from "../test/sizes.mjs";
 // the check packs' externs for the web, registered as an app registers a pack's
@@ -41,10 +41,10 @@ function boxes(nodes, out = {}) {
 
 /** Whether a widget the page drew is in the DOM: the observed tree is only what was drawn. */
 function drawn(path) {
-  return document.querySelector(`[data-mkp-site="${CSS.escape(path)}"]`) !== null;
+  return document.querySelector(`[data-xtmd-site="${CSS.escape(path)}"]`) !== null;
 }
 
-window.mkpCheck = {
+window.xtmdCheck = {
   async load(irText, page, state, externs) {
     mounted?.unmount();
     document.body.innerHTML = "";

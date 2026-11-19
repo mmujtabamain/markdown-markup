@@ -1951,168 +1951,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mkp-android"
-version = "0.3.0"
-dependencies = [
- "mkp-check",
- "mkp-eval",
- "mkp-ir",
- "mkp-lower",
- "mkp-runtime",
- "serde",
- "serde_json",
- "uniffi",
-]
-
-[[package]]
-name = "mkp-android-live"
-version = "0.3.0"
-dependencies = [
- "mkp-live",
- "serde_json",
- "uniffi",
-]
-
-[[package]]
-name = "mkp-check"
-version = "0.3.0"
-dependencies = [
- "jsonschema",
- "mkp-eval",
- "mkp-ir",
- "mkp-lower",
- "mkp-syntax",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-cli"
-version = "0.3.0"
-dependencies = [
- "jsonschema",
- "mkp-check",
- "mkp-eval",
- "mkp-ir",
- "mkp-lower",
- "mkp-markdown",
- "mkp-syntax",
- "serde",
- "serde_json",
- "toml 0.8.23",
-]
-
-[[package]]
-name = "mkp-egui"
-version = "0.3.0"
-dependencies = [
- "chrono",
- "eframe",
- "egui",
- "egui_kittest",
- "mkp-check",
- "mkp-eval",
- "mkp-ir",
- "mkp-lower",
- "mkp-runtime",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-egui-live"
-version = "0.3.0"
-dependencies = [
- "eframe",
- "egui",
- "mkp-egui",
- "mkp-live",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-eval"
-version = "0.3.0"
-dependencies = [
- "dec",
- "mkp-ir",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-ir"
-version = "0.3.0"
-dependencies = [
- "jsonschema",
- "mkp-schemagen",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-live"
-version = "0.3.0"
-dependencies = [
- "mkp-check",
- "mkp-ir",
- "mkp-lower",
- "mkp-syntax",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-lower"
-version = "0.3.0"
-dependencies = [
- "mkp-ir",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-markdown"
-version = "0.3.0"
-dependencies = [
- "mkp-eval",
- "mkp-ir",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-runtime"
-version = "0.3.0"
-dependencies = [
- "mkp-check",
- "mkp-eval",
- "mkp-ir",
- "mkp-lower",
- "mkp-markdown",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-schemagen"
-version = "0.3.0"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "mkp-syntax"
-version = "0.3.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "mkp-wasm"
-version = "0.3.0"
-dependencies = [
- "mkp-live",
- "serde_json",
-]
-
-[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4550,6 +4388,168 @@ name = "xml-rs"
 version = "0.8.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
+
+[[package]]
+name = "xtmd-android"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "uniffi",
+ "xtmd-check",
+ "xtmd-eval",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-runtime",
+]
+
+[[package]]
+name = "xtmd-android-live"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "uniffi",
+ "xtmd-live",
+]
+
+[[package]]
+name = "xtmd-check"
+version = "0.3.0"
+dependencies = [
+ "jsonschema",
+ "serde_json",
+ "xtmd-eval",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-syntax",
+]
+
+[[package]]
+name = "xtmd-cli"
+version = "0.3.0"
+dependencies = [
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "xtmd-check",
+ "xtmd-eval",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-markdown",
+ "xtmd-syntax",
+]
+
+[[package]]
+name = "xtmd-egui"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "eframe",
+ "egui",
+ "egui_kittest",
+ "serde",
+ "serde_json",
+ "xtmd-check",
+ "xtmd-eval",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-runtime",
+]
+
+[[package]]
+name = "xtmd-egui-live"
+version = "0.3.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "serde_json",
+ "xtmd-egui",
+ "xtmd-live",
+]
+
+[[package]]
+name = "xtmd-eval"
+version = "0.3.0"
+dependencies = [
+ "dec",
+ "serde_json",
+ "xtmd-ir",
+]
+
+[[package]]
+name = "xtmd-ir"
+version = "0.3.0"
+dependencies = [
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "xtmd-schemagen",
+]
+
+[[package]]
+name = "xtmd-live"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "xtmd-check",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-syntax",
+]
+
+[[package]]
+name = "xtmd-lower"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "xtmd-ir",
+]
+
+[[package]]
+name = "xtmd-markdown"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "xtmd-eval",
+ "xtmd-ir",
+]
+
+[[package]]
+name = "xtmd-runtime"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "xtmd-check",
+ "xtmd-eval",
+ "xtmd-ir",
+ "xtmd-lower",
+ "xtmd-markdown",
+]
+
+[[package]]
+name = "xtmd-schemagen"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "xtmd-syntax"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "xtmd-wasm"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "xtmd-live",
+]
 
 [[package]]
 name = "zbus"

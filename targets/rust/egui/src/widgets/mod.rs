@@ -1,5 +1,5 @@
 //! Our default egui widgets, by full name: every core extern, and the runtime's notice. An app's
-//! own, given to [`crate::MkpPage::widget`], replace them by name.
+//! own, given to [`crate::XtmdPage::widget`], replace them by name.
 //!
 //! Each draws the way egui draws, with the roles, names and states a screen reader needs in
 //! egui's AccessKit tree, the keyboard egui gives focusable widgets (Enter and Space press, the

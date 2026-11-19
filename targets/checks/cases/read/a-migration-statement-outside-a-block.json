@@ -1,7 +1,7 @@
 {
   "id": "read.a-migration-statement-outside-a-block",
   "about": "a migration statement outside a block, which names no declaration",
-  "source": "a-migration-statement-outside-a-block.mkp",
+  "source": "a-migration-statement-outside-a-block.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.migration-line", "line": 4, "column": 5}

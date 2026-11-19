@@ -1,5 +1,5 @@
 // Differential: the Rust evaluator against this one, case by case. Each case is written twice into
-// one MKP file, as `let r_K: T = EXPR;`, which the compiler works out with the Rust evaluator
+// one Extended Mark file, as `let r_K: T = EXPR;`, which the compiler works out with the Rust evaluator
 // (its value lands in the IR, and a failure is a compile error carrying the failure's message),
 // and as `fn f_K(): T { return EXPR; }`, whose return expression the TypeScript evaluator works
 // out here with a fresh Machine, as the compiler does for a let. Both answers have to be the same:
@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { rmSync } from "node:fs";
 import assert from "node:assert/strict";
 import { Constants, Failure, Machine, toIr } from "../dist/index.js";
-import { build, declarations, program, workdir } from "./mkp.mjs";
+import { build, declarations, program, workdir } from "./xtmd.mjs";
 
 const PRELUDE = `package t;
 

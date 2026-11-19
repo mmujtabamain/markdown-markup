@@ -1,4 +1,4 @@
-//! Test helpers: pages compiled by the compiler in-process, as `mkp build` compiles them.
+//! Test helpers: pages compiled by the compiler in-process, as `xtmd build` compiles them.
 
 #![allow(dead_code)]
 
@@ -6,16 +6,16 @@ use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Mutex, OnceLock};
 
-use mkp_check::Source;
-use mkp_runtime::ir::{self, Expr};
-use mkp_runtime::{Num, Page, PageOptions, Value};
+use xtmd_check::Source;
+use xtmd_runtime::ir::{self, Expr};
+use xtmd_runtime::{Num, Page, PageOptions, Value};
 
 pub fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -29,18 +29,18 @@ fn compiler() -> &'static Mutex<Sender<Job>> {
     SERVER.get_or_init(|| {
         let (tx, rx) = channel::<Job>();
         std::thread::spawn(move || {
-            let base = mkp_check::compile_core(&core_sources());
+            let base = xtmd_check::compile_core(&core_sources());
             for (source, packs, reply) in rx {
                 let mut pack_sources = Vec::new();
                 for dir in packs {
-                    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+                    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
                     files.sort();
                     pack_sources.push(files.into_iter().map(|f| Source { path: f.to_string_lossy().into_owned(), text: std::fs::read_to_string(&f).unwrap() }).collect());
                 }
-                let c = mkp_check::compile_on(&base, &pack_sources, &[Source { path: "page.mkp.md".into(), text: source }], "doc");
+                let c = xtmd_check::compile_on(&base, &pack_sources, &[Source { path: "page.xt.md".into(), text: source }], "doc");
                 let out = match c.module {
                     Some(mut m) => {
-                        mkp_lower::lower(&mut m);
+                        xtmd_lower::lower(&mut m);
                         Ok(m)
                     }
                     None => Err(c.errors().map(|d| d.diagnostic.render(&d.file, &c.texts[&d.file])).collect::<Vec<_>>().join("\n")),

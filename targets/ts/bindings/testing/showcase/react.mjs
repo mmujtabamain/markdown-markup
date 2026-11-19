@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { MkpDoc } from "@mkp/react";
-import { MkpLiveDoc } from "@mkp/react-live";
+import { XtmdDoc } from "@extended-mark/react";
+import { XtmdLiveDoc } from "@extended-mark/react-live";
 import { S, compiled, failed, onEdit, showState } from "./common.mjs";
 
 const id = "react";
@@ -11,7 +11,7 @@ function Run() {
   const ref = useRef(null);
   useEffect(() => setState(ref.current.state()), []);
   useEffect(() => showState(id, state), [state]);
-  return h(MkpDoc, { ref, ir: S.ir, state, onStateChange: setState });
+  return h(XtmdDoc, { ref, ir: S.ir, state, onStateChange: setState });
 }
 
 function Live() {
@@ -21,7 +21,7 @@ function Live() {
     onEdit(id, setSource);
     return compiled(id, ref.current.doc);
   }, []);
-  return h(MkpLiveDoc, { ref, source, wasm: S.wasm, onError: failed(id) });
+  return h(XtmdLiveDoc, { ref, source, wasm: S.wasm, onError: failed(id) });
 }
 
 createRoot(document.getElementById(`${id}-run`)).render(h(Run));

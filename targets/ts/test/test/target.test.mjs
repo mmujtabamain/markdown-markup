@@ -1,4 +1,4 @@
-// The test target, checked the way `mkp target check` uses it: every target check passes on it,
+// The test target, checked the way `xtmd target check` uses it: every target check passes on it,
 // each of its defects is caught by some check, and its adapter speaks the check protocol.
 
 import { describe, test } from "node:test";
@@ -15,17 +15,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const target = join(here, "..");
 const repo = join(target, "../../..");
 
-/** The mkp binary: MKP_BINARY, or the repo's own build. */
-function mkp() {
-  const found = [process.env.MKP_BINARY, join(repo, "targets/rust/target/release/mkp"), join(repo, "targets/rust/target/debug/mkp")].find((p) => p && existsSync(p));
-  assert.ok(found, "no mkp binary: build targets/rust or set MKP_BINARY");
+/** The xtmd binary: XTMD_BINARY, or the repo's own build. */
+function xtmd() {
+  const found = [process.env.XTMD_BINARY, join(repo, "targets/rust/target/release/xtmd"), join(repo, "targets/rust/target/debug/xtmd")].find((p) => p && existsSync(p));
+  assert.ok(found, "no xtmd binary: build targets/rust or set XTMD_BINARY");
   return found;
 }
 
-/** `mkp target check test`, run without blocking, so several can run at once. */
+/** `xtmd target check test`, run without blocking, so several can run at once. */
 function check(...args) {
   return new Promise((resolve) => {
-    const child = spawn(mkp(), ["target", "check", "test", ...args], { cwd: repo });
+    const child = spawn(xtmd(), ["target", "check", "test", ...args], { cwd: repo });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += d));
@@ -51,7 +51,7 @@ describe("each defect is caught", { concurrency: 4 }, () => {
 });
 
 test("a defect that isn't one is refused", () => {
-  const r = spawnSync("node", ["adapter.mjs"], { cwd: target, env: { ...process.env, MKP_TEST_DEFECT: "no-such-defect" }, encoding: "utf8", input: "" });
+  const r = spawnSync("node", ["adapter.mjs"], { cwd: target, env: { ...process.env, XTMD_TEST_DEFECT: "no-such-defect" }, encoding: "utf8", input: "" });
   assert.equal(r.status, 2);
   assert.match(r.stderr, /no defect no-such-defect/);
 });
@@ -79,13 +79,13 @@ function adapter() {
 }
 
 test("the adapter speaks the check protocol: advertise, load, a step, observe, quit", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "mkp-test-target-"));
+  const dir = mkdtempSync(join(tmpdir(), "xtmd-test-target-"));
   try {
-    const src = join(dir, "page.mkp.md");
+    const src = join(dir, "page.xt.md");
     writeFileSync(src, '$state {\n    n: int 0..3 = 0;\n}\n@@@\n@slider(value = $state.n, label = "N");\n');
     const ir = join(dir, "page.ir.json");
-    const b = spawnSync(mkp(), ["build", src, "--out", ir], { encoding: "utf8" });
-    if (b.status !== 0) writeFileSync(ir, spawnSync(mkp(), ["build", src], { encoding: "utf8" }).stdout);
+    const b = spawnSync(xtmd(), ["build", src, "--out", ir], { encoding: "utf8" });
+    if (b.status !== 0) writeFileSync(ir, spawnSync(xtmd(), ["build", src], { encoding: "utf8" }).stdout);
     const a = adapter();
     const ad = await a.call("advertise", { protocol: "1" });
     assert.deepEqual(ad.result, { name: "test", protocol: "1", levels: ["core.draw", "core.live", "core.gfx"], supplies: ["core/*", "core/can_draw_tex", "core/moment.local"] });

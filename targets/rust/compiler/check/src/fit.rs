@@ -216,7 +216,7 @@ impl Checker {
         }
         let mut any = None;
         for node in &self.files[file].ast.items {
-            let mkp_syntax::ast::Item::Import(imp) = &node.item else { continue };
+            let xtmd_syntax::ast::Item::Import(imp) = &node.item else { continue };
             if imp.path[0].name != *pack {
                 continue;
             }

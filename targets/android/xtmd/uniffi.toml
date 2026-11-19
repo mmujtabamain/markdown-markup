@@ -1,0 +1,5 @@
+# What uniffi-bindgen writes for Kotlin: the package the generated file declares, and the library
+# JNA loads (libxtmd_android.so, from jniLibs on Android and from jna.library.path on the JVM).
+[bindings.kotlin]
+package_name = "xtmd.android.ffi"
+cdylib_name = "xtmd_android"

@@ -1,4 +1,4 @@
-// MKP's one number type: exact base-10, IEEE 754 decimal128 with 34 significant digits,
+// Extended Mark's one number type: exact base-10, IEEE 754 decimal128 with 34 significant digits,
 // rounding halves to even (page 2). A port of targets/rust/eval/src/num.rs, which uses IBM's
 // libdecnumber; here decimal.js does the arithmetic and every result is rounded into decimal128
 // by hand (34 digits, exponents up to 10^6144, subnormals down to 10^-6176), once, so the two
@@ -159,7 +159,7 @@ export class Num {
     return fin(new D34(typeof n === "bigint" ? n.toString() : n), ROUND_HALF_EVEN);
   }
 
-  /** An MKP number literal (`1_000`, `0.25`) or an IR number (`-7`, `3.5`): `[-] digits [. digits]`,
+  /** An Extended Mark number literal (`1_000`, `0.25`) or an IR number (`-7`, `3.5`): `[-] digits [. digits]`,
    * underscores ignored, rounded to 34 digits; `null` for anything else, or one too large. */
   static parse(s: string): Num | null {
     const t = s.includes("_") ? s.split("_").join("") : s;

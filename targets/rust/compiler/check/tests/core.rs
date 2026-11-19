@@ -1,6 +1,6 @@
 //! core compiles to IR with no errors, and its IR fits the schema's types.
 
-use mkp_check::{compile, Source};
+use xtmd_check::{compile, Source};
 use std::path::PathBuf;
 
 pub fn repo() -> PathBuf {
@@ -8,12 +8,12 @@ pub fn repo() -> PathBuf {
 }
 
 pub fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
 
-fn render(c: &mkp_check::Compiled) -> String {
+fn render(c: &xtmd_check::Compiled) -> String {
     c.diagnostics.iter().map(|d| d.diagnostic.render(&d.file, &c.texts[&d.file])).collect::<Vec<_>>().join("\n")
 }
 
@@ -23,8 +23,8 @@ fn core_compiles_with_no_errors() {
     let errors: Vec<_> = c.errors().collect();
     assert!(errors.is_empty(), "{} errors compiling core:\n{}", errors.len(), render(&c));
     let m = c.module.unwrap();
-    let json = serde_json::to_value(&mkp_ir::ir::File { ir: m }).unwrap();
-    let back: mkp_ir::ir::File = serde_json::from_value(json).unwrap();
+    let json = serde_json::to_value(&xtmd_ir::ir::File { ir: m }).unwrap();
+    let back: xtmd_ir::ir::File = serde_json::from_value(json).unwrap();
     assert!(!back.ir.declarations.is_empty());
 }
 
@@ -32,9 +32,9 @@ fn core_compiles_with_no_errors() {
 fn write_core_ir_for_a_look() {
     let c = compile(&core_sources(), &[], &[], "core");
     if let Some(m) = c.module {
-        let out = std::env::var("MKP_CORE_IR").unwrap_or_default();
+        let out = std::env::var("XTMD_CORE_IR").unwrap_or_default();
         if !out.is_empty() {
-            std::fs::write(out, serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap()).unwrap();
+            std::fs::write(out, serde_json::to_string_pretty(&xtmd_ir::ir::File { ir: m }).unwrap()).unwrap();
         }
     }
 }
@@ -61,7 +61,7 @@ fn core_own_tests_pass() {
             let Some(rest) = line.strip_prefix("let check_") else { continue };
             let check = format!("check_{}", rest.split(':').next().unwrap());
             match c.constants.get(&format!("t/{}", check)) {
-                Some(mkp_eval::Value::Bool(true)) => passed += 1,
+                Some(xtmd_eval::Value::Bool(true)) => passed += 1,
                 Some(other) => failed.push(format!("{}: {} is {:?}", name, check, other)),
                 None => failed.push(format!("{}: {} couldn't be worked out at compile time", name, check)),
             }

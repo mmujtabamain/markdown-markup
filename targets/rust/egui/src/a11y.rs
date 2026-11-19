@@ -1,10 +1,10 @@
 //! What a screen reader gets, through egui's AccessKit tree: each drawn widget's root is a node
 //! with its role and name, and its parts are nodes too. Each one carries an author id, which is
-//! how the check adapters find a widget and its parts, as the web finds `data-mkp-site` and
+//! how the check adapters find a widget and its parts, as the web finds `data-xtmd-site` and
 //! `data-part`:
 //!
 //! - a widget's root: `<short name>@<path>` (`press@s0/s0`);
-//! - one of its parts: `<short name>.<part>` (`slider.input`), as @mkp/dom's `data-part`.
+//! - one of its parts: `<short name>.<part>` (`slider.input`), as @extended-mark/dom's `data-part`.
 //!
 //! Bounds are set on every node we make, in screen coordinates: egui sets them only on widgets
 //! that report their info, and leaves a transformed layer's (the plane's) in the layer's own.

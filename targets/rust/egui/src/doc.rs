@@ -1,8 +1,8 @@
-//! [`MkpDoc`]: a document as an egui app holds one, egui's run-time target. It is made from its IR,
-//! in hand or read from a path. `$state` is the app's to control ([`MkpDoc::show_controlled`]) or
-//! to start from. Every write is checked by mkp, and what is refused comes back to the app. A
+//! [`XtmdDoc`]: a document as an egui app holds one, egui's run-time target. It is made from its IR,
+//! in hand or read from a path. `$state` is the app's to control ([`XtmdDoc::show_controlled`]) or
+//! to start from. Every write is checked by xtmd, and what is refused comes back to the app. A
 //! [`Snapshot`] takes out everything the page holds and puts it back. There is no compiler here:
-//! mkp-egui-live compiles a document's text.
+//! xtmd-egui-live compiles a document's text.
 //!
 //! egui draws every frame, so what a frame did comes back from it, as egui's own widgets answer:
 //! [`DocResponse`] has the `$state` if it changed, the app's extern fns the page called, and the
@@ -12,11 +12,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use egui::Ui;
-use mkp_runtime::ir::{self, Expr};
-use mkp_runtime::{Broken, Call, Measure, Page, PageOptions, PageValues, Value, ValueFn};
+use xtmd_runtime::ir::{self, Expr};
+use xtmd_runtime::{Broken, Call, Measure, Page, PageOptions, PageValues, Value, ValueFn};
 use serde::{Deserialize, Serialize};
 
-use crate::{fns, MkpPage, Registry};
+use crate::{fns, XtmdPage, Registry};
 
 /// `$state`, or a widget's own variables: values by name, in the IR's form.
 pub type State = BTreeMap<String, Expr>;
@@ -27,13 +27,13 @@ pub const RELEASE: &str = "0.3.0";
 /// What went wrong, for the app.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DocError {
-    /// A write mkp refused: the app's, or a reader's.
+    /// A write xtmd refused: the app's, or a reader's.
     Refused(Broken),
     /// A handler or a widget that failed.
     Failed(Broken),
     /// An IR that couldn't be had: read, parsed or started.
     Load(String),
-    /// A text that didn't compile: a real-time target's (mkp-egui-live).
+    /// A text that didn't compile: a real-time target's (xtmd-egui-live).
     Compile(String),
 }
 
@@ -52,7 +52,7 @@ impl std::fmt::Display for DocError {
 /// at. Opaque to the app, which keeps it (it is JSON) and gives it back.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Snapshot {
-    pub mkp: String,
+    pub xtmd: String,
     /// A hash of the IR it was taken from: places mean the same widgets only in the same IR.
     pub ir: String,
     pub state: State,
@@ -70,7 +70,7 @@ pub enum RestoredHow {
     None,
 }
 
-/// What [`MkpDoc::restore`] did.
+/// What [`XtmdDoc::restore`] did.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Restored {
     pub restored: RestoredHow,
@@ -117,7 +117,7 @@ pub struct DocResponse {
     pub errors: Vec<DocError>,
 }
 
-/// A short, stable hash of a text: FNV-1a, in base 36 (as @mkp/view's).
+/// A short, stable hash of a text: FNV-1a, in base 36 (as @extended-mark/view's).
 fn hash(text: &str) -> String {
     let (mut h1, mut h2): (u32, u32) = (0x811c9dc5, 0x01000193);
     for c in text.encode_utf16() {
@@ -150,8 +150,8 @@ fn channel(module: &str, name: &str) -> String {
 }
 
 /// A document, drawn by egui.
-pub struct MkpDoc {
-    view: MkpPage,
+pub struct XtmdDoc {
+    view: XtmdPage,
     /// The document's module: its channels are named in it.
     module: String,
     defects: Vec<String>,
@@ -163,9 +163,9 @@ pub struct MkpDoc {
     errors: Vec<DocError>,
 }
 
-impl MkpDoc {
+impl XtmdDoc {
     /// A document from its IR in hand.
-    pub fn new(file: ir::File, mut opts: DocOptions) -> Result<MkpDoc, DocError> {
+    pub fn new(file: ir::File, mut opts: DocOptions) -> Result<XtmdDoc, DocError> {
         let hash = hash(&serde_json::to_string(&file).unwrap_or_default());
         let module = file.ir.module.clone();
         let mut page = start(file, &mut opts)?;
@@ -173,7 +173,7 @@ impl MkpDoc {
             Some(given) => give(&mut page, &given, true)?,
             None => Vec::new(),
         };
-        let mut view = MkpPage::new(page);
+        let mut view = XtmdPage::new(page);
         if let Some(r) = opts.registry.take() {
             view = view.with_registry(r);
         }
@@ -182,24 +182,24 @@ impl MkpDoc {
         }
         view.set_follow_theme(!opts.fixed_theme);
         let shown = view.page().observe_state();
-        let mut doc = MkpDoc { view, module, defects: opts.defects.clone(), hash, shown, given: None, errors };
+        let mut doc = XtmdDoc { view, module, defects: opts.defects.clone(), hash, shown, given: None, errors };
         if let Some(snap) = opts.snapshot.take() {
             doc.restore(&snap);
         }
         Ok(doc)
     }
 
-    /// A document from the IR file `mkp build` wrote, as JSON.
-    pub fn from_json(json: &str, opts: DocOptions) -> Result<MkpDoc, DocError> {
+    /// A document from the IR file `xtmd build` wrote, as JSON.
+    pub fn from_json(json: &str, opts: DocOptions) -> Result<XtmdDoc, DocError> {
         let file: ir::File = serde_json::from_str(json).map_err(|e| DocError::Load(format!("the IR doesn't read: {}", e)))?;
-        MkpDoc::new(file, opts)
+        XtmdDoc::new(file, opts)
     }
 
-    /// A document from where its IR is: a file `mkp build` wrote.
-    pub fn open(src: impl AsRef<Path>, opts: DocOptions) -> Result<MkpDoc, DocError> {
+    /// A document from where its IR is: a file `xtmd build` wrote.
+    pub fn open(src: impl AsRef<Path>, opts: DocOptions) -> Result<XtmdDoc, DocError> {
         let src = src.as_ref();
         let json = std::fs::read_to_string(src).map_err(|e| DocError::Load(format!("the page at {} couldn't be loaded: {}", src.display(), e)))?;
-        MkpDoc::from_json(&json, opts)
+        XtmdDoc::from_json(&json, opts)
     }
 
     /// A new IR for the same document, drawn in its place: `$state` carried over where its fields
@@ -289,14 +289,14 @@ impl MkpDoc {
 
     /// Everything the page holds now.
     pub fn snapshot(&self) -> Snapshot {
-        Snapshot { mkp: RELEASE.into(), ir: self.hash.clone(), state: self.state(), own: self.view.page().observe_own() }
+        Snapshot { xtmd: RELEASE.into(), ir: self.hash.clone(), state: self.state(), own: self.view.page().observe_own() }
     }
 
     /// Puts a snapshot back: with the same IR, all of it; with another, `$state` only. `$state`
     /// goes back as one checked write.
     pub fn restore(&mut self, snap: &Snapshot) -> Restored {
-        if snap.mkp != RELEASE {
-            return Restored { restored: RestoredHow::None, dropped: Vec::new(), why: Some(format!("a snapshot this mkp ({}) can't read", RELEASE)) };
+        if snap.xtmd != RELEASE {
+            return Restored { restored: RestoredHow::None, dropped: Vec::new(), why: Some(format!("a snapshot this xtmd ({}) can't read", RELEASE)) };
         }
         if let Err(e) = self.set(snap.state.clone()) {
             let dropped = match &e {
@@ -322,11 +322,11 @@ impl MkpDoc {
     }
 
     /// What draws it: to act on a widget through its own controls, as the checks do.
-    pub fn view(&self) -> &MkpPage {
+    pub fn view(&self) -> &XtmdPage {
         &self.view
     }
 
-    pub fn view_mut(&mut self) -> &mut MkpPage {
+    pub fn view_mut(&mut self) -> &mut XtmdPage {
         &mut self.view
     }
 

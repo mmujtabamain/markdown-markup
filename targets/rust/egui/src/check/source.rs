@@ -1,11 +1,11 @@
-//! The MKP page the omnicui adapter mounts for one widget contract, as the web's
+//! The Extended Mark page the omnicui adapter mounts for one widget contract, as the web's
 //! (targets/ts/web/omnicui/source.mjs, of which this is a port): the extern widget called on its
-//! own, its props turned into MKP literals by each input's type, every `mut` input bound to a
+//! own, its props turned into Extended Mark literals by each input's type, every `mut` input bound to a
 //! `$state` field (so a write persists), every event bound to a handler (so it reaches the page),
 //! and its slots filled with simple labelled content. Inputs, slots and events come from the IR's
 //! declarations, not from a hand-written list.
 //!
-//! Names: omnicui's are camelCase, MKP's small with underscores. A prop `zoomRange` is the input
+//! Names: omnicui's are camelCase, Extended Mark's small with underscores. A prop `zoomRange` is the input
 //! `zoom_range`; an event `openChanged` is `open_changed`; a write to the `mut` input `open` is
 //! reported as the event `writeOpen`, with the field `value`.
 
@@ -164,7 +164,7 @@ fn range_text(s: &str) -> Option<(String, bool, Option<String>, Option<String>)>
     Some((low.trim().to_string(), open, (!high.is_empty()).then(|| high.to_string()), step))
 }
 
-/// A prop's value, in the type of the input it is given to, as MKP source.
+/// A prop's value, in the type of the input it is given to, as Extended Mark source.
 pub fn literal(v: &Json, ty: &Json, decls: &Decls) -> Result<String, String> {
     let name = ty["name"].as_str().unwrap_or("");
     let args = ty["args"].as_array().cloned().unwrap_or_default();
@@ -582,7 +582,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn names_between_omnicui_and_mkp() {
+    fn names_between_omnicui_and_xtmd() {
         assert_eq!(camel("open_changed"), "openChanged");
         assert_eq!(snake("zoomRange"), "zoom_range");
         assert_eq!(write_event("zoom_range"), "writeZoomRange");

@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/path (core/gfx.mkp): a line through points; closed, a polygon that can be filled. Mounted in
+# core/path (core/gfx.xtpack): a line through points; closed, a polygon that can be filled. Mounted in
 # a core/canvas (x and y -1..1) and a layer. The adapter sets each of its events, so it is
-# interactive: role=button, focusable, named by its label. @mkp/dom draws an SVG <g> holding the
+# interactive: role=button, focusable, named by its label. @extended-mark/dom draws an SVG <g> holding the
 # line and its head.
 id: core.path
 

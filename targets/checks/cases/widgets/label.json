@@ -1,7 +1,7 @@
 {
   "id": "widgets.label",
   "about": "claims are checked: a label",
-  "source": "label.mkp.md",
+  "source": "label.xt.md",
   "target": {
     "levels": [
       "core.draw"

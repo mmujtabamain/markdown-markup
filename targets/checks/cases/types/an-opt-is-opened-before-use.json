@@ -1,7 +1,7 @@
 {
   "id": "types.an-opt-is-opened-before-use",
   "about": "an opt<color> where a color is wanted is an ordinary type error",
-  "source": "an-opt-is-opened-before-use.mkp",
+  "source": "an-opt-is-opened-before-use.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 4, "column": 12}

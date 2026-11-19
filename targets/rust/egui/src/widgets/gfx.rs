@@ -2,15 +2,15 @@
 //! onto the ui's points), layers are groups with an opacity and a clip, and shapes are painted in
 //! it, each with a node of its own when it has a name or an event. `place` puts ordinary widgets at
 //! a point; `handle` is dragged; `shade` is painted on the CPU from its shader, bounded as
-//! @mkp/dom's is.
+//! @extended-mark/dom's is.
 
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
 use egui::{Color32, Pos2, Rect, Sense, Shape as EShape, Stroke, Ui, UiBuilder};
-use mkp_eval::value::Record;
-use mkp_runtime::{Num, Value};
+use xtmd_eval::value::Record;
+use xtmd_runtime::{Num, Value};
 
 use super::kit;
 use crate::values::{self, exact, field, list, num, places_for, point, region, to_f64, to_num};
@@ -362,8 +362,8 @@ struct Job {
     took: Duration,
 }
 
-/// The most time a whole shade's samples may take: a shader written in MKP is slow, and the
-/// shade has fewer samples for it, as @mkp/dom keeps the whole shade within the step limit.
+/// The most time a whole shade's samples may take: a shader written in Extended Mark is slow, and the
+/// shade has fewer samples for it, as @extended-mark/dom keeps the whole shade within the step limit.
 pub const SHADE_TIME: Duration = Duration::from_millis(1500);
 
 /// A value's identity for "did it change": its IR form, with fns by their code.
@@ -461,7 +461,7 @@ impl Widget for Shade {
                             rows = ((rows as f64 * k).floor() as usize).max(1);
                         }
                         let img = egui::ColorImage::new([c0, r0], job.pixels);
-                        self.texture = Some(ui.ctx().load_texture(format!("mkp-shade-{:?}", ctx.id()), img, egui::TextureOptions::LINEAR));
+                        self.texture = Some(ui.ctx().load_texture(format!("xtmd-shade-{:?}", ctx.id()), img, egui::TextureOptions::LINEAR));
                         self.state = "done";
                         if cols > c0 || rows > r0 {
                             self.job = Some(Job { cols, rows, row: 0, pixels: Vec::with_capacity(cols * rows), took: Duration::ZERO });

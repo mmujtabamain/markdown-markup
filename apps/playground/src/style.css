@@ -1,4 +1,4 @@
-/* The MKP playground. Light by default, dark with the system; @mkp/dom draws the page itself. */
+/* The Extended Mark playground. Light by default, dark with the system; @extended-mark/dom draws the page itself. */
 
 :root {
   --bg: #f3f4f7;

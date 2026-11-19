@@ -1,9 +1,9 @@
-// @mkp/view without a framework or a browser: the page as HTML, the patcher keeping elements by key,
+// @extended-mark/view without a framework or a browser: the page as HTML, the patcher keeping elements by key,
 // and the document's controlled `$state`, refusals and snapshots.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import * as cli from "@mkp/cli";
+import * as cli from "xtmd";
 import { Doc, Patcher, h, toHtml } from "../dist/index.js";
 import { compilePages } from "../../testing/browser.mjs";
 
@@ -24,7 +24,7 @@ function drawn(nodes, out = []) {
 test("toHtml escapes text and attributes, writes properties and style, and leaves a void element open", () => {
   const v = h("p", "label", { title: 'a "b"' }, ["<i> & </i>", { tag: "input", attrs: {}, props: { value: "x<", disabled: true, checked: false }, children: [] }]);
   v.style = { "text-align": "end" };
-  assert.equal(toHtml(v), '<p data-part="label" class="mkp-label" title="a &quot;b&quot;" style="text-align:end">&lt;i&gt; &amp; &lt;/i&gt;<input value="x&lt;" disabled></p>');
+  assert.equal(toHtml(v), '<p data-part="label" class="xtmd-label" title="a &quot;b&quot;" style="text-align:end">&lt;i&gt; &amp; &lt;/i&gt;<input value="x&lt;" disabled></p>');
   // a stylesheet's text is its own
   assert.equal(toHtml({ tag: "style", attrs: {}, children: ["a > b {}"] }), "<style>a > b {}</style>");
 });
@@ -72,7 +72,7 @@ test("the patcher keeps an element by key, sets only what changed, and moves onl
 test("a document renders its page with the app's externs and the `$state` it starts from", () => {
   const doc = new Doc({ ir: irs.v1, externs, defaultState: { n: num(2) } });
   const html = toHtml(doc.render());
-  assert.match(html, /^<div class="mkp-root" data-mkp-root data-mkp-theme="light"/);
+  assert.match(html, /^<div class="xtmd-root" data-xtmd-root data-xtmd-theme="light"/);
   assert.ok(html.includes("Count: 2 items"), html);
   assert.match(html, /data-part="press\.label"[^>]*>Add one</);
   assert.equal(doc.markdown(), "# Count: 2 items\n\nAdd one\n");
@@ -148,7 +148,7 @@ test("a snapshot brings back `$state` and widgets' own variables in the same IR,
   assert.deepEqual(other.restore({ ...snap, state: { n: num(2) } }), { restored: "state", dropped: ["own"] });
   assert.deepEqual(other.state(), { n: num(2) });
   // a snapshot of another release, or a $state the page refuses
-  assert.equal(other.restore({ ...snap, mkp: "0.2.0" }).restored, "none");
+  assert.equal(other.restore({ ...snap, xtmd: "0.2.0" }).restored, "none");
   const errors = [];
   const strict = new Doc({ ir: irs.v1, externs, onError: (e) => errors.push(e) });
   assert.equal(strict.restore({ ...snap, state: { n: num(11) } }).restored, "none");
@@ -162,7 +162,7 @@ test("a document fetched from `src` shows that it is loading, then the page, or 
   try {
     const errors = [];
     const doc = new Doc({ src: "/ok.json", externs });
-    assert.ok(toHtml(doc.render()).includes("data-mkp-loading"));
+    assert.ok(toHtml(doc.render()).includes("data-xtmd-loading"));
     await tick();
     assert.ok(toHtml(doc.render()).includes("Count: 0 items"));
     const missing = new Doc({ src: "/missing.json", onError: (e) => errors.push(e) });

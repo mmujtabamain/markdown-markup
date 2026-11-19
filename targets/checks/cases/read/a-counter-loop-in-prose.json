@@ -1,7 +1,7 @@
 {
   "id": "read.a-counter-loop-in-prose",
   "about": "a counter loop in prose",
-  "source": "a-counter-loop-in-prose.mkp.md",
+  "source": "a-counter-loop-in-prose.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-counter-loop", "line": 1, "column": 1}

@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/react-live",
+  "name": "@extended-mark/react-live",
   "version": "0.3.0",
-  "description": "MKP documents in React, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/react's <MkpDoc>",
+  "description": "Extended Mark documents in React, compiled in the browser as they are edited: <XtmdLiveDoc source={…} />, @extended-mark/wasm's compiler and @extended-mark/react's <XtmdDoc>",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,19 +21,19 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/embed": "file:../embed",
-    "@mkp/live": "file:../live",
-    "@mkp/react": "file:../react",
-    "@mkp/runtime": "file:../../runtime",
-    "@mkp/view": "file:../view",
-    "@mkp/wasm": "file:../../wasm"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/react": "file:../react",
+    "@extended-mark/runtime": "file:../../runtime",
+    "@extended-mark/view": "file:../view",
+    "@extended-mark/wasm": "file:../../wasm"
   },
   "peerDependencies": {
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "@types/react": "19.3.0",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",

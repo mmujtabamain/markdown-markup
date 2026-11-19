@@ -1,16 +1,16 @@
-// The JS API runs the native mkp binary: check, build, md and format.
+// The JS API runs the native xtmd binary: check, build, md and format.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { build, check, format, md, MkpError } from "../dist/index.js";
+import { build, check, format, md, XtmdError } from "../dist/index.js";
 
-const dir = mkdtempSync(join(tmpdir(), "mkp-cli-api-"));
-const page = join(dir, "page.mkp.md");
+const dir = mkdtempSync(join(tmpdir(), "xtmd-cli-api-"));
+const page = join(dir, "page.xt.md");
 writeFileSync(page, "$state {\n    tries: int = 2;\n}\n@@@\n# Tries\n\nTried \\{$state.tries} times.\n");
-const bad = join(dir, "bad.mkp");
+const bad = join(dir, "bad.xtpack");
 writeFileSync(bad, "package t;\n\nlet x: number = y;\n");
 
 test("check gives every diagnostic as data", async () => {
@@ -26,7 +26,7 @@ test("build gives the lowered IR", async () => {
   assert.equal(ir.ir.module, "doc");
   assert.deepEqual(ir.ir.levels, ["core.draw"]);
   assert.ok(Array.isArray(ir.ir.bindings) && ir.ir.bindings.length > 0, "a sentence that reads $state is a binding");
-  await assert.rejects(build(bad), MkpError);
+  await assert.rejects(build(bad), XtmdError);
 });
 
 test("md writes the page with its starting values", async () => {

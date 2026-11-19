@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/wasm",
+  "name": "@extended-mark/wasm",
   "version": "0.3.0",
-  "description": "The MKP compiler as WebAssembly, for a real-time target: a document's text in, the IR mkp build writes out, in the browser",
+  "description": "The Extended Mark compiler as WebAssembly, for a real-time target: a document's text in, the IR xtmd build writes out, in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,11 +11,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./mkp.wasm": "./mkp.wasm"
+    "./xtmd.wasm": "./xtmd.wasm"
   },
   "files": [
     "dist",
-    "mkp.wasm"
+    "xtmd.wasm"
   ],
   "sideEffects": false,
   "scripts": {
@@ -24,7 +24,7 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../cli",
+    "xtmd": "file:../cli",
     "@types/node": "20.19.43",
     "typescript": "5.9.3"
   }

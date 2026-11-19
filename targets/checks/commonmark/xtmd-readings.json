@@ -1,0 +1,1696 @@
+{
+ "about": "How Extended Mark reads the CommonMark 0.31.2 and GitHub 0.29 spec examples where it reads Markdown its own way. Each reading is the blocks Extended Mark gives, in the harness's form, and why. A reading marked \"only\": \"prose\" is Extended Mark's own syntax in a document; core's md.from, which reads Markdown as data, is held to CommonMark's output there.",
+ "readings": {
+  "commonmark-0.31.2.json#12": {
+   "section": "Backslash escapes",
+   "only": "prose",
+   "why": "In prose, `\\{` opens a hole (page 1, Prose), and `\\{|}~` holds `|`, which is not code. A reader writes `\\\\{` for a literal brace. md.from reads Markdown with no holes and is held to CommonMark's output.",
+   "blocks": {
+    "errors": [
+     "[syntax.unexpected-character] `\\` is not part of Extended Mark's code"
+    ]
+   }
+  },
+  "commonmark-0.31.2.json#21": {
+   "section": "Backslash escapes",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"/bar\\/)\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#31": {
+   "section": "Entity and numeric character references",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"&ouml;&ouml;.html\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#96": {
+   "section": "Setext headings",
+   "only": "prose",
+   "why": "A `---` line at the very top opens YAML front matter, which Extended Mark keeps above the definitions and passes to the app untouched (page 1). md.from reads Markdown as data, with no front matter, and is held to CommonMark's output.",
+   "blocks": [
+    {
+     "heading": {
+      "inline": [
+       {
+        "text": {
+         "value": "Bar"
+        }
+       }
+      ],
+      "level": 2
+     }
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "Baz"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#98": {
+   "section": "Setext headings",
+   "only": "prose",
+   "why": "A `---` line at the very top opens YAML front matter, which Extended Mark keeps above the definitions and passes to the app untouched (page 1). md.from reads Markdown as data, with no front matter, and is held to CommonMark's output.",
+   "blocks": []
+  },
+  "commonmark-0.31.2.json#148": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<table><tr><td>\n<pre>\n**Hello**,"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "world"
+       }
+      },
+      {
+       "text": {
+        "value": ".\n</pre>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</td></tr></table>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#149": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<table>\n  <tr>\n    <td>\n           hi\n    </td>\n  </tr>\n</table>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#150": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": " <div>\n  *hello*\n         <foo><a>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#151": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</div>\n*foo*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#152": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<DIV CLASS=\"foo\">"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "Markdown"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</DIV>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#153": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div id=\"foo\"\n  class=\"bar\">\n</div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#154": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div id=\"foo\" class=\"bar\n  baz\">\n</div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#155": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div>\n*foo*"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "bar"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#156": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div id=\"foo\"\n*hi*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#157": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div class\nfoo"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#158": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div *???-&&&-<---\n*foo*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#159": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div><a href=\"bar\">*foo*</a></div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#160": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<table><tr><td>\nfoo\n</td></tr></table>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#161": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div></div>\n``` c\nint x = 33;\n```"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#162": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"foo\">\n*bar*\n</a>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#163": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<Warning>\n*bar*\n</Warning>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#164": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<i class=\"foo\">\n*bar*\n</i>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#165": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</ins>\n*bar*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#166": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<del>\n*foo*\n</del>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#167": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<del>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "foo"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</del>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#168": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<del>"
+       }
+      },
+      {
+       "text": {
+        "italic": true,
+        "value": "foo"
+       }
+      },
+      {
+       "text": {
+        "value": "</del>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#169": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<pre language=\"haskell\"><code>\nimport Text.HTML.TagSoup\n\nmain :: IO ()\nmain = print $ parseTags tags\n</code></pre>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#170": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<script type=\"text/javascript\">\n// JavaScript example\n\ndocument.getElementById(\"demo\").innerHTML = \"Hello JavaScript!\";\n</script>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#171": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<textarea>\n\n*foo*\n\n_bar_\n\n</textarea>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#172": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<style\n  type=\"text/css\">\nh1 {color:red;}\n\np {color:blue;}\n</style>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#173": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<style\n  type=\"text/css\">\n\nfoo"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#174": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "quote": [
+      {
+       "paragraph": [
+        {
+         "text": {
+          "value": "<div>\nfoo"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "bar"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#175": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "bullets": {
+      "items": [
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "<div>"
+            }
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "foo"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "ordered": false
+     }
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#176": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<style>p{color:red;}</style>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "foo"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#177": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<!-- foo -->*bar*"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "baz"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#178": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<script>\nfoo\n</script>1. *bar*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#179": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<!-- Foo\n\nbar\n   baz -->"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#180": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<?php\n\n  echo '>';\n\n?>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#181": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<!DOCTYPE html>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#182": {
+   "section": "HTML blocks",
+   "only": "prose",
+   "why": "`} else {` alone on a line is one of Extended Mark's control lines in prose (page 1, Prose), and no `@if` is open here, so the document doesn't compile. md.from reads Markdown with no Extended Mark lines and has its own reading.",
+   "blocks": {
+    "errors": [
+     "[prose.else-without-if] `else` with no `@if` open"
+    ]
+   }
+  },
+  "md.from:commonmark-0.31.2.json#182": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<![CDATA[\nfunction matchwo(a,b)\n{\n  if (a < b && a < 0) then {\n    return 1;\n\n  } else {\n\n    return 0;\n  }\n}\n]]>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "okay"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#183": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "  <!-- foo -->"
+       }
+      }
+     ]
+    },
+    {
+     "code": {
+      "lang": "",
+      "src": "<!-- foo -->\n"
+     }
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#184": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "  <div>"
+       }
+      }
+     ]
+    },
+    {
+     "code": {
+      "lang": "",
+      "src": "<div>\n"
+     }
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#185": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "Foo"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div>\nbar\n</div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#186": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div>\nbar\n</div>\n*foo*"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#187": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "Foo\n<a href=\"bar\">\nbaz"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#188": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "italic": true,
+        "value": "Emphasized"
+       }
+      },
+      {
+       "text": {
+        "value": " text."
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#189": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<div>\n*Emphasized* text.\n</div>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#190": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<table>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<tr>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<td>\nHi\n</td>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</tr>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</table>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#191": {
+   "section": "HTML blocks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<table>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "  <tr>"
+       }
+      }
+     ]
+    },
+    {
+     "code": {
+      "lang": "",
+      "src": "<td>\n  Hi\n</td>\n"
+     }
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "  </tr>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</table>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#201": {
+   "section": "Link reference definitions",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[foo]: <bar>(baz)"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[foo]"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#308": {
+   "section": "Lists",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "bullets": {
+      "items": [
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "foo"
+            }
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "bar"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "ordered": false
+     }
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<!-- -->"
+       }
+      }
+     ]
+    },
+    {
+     "bullets": {
+      "items": [
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "baz"
+            }
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "bim"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "ordered": false
+     }
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#309": {
+   "section": "Lists",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The HTML block keeps CommonMark's extent, so the blocks around it are read as CommonMark reads them, and it is drawn as a paragraph of its own text.",
+   "blocks": [
+    {
+     "bullets": {
+      "items": [
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "foo"
+            }
+           }
+          ]
+         },
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "notcode"
+            }
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "blocks": [
+         {
+          "paragraph": [
+           {
+            "text": {
+             "value": "foo"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "ordered": false
+     }
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<!-- -->"
+       }
+      }
+     ]
+    },
+    {
+     "code": {
+      "lang": "",
+      "src": "code\n"
+     }
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#344": {
+   "section": "Code spans",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"`\">`"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#475": {
+   "section": "Emphasis and strong emphasis",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "*<img src=\"foo\" title=\"*\"/>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#476": {
+   "section": "Emphasis and strong emphasis",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "**<a href=\"**\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#477": {
+   "section": "Emphasis and strong emphasis",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "__<a href=\"__\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#491": {
+   "section": "Links",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[link](<foo\nbar>)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#494": {
+   "section": "Links",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[a](<b)c\n[a](<b)c>\n[a](<b>c)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#524": {
+   "section": "Links",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[foo <bar attr=\"](baz)\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#536": {
+   "section": "Links",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "[foo <bar attr=\"][ref]\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#606": {
+   "section": "Autolinks",
+   "why": "Extended Mark's Markdown is CommonMark with GitHub's bare links (page 1, Prose), so this URL or address is a link, as GitHub reads it.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<"
+       }
+      },
+      {
+       "text": {
+        "link": "mailto:foo+@bar.example.com",
+        "value": "foo+@bar.example.com"
+       }
+      },
+      {
+       "text": {
+        "value": ">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#608": {
+   "section": "Autolinks",
+   "why": "Extended Mark's Markdown is CommonMark with GitHub's bare links (page 1, Prose), so this URL or address is a link, as GitHub reads it.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "< "
+       }
+      },
+      {
+       "text": {
+        "link": "https://foo.bar",
+        "value": "https://foo.bar"
+       }
+      },
+      {
+       "text": {
+        "value": " >"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#611": {
+   "section": "Autolinks",
+   "why": "Extended Mark's Markdown is CommonMark with GitHub's bare links (page 1, Prose), so this URL or address is a link, as GitHub reads it.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "link": "https://example.com",
+        "value": "https://example.com"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#612": {
+   "section": "Autolinks",
+   "why": "Extended Mark's Markdown is CommonMark with GitHub's bare links (page 1, Prose), so this URL or address is a link, as GitHub reads it.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "link": "mailto:foo@bar.example.com",
+        "value": "foo@bar.example.com"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#613": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a><bab><c2c>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#614": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a/><b2/>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#615": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a  /><b2\ndata=\"foo\" >"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#616": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a foo=\"bar\" bam = 'baz <em>\"</em>'\n_boolean zoop:33=zoop:33 />"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#617": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "Foo <responsive-image src=\"foo.jpg\" />"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#623": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "</a></foo >"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#625": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <!-- this is a --\ncomment - with hyphens -->"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#626": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <!--> foo -->"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <!---> foo -->"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#627": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <?php echo $a; ?>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#628": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <!ELEMENT br EMPTY>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#629": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <![CDATA[>&<]]>"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#630": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <a href=\"&ouml;\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#631": {
+   "section": "Raw HTML",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "foo <a href=\"\\*\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#642": {
+   "section": "Hard line breaks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"foo  \nbar\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "commonmark-0.31.2.json#643": {
+   "section": "Hard line breaks",
+   "why": "Extended Mark shows raw HTML as text and never runs it (page 1, Prose). The inline tag stays in the sentence as text, so it can't open a link, emphasis or a code span that CommonMark would leave inside the tag.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<a href=\"foo\\\nbar\">"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "gfm-0.29.json#652": {
+   "section": "Disallowed Raw HTML (extension)",
+   "why": "Extended Mark shows all raw HTML as text (page 1, Prose), so GitHub's disallowed-tag filter has nothing to filter: these lines are an HTML block drawn as its own text.",
+   "blocks": [
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<strong> <title> <style> <em>"
+       }
+      }
+     ]
+    },
+    {
+     "paragraph": [
+      {
+       "text": {
+        "value": "<blockquote>\n  <xmp> is disallowed.  <XMP> is also disallowed.\n</blockquote>"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

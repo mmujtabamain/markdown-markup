@@ -139,7 +139,7 @@ pub fn block_json(b: &Block) -> Json {
 
 // ---- the one spelling (page 1, Markdown out)
 
-/// Text with every character Markdown or MKP's prose would read written with a backslash.
+/// Text with every character Markdown or Extended Mark's prose would read written with a backslash.
 fn escape(s: &str, line_start: bool) -> String {
     if UNESCAPED.with(|u| u.get()) {
         return s.to_string();
@@ -216,7 +216,7 @@ pub fn write_inline(runs: &[Inline]) -> String {
 
 /// Each line of `text` behind a prefix: `first` on the first line, `rest` on the others. Lines
 /// are split at `\n` only, the empty one after a final `\n` dropped, and it always ends with a
-/// line break, as @mkp/runtime writes it: the live page's Markdown is the same text on every
+/// line break, as @extended-mark/runtime writes it: the live page's Markdown is the same text on every
 /// target.
 fn indent(text: &str, first: &str, rest: &str) -> String {
     let mut lines: Vec<&str> = text.split('\n').collect();

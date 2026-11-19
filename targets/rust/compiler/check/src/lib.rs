@@ -2,7 +2,7 @@
 //!
 //! It reads every file of core, of the packs a build is given, and the document, finds what
 //! each name means (pass 1, names), works out the type of every expression (pass 2, types),
-//! and writes the checked program as IR. Constants are worked out with mkp-eval, the same
+//! and writes the checked program as IR. Constants are worked out with xtmd-eval, the same
 //! evaluator the native runtime uses.
 
 mod body;
@@ -20,10 +20,10 @@ pub use rir::{compile_rir, sha256_hex};
 mod versions;
 mod view;
 
-use mkp_ir::ir;
-use mkp_syntax::ast::{self, Item};
-use mkp_syntax::diag::Diagnostic;
-use mkp_syntax::span::Span;
+use xtmd_ir::ir;
+use xtmd_syntax::ast::{self, Item};
+use xtmd_syntax::diag::Diagnostic;
+use xtmd_syntax::span::Span;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 use ty::{DefId, FnParam, Ty, Vars};
@@ -97,7 +97,7 @@ pub mod codes {
     pub const VIEW_NAMED_LIKE_WIDGET: &str = "names.view-named-like-a-widget";
     pub const DEPRECATED: &str = "names.deprecated";
     pub const BARE_STATE: &str = "prose.bare-state";
-    pub const SHADE_MKP_FN: &str = "views.shade-given-an-mkp-fn";
+    pub const SHADE_XTMD_FN: &str = "views.shade-given-an-xtmd-fn";
     pub const SPOT_OUTSIDE: &str = "views.spot-outside-bounds";
     pub const HTML_COMMENT: &str = "prose.html-comment";
     pub const SURFACE: &str = "pack.surface";
@@ -132,7 +132,7 @@ pub struct Compiled {
     pub diagnostics: Vec<Found>,
     pub texts: HashMap<String, String>,
     /// The constants worked out at compile time, by the let's full name.
-    pub constants: HashMap<String, mkp_eval::Value>,
+    pub constants: HashMap<String, xtmd_eval::Value>,
     /// Where each call this compile made into a node is written, for an editor: no IR holds it.
     pub sites: Vec<CallSite>,
 }
@@ -326,7 +326,7 @@ pub struct From {
     pub tokens: usize,
 }
 
-/// A name in a file and what the checker read it as: kept, when asked for, by `mkp migrate`,
+/// A name in a file and what the checker read it as: kept, when asked for, by `xtmd migrate`,
 /// which edits a reference only where the checker found one.
 #[derive(Clone, Debug)]
 pub struct Ref {
@@ -369,7 +369,7 @@ pub struct Checker {
     pub state: Option<(usize, ast::StateBlock)>,
     pub exposes: Vec<(usize, ast::Expose)>,
     /// Constants worked out at compile time, by the let's full name.
-    pub constants: HashMap<String, mkp_eval::Value>,
+    pub constants: HashMap<String, xtmd_eval::Value>,
     pub module: String,
     pub out: decl::Out,
     pub pending: Vec<body::Pending>,
@@ -487,8 +487,8 @@ impl Checker {
 
     /// Reads a file and adds it to its pack. A file that doesn't read gives its syntax error.
     pub fn add_file(&mut self, src: &Source) -> Option<usize> {
-        let entry = mkp_syntax::entry_for(&src.path).unwrap_or(mkp_syntax::Entry::Mkp);
-        let parsed = mkp_syntax::parse(&src.text, entry);
+        let entry = xtmd_syntax::entry_for(&src.path).unwrap_or(xtmd_syntax::Entry::Xtmd);
+        let parsed = xtmd_syntax::parse(&src.text, entry);
         for d in parsed.diagnostics {
             self.diags.push(Found { file: src.path.clone(), diagnostic: d });
         }
@@ -1098,9 +1098,9 @@ impl Checker {
         }
         let inner = c.args[0].clone();
         let prog = self.program();
-        let mut m = mkp_eval::Machine::new(&prog, Box::new(mkp_eval::interp::Constants));
+        let mut m = xtmd_eval::Machine::new(&prog, Box::new(xtmd_eval::interp::Constants));
         match m.eval(&inner) {
-            Ok(mkp_eval::Value::Opt(Some(v))) => v.to_ir(),
+            Ok(xtmd_eval::Value::Opt(Some(v))) => v.to_ir(),
             Ok(_) => {
                 let why = m.last_rule.clone().map(|r| format!(": {}", r)).unwrap_or_default();
                 self.error(file, codes::LITERAL, e.span, format!("this literal is not a {}{}", self.show(ty.unwrap_or(&Ty::Err)), why));
@@ -1148,7 +1148,7 @@ pub fn duration_ms(t: &str) -> String {
         return ms.to_string();
     }
     let s = t.trim_end_matches('s');
-    match mkp_eval::Num::parse(s).and_then(|n| n.mul(mkp_eval::Num::int(1000)).ok()) {
+    match xtmd_eval::Num::parse(s).and_then(|n| n.mul(xtmd_eval::Num::int(1000)).ok()) {
         Some(n) => n.show(),
         None => s.to_string(),
     }
@@ -1208,7 +1208,7 @@ pub(crate) fn compile_with(mut c: Checker, packs: &[Vec<Source>], main: &[Source
     (Compiled { module, diagnostics, texts, constants, sites }, c)
 }
 
-/// A reference in a file, as `mkp migrate` reads it: the declaration's full name (`kit/chart`),
+/// A reference in a file, as `xtmd migrate` reads it: the declaration's full name (`kit/chart`),
 /// and the member or case it names.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FoundRef {

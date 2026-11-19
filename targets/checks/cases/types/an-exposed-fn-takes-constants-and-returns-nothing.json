@@ -1,7 +1,7 @@
 {
   "id": "types.an-exposed-fn-takes-constants-and-returns-nothing",
   "about": "an exposed fn's parameters are constants and it returns nothing: a mut parameter and a written return type are refused, each once",
-  "source": "an-exposed-fn-takes-constants-and-returns-nothing.mkp.md",
+  "source": "an-exposed-fn-takes-constants-and-returns-nothing.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "types.exposed-mut-parameter", "line": 7, "column": 16},

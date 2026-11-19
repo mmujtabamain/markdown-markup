@@ -3,14 +3,14 @@ import "@angular/compiler";
 import { Component, provideZonelessChangeDetection } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
 import { provideServerRendering, renderApplication } from "@angular/platform-server";
-import { MkpDoc } from "@mkp/angular";
+import { XtmdDoc } from "@extended-mark/angular";
 
 export async function render(ir: unknown): Promise<string> {
   @Component({
     selector: "test-app",
     standalone: true,
-    imports: [MkpDoc],
-    template: `<mkp-doc [ir]="ir" [defaultState]="start" [externs]="externs" />`,
+    imports: [XtmdDoc],
+    template: `<xtmd-doc [ir]="ir" [defaultState]="start" [externs]="externs" />`,
   })
   class ServerApp {
     ir = ir as any;

@@ -1,7 +1,7 @@
 {
   "id": "views.named-arguments-to-a-fn-used-with-at",
   "about": "named arguments to a fn used with @",
-  "source": "named-arguments-to-a-fn-used-with-at.mkp",
+  "source": "named-arguments-to-a-fn-used-with-at.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "views.named-arguments-to-fn", "line": 8, "column": 18}

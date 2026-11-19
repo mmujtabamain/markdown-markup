@@ -1,6 +1,6 @@
-# MKP (Markdown Markup) 0.3
+# Extended Mark 0.3
 
-MKP is a statically typed language for widgets in Markdown documents. A document is its definitions, a line that holds only `@@@`, and Markdown with `@widget` calls in it. MKP lowers a page onto extern widgets, and whoever supplies those widgets decides how the page looks.
+Extended Mark (called MKP, Markdown Markup, up to 0.2) is a statically typed language for widgets in Markdown documents. A document is its definitions, a line that holds only `@@@`, and Markdown with `@widget` calls in it. Extended Mark lowers a page onto extern widgets, and whoever supplies those widgets decides how the page looks.
 
 0.3 is a complete break from 0.2: no 0.2 source compiles, and there is no migration. 0.2 is in this repository's history.
 

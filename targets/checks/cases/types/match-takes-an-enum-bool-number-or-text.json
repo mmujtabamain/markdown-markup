@@ -1,7 +1,7 @@
 {
   "id": "types.match-takes-an-enum-bool-number-or-text",
   "about": "match takes an enum, a bool, a number or a text; a bool or opt match lists both",
-  "source": "match-takes-an-enum-bool-number-or-text.mkp",
+  "source": "match-takes-an-enum-bool-number-or-text.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.match-subject", "line": 4, "column": 5},

@@ -1,4 +1,4 @@
-// The test target's defects: MKP_TEST_DEFECT switches one on, and `mkp target check test
+// The test target's defects: XTMD_TEST_DEFECT switches one on, and `xtmd target check test
 // --defect <name> --expect-failures` passes only when some check catches it.
 
 /** The defects a run can switch on, by name: each is caught by at least one check. */

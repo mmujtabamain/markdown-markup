@@ -1,7 +1,7 @@
 {
   "id": "types.an-interface-asks-for-no-mut-field",
   "about": "an interface can't ask for a mut field",
-  "source": "an-interface-asks-for-no-mut-field.mkp",
+  "source": "an-interface-asks-for-no-mut-field.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.interface-mut-field", "line": 4, "column": 9}

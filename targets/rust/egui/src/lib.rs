@@ -1,20 +1,20 @@
-//! # mkp-egui
+//! # xtmd-egui
 //!
-//! MKP's desktop target: pages run on the native runtime ([`mkp_runtime`]) and drawn with egui.
+//! Extended Mark's desktop target: pages run on the native runtime ([`xtmd_runtime`]) and drawn with egui.
 //!
 //! ```no_run
 //! # fn app(ui: &mut egui::Ui, json: &str) {
-//! use mkp_egui::{MkpPage, runtime::{Page, PageOptions}};
-//! // once: the IR `mkp build page.mkp.md --out page.ir.json` wrote
-//! let mut page = MkpPage::new(Page::from_json(json, MkpPage::options()).unwrap());
+//! use xtmd_egui::{XtmdPage, runtime::{Page, PageOptions}};
+//! // once: the IR `xtmd build page.xt.md --out page.ir.json` wrote
+//! let mut page = XtmdPage::new(Page::from_json(json, XtmdPage::options()).unwrap());
 //! // every frame:
 //! page.show(ui);
 //! # }
 //! ```
 //!
-//! - [`MkpPage::new`] takes a [`Page`] and draws it every frame with a [`Registry`] of widgets,
+//! - [`XtmdPage::new`] takes a [`Page`] and draws it every frame with a [`Registry`] of widgets,
 //!   one per extern widget, by full name (`core/press`). Ours draw every core extern; an app's
-//!   own ([`MkpPage::widget`]) replace ours by name, and add a pack's. The page is told what is
+//!   own ([`XtmdPage::widget`]) replace ours by name, and add a pack's. The page is told what is
 //!   supplied, so an extern nobody draws shows its Markdown instead.
 //! - A [`Widget`] is drawn every frame, as egui draws: it reads the props the runtime already
 //!   worked out ([`Props`]), and acts through its [`Ctx`]: events, checked writes to its `mut`
@@ -39,7 +39,7 @@ pub mod check;
 /// A page in a window of its own, with eframe (the `app` feature): scrolled, with a margin. The
 /// page's errors go to standard error, and its Markdown to standard output when the window closes.
 #[cfg(feature = "app")]
-pub fn run_window(title: &str, mut page: MkpPage) -> eframe::Result {
+pub fn run_window(title: &str, mut page: XtmdPage) -> eframe::Result {
     let options = eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([720.0, 800.0]).with_title(title), ..Default::default() };
     eframe::run_ui_native(title, options, move |ui, _frame| {
         egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
@@ -60,9 +60,9 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use egui::{Id, InnerResponse, Ui, UiBuilder};
-pub use mkp_runtime as runtime;
-use mkp_runtime::ir::{self, Expr};
-use mkp_runtime::{Drawn, Measure, Num, Page, PageOptions, PageTheme, PageValues, Value};
+pub use xtmd_runtime as runtime;
+use xtmd_runtime::ir::{self, Expr};
+use xtmd_runtime::{Drawn, Measure, Num, Page, PageOptions, PageTheme, PageValues, Value};
 
 use crate::look::Look;
 use crate::measure::Measured;
@@ -181,7 +181,7 @@ impl<'a> Props<'a> {
 }
 
 /// What a reader does to a widget, in the checks' terms: an event, or a write to a `mut` input.
-/// [`MkpPage::act`] asks the widget to do it through its own controls on its next frame, as a
+/// [`XtmdPage::act`] asks the widget to do it through its own controls on its next frame, as a
 /// person would; one the widget doesn't take goes through the page.
 #[derive(Clone, Debug)]
 pub enum Act {
@@ -191,7 +191,7 @@ pub enum Act {
 
 /// What the reader's actions did, as the page heard it: each event a widget ran and each write
 /// to a `mut` input, the layout's included (only a change, as a person could see it). Kept only
-/// when asked for ([`MkpPage::record`]), for the omnicui adapter.
+/// when asked for ([`XtmdPage::record`]), for the omnicui adapter.
 #[derive(Clone, Debug)]
 pub enum Logged {
     Event { path: String, name: String, args: Vec<Value> },
@@ -461,7 +461,7 @@ impl<'a> Ctx<'a> {
         self.frame.measured.planes.insert(self.at.path.clone(), width);
     }
 
-    /// Something went wrong drawing: kept for the app's log ([`MkpPage::take_errors`]).
+    /// Something went wrong drawing: kept for the app's log ([`XtmdPage::take_errors`]).
     pub fn error(&mut self, message: String) {
         self.frame.errors.push(message);
     }
@@ -528,7 +528,7 @@ pub enum Sizes {
 }
 
 /// A page drawn with egui.
-pub struct MkpPage {
+pub struct XtmdPage {
     page: Page,
     frame: Frame,
     tree: Rc<Vec<Drawn>>,
@@ -545,18 +545,18 @@ pub struct MkpPage {
     held: Option<u64>,
 }
 
-impl MkpPage {
+impl XtmdPage {
     /// Draws a page with our widgets. Its value fns are egui's ([`fns::egui_fns`]) where the page
-    /// was made with [`MkpPage::options`].
-    pub fn new(page: Page) -> MkpPage {
-        let mut p = MkpPage {
+    /// was made with [`XtmdPage::options`].
+    pub fn new(page: Page) -> XtmdPage {
+        let mut p = XtmdPage {
             page,
-            frame: Frame::new(Registry::ours(), Id::unique("mkp-page")),
+            frame: Frame::new(Registry::ours(), Id::unique("xtmd-page")),
             tree: Rc::new(Vec::new()),
             revision: None,
             sizes: Sizes::Measured,
             follow_theme: true,
-            id: Id::unique("mkp-page"),
+            id: Id::unique("xtmd-page"),
             streak: (0, 0),
             held: None,
             pushed: None,
@@ -584,7 +584,7 @@ impl MkpPage {
     }
 
     /// Replaces our widget for a name, or adds one: an app's own, or a pack's.
-    pub fn widget<W: Widget + 'static>(mut self, name: &str, make: impl Fn() -> W + 'static) -> MkpPage {
+    pub fn widget<W: Widget + 'static>(mut self, name: &str, make: impl Fn() -> W + 'static) -> XtmdPage {
         self.frame.registry.set(name, make);
         self.frame.instances.retain(|(_, w), _| w != name);
         self.tell_supplies();
@@ -592,7 +592,7 @@ impl MkpPage {
     }
 
     /// Replaces the whole registry.
-    pub fn with_registry(mut self, registry: Registry) -> MkpPage {
+    pub fn with_registry(mut self, registry: Registry) -> XtmdPage {
         self.frame.registry = registry;
         self.frame.instances.clear();
         self.tell_supplies();
@@ -600,25 +600,25 @@ impl MkpPage {
     }
 
     /// The plane's layout from a measure of the app's (the checks' fixed sizes), not egui's.
-    pub fn with_measure(mut self, measure: Box<dyn Measure>) -> MkpPage {
+    pub fn with_measure(mut self, measure: Box<dyn Measure>) -> XtmdPage {
         self.sizes = Sizes::Given(measure);
         self
     }
 
     /// Whether the page's theme follows egui's dark mode (the default), or is the app's to set.
-    pub fn follow_theme(mut self, follow: bool) -> MkpPage {
+    pub fn follow_theme(mut self, follow: bool) -> XtmdPage {
         self.follow_theme = follow;
         self
     }
 
-    /// [`MkpPage::follow_theme`], on a page already made.
+    /// [`XtmdPage::follow_theme`], on a page already made.
     pub fn set_follow_theme(&mut self, follow: bool) {
         self.follow_theme = follow;
     }
 
     /// The egui id of the page's own ui, and every widget's in it: two pages in one window each
     /// need one of their own.
-    pub fn id(mut self, id: Id) -> MkpPage {
+    pub fn id(mut self, id: Id) -> XtmdPage {
         self.id = id;
         self.frame.page_id = id;
         self.frame.instances.clear();
@@ -650,7 +650,7 @@ impl MkpPage {
     }
 
     /// Keeps a log of what the reader's actions did ([`Logged`]), from now on.
-    pub fn record(mut self, on: bool) -> MkpPage {
+    pub fn record(mut self, on: bool) -> XtmdPage {
         self.frame.log = if on { Some(Vec::new()) } else { None };
         self
     }
@@ -762,7 +762,7 @@ impl MkpPage {
                 self.streak = (outside, 0);
             } else {
                 self.streak = if self.streak.0 == outside { (outside, self.streak.1 + 1) } else { (outside, 1) };
-                if self.streak.1 >= mkp_runtime::MAX_LAYOUT_PASSES {
+                if self.streak.1 >= xtmd_runtime::MAX_LAYOUT_PASSES {
                     self.held = Some(outside);
                     self.frame.errors.push(format!("the layout still changed the page after {} frames with nothing else changing it: held until something does", self.streak.1));
                 }

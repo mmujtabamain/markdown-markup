@@ -1,7 +1,7 @@
 {
   "id": "runtime.a-widget-that-fails-shows-a-notice",
   "about": "a failure while drawing a widget replaces it with a notice, a quote in Markdown; the rest of the page is drawn, and it is tried again when what it reads changes",
-  "source": "a-widget-that-fails-shows-a-notice.mkp.md",
+  "source": "a-widget-that-fails-shows-a-notice.xt.md",
   "target": {
     "levels": [
       "core.draw"

@@ -1,7 +1,7 @@
 {
   "id": "names.unknown-enum-type",
   "about": "unknown enum type",
-  "source": "unknown-enum-type.mkp",
+  "source": "unknown-enum-type.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-type", "line": 5, "column": 36}

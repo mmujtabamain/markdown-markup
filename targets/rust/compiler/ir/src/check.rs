@@ -1,5 +1,5 @@
-// Written by mkp-schemagen from schemas/check.schema.json. Don't edit: change the schema, then run
-// `cargo run -p mkp-schemagen`.
+// Written by xtmd-schemagen from schemas/check.schema.json. Don't edit: change the schema, then run
+// `cargo run -p xtmd-schemagen`.
 
 #![allow(clippy::all)]
 
@@ -206,7 +206,7 @@ pub struct Call {
 #[serde(deny_unknown_fields)]
 pub struct CaseExpect {
     pub diagnostics: Vec<Diagnostic>,
-    /// The page's Markdown with its starting values, as `mkp md` writes it, before any step.
+    /// The page's Markdown with its starting values, as `xtmd md` writes it, before any step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub markdown: Option<MarkdownExpected>,
 }
@@ -232,7 +232,7 @@ pub struct Case {
     pub packs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page: Option<Page>,
-    /// The .mkp.md or .mkp file, beside the case.
+    /// The .xt.md or .xtpack file, beside the case.
     pub source: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub steps: Vec<Step>,
@@ -345,7 +345,7 @@ pub enum Inline {
     Break(Empty),
 }
 
-/// The params of `load`: the IR the mkp binary wrote for the case, and the page.
+/// The params of `load`: the IR the xtmd binary wrote for the case, and the page.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Load {
@@ -398,7 +398,7 @@ pub struct ObservationShaded {
     pub shader: String,
 }
 
-/// Everything MKP decides about the page, after a step.
+/// Everything Extended Mark decides about the page, after a step.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Observation {
@@ -488,7 +488,7 @@ pub enum RequestMethod {
     Quit,
 }
 
-/// A JSON-RPC 2.0 request from `mkp target check` to a target's check adapter, one per line on its standard input.
+/// A JSON-RPC 2.0 request from `xtmd target check` to a target's check adapter, one per line on its standard input.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {

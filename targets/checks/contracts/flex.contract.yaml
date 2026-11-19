@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/flex (core/layout.mkp): children along one axis. The adapter sets its click, so it is
-# clickable: focusable, and Enter and Space click it. Its children slot holds labels. @mkp/dom
+# core/flex (core/layout.xtpack): children along one axis. The adapter sets its click, so it is
+# clickable: focusable, and Enter and Space click it. Its children slot holds labels. @extended-mark/dom
 # draws a <div>, role=group when it has a label.
 id: core.flex
 

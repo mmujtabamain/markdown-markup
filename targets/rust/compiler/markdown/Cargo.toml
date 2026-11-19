@@ -1,5 +1,5 @@
 [package]
-name = "mkp-markdown"
+name = "xtmd-markdown"
 description = "Markdown out: a page written as Markdown, with the values it has"
 version.workspace = true
 edition.workspace = true
@@ -7,6 +7,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-mkp-ir = { path = "../ir", version = "0.3.0" }
-mkp-eval = { path = "../../eval", version = "0.3.0" }
+xtmd-ir = { path = "../ir", version = "0.3.0" }
+xtmd-eval = { path = "../../eval", version = "0.3.0" }
 serde_json.workspace = true

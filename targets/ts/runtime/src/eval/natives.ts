@@ -1,4 +1,4 @@
-// The native fns: what core declares `extern fn` with no body, because MKP can't do it in terms of
+// The native fns: what core declares `extern fn` with no body, because Extended Mark can't do it in terms of
 // anything else (page 5). List storage, Unicode text, exact numbers and their maths, the interface
 // fns of the built-in types, a range's ends, a duration's milliseconds, and `clamp`. A port of
 // targets/rust/eval/src/natives.rs.

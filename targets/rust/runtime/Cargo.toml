@@ -1,24 +1,24 @@
 [package]
-name = "mkp-runtime"
-description = "MKP's native runtime: runs the IR the mkp compiler writes, with transactions, $state, bindings, item identity, failures, layout and Markdown out. No drawing: the egui and Android targets draw its tree."
+name = "xtmd-runtime"
+description = "Extended Mark's native runtime: runs the IR the xtmd compiler writes, with transactions, $state, bindings, item identity, failures, layout and Markdown out. No drawing: the egui and Android targets draw its tree."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [lib]
-name = "mkp_runtime"
+name = "xtmd_runtime"
 
 [[bin]]
-name = "mkp_runtime_check"
-path = "src/bin/mkp_runtime_check/main.rs"
+name = "xtmd_runtime_check"
+path = "src/bin/xtmd_runtime_check/main.rs"
 
 [dependencies]
-mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
-mkp-eval = { path = "../eval", version = "0.3.0" }
-mkp-markdown = { path = "../compiler/markdown", version = "0.3.0" }
+xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
+xtmd-eval = { path = "../eval", version = "0.3.0" }
+xtmd-markdown = { path = "../compiler/markdown", version = "0.3.0" }
 serde_json.workspace = true
 
 [dev-dependencies]
-mkp-check = { path = "../compiler/check" }
-mkp-lower = { path = "../compiler/lower" }
+xtmd-check = { path = "../compiler/check" }
+xtmd-lower = { path = "../compiler/lower" }

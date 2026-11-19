@@ -1,6 +1,6 @@
-// MKP's widget contracts (targets/checks/contracts/, one per core extern widget) pass on the web
-// target: omnicui drives omnicui_adapter.mjs, which mounts each widget with @mkp/runtime and
-// @mkp/dom in a real Chromium. The omnicui binary is the release external/omnicui/omnicui.lock
+// Extended Mark's widget contracts (targets/checks/contracts/, one per core extern widget) pass on the web
+// target: omnicui drives omnicui_adapter.mjs, which mounts each widget with @extended-mark/runtime and
+// @extended-mark/dom in a real Chromium. The omnicui binary is the release external/omnicui/omnicui.lock
 // names, which external/omnicui/fetch.sh fetches and checks (or OMNICUI_BINARY, which it passes
 // through); when it can't, the test is skipped and says why.
 

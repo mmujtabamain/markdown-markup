@@ -1,19 +1,19 @@
-# mkp-runtime
+# xtmd-runtime
 
-MKP's native runtime: it runs the IR the `mkp` compiler writes, for the egui target and, through
-UniFFI, for Android (plan tab 7). It is @mkp/runtime (targets/ts/runtime) in Rust, held to the
+Extended Mark's native runtime: it runs the IR the `xtmd` compiler writes, for the egui target and, through
+UniFFI, for Android (plan tab 7). It is @extended-mark/runtime (targets/ts/runtime) in Rust, held to the
 same target checks: both runtimes give the same tree, `$state`, calls, outcome, boxes and Markdown
 for every case.
 
 - **Transactions.** Every change (a reader's event, a widget's write, the app's write to
   `$state`, an exposed fn, a channel's values, the page's values) is one transaction: checked
   against contracts and `$state`'s rules, undone whole when it fails, then drawn once.
-- **Identity.** A widget written in MKP keeps its own variables across redraws by its key: a loop
+- **Identity.** A widget written in Extended Mark keeps its own variables across redraws by its key: a loop
   row's widgets follow their item, not their position.
 - **Failures** are contained (page 6): a widget that fails while drawing becomes a `#notice`, a
   handler that fails is undone, an app's write that breaks a rule is refused. Each is reported in
   `take_outcome()`.
-- **Markdown out**: `markdown()` writes the live page, the same text @mkp/runtime writes.
+- **Markdown out**: `markdown()` writes the live page, the same text @extended-mark/runtime writes.
 - **Layout**: `layout(&mut measure)` lays planes out from what the target measured.
 - **No drawing** and no UI dependency. Its tree holds every prop already worked out, so a target
   that draws every frame (egui) only reads it: nothing is evaluated per frame.
@@ -26,11 +26,11 @@ for every case.
 ## Using it
 
 ```rust,no_run
-use mkp_runtime::ir::Expr;
-use mkp_runtime::layout::{Measure, Size};
-use mkp_runtime::{Drawn, Num, Page, PageOptions, Value};
+use xtmd_runtime::ir::Expr;
+use xtmd_runtime::layout::{Measure, Size};
+use xtmd_runtime::{Drawn, Num, Page, PageOptions, Value};
 
-// a page from `mkp build page.mkp.md --out page.ir.json`, mounted and drawn once
+// a page from `xtmd build page.xt.md --out page.ir.json`, mounted and drawn once
 let json = std::fs::read_to_string("page.ir.json").unwrap();
 let mut page = Page::from_json(&json, PageOptions::default()).unwrap();
 
@@ -104,13 +104,13 @@ println!("{}", page.markdown().unwrap());
 | `value(expr)`, `eval(expr)`, `token_value(v)`, `equal(a, b)`, `apply(fn, args)` | Values in and out: `Value::to_ir()` gives the IR's form. `apply` runs a fn the tree holds (a `shade`'s shader), with the step limit to itself. |
 | `observe_tree()`, `observe_state()`, `observe_shaded(samples)` | What a target check observes. |
 
-A method returns `Err(Failure)` only for a failure outside any widget or handler, as @mkp/runtime
+A method returns `Err(Failure)` only for a failure outside any widget or handler, as @extended-mark/runtime
 throws: a prop of the document's own that can't be worked out. Everything else is contained and
 reported in `take_outcome()`.
 
 `PageOptions { memo: false, .. }` (or `set_memo(false)`) draws every widget anew on every change:
 the same observations, for comparing the two. `examples/drag_bench.rs` times a drag both ways in
-one run (`cargo run --release -p mkp-runtime --example drag_bench -- <page.mkp.md>`).
+one run (`cargo run --release -p xtmd-runtime --example drag_bench -- <page.xt.md>`).
 
 `fns` are the value fns the target supplies, by full name, each given the page's machine:
 `core/moment.local` reads the reader's time zone, `core/can_draw_tex` says which TeX it draws.
@@ -126,16 +126,16 @@ one run (`cargo run --release -p mkp-runtime --example drag_bench -- <page.mkp.m
 
 ## The headless check target
 
-`mkp_runtime_check` (src/bin) drives this crate over the checks' JSON-RPC, as
-targets/ts/test/adapter.mjs drives @mkp/runtime: the test target's fixed sizes (`sizes.rs`), its
-value fns (`moment.local` in UTC, all TeX drawn) and its defects (`MKP_TEST_DEFECT`). It takes no
+`xtmd_runtime_check` (src/bin) drives this crate over the checks' JSON-RPC, as
+targets/ts/test/adapter.mjs drives @extended-mark/runtime: the test target's fixed sizes (`sizes.rs`), its
+value fns (`moment.local` in UTC, all TeX drawn) and its defects (`XTMD_TEST_DEFECT`). It takes no
 shader samples, which are the test target's. headless/target.yaml names it `native` and runs the
 release binary, which has to be built first: `cargo run` there would build on every run.
 
 ```sh
-cd targets/rust && cargo build --release -p mkp-cli -p mkp-runtime
-cd ../.. && targets/rust/target/release/mkp target check native        # every check
-targets/rust/target/release/mkp target check test native               # and the same observations as the test target
-targets/rust/target/release/mkp target check native --defect no-undo --expect-failures
-cd targets/rust && cargo test -p mkp-runtime                           # this crate's own tests
+cd targets/rust && cargo build --release -p xtmd-cli -p xtmd-runtime
+cd ../.. && targets/rust/target/release/xtmd target check native        # every check
+targets/rust/target/release/xtmd target check test native               # and the same observations as the test target
+targets/rust/target/release/xtmd target check native --defect no-undo --expect-failures
+cd targets/rust && cargo test -p xtmd-runtime                           # this crate's own tests
 ```

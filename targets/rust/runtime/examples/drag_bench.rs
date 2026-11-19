@@ -3,14 +3,14 @@
 //! run so a busy machine weighs on both alike. Prints the median ms per step, as
 //! targets/ts/dom/test/drag-bench.mjs does for the web.
 //!
-//!   cargo run --release -p mkp-runtime --example drag_bench -- targets/android/compose/sample/pages/tour.mkp.md
+//!   cargo run --release -p xtmd-runtime --example drag_bench -- targets/android/compose/sample/pages/tour.xt.md
 
 use std::path::PathBuf;
 use std::time::Instant;
 
-use mkp_check::Source;
-use mkp_runtime::ir::{Expr, ExprRecord};
-use mkp_runtime::{Drawn, Measure, Num, Page, PageOptions, Size};
+use xtmd_check::Source;
+use xtmd_runtime::ir::{Expr, ExprRecord};
+use xtmd_runtime::{Drawn, Measure, Num, Page, PageOptions, Size};
 
 struct Fixed;
 
@@ -26,7 +26,7 @@ impl Measure for Fixed {
 
 fn core() -> Vec<Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -69,12 +69,12 @@ fn median(mut xs: Vec<f64>) -> f64 {
 }
 
 fn main() {
-    let file = std::env::args().nth(1).expect("a page: drag_bench <page.mkp.md>");
+    let file = std::env::args().nth(1).expect("a page: drag_bench <page.xt.md>");
     let text = std::fs::read_to_string(&file).unwrap();
-    let base = mkp_check::compile_core(&core());
-    let c = mkp_check::compile_on(&base, &[], &[Source { path: file.clone(), text }], "doc");
+    let base = xtmd_check::compile_core(&core());
+    let c = xtmd_check::compile_on(&base, &[], &[Source { path: file.clone(), text }], "doc");
     let mut module = c.module.expect("the page compiles");
-    mkp_lower::lower(&mut module);
+    xtmd_lower::lower(&mut module);
     let t = Instant::now();
     let mut page = Page::from_module(module, PageOptions::default()).unwrap();
     page.layout(&mut Fixed).unwrap();

@@ -1,18 +1,18 @@
-//! CommonMark's and GitHub's spec examples, compiled as MKP documents and compared as blocks.
+//! CommonMark's and GitHub's spec examples, compiled as Extended Mark documents and compared as blocks.
 //!
 //! Each example's Markdown is a document of its own: the compiler splits its blocks, and core's
-//! `rich_text.read`, written in MKP, reads each block's inline Markdown. The page that results
+//! `rich_text.read`, written in Extended Mark, reads each block's inline Markdown. The page that results
 //! is compared with the spec's own HTML, both read into the same blocks: what a block is, and
-//! each run of text with its marks. Examples where MKP reads Markdown its own way (raw HTML is
-//! text; `\{`, `$…$`, `@name` and `}` lines are MKP's) are compared with the reading written
-//! in targets/checks/commonmark/mkp-readings.json, each with its reason.
+//! each run of text with its marks. Examples where Extended Mark reads Markdown its own way (raw HTML is
+//! text; `\{`, `$…$`, `@name` and `}` lines are Extended Mark's) are compared with the reading written
+//! in targets/checks/commonmark/xtmd-readings.json, each with its reason.
 //!
 //! Each example is also read by core's `md.from`, run in the evaluator, which reads Markdown as
 //! data (no holes, calls or front matter): the same expectations, except readings marked
 //! `"only": "prose"`, and its own reading under an `md.from:` key where it has one.
 
-use mkp_check::{compile_core, compile_on, Source};
-use mkp_ir::ir;
+use xtmd_check::{compile_core, compile_on, Source};
+use xtmd_ir::ir;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -21,7 +21,7 @@ fn repo() -> PathBuf {
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -509,46 +509,46 @@ fn normalize_inlines(v: Vec<Value>) -> Vec<Value> {
 
 // ---- core's md.from, run in the evaluator
 
-fn field<'a>(v: &'a mkp_eval::Value, name: &str) -> Option<&'a mkp_eval::Value> {
+fn field<'a>(v: &'a xtmd_eval::Value, name: &str) -> Option<&'a xtmd_eval::Value> {
     match v {
-        mkp_eval::Value::Record(r) => r.get(name),
+        xtmd_eval::Value::Record(r) => r.get(name),
         _ => None,
     }
 }
 
-fn text_value(v: Option<&mkp_eval::Value>) -> String {
+fn text_value(v: Option<&xtmd_eval::Value>) -> String {
     match v {
-        Some(mkp_eval::Value::Text(t)) => t.to_string(),
-        Some(mkp_eval::Value::Num(n)) => n.show(),
+        Some(xtmd_eval::Value::Text(t)) => t.to_string(),
+        Some(xtmd_eval::Value::Num(n)) => n.show(),
         _ => String::new(),
     }
 }
 
-fn case_value<'a>(v: &'a mkp_eval::Value, name: &str) -> Option<&'a mkp_eval::Value> {
+fn case_value<'a>(v: &'a xtmd_eval::Value, name: &str) -> Option<&'a xtmd_eval::Value> {
     match v {
-        mkp_eval::Value::Case(c) => c.values.iter().find(|(k, _)| &**k == name).map(|(_, x)| x),
+        xtmd_eval::Value::Case(c) => c.values.iter().find(|(k, _)| &**k == name).map(|(_, x)| x),
         _ => None,
     }
 }
 
-fn list_items(v: Option<&mkp_eval::Value>) -> Vec<mkp_eval::Value> {
+fn list_items(v: Option<&xtmd_eval::Value>) -> Vec<xtmd_eval::Value> {
     match v {
-        Some(mkp_eval::Value::List(l)) => l.items.iter().map(|i| i.value.clone()).collect(),
+        Some(xtmd_eval::Value::List(l)) => l.items.iter().map(|i| i.value.clone()).collect(),
         _ => Vec::new(),
     }
 }
 
-fn inlines_of_value(v: &mkp_eval::Value) -> Vec<Value> {
+fn inlines_of_value(v: &xtmd_eval::Value) -> Vec<Value> {
     let mut out = Vec::new();
     for seg in list_items(field(v, "segments")) {
-        let Some(mkp_eval::Value::Case(part)) = field(&seg, "part") else { continue };
+        let Some(xtmd_eval::Value::Case(part)) = field(&seg, "part") else { continue };
         let marks = field(&seg, "marks");
-        let flag = |n: &str| matches!(marks.and_then(|m| field(m, n)), Some(mkp_eval::Value::Bool(true)));
+        let flag = |n: &str| matches!(marks.and_then(|m| field(m, n)), Some(xtmd_eval::Value::Bool(true)));
         let link = match marks.and_then(|m| field(m, "link")) {
-            Some(mkp_eval::Value::Opt(Some(l))) => Some(text_value(Some(l))),
+            Some(xtmd_eval::Value::Opt(Some(l))) => Some(text_value(Some(l))),
             _ => None,
         };
-        let p = mkp_eval::Value::Case(part.clone());
+        let p = xtmd_eval::Value::Case(part.clone());
         out.push(match &*part.name {
             "TEXT" => {
                 let mut t = json!({"value": text_value(case_value(&p, "value"))});
@@ -577,22 +577,22 @@ fn inlines_of_value(v: &mkp_eval::Value) -> Vec<Value> {
     normalize_inlines(out)
 }
 
-fn blocks_of_value(blocks: Vec<mkp_eval::Value>) -> Vec<Value> {
+fn blocks_of_value(blocks: Vec<xtmd_eval::Value>) -> Vec<Value> {
     let mut out = Vec::new();
     for b in blocks {
-        let mkp_eval::Value::Case(c) = &b else { continue };
+        let xtmd_eval::Value::Case(c) = &b else { continue };
         let get = |n: &str| case_value(&b, n);
         out.push(match &*c.name {
             "PARAGRAPH" => json!({"paragraph": get("value").map(inlines_of_value).unwrap_or_default()}),
             "HEADING" => json!({"heading": {"level": text_value(get("level")).parse::<i64>().unwrap_or(0), "inline": get("value").map(inlines_of_value).unwrap_or_default()}}),
             "BULLETS" => {
-                let ordered = matches!(get("ordered"), Some(mkp_eval::Value::Bool(true)));
+                let ordered = matches!(get("ordered"), Some(xtmd_eval::Value::Bool(true)));
                 let items: Vec<Value> = list_items(get("items"))
                     .iter()
                     .map(|it| {
                         let blocks = blocks_of_value(list_items(field(it, "body")));
                         match field(it, "done") {
-                            Some(mkp_eval::Value::Opt(Some(d))) => json!({"done": matches!(**d, mkp_eval::Value::Bool(true)), "blocks": blocks}),
+                            Some(xtmd_eval::Value::Opt(Some(d))) => json!({"done": matches!(**d, xtmd_eval::Value::Bool(true)), "blocks": blocks}),
                             _ => json!({"blocks": blocks}),
                         }
                     })
@@ -611,7 +611,7 @@ fn blocks_of_value(blocks: Vec<mkp_eval::Value>) -> Vec<Value> {
             "TABLE" => {
                 let head: Vec<Value> = list_items(get("head")).iter().map(|c| json!(inlines_of_value(c))).collect();
                 let rows: Vec<Value> = list_items(get("rows")).iter().map(|r| json!(list_items(Some(r)).iter().map(|c| json!(inlines_of_value(c))).collect::<Vec<_>>())).collect();
-                let align: Vec<Value> = list_items(get("align")).iter().map(|a| if let mkp_eval::Value::Case(c) = a { json!(&*c.name) } else { json!("START") }).collect();
+                let align: Vec<Value> = list_items(get("align")).iter().map(|a| if let xtmd_eval::Value::Case(c) = a { json!(&*c.name) } else { json!("START") }).collect();
                 json!({"table": {"align": align, "head": head, "rows": rows}})
             }
             other => json!({"other": other}),
@@ -621,13 +621,13 @@ fn blocks_of_value(blocks: Vec<mkp_eval::Value>) -> Vec<Value> {
 }
 
 /// An example's Markdown read by core's md.from, as a reader's text would be.
-fn read_md(prog: &mkp_eval::Program, md: &str) -> Value {
-    use mkp_eval::{interp::Constants, Binding, Machine, Value as V};
+fn read_md(prog: &xtmd_eval::Program, md: &str) -> Value {
+    use xtmd_eval::{interp::Constants, Binding, Machine, Value as V};
     use std::rc::Rc;
     let mut m = Machine::new(prog, Box::new(Constants));
     let pieces = m.make_list(vec![V::text(md)]).unwrap();
     let holes = m.make_list(vec![]).unwrap();
-    let tpl = V::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("core/template"), fields: vec![(Rc::from("pieces"), pieces), (Rc::from("holes"), holes)] }));
+    let tpl = V::Record(Rc::new(xtmd_eval::value::Record { ty: Rc::from("core/template"), fields: vec![(Rc::from("pieces"), pieces), (Rc::from("holes"), holes)] }));
     match m.call("core/md.from", vec![Binding::Value(tpl)]) {
         Ok(Some(V::Opt(Some(v)))) => json!(blocks_of_value(list_items(field(&v, "blocks")))),
         Ok(_) => json!({"errors": ["md.from gave opt.NONE"]}),
@@ -644,7 +644,7 @@ fn load(file: &str) -> Value {
     serde_json::from_str(&std::fs::read_to_string(repo().join("targets/checks/commonmark").join(file)).unwrap()).unwrap()
 }
 
-fn run(file: &str, base: &mkp_check::Checker, readings: &Value, through_md: Option<&mkp_eval::Program>) -> Outcome {
+fn run(file: &str, base: &xtmd_check::Checker, readings: &Value, through_md: Option<&xtmd_eval::Program>) -> Outcome {
     let data = load(file);
     // GitHub's output, where the same Markdown is one of its examples too
     let gfm = load("gfm-0.29.json");
@@ -660,7 +660,7 @@ fn run(file: &str, base: &mkp_check::Checker, readings: &Value, through_md: Opti
         let md = ex["markdown"].as_str().unwrap();
         let key = format!("{}#{}", file, n);
         let html = github.get(md).cloned().unwrap_or_else(|| ex["html"].as_str().unwrap().to_string());
-        // a reading of MKP's own syntax applies to prose only: md.from reads plain Markdown, and
+        // a reading of Extended Mark's own syntax applies to prose only: md.from reads plain Markdown, and
         // has its own reading under `md.from:` where it too differs from CommonMark
         let reading = match through_md {
             None => readings.get(&key),
@@ -679,14 +679,14 @@ fn run(file: &str, base: &mkp_check::Checker, readings: &Value, through_md: Opti
             }
             continue;
         }
-        let c = compile_on(base, &[], &[Source { path: "example.mkp.md".into(), text: md.to_string() }], "doc");
+        let c = compile_on(base, &[], &[Source { path: "example.xt.md".into(), text: md.to_string() }], "doc");
         let found = match &c.module {
             Some(m) => match m.templates.iter().find(|t| t.name == "doc") {
                 Some(t) => json!(blocks_of_nodes(&t.view)),
                 None => json!([]),
             },
             None => {
-                let errs: Vec<String> = c.errors().filter(|d| d.file == "example.mkp.md").map(|d| format!("[{}] {}", d.diagnostic.code, d.diagnostic.message)).collect();
+                let errs: Vec<String> = c.errors().filter(|d| d.file == "example.xt.md").map(|d| format!("[{}] {}", d.diagnostic.code, d.diagnostic.message)).collect();
                 json!({"errors": errs})
             }
         };
@@ -702,7 +702,7 @@ fn run(file: &str, base: &mkp_check::Checker, readings: &Value, through_md: Opti
 #[test]
 fn commonmark_and_github_examples() {
     let base = compile_core(&core_sources());
-    let readings: Value = std::fs::read_to_string(repo().join("targets/checks/commonmark/mkp-readings.json")).ok().and_then(|s| serde_json::from_str::<Value>(&s).ok()).map(|v| v["readings"].clone()).unwrap_or(json!({}));
+    let readings: Value = std::fs::read_to_string(repo().join("targets/checks/commonmark/xtmd-readings.json")).ok().and_then(|s| serde_json::from_str::<Value>(&s).ok()).map(|v| v["readings"].clone()).unwrap_or(json!({}));
     for (key, r) in readings.as_object().unwrap() {
         assert!(r["why"].as_str().map_or(false, |w| !w.is_empty()), "{}: a reading says why", key);
     }
@@ -719,7 +719,7 @@ fn commonmark_and_github_examples() {
         }
         total_failed += o.failed.len();
     }
-    if let Ok(path) = std::env::var("MKP_COMMONMARK_REPORT") {
+    if let Ok(path) = std::env::var("XTMD_COMMONMARK_REPORT") {
         std::fs::write(path, &report).unwrap();
     }
     println!("{}", report.lines().filter(|l| !l.starts_with(' ')).collect::<Vec<_>>().join("\n"));

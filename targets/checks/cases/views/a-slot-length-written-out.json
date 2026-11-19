@@ -1,7 +1,7 @@
 {
   "id": "views.a-slot-length-written-out",
   "about": "a slot's length contract is checked when the children are written out one by one",
-  "source": "a-slot-length-written-out.mkp",
+  "source": "a-slot-length-written-out.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "views.slot-length", "line": 27, "column": 15},

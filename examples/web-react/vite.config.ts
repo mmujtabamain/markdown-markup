@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
-import mkp from "@mkp/cli/vite";
+import xtmd from "xtmd/vite";
 
 export default defineConfig({
-  // `import shop from "../../pages/shop.mkp.md"` gives the page's IR, compiled by mkp at build time
-  plugins: [mkp()],
+  // `import shop from "../../pages/shop.xt.md"` gives the page's IR, compiled by xtmd at build time
+  plugins: [xtmd()],
   esbuild: { jsx: "automatic" },
-  // @mkp/react is linked from the repo, with its own React for its tests: use this app's one
+  // @extended-mark/react is linked from the repo, with its own React for its tests: use this app's one
   resolve: { dedupe: ["react", "react-dom"] },
 });

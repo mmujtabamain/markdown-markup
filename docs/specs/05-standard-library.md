@@ -2,15 +2,15 @@
 
 Page 5 of 9. What is built in, and all of `core`: interfaces and native fns, types, ranges, lists, text, dates and moments, maths and Markdown, tokens, options, `page`, the statements a migration is written with, and the 43 base widgets.
 
-Only the syntax is built in: literals, operators, holes, prose and `@`. A number literal has to be some type, and so do `"…"`, `[a, b]`, `a..b` and `@name(…)`, so those types are built in. Everything else is declared in `core`, a pack imported by every file without saying so, in the same way any pack declares its own, with no exceptions for core: the six interfaces the syntax works through, the operations an implementer has to do natively, as `extern fn`, everything that can be written in MKP, and the look: tokens, options, `page` and the base widgets.
+Only the syntax is built in: literals, operators, holes, prose and `@`. A number literal has to be some type, and so do `"…"`, `[a, b]`, `a..b` and `@name(…)`, so those types are built in. Everything else is declared in `core`, a pack imported by every file without saying so, in the same way any pack declares its own, with no exceptions for core: the six interfaces the syntax works through, the operations an implementer has to do natively, as `extern fn`, everything that can be written in Extended Mark, and the look: tokens, options, `page` and the base widgets.
 
 | | |
 |---|---|
 | Built-in types | **8** |
 | Interfaces in core | **6** (shown, same, ordered, numeric, scaled, literal&lt;T>) |
 | Native fns in core | **61** |
-| core fns written in MKP | **30** |
-| Base widgets | **43** (23 extern, 7 more in core.gfx, 13 written in MKP) |
+| core fns written in Extended Mark | **30** |
+| Base widgets | **43** (23 extern, 7 more in core.gfx, 13 written in Extended Mark) |
 
 ### Built in
 
@@ -52,7 +52,7 @@ What the syntax makes:
 
 #### interfaces and native fns
 
-Core declares the six interfaces of page 4 as ordinary interfaces, and `int` as an ordinary alias. The native fns are `extern fn` with no body: every implementer supplies them, because MKP can't do them in terms of anything else. They are list storage, Unicode text, exact numbers with their maths, the interface fns of the built-in types, a range's ends and step, a duration in milliseconds, and `clamp`.
+Core declares the six interfaces of page 4 as ordinary interfaces, and `int` as an ordinary alias. The native fns are `extern fn` with no body: every implementer supplies them, because Extended Mark can't do them in terms of anything else. They are list storage, Unicode text, exact numbers with their maths, the interface fns of the built-in types, a range's ends and step, a duration in milliseconds, and `clamp`.
 
 ```java
 package core;
@@ -314,7 +314,7 @@ fn moment.minutes_to(self, other: moment): int {
 }
 
 // the same moment, with the offset the reader's zone uses on its date.
-// Supplied by the implementer from the platform's zone rules: MKP can never know them.
+// Supplied by the implementer from the platform's zone rules: Extended Mark can never know them.
 // It builds on moment.utc for the instant and moment_at for the fields, so a page that
 // calls it has both in its IR
 extern fn moment.local(self): moment;
@@ -772,13 +772,13 @@ fn ordered.max(self, other: self): self {
 }
 ```
 
-`map`, `date`, `moment`, `template`, `latex`, `md` and `rich_text` are ordinary records written in MKP, not extern: nothing about them needs the implementer.
+`map`, `date`, `moment`, `template`, `latex`, `md` and `rich_text` are ordinary records written in Extended Mark, not extern: nothing about them needs the implementer.
 
 - **Dates and moments** fit `literal<text>`, like `email` on page 4, so `"2026-11-10"` is checked where it is written. Their fields mirror the text, so each simple limit is a field contract, proved like any other, and only a rule across fields, that the day fits its month, is a `require`. `from` only cuts the text and checks its separators, and a reader's text goes through it by name: `date.from(entry)` is an `opt<date>`. A date literal with a hole is a compile error that says to build the record: `date { year = 2026, month = month, day = 1 }`. `plus` stops at the ends of the calendar, 0001-01-01 and 9999-12-31.
 - **Offsets, not zones.** `moment` always carries its offset; named zones and daylight saving are left out, and authors write offsets. The current time is `page.now`, which the app updates, because drawing can't ask what time it is. `local()` is an extern fn: it shows a moment in the reader's own zone, with the offset that zone uses on that date, from the platform's zone rules. Two moments are equal when they are the same instant, because `moment`'s own `same` replaces the field-by-field one.
 - **Holes stay values.** `rich_text`, `md` and `latex` fit `literal<template>`: a literal, holes and all, reaches their `from` as a `template`, and each hole is placed as a value, never read, so it can't become formatting or TeX.
-- **Markdown is parsed by core**, in MKP, as any pack could: CommonMark, with GitHub's tables, task lists, strikethrough, footnotes and bare links. No implementer parses it. The parser is long and follows those two specs, so this page gives its two entry points as signatures, below. `md.from` may also be called by name: `md.from(template.of(entry))` reads what a reader typed as Markdown, and `@blocks(value = …)` draws it.
-- **TeX** is checked by `latex`'s seven `require` blocks, written in MKP, each counting a hole as one token. An eighth asks `can_draw_tex`, an extern fn whose body is the default and which a target may replace with its own, such as one that refuses a command it can't draw. `show` gives the whole TeX with each hole's characters escaped, which is what a target draws.
+- **Markdown is parsed by core**, in Extended Mark, as any pack could: CommonMark, with GitHub's tables, task lists, strikethrough, footnotes and bare links. No implementer parses it. The parser is long and follows those two specs, so this page gives its two entry points as signatures, below. `md.from` may also be called by name: `md.from(template.of(entry))` reads what a reader typed as Markdown, and `@blocks(value = …)` draws it.
+- **TeX** is checked by `latex`'s seven `require` blocks, written in Extended Mark, each counting a hole as one token. An eighth asks `can_draw_tex`, an extern fn whose body is the default and which a target may replace with its own, such as one that refuses a command it can't draw. `show` gives the whole TeX with each hole's characters escaped, which is what a target draws.
 
 ```java
 // inline Markdown as segments: CommonMark's emphasis, GitHub's strikethrough, links and bare links, code spans,
@@ -1250,7 +1250,7 @@ These are ordinary enums, so `match` on any of them has to cover every case. Tok
 ```java
 package core;
 
-//@about What the app tells MKP about the page being read.
+//@about What the app tells Extended Mark about the page being read.
 extern page {
     width: width = width.WIDE;
     theme: theme = theme.LIGHT;
@@ -1283,9 +1283,9 @@ The statements a migration is written with (page 6), and the fns it decides with
 
 #### widgets
 
-Twenty-three widgets are extern: ten are Markdown's own blocks, so every implementer draws Markdown natively, and thirteen are what MKP can't express in terms of the others. Seven more belong to the optional `core.gfx` level. The other thirteen are written in MKP below, from the extern ones, so an implementer draws only the twenty-three, and the seven for `core.gfx`.
+Twenty-three widgets are extern: ten are Markdown's own blocks, so every implementer draws Markdown natively, and thirteen are what Extended Mark can't express in terms of the others. Seven more belong to the optional `core.gfx` level. The other thirteen are written in Extended Mark below, from the extern ones, so an implementer draws only the twenty-three, and the seven for `core.gfx`.
 
-| Extern | Widgets | What MKP can't do itself |
+| Extern | Widgets | What Extended Mark can't do itself |
 |---|---|---|
 | Layout | `flex`, `grid`, `cell`, `sizing`, `plane`, `spot` | Lay children along one axis with wrapping; line columns up across rows; place a child in a grid; say how big a child is; place any widget anywhere on a plane the reader can pan and zoom, and say where it landed |
 | Markdown blocks | `paragraph`, `heading`, `bullets`, `item`, `quote`, `code`, `math`, `table`, `footnote`, `divider` | Markdown's own blocks, drawn natively, with inline Markdown already parsed into `rich_text` |
@@ -1421,7 +1421,7 @@ extern widget spot(
 - **Bounds.** A region; left out, the region around every spot's box, worked out after layout. Nothing outside it is drawn, and the reader can't pan past it. A spot outside the bounds is a warning: at compile time when both are constants, and otherwise reported to the app when the page runs, not as a failure, and clipped.
 - **The centre** is kept where the drawn area stays inside the bounds, and is their middle where they are smaller than it. A centre that had to be moved is written back to the caller's variable.
 - **Moving around** needs `core.live`: dragging pans, and pinching or scrolling zooms, within `zoom_range`, whose default `1..1` doesn't zoom. Without `core.live`, the plane is drawn where its centre puts it and doesn't move.
-- **What is reported.** Each spot's `box`, in the plane's units, so panning and zooming never change it: it changes only when the widget's own size does. And the plane's `drawn` region, written as the reader moves, as `center` is. What is in view is worked out in MKP: `box.overlaps(drawn)`. The boxes of one layout are written as one change, and writing the value a variable already has is no change. A layout that keeps changing is stopped after a fixed number of passes, and is a failure of the plane.
+- **What is reported.** Each spot's `box`, in the plane's units, so panning and zooming never change it: it changes only when the widget's own size does. And the plane's `drawn` region, written as the reader moves, as `center` is. What is in view is worked out in Extended Mark: `box.overlaps(drawn)`. The boxes of one layout are written as one change, and writing the value a variable already has is no change. A layout that keeps changing is stopped after a fixed number of passes, and is a failure of the plane.
 - **The background** (`core.gfx`) is canvas layers in the plane's units, under the spots, moving and scaling with the plane. It is vector only; pixels come through `shade`.
 - **Its Markdown** is its label, then each spot's Markdown in order.
 
@@ -1472,8 +1472,8 @@ extern widget divider();
 enum cell_align { START, CENTER, END }
 ```
 
-- **Markdown's own blocks are extern.** Every implementer draws them natively, which is what makes MKP a superset of Markdown: a document is Markdown first, and MKP lowers onto the same blocks. They have no `markdown` block, because they are Markdown blocks themselves. Every implementer, a Markdown-only one included, writes each out as the block it stands for, with the spellings page 1 gives.
-- **Inline Markdown arrives parsed.** A paragraph, a heading and a table cell take `rich_text`: segments of text, code spans, maths, pictures, footnote marks and line breaks, each with its marks. Core parses it, in MKP, with `rich_text.from`, so an implementer draws the segments and never parses Markdown. A hole's value is a `TEXT` segment, so it can never turn into formatting.
+- **Markdown's own blocks are extern.** Every implementer draws them natively, which is what makes Extended Mark a superset of Markdown: a document is Markdown first, and Extended Mark lowers onto the same blocks. They have no `markdown` block, because they are Markdown blocks themselves. Every implementer, a Markdown-only one included, writes each out as the block it stands for, with the spellings page 1 gives.
+- **Inline Markdown arrives parsed.** A paragraph, a heading and a table cell take `rich_text`: segments of text, code spans, maths, pictures, footnote marks and line breaks, each with its marks. Core parses it, in Extended Mark, with `rich_text.from`, so an implementer draws the segments and never parses Markdown. A hole's value is a `TEXT` segment, so it can never turn into formatting.
 - **From code**, a text literal where `rich_text` is wanted goes to `rich_text.from` as a template, holes included: `@paragraph(value = "Read **this**, \{name}.");`. A value from a variable goes through `rich_text.plain(entry)`, which keeps it as plain text, or through `rich_text.from(template.of(entry))`, which reads it as Markdown and gives an `opt`.
 - **Blocks from code** are an `md` value, drawn with `@blocks(value = note);` (below). Each block is drawn by the extern block of its kind.
 
@@ -1693,10 +1693,10 @@ fn rect(x0: number, y0: number, x1: number, y1: number): list<point>[4] {
 - **A shader** is an extern fn with a return type (page 6). Declared in a document's `extern` block, the app supplies it; declared in a pack, the pack does, for each target it supports. The target runs it for every pixel of `area`, natively.
 - **`args`** is given once and handed to the shader as uniforms: numbers, points, colours (a colour token goes in as the theme's current value) and bools.
 - **`pixel`'s colours are its own**, like an `image`'s. The page's colours still take tokens only.
-- **An MKP fn fits the type too.** The runtime calls it for each pixel within the step limit, so only small areas fit, and the compiler warns.
+- **An Extended Mark fn fits the type too.** The runtime calls it for each pixel within the step limit, so only small areas fit, and the compiler warns.
 - **A shader nobody supplies** draws nothing, and is reported when the page is mounted.
 
-#### widgets: written in MKP
+#### widgets: written in Extended Mark
 
 ```java
 package core;
@@ -1996,6 +1996,6 @@ widget blocks(value: md) {
 - **Sizing wrappers nest in any order and mean the same.** A chain of `sizing` around one child is folded into one set of properties on that child, so `@grow { @min_size(…) { … } }` and the other way round are equal. Setting one property twice in a chain is a compile error. A child with no wrapper doesn't grow, shrinks by 1, and starts from its own size, as in CSS.
 - **Built in**: The eight types the syntax makes, and the syntax itself: literals, operators, holes, prose and `@`.
 - **core, declared extern with no body**: the 61 native fns: list storage, Unicode text, exact numbers with their maths, the interface fns of `number`, `duration`, `text` and `bool`, a range's ends and step, a duration in milliseconds, and `clamp`.
-- **core, written in MKP**: the six interfaces, `int`, point, region, map, date, moment, template, latex, md, rich_text, the tokens and options, the thirteen widgets above, and 30 fns built from the native ones: or, min, max, some, all, count, find, filter, map, remove_where, first, last, reversed, has, position, unique, sorted, join, sum, starts, ends, like, replace, the range helpers negate, shift, scale, widen, overlap and span, and `rect` for canvas paths.
-- **core, supplied by the implementer**: the native fns, page values, `moment.local`, `can_draw_tex` if it replaces the default, and the drawing of the 23 extern widgets (and 7 more for `core.gfx`), marked extern. Extern is only for what MKP can never do on its own, and for Markdown's own blocks.
+- **core, written in Extended Mark**: the six interfaces, `int`, point, region, map, date, moment, template, latex, md, rich_text, the tokens and options, the thirteen widgets above, and 30 fns built from the native ones: or, min, max, some, all, count, find, filter, map, remove_where, first, last, reversed, has, position, unique, sorted, join, sum, starts, ends, like, replace, the range helpers negate, shift, scale, widen, overlap and span, and `rect` for canvas paths.
+- **core, supplied by the implementer**: the native fns, page values, `moment.local`, `can_draw_tex` if it replaces the default, and the drawing of the 23 extern widgets (and 7 more for `core.gfx`), marked extern. Extern is only for what Extended Mark can never do on its own, and for Markdown's own blocks.
 - **A pack's own types**: Join the syntax by fitting shown, same, ordered, numeric, scaled or literal&lt;T>. They can't add new symbols, on purpose.

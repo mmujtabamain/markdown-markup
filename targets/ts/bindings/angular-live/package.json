@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/angular-live",
+  "name": "@extended-mark/angular-live",
   "version": "0.3.0",
-  "description": "MKP documents in Angular, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/angular's <MkpDoc>",
+  "description": "Extended Mark documents in Angular, compiled in the browser as they are edited: <XtmdLiveDoc source={…} />, @extended-mark/wasm's compiler and @extended-mark/angular's <XtmdDoc>",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,9 +21,9 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/angular": "file:../angular",
-    "@mkp/live": "file:../live",
-    "@mkp/view": "file:../view"
+    "@extended-mark/angular": "file:../angular",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "@angular/common": ">=20.0.0",
@@ -36,7 +36,7 @@
     "@angular/core": "21.2.26",
     "@angular/platform-browser": "21.2.26",
     "@angular/platform-server": "21.2.26",
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "rxjs": "7.8.2",

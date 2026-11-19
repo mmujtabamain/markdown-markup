@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use chrono::{Datelike, Offset, TimeZone, Timelike};
-use mkp_eval::value::Record;
-use mkp_runtime::{Binding, Num, Value, ValueFn};
+use xtmd_eval::value::Record;
+use xtmd_runtime::{Binding, Num, Value, ValueFn};
 
 use crate::values::{field, num};
 

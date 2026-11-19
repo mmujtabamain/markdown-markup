@@ -1,6 +1,6 @@
-"""Each framework's two kinds of target: React, Vue, Svelte, Solid and Angular, each drawing one MKP
-page with its run-time <MkpDoc> (an IR built ahead, no compiler) and its real-time <MkpLiveDoc>
-(the text compiled in the browser by mkp.wasm), every page drawn by the framework itself.
+"""Each framework's two kinds of target: React, Vue, Svelte, Solid and Angular, each drawing one Extended Mark
+page with its run-time <XtmdDoc> (an IR built ahead, no compiler) and its real-time <XtmdLiveDoc>
+(the text compiled in the browser by xtmd.wasm), every page drawn by the framework itself.
 
 Recorded against the showcase built from the bindings themselves (they aren't part of the
 preview's image):
@@ -13,7 +13,7 @@ Selectors are the showcase's own ids (testing/showcase/shell.js); widgets are fo
 data-part names.
 """
 
-TITLE = "Five frameworks, two kinds of MKP target each"
+TITLE = "Five frameworks, two kinds of Extended Mark target each"
 
 FRAMEWORKS = [
     ("react", "React"),
@@ -36,16 +36,16 @@ def take(t):
     t.goto("/")
     t.wait(3.0)
     t.mark_ready()
-    t.say("One MKP page, in five frameworks: each with its run-time and its real-time target.", 3.8)
+    t.say("One Extended Mark page, in five frameworks: each with its run-time and its real-time target.", 3.8)
 
     for fw, name in FRAMEWORKS:
         run = f"[data-testid='{fw}-run']"
         t.page.locator(f"[data-testid='{fw}']").scroll_into_view_if_needed()
         t.wait(0.5)
-        t.beat(run, f"{name}, run time: <MkpDoc> draws the IR built ahead, with {name}'s own rendering.", 3.4)
+        t.beat(run, f"{name}, run time: <XtmdDoc> draws the IR built ahead, with {name}'s own rendering.", 3.4)
         t.click(f"{run} [data-part='press']", after=1.0)
-        t.beat(f"[data-testid='{fw}-run-state']", "A press: $state changes, checked by mkp.", 2.4)
-        t.hold_caption(f"{name}, real time: <MkpLiveDoc> compiles the text in the browser as it changes.")
+        t.beat(f"[data-testid='{fw}-run-state']", "A press: $state changes, checked by xtmd.", 2.4)
+        t.hold_caption(f"{name}, real time: <XtmdLiveDoc> compiles the text in the browser as it changes.")
         type_at_end(t, f"[data-testid='{fw}-source']", "\n@counter(by = 10);\n")
         t.wait(1.6)
         t.release_caption()

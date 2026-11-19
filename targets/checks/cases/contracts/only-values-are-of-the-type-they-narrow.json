@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-values-are-of-the-type-they-narrow",
   "about": "only's values are constants of the type it narrows: a number in a text's only, a text in a number's, is refused",
-  "source": "only-values-are-of-the-type-they-narrow.mkp",
+  "source": "only-values-are-of-the-type-they-narrow.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 5, "column": 22},

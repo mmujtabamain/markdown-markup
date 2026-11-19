@@ -1,25 +1,25 @@
 [package]
-name = "mkp-cli"
-description = "The mkp command: check, fmt, build and md"
+name = "xtmd-cli"
+description = "The xtmd command: check, fmt, build and md"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "mkp"
+name = "xtmd"
 path = "src/main.rs"
 
 [dependencies]
-mkp-syntax = { path = "../compiler/syntax", version = "0.3.0" }
-mkp-check = { path = "../compiler/check", version = "0.3.0" }
-mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
-mkp-lower = { path = "../compiler/lower", version = "0.3.0" }
-mkp-markdown = { path = "../compiler/markdown", version = "0.3.0" }
+xtmd-syntax = { path = "../compiler/syntax", version = "0.3.0" }
+xtmd-check = { path = "../compiler/check", version = "0.3.0" }
+xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
+xtmd-lower = { path = "../compiler/lower", version = "0.3.0" }
+xtmd-markdown = { path = "../compiler/markdown", version = "0.3.0" }
 serde_json.workspace = true
 serde.workspace = true
 toml = "0.8"
 
 [dev-dependencies]
-mkp-eval = { path = "../eval" }
+xtmd-eval = { path = "../eval" }
 jsonschema = { version = "0.61", default-features = false }

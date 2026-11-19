@@ -1,5 +1,5 @@
-// Written by mkp-schemagen from schemas/ir.schema.json. Don't edit: change the schema, then run
-// `cargo run -p mkp-schemagen`.
+// Written by xtmd-schemagen from schemas/ir.schema.json. Don't edit: change the schema, then run
+// `cargo run -p xtmd-schemagen`.
 
 #![allow(clippy::all)]
 
@@ -35,7 +35,7 @@ pub struct Bounds {
     pub low: Option<Expr>,
 }
 
-/// A call of a fn by its full name: one written in MKP, an extern, or an interface's, which goes to the fn of the value's own type.
+/// A call of a fn by its full name: one written in Extended Mark, an extern, or an interface's, which goes to the fn of the value's own type.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Call {
@@ -370,7 +370,7 @@ pub struct ExternType {
     pub supplier: Supplier,
 }
 
-/// Something supplied from outside MKP.
+/// Something supplied from outside Extended Mark.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Extern {
     /// An extern fn: native to every target (core's), a pack's, or the app's.
@@ -378,7 +378,7 @@ pub enum Extern {
     Fn(ExternFn),
     #[serde(rename = "widget")]
     Widget(ExternWidget),
-    /// An extern block: values the app gives and fns MKP calls.
+    /// An extern block: values the app gives and fns Extended Mark calls.
     #[serde(rename = "channel")]
     Channel(ExternChannel),
     #[serde(rename = "type")]
@@ -423,7 +423,7 @@ pub struct File {
     pub ir: Module,
 }
 
-/// A fn written in MKP. One with no return type is an action.
+/// A fn written in Extended Mark. One with no return type is an action.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FnDecl {
@@ -556,14 +556,14 @@ pub struct Module {
     pub handlers: Vec<Handler>,
     /// Every level the page needs: the union of its calls'.
     pub levels: Vec<Level>,
-    /// The version of the compiler that wrote it.
-    pub mkp: String,
     /// `doc` for a document, or the pack's name.
     pub module: String,
     pub needs: Needs,
     pub templates: Vec<Template>,
     /// The IR's version. 0.3 writes 3.
     pub version: i64,
+    /// The version of the compiler that wrote it.
+    pub xtmd: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -604,7 +604,7 @@ pub struct NodeExtern {
     pub writes: BTreeMap<String, Place>,
 }
 
-/// A widget written in MKP.
+/// A widget written in Extended Mark.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeUse {
@@ -1026,7 +1026,7 @@ pub enum Supplier {
     App,
 }
 
-/// A widget written in MKP, lowered: its view as nodes. The document's own view is the template `doc`.
+/// A widget written in Extended Mark, lowered: its view as nodes. The document's own view is the template `doc`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Template {

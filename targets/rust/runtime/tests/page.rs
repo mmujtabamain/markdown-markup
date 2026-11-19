@@ -1,5 +1,5 @@
-//! A page running on mkp-runtime: mounted, changed only through checked transactions, and
-//! written back as Markdown (page 6, plan tab 11). The same pages as @mkp/runtime's
+//! A page running on xtmd-runtime: mounted, changed only through checked transactions, and
+//! written back as Markdown (page 6, plan tab 11). The same pages as @extended-mark/runtime's
 //! page.test.mjs, and a few more.
 
 mod common;
@@ -9,9 +9,9 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use common::*;
-use mkp_runtime::ir::Expr;
-use mkp_runtime::layout::{around, keep_inside, place, Pt, Region, Size};
-use mkp_runtime::{Broken, Drawn, Measure, Num, Page, PageOptions, PageValues, PageWidth, Value};
+use xtmd_runtime::ir::Expr;
+use xtmd_runtime::layout::{around, keep_inside, place, Pt, Region, Size};
+use xtmd_runtime::{Broken, Drawn, Measure, Num, Page, PageOptions, PageValues, PageWidth, Value};
 
 fn refused_code(code: &str, site: &str) -> Broken {
     Broken { code: Some(code.into()), rule: None, site: Some(site.into()) }
@@ -72,7 +72,7 @@ fn an_apps_write_to_state_is_one_change_checked_once_against_states_rules() {
 #[test]
 fn an_apps_write_of_the_wrong_type_or_outside_its_contract_is_refused() {
     let mut p = page("record task {\n    title: text;\n}\n\n$state {\n    tasks: list<task> = [task { title = \"a\" }];\n    n: int 0..10 = 1;\n    note: opt<text> = opt.NONE;\n}\n@@@\n\\{$state.n}\n");
-    let task = |title: Expr| Expr::List(vec![Expr::Record(mkp_runtime::ir::ExprRecord { ty: "doc/task".into(), fields: BTreeMap::from([("title".to_string(), title)]) })]);
+    let task = |title: Expr| Expr::List(vec![Expr::Record(xtmd_runtime::ir::ExprRecord { ty: "doc/task".into(), fields: BTreeMap::from([("title".to_string(), title)]) })]);
     for (k, x) in [("tasks", num("3")), ("n", text("3")), ("tasks", task(num("1"))), ("note", Expr::Some(Box::new(num("2")))), ("n", num("11")), ("n", num("2.5"))] {
         p.set(vec![(k.into(), v(&p, x))]).unwrap();
         assert_eq!(p.take_outcome().refused, vec![refused_code("contracts.outside", &format!("$state.{}", k))], "{}", k);
@@ -310,7 +310,7 @@ impl Measure for Fixed {
 }
 
 fn region_expr(fx: &str, fy: &str, tx: &str, ty: &str) -> Expr {
-    use mkp_runtime::ir::ExprRecord;
+    use xtmd_runtime::ir::ExprRecord;
     let point = |x: &str, y: &str| Expr::Record(ExprRecord { ty: "core/point".into(), fields: BTreeMap::from([("x".to_string(), num(x)), ("y".to_string(), num(y))]) });
     Expr::Some(Box::new(Expr::Record(ExprRecord { ty: "core/region".into(), fields: BTreeMap::from([("from".to_string(), point(fx, fy)), ("to".to_string(), point(tx, ty))]) })))
 }
@@ -339,18 +339,18 @@ fn a_layout_that_never_settles_fails_its_plane_and_is_held_until_an_outside_chan
     let measured = Rc::new(Cell::new(0));
     let mut measure = Fixed { width: n("100"), measured: measured.clone(), grow: 2 };
     p.layout(&mut measure).unwrap();
-    assert_eq!(measured.get(), mkp_runtime::MAX_LAYOUT_PASSES as u32);
+    assert_eq!(measured.get(), xtmd_runtime::MAX_LAYOUT_PASSES as u32);
     let failures = p.take_outcome().failures;
     assert_eq!(failures.len(), 1);
     assert_eq!(failures[0].code.as_deref(), Some("failure.layout"));
     // held: laying out again, as a target does every frame, runs no pass
     p.layout(&mut measure).unwrap();
     p.layout(&mut measure).unwrap();
-    assert_eq!(measured.get(), mkp_runtime::MAX_LAYOUT_PASSES as u32);
+    assert_eq!(measured.get(), xtmd_runtime::MAX_LAYOUT_PASSES as u32);
     // until something outside the layout changes the page
     p.set_page(PageValues { width: Some(PageWidth::Wide), theme: None }).unwrap();
     p.layout(&mut measure).unwrap();
-    assert_eq!(measured.get(), 2 * mkp_runtime::MAX_LAYOUT_PASSES as u32);
+    assert_eq!(measured.get(), 2 * xtmd_runtime::MAX_LAYOUT_PASSES as u32);
 }
 
 #[test]
@@ -460,7 +460,7 @@ fn with_and_without_reuse_every_step_observes_the_same_tree_state_and_markdown()
             &|p| p.set(vec![("note".into(), v(p, text("there")))]).unwrap(),
             &|p| p.event("s1/s2[0]/s4/s0", "click", vec![]).unwrap(),
             &|p| p.set(vec![("n".into(), v(p, num("-1")))]).unwrap(),
-            &|p| p.set_page(PageValues { width: Some(PageWidth::Narrow), theme: Some(mkp_runtime::PageTheme::Dark) }).unwrap(),
+            &|p| p.set_page(PageValues { width: Some(PageWidth::Narrow), theme: Some(xtmd_runtime::PageTheme::Dark) }).unwrap(),
             &|p| p.write("s1/s1", "value", v(p, num("3"))).unwrap(),
         ],
     );
@@ -476,9 +476,9 @@ fn an_undone_change_leaves_no_reused_node_behind() {
 
 #[test]
 fn dragging_on_the_tour_page_observes_the_same_with_and_without_reuse() {
-    let source = std::fs::read_to_string(repo().join("targets/android/compose/sample/pages/tour.mkp.md")).unwrap();
+    let source = std::fs::read_to_string(repo().join("targets/android/compose/sample/pages/tour.xt.md")).unwrap();
     let point = |x: &str, y: &str| {
-        Expr::Record(mkp_runtime::ir::ExprRecord { ty: "core/point".into(), fields: BTreeMap::from([("x".to_string(), num(x)), ("y".to_string(), num(y))]) })
+        Expr::Record(xtmd_runtime::ir::ExprRecord { ty: "core/point".into(), fields: BTreeMap::from([("x".to_string(), num(x)), ("y".to_string(), num(y))]) })
     };
     let find = |p: &Page, widget: &str| p.observe_tree().into_iter().find(|(_, m)| m.widget == widget).unwrap().0;
     let lay = |p: &mut Page| {

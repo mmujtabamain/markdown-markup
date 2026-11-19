@@ -1,4 +1,4 @@
-# targets/ts/test/target.yaml: @mkp/runtime with no screen, laying widgets out with fixed sizes
+# targets/ts/test/target.yaml: @extended-mark/runtime with no screen, laying widgets out with fixed sizes
 name: test
 levels: [core.draw, core.live, core.gfx]
 supplies:

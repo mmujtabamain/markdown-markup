@@ -1,9 +1,9 @@
-# targets/ts/bindings/solid-live/target.yaml: the solid-live target, real time: <MkpLiveDoc> drawn by solid itself from
-# @mkp/view's elements (core's widgets as the web target draws them), compiling the document's text in the browser with @mkp/wasm
+# targets/ts/bindings/solid-live/target.yaml: the solid-live target, real time: <XtmdLiveDoc> drawn by solid itself from
+# @extended-mark/view's elements (core's widgets as the web target draws them), compiling the document's text in the browser with @extended-mark/wasm
 name: solid-live
 levels: [core.draw, core.live, core.gfx]
 supplies:
   widgets: [core/*]                     # core's externs only; a pack brings its own
   fns: [core/can_draw_tex, core/moment.local]
-tokens: core                            # @mkp/dom's stylesheet draws core's own tokens
+tokens: core                            # @extended-mark/dom's stylesheet draws core's own tokens
 check_adapter: exec node ../testing/view_adapter.mjs solid-live check/harness.mjs live

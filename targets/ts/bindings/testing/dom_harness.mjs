@@ -1,10 +1,10 @@
-// What the plain web's check harnesses share (@mkp/embed's and @mkp/embed-live's): the page
-// testing/view_adapter.mjs loads into Chromium, with `window.mkpCheck` for it to call. Each case's
-// document is drawn by @mkp/dom, as an app draws one: `install(make)` takes how the target makes
-// it, `make(root, props)`, an MkpDoc or an MkpLiveDoc. Steps go through the drawn widgets' own DOM
+// What the plain web's check harnesses share (@extended-mark/embed's and @extended-mark/embed-live's): the page
+// testing/view_adapter.mjs loads into Chromium, with `window.xtmdCheck` for it to call. Each case's
+// document is drawn by @extended-mark/dom, as an app draws one: `install(make)` takes how the target makes
+// it, `make(root, props)`, an XtmdDoc or an XtmdLiveDoc. Steps go through the drawn widgets' own DOM
 // where they can (Mounted.act); the calls and refusals observed are the ones the document told the app.
 
-import { regionOf, toIr } from "@mkp/runtime";
+import { regionOf, toIr } from "@extended-mark/runtime";
 // the checks' fixed sizes, so boxes agree with every other target (README: "Boxes")
 import { measure, targetFns } from "../../test/sizes.mjs";
 // the check packs' externs for the web, registered as an app registers a pack's
@@ -35,9 +35,9 @@ export function install(make) {
   let loadError;
   const page = () => doc.running;
   const values = (xs = []) => xs.map((x) => page().value(x));
-  const drawn = (path) => document.querySelector(`[data-mkp-site="${CSS.escape(path)}"]`) !== null;
+  const drawn = (path) => document.querySelector(`[data-xtmd-site="${CSS.escape(path)}"]`) !== null;
 
-  window.mkpCheck = {
+  window.xtmdCheck = {
     async load(irText, pageValues, state, externs, source) {
       doc?.destroy();
       document.body.innerHTML = "";
@@ -97,7 +97,7 @@ export function install(make) {
       await settle();
     },
     async observe() {
-      // what MkpDoc tells the app after a change reaches it once the change is done
+      // what XtmdDoc tells the app after a change reaches it once the change is done
       await new Promise((r) => setTimeout(r, 0));
       const p = page();
       const tree = Object.fromEntries(Object.entries(p.observeTree()).filter(([path]) => drawn(path)));

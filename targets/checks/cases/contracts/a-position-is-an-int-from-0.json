@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-position-is-an-int-from-0",
   "about": "for (k, x in xs): k is an int 0...",
-  "source": "a-position-is-an-int-from-0.mkp",
+  "source": "a-position-is-an-int-from-0.xtpack",
   "expect": {
     "diagnostics": []
   }

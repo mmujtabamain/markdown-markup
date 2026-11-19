@@ -1,7 +1,7 @@
 {
   "id": "read.a-brace-that-does-not-end-its-line",
   "about": "a fn body on the line of its brace: a warning, read the same",
-  "source": "a-brace-that-does-not-end-its-line.mkp",
+  "source": "a-brace-that-does-not-end-its-line.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "layout.brace", "line": 3, "column": 25, "severity": "warning"}

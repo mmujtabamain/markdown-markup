@@ -403,7 +403,7 @@ let orders_box: label = @label(value = "Orders");
 
 ### Markdown
 
-Every widget ends with a `markdown` block: what the widget is when there is nothing to draw on. It is parsed exactly like prose below a `@@@` line, by the rules on page 1, so it lowers onto the same Markdown blocks, with `@if`, `@for` and `@match` for logic. It uses the starting values of any variables. A widget declared in a document may leave the block out, and MKP builds it from the view.
+Every widget ends with a `markdown` block: what the widget is when there is nothing to draw on. It is parsed exactly like prose below a `@@@` line, by the rules on page 1, so it lowers onto the same Markdown blocks, with `@if`, `@for` and `@match` for logic. It uses the starting values of any variables. A widget declared in a document may leave the block out, and Extended Mark builds it from the view.
 
 - **Holes**: A hole that holds a slot or a widget value puts that view's own Markdown there, which is how `\{body}` in `box` works. A hole that holds a value that fits `shown` puts in its text, as plain text that is never read as Markdown. So a hole can't write a task box: `todo_row` writes `[x]` and `[ ]` itself, with `@if`.
 - **An `opt` in a hole**: A paragraph with a hole that holds an `opt` is a compile error that names the hole, because a literal with an `opt` hole is an `opt` (page 4) and `paragraph` takes a `rich_text`. For a `stat` called `s` (page 2), give the hole a fallback, as in `\{s.note.or("none")}`, or open the value first with `@if (let n: text = s.note) {`.

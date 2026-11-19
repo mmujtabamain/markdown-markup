@@ -2,7 +2,7 @@
 
 Page 2 of 9. Records, enums, constant and mut, passing values, optional values, numbers, contracts and the proofs they need, and what a fn may change.
 
-Eight types are built in, because the syntax makes them: `number`, `bool`, `text`, `duration`, `list<T>`, `opt<T>`, `range<T>` and `view`. Everything else, from `int`, `point`, `date`, `moment`, `latex`, `md` and `template` to the token types, the options and `page`, is declared in `core`, the standard library, which is written in MKP and imported by every file. Page 5 has all of it.
+Eight types are built in, because the syntax makes them: `number`, `bool`, `text`, `duration`, `list<T>`, `opt<T>`, `range<T>` and `view`. Everything else, from `int`, `point`, `date`, `moment`, `latex`, `md` and `template` to the token types, the options and `page`, is declared in `core`, the standard library, which is written in Extended Mark and imported by every file. Page 5 has all of it.
 
 A type is written in one of five forms.
 
@@ -94,7 +94,7 @@ fn mark(mut s: stat) {
 | Inline record | `{ name = "api" }` | `{ mut up = true }` |
 | Loop variable | `for (t in todos)` | `mut for (t in todos)`, where `t` is an `opt` for the real item |
 | Opening an `opt` | `if (let c: text = s.change)` | `if (mut x: todo = t)` |
-| extern value | Constant to MKP code | None |
+| extern value | Constant to Extended Mark code | None |
 
 - **Every `let` and `mut` writes its type**, `if (let c: text = …)` and `if (mut x: todo = …)` included. Names bound by `for` and `case` take the type of what they walk or open, because they are not declarations: in `mut for (t in todos)`, `t` is an `opt<todo>`.
 - **A literal takes the type that is expected**: `stat { … }`, `[1, 2]` and `opt.NONE` are checked against the declared type. With nothing to aim for, as in `"\{42}"`, `42` is a `number`.
@@ -133,7 +133,7 @@ fn sweep(mut stats: list<stat>) {
 - **After a removal**: Once a body or an event handler removes `x` from its list, `x` can't be used in the rest of that block. It is a compile error when the compiler can see it, and a failure when it can't.
 - **Lambdas**: A lambda reads its parameters, and the constants, `let`s and `for` variables around it, as they were when it was made. The variables it may assign it reads and writes where they live, so after `$state.tries = $state.tries + 1;` the next read sees the new value. A lambda with no return type may assign `$state`'s fields, the widget's own variables, a `mut` input, and a `mut for` or `if (mut …)` variable, whose writes go to the real item. A row leaves the page with its item, so its handlers can never write an item that is gone. A lambda can't assign a `mut` local of the fn it is written in.
 - **Derived values**: A `let` at the top of a document or in a widget or a view is worked out again whenever something it reads changes, such as a `$state` field or an input. One whose expression is a constant is a constant (Contracts, below). A `let` inside a fn is an ordinary local.
-- **Memory** is the implementer's. MKP code has no pointers, no freeing and no null, and indexing gives an `opt`, so it can't cause a memory error. Values can't form cycles, because assigning makes a value of its own and a reference can't be stored, so no tracing garbage collector is needed.
+- **Memory** is the implementer's. Extended Mark code has no pointers, no freeing and no null, and indexing gives an `opt`, so it can't cause a memory error. Values can't form cycles, because assigning makes a value of its own and a reference can't be stored, so no tracing garbage collector is needed.
 
 ### Optional values
 

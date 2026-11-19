@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/dom",
+  "name": "@extended-mark/dom",
   "version": "0.3.0",
-  "description": "MKP's default web widgets in plain DOM: every core extern widget, drawn from @mkp/runtime's page",
+  "description": "Extended Mark's default web widgets in plain DOM: every core extern widget, drawn from @extended-mark/runtime's page",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,7 +25,7 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/runtime": "file:../runtime"
+    "@extended-mark/runtime": "file:../runtime"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

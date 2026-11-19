@@ -1,8 +1,8 @@
 {
-  "name": "@mkp/playground",
+  "name": "@extended-mark/playground",
   "version": "0.3.0",
   "private": true,
-  "description": "The MKP playground: edit a page and see it drawn, with its Markdown, its diagnostics and its $state, live, compiled in the browser",
+  "description": "The Extended Mark playground: edit a page and see it drawn, with its Markdown, its diagnostics and its $state, live, compiled in the browser",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -15,15 +15,15 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../targets/ts/dom",
-    "@mkp/embed": "file:../../targets/ts/bindings/embed",
-    "@mkp/embed-live": "file:../../targets/ts/bindings/embed-live",
-    "@mkp/live": "file:../../targets/ts/bindings/live",
-    "@mkp/react": "file:../../targets/ts/bindings/react",
-    "@mkp/react-live": "file:../../targets/ts/bindings/react-live",
-    "@mkp/runtime": "file:../../targets/ts/runtime",
-    "@mkp/view": "file:../../targets/ts/bindings/view",
-    "@mkp/wasm": "file:../../targets/ts/wasm",
+    "@extended-mark/dom": "file:../../targets/ts/dom",
+    "@extended-mark/embed": "file:../../targets/ts/bindings/embed",
+    "@extended-mark/embed-live": "file:../../targets/ts/bindings/embed-live",
+    "@extended-mark/live": "file:../../targets/ts/bindings/live",
+    "@extended-mark/react": "file:../../targets/ts/bindings/react",
+    "@extended-mark/react-live": "file:../../targets/ts/bindings/react-live",
+    "@extended-mark/runtime": "file:../../targets/ts/runtime",
+    "@extended-mark/view": "file:../../targets/ts/bindings/view",
+    "@extended-mark/wasm": "file:../../targets/ts/wasm",
     "monaco-editor": "0.57.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

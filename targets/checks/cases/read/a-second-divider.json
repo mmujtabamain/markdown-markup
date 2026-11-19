@@ -1,7 +1,7 @@
 {
   "id": "read.a-second-divider",
   "about": "a second divider",
-  "source": "a-second-divider.mkp.md",
+  "source": "a-second-divider.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.second-divider", "line": 4, "column": 1}

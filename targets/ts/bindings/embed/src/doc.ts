@@ -1,19 +1,19 @@
-// MkpDoc: a document in an element, the plain web's run-time target, drawn by @mkp/dom. It is
+// XtmdDoc: a document in an element, the plain web's run-time target, drawn by @extended-mark/dom. It is
 // made from its IR, in hand or fetched from a URL. `$state` is the app's to control or to start
-// from. Every write is checked by mkp, and what is refused reaches `onError`. A snapshot takes
+// from. Every write is checked by xtmd, and what is refused reaches `onError`. A snapshot takes
 // everything the page holds out and puts it back. It is the plain web's twin of the frameworks'
-// <MkpDoc> (@mkp/view), with the same props, on Embed. There is no compiler here: @mkp/embed-live
+// <XtmdDoc> (@extended-mark/view), with the same props, on Embed. There is no compiler here: @extended-mark/embed-live
 // compiles a document's text.
 
-import type { Mounted, Widget } from "@mkp/dom";
-import type { Call, Page, PageOptions, PageValues, Value, ir } from "@mkp/runtime";
+import type { Mounted, Widget } from "@extended-mark/dom";
+import type { Call, Page, PageOptions, PageValues, Value, ir } from "@extended-mark/runtime";
 import { Embed, type PageProps } from "./index.js";
 import type { Given, Ir } from "./page.js";
 import { RELEASE, hash, type DocError, type Restored, type Snapshot } from "./snapshot.js";
 
 /** What a document is given: the same in the plain web as in every framework. */
 export interface DocProps {
-  /** The page's IR, in hand: the file `mkp build` writes. */
+  /** The page's IR, in hand: the file `xtmd build` writes. */
   ir?: Ir;
   /** Where to fetch the page's IR from, when it isn't in hand. */
   src?: string;
@@ -29,13 +29,13 @@ export interface DocProps {
   externs?: Record<string, Record<string, ir.Expr>>;
   /** Value fns the app supplies, by full name (`acme/rate`). */
   fns?: PageOptions["fns"];
-  /** The app's widgets by full name, in place of @mkp/dom's, or a pack's. */
+  /** The app's widgets by full name, in place of @extended-mark/dom's, or a pack's. */
   widgets?: Record<string, Widget>;
   /** How the plane's spots are measured: left out, from the DOM. The checks give fixed sizes. */
   measure?: PageProps["measure"];
   /** `$state` after each change to it. */
   onStateChange?: (state: Record<string, ir.Expr>) => void;
-  /** A write mkp refused, a widget that failed, or an IR that couldn't be had. */
+  /** A write xtmd refused, a widget that failed, or an IR that couldn't be had. */
   onError?: (error: DocError) => void;
   /** The app's extern fns the page called, after each change that called any. */
   onCalls?: (calls: Call[]) => void;
@@ -47,8 +47,8 @@ function same(a: unknown, b: unknown): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** A document drawn by @mkp/dom into an element, following the props it is given. */
-export class MkpDoc {
+/** A document drawn by @extended-mark/dom into an element, following the props it is given. */
+export class XtmdDoc {
   private props: DocProps;
   private embed: Embed | undefined;
   private irHash = "";
@@ -67,7 +67,7 @@ export class MkpDoc {
     return this.embed?.live ? this.embed.page : undefined;
   }
 
-  /** The page as @mkp/dom drew it, once it has its IR. */
+  /** The page as @extended-mark/dom drew it, once it has its IR. */
   get mounted(): Mounted | undefined {
     return this.embed?.live ? this.embed.mounted : undefined;
   }
@@ -133,7 +133,7 @@ export class MkpDoc {
 
   /** Everything the page holds now: `$state`, and every widget's own variables by place. */
   snapshot(): Snapshot {
-    return { mkp: RELEASE, ir: this.irHash, state: this.state(), own: this.running?.observeOwn() ?? {} };
+    return { xtmd: RELEASE, ir: this.irHash, state: this.state(), own: this.running?.observeOwn() ?? {} };
   }
 
   /** Puts a snapshot back. With the same IR, all of it; with another, `$state` only, as widgets'
@@ -141,8 +141,8 @@ export class MkpDoc {
   restore(snap: Snapshot): Restored {
     const page = this.running;
     if (!page) return { restored: "none", dropped: [], why: "the page isn't loaded yet" };
-    if (!snap || typeof snap !== "object" || snap.mkp !== RELEASE || typeof snap.state !== "object") {
-      return { restored: "none", dropped: [], why: `a snapshot this mkp (${RELEASE}) can't read` };
+    if (!snap || typeof snap !== "object" || snap.xtmd !== RELEASE || typeof snap.state !== "object") {
+      return { restored: "none", dropped: [], why: `a snapshot this xtmd (${RELEASE}) can't read` };
     }
     page.set(Object.fromEntries(Object.entries(snap.state).map(([k, x]) => [k, page.value(x) as Value])));
     const o = page.takeOutcome();
@@ -162,15 +162,15 @@ export class MkpDoc {
 
   private waiting(why?: string): void {
     const box = document.createElement("div");
-    box.className = "mkp-root";
-    box.setAttribute("data-mkp-root", "");
+    box.className = "xtmd-root";
+    box.setAttribute("data-xtmd-root", "");
     if (why) {
       const n = document.createElement("div");
-      n.className = "mkp-notice";
+      n.className = "xtmd-notice";
       n.setAttribute("role", "alert");
       n.textContent = why;
       box.append(n);
-    } else box.setAttribute("data-mkp-loading", "");
+    } else box.setAttribute("data-xtmd-loading", "");
     this.root.replaceChildren(box);
   }
 

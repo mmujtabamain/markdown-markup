@@ -1,18 +1,18 @@
 [package]
-name = "mkp-egui-live"
-description = "MKP's real-time desktop target: a document's text compiled in the app as it is edited (mkp-live's compiler, core compiled once), and drawn by mkp-egui's MkpDoc. The run-time target, mkp-egui, carries no compiler; this one does."
+name = "xtmd-egui-live"
+description = "Extended Mark's real-time desktop target: a document's text compiled in the app as it is edited (xtmd-live's compiler, core compiled once), and drawn by xtmd-egui's XtmdDoc. The run-time target, xtmd-egui, carries no compiler; this one does."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [lib]
-name = "mkp_egui_live"
+name = "xtmd_egui_live"
 
-# The check adapter: `mkp target check egui-live` (target.yaml), compiling each case's own text.
+# The check adapter: `xtmd target check egui-live` (target.yaml), compiling each case's own text.
 [[bin]]
-name = "mkp_egui_live_check_adapter"
-path = "src/bin/mkp_egui_live_check_adapter.rs"
+name = "xtmd_egui_live_check_adapter"
+path = "src/bin/xtmd_egui_live_check_adapter.rs"
 required-features = ["check"]
 
 # Both kinds in one window, driving itself, for a video (examples/targets.rs).
@@ -22,12 +22,12 @@ required-features = ["app"]
 
 [features]
 default = ["check"]
-check = ["mkp-egui/check"]
-app = ["mkp-egui/app", "dep:eframe"]
+check = ["xtmd-egui/check"]
+app = ["xtmd-egui/app", "dep:eframe"]
 
 [dependencies]
-mkp-egui = { path = "../egui", version = "0.3.0", default-features = false, features = ["fonts"] }
-mkp-live = { path = "../live", version = "0.3.0" }
+xtmd-egui = { path = "../egui", version = "0.3.0", default-features = false, features = ["fonts"] }
+xtmd-live = { path = "../live", version = "0.3.0" }
 egui = "0.37"
 eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 

@@ -17,9 +17,9 @@ pub type R<T> = Result<T, Diagnostic>;
 /// What a parse starts from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Entry {
-    /// A .mkp file.
-    Mkp,
-    /// A .mkp.md document.
+    /// A .xtpack file.
+    Xtmd,
+    /// A .xt.md document.
     Document,
     /// A document's definitions on their own, with no `@@@` line and no prose.
     Decls,
@@ -37,7 +37,7 @@ pub struct Parser<'a> {
     buf: VecDeque<Token>,
     pub(crate) prev_end: usize,
     pub diags: Vec<Diagnostic>,
-    /// Comments the tree has no place for. `mkp fmt` refuses to drop them.
+    /// Comments the tree has no place for. `xtmd fmt` refuses to drop them.
     pub orphans: Vec<Comment>,
     pub entry: Entry,
     has_state: bool,
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn in_pack(&self) -> bool {
-        self.entry == Entry::Mkp
+        self.entry == Entry::Xtmd
     }
 
     // ---- tokens
@@ -379,7 +379,7 @@ impl<'a> Parser<'a> {
 
     /// Page 1's brace rule, in code: another layout is a warning and is read the same.
     fn layout_warning(&mut self, at: Span, message: &str) {
-        self.diags.push(Diagnostic::warning(codes::LAYOUT, at, message.to_string()).with_fix("mkp fmt"));
+        self.diags.push(Diagnostic::warning(codes::LAYOUT, at, message.to_string()).with_fix("xtmd fmt"));
     }
 
     // ---- files
@@ -408,7 +408,7 @@ impl<'a> Parser<'a> {
             return Err(Diagnostic::error(
                 codes::PACKAGE_LINE,
                 at,
-                "a .mkp file starts with its package line: `package name;`",
+                "a .xtpack file starts with its package line: `package name;`",
             ));
         }
         let leading = self.take_leading()?;
@@ -489,7 +489,7 @@ impl<'a> Parser<'a> {
             Tok::Kw(Kw::Pack) if !self.in_pack() && self.entry != Entry::Body => Err(Diagnostic::error(
                 codes::PACK_IN_DOCUMENT,
                 t.span,
-                "a document has no pack block: a pack is a folder of .mkp files",
+                "a document has no pack block: a pack is a folder of .xtpack files",
             )),
             _ => {
                 if let Some(d) = self.decl()? {
@@ -498,7 +498,7 @@ impl<'a> Parser<'a> {
                 if self.entry == Entry::Body {
                     return Ok(Item::Stmt(self.stmt(BlockKind::View)?));
                 }
-                let where_ = if self.in_pack() { "in a .mkp file" } else { "above the `@@@` line" };
+                let where_ = if self.in_pack() { "in a .xtpack file" } else { "above the `@@@` line" };
                 Err(Diagnostic::error(
                     codes::DRAWING_IN_FILE,
                     t.span,
@@ -522,7 +522,7 @@ impl<'a> Parser<'a> {
                 format!("an import writes no version: the pack block's `uses {}@…;` says which version of `{}` this pack builds on", pack, pack)
             } else {
                 let names: Vec<&str> = path.iter().map(|n| n.name.as_str()).collect();
-                format!("a document writes no versions: `import {};`. Whoever builds it decides which version it gets, by the packs it is built with (an mkp.toml's `[uses]`)", names.join("."))
+                format!("a document writes no versions: `import {};`. Whoever builds it decides which version it gets, by the packs it is built with (an xtmd.toml's `[uses]`)", names.join("."))
             };
             return Err(Diagnostic::error(codes::VERSION_IN_IMPORT, at, why));
         }
@@ -893,7 +893,7 @@ impl<'a> Parser<'a> {
             self.diags.push(Diagnostic::error(
                 codes::WIDGET_MARKDOWN,
                 name.span,
-                format!("widget `{}` has no markdown block: in a .mkp file every widget says what it is as Markdown (`markdown {{ }}` writes nothing)", name.name),
+                format!("widget `{}` has no markdown block: in a .xtpack file every widget says what it is as Markdown (`markdown {{ }}` writes nothing)", name.name),
             ));
         }
         Ok(WidgetDecl { name, generics, inputs, implements, body: Some(body) })

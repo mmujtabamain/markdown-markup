@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/check.schema.json",
-  "title": "MKP target checks, protocol 1",
-  "description": "A target check (a case), what a target observes after each step, and the JSON-RPC messages `mkp target check` sends a target's check adapter.",
+  "title": "Extended Mark target checks, protocol 1",
+  "description": "A target check (a case), what a target observes after each step, and the JSON-RPC messages `xtmd target check` sends a target's check adapter.",
   "$ref": "#/$defs/case",
   "$defs": {
     "case": {
@@ -18,7 +18,7 @@
         },
         "source": {
           "type": "string",
-          "description": "The .mkp.md or .mkp file, beside the case."
+          "description": "The .xt.md or .xtpack file, beside the case."
         },
         "packs": {
           "type": "array",
@@ -56,7 +56,7 @@
             },
             "markdown": {
               "$ref": "#/$defs/markdown_expected",
-              "description": "The page's Markdown with its starting values, as `mkp md` writes it, before any step."
+              "description": "The page's Markdown with its starting values, as `xtmd md` writes it, before any step."
             }
           },
           "required": [
@@ -466,7 +466,7 @@
     },
     "observation": {
       "type": "object",
-      "description": "Everything MKP decides about the page, after a step.",
+      "description": "Everything Extended Mark decides about the page, after a step.",
       "properties": {
         "tree": {
           "type": "object",
@@ -1029,7 +1029,7 @@
     },
     "request": {
       "type": "object",
-      "description": "A JSON-RPC 2.0 request from `mkp target check` to a target's check adapter, one per line on its standard input.",
+      "description": "A JSON-RPC 2.0 request from `xtmd target check` to a target's check adapter, one per line on its standard input.",
       "properties": {
         "jsonrpc": {
           "const": "2.0"
@@ -1131,7 +1131,7 @@
     },
     "load": {
       "type": "object",
-      "description": "The params of `load`: the IR the mkp binary wrote for the case, and the page.",
+      "description": "The params of `load`: the IR the xtmd binary wrote for the case, and the page.",
       "properties": {
         "ir": {
           "type": "string",

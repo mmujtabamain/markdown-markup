@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use mkp_ir::ir::{self, Expr, Node};
+use xtmd_ir::ir::{self, Expr, Node};
 use serde_json::Value;
 
 /// What each fn reads beyond its own parameters, across the fns it calls.
@@ -270,7 +270,7 @@ pub fn lower(m: &mut ir::Module) {
 const BUILDS_ON: &[(&str, &[&str])] = &[("core/moment.local", &["core/moment.utc", "core/moment_at"])];
 
 /// A page's IR (a document's, module `doc`) holds only what the page uses: the document's own
-/// widget and declarations, and the declarations, widgets written in MKP, bindings and handlers
+/// widget and declarations, and the declarations, widgets written in Extended Mark, bindings and handlers
 /// they reach, and what those reach in turn. The IR names everything it refers to in full
 /// (`core/press`, `core/list.some`, a binding's `b4`), so a string that is one, or a member of one
 /// (`core/page.width`), is a use of it; and a type kept keeps the fns a runtime finds by its name.
@@ -301,7 +301,7 @@ pub fn prune(m: &mut ir::Module) {
     let mut todo: Vec<usize> = Vec::new();
     let own = format!("{}/", m.module);
     for (k, (n, _)) in parts.iter().enumerate() {
-        // a target styles a page from its tokens by name (`--mkp-color-ok`), whether the page names one or not
+        // a target styles a page from its tokens by name (`--xtmd-color-ok`), whether the page names one or not
         let token = k < decl_count && matches!(m.declarations[k].declare, ir::Decl::Token(_));
         let root = if k < decl_count { token || n.is_empty() || n.starts_with(&own) } else { n == &m.module };
         if root {

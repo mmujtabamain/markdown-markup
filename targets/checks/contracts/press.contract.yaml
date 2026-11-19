@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/press (core/controls.mkp): something to press. With no content it shows its label.
-# @mkp/dom draws it as a <button>, with its role and state by kind (targets/ts/dom/README.md).
+# core/press (core/controls.xtpack): something to press. With no content it shows its label.
+# @extended-mark/dom draws it as a <button>, with its role and state by kind (targets/ts/dom/README.md).
 id: core.press
 
 props:

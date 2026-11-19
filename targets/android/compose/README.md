@@ -1,31 +1,31 @@
-# MKP's Android target: mkp-android
+# Extended Mark's Android target: xtmd-android
 
-MKP pages drawn natively on Android: the IR the `mkp` compiler writes, run by MKP's native runtime (Rust, through
-the Kotlin bindings UniFFI generates: [../mkp](../mkp)), and drawn by our default Jetpack Compose and Material 3
+Extended Mark pages drawn natively on Android: the IR the `xtmd` compiler writes, run by Extended Mark's native runtime (Rust, through
+the Kotlin bindings UniFFI generates: [../xtmd](../xtmd)), and drawn by our default Jetpack Compose and Material 3
 widgets, one composable per core extern widget.
 
 ```
 targets/android/
-├── mkp/                    the Rust crate: mkp-runtime behind UniFFI, build.sh, its tests
+├── xtmd/                    the Rust crate: xtmd-runtime behind UniFFI, build.sh, its tests
 └── compose/                this Gradle project
-    ├── mkp-android/        the library (published as mkp:mkp-android): MkpPage, the registry, the widgets;
+    ├── xtmd-android/        the library (published as xtmd:xtmd-android): XtmdPage, the registry, the widgets;
     │                       its unit tests hold the two check adapters
     ├── sample/             an app showing two pages (the shop example, and a tour of the widgets)
-    ├── target.yaml         the target, for `mkp target check android`
-    └── tokens.mkp          core's tokens as Material 3 draws them
+    ├── target.yaml         the target, for `xtmd target check android`
+    └── tokens.xtpack          core's tokens as Material 3 draws them
 ```
 
 ## Using it
 
-A document as an app holds one is `MkpDoc` (`MkpDoc.kt`), the Android run-time target: the IR in
+A document as an app holds one is `XtmdDoc` (`XtmdDoc.kt`), the Android run-time target: the IR in
 hand (`ir`) or in the app's assets (`src`), `$state` the app's to control or to start from, every
-write checked by mkp, and a snapshot of everything the page holds. It needs no compiler; the
-real-time target, which compiles a document's text on the device, is mkp-android-live.
+write checked by xtmd, and a snapshot of everything the page holds. It needs no compiler; the
+real-time target, which compiles a document's text on the device, is xtmd-android-live.
 
 ```kotlin
 var state by remember { mutableStateOf(mapOf("n" to V.num(0))) }
-val doc = rememberMkpDocState()
-MkpDoc(
+val doc = rememberXtmdDocState()
+XtmdDoc(
     ir = pageJson,                                     // or src = "page.ir.json", in the assets
     state = state, onStateChange = { state = it },     // controlled; or defaultState = …, defaultSnapshot = …
     externs = mapOf("app" to mapOf("unit" to V.text("pts"))),
@@ -42,27 +42,27 @@ doc.restore(Snapshot.fromJson(snap!!)!!)               // ALL with the same IR, 
   from its default. A controlled `state` the page refuses leaves the page as it was.
 - A new `ir` keeps `$state` where its fields still exist. `width`, `theme` and a channel's values in `externs` are
   followed as they change.
-- `MkpDocState` is the handle: `set`, `state`, `markdown`, `expose`, `snapshot`, `restore`, and `page`, the
+- `XtmdDocState` is the handle: `set`, `state`, `markdown`, `expose`, `snapshot`, `restore`, and `page`, the
   running `CompiledPage`.
 
 The page under it:
 
 ```kotlin
-// the IR `mkp build page.mkp.md --out page.ir.json` wrote, in the app's assets
+// the IR `xtmd build page.xt.md --out page.ir.json` wrote, in the app's assets
 val page = remember { CompiledPage.fromAsset(context, "page.ir.json", PageOptions(theme = "DARK")) }
-MkpPage(page)                                         // draws it, and keeps it drawn
-MkpPage(page, Externs(mapOf("acme/chart" to Widget { props, ctx -> MyChart(props, ctx) })))
+XtmdPage(page)                                         // draws it, and keeps it drawn
+XtmdPage(page, Externs(mapOf("acme/chart" to Widget { props, ctx -> MyChart(props, ctx) })))
 
 page.set("budget" to V.num(40))                       // the app's write to $state: checked, one change
 page.expose("doc/scores", "reset")                     // a fn the document exposes
-for (call in page.takeCalls()) handle(call.name, call.args)   // the extern fns MKP called
+for (call in page.takeCalls()) handle(call.name, call.args)   // the extern fns Extended Mark called
 page.markdown()                                        // the page as Markdown, with its values now
 ```
 
-- **`@Composable fun MkpPage(page: CompiledPage, externs: Externs = Externs.None, modifier, measure, colors)`**
+- **`@Composable fun XtmdPage(page: CompiledPage, externs: Externs = Externs.None, modifier, measure, colors)`**
   draws `page.tree` with the registry's composables, each kept by its `key`, so a loop row's widgets follow its
   item. It sets the runtime's supplies from the registry, so a widget nothing draws shows its Markdown.
-- **`registry`** maps every core extern widget to its composable: `"core/press" to Widget { props, ctx -> MkpPress(props, ctx) }`.
+- **`registry`** maps every core extern widget to its composable: `"core/press" to Widget { props, ctx -> XtmdPress(props, ctx) }`.
   `Externs.widgets` replace ours by name, or add a pack's.
 - **A widget** is `fun interface Widget { @Composable fun Draw(props: Props, ctx: WidgetContext) }`. `props` are
   `Val`s, worked out (`props.text("label")`, `props.slot("body")`); `ctx.event(name, args)` runs the caller's
@@ -71,8 +71,8 @@ page.markdown()                                        // the page as Markdown, 
 - **Colours** come from the Material 3 colour scheme for the tokens a scheme has a role for (SURFACE, INK, MUTED,
   LINE, ACCENT, BAD), and from the build's values for the rest. `colors` gives the schemes, light and dark
   (Material 3's baseline by default; an app passes its own, and every page follows it), and the page's `theme`,
-  else the system, picks one. tokens.mkp says which values these are, and a unit test holds the two together.
-- **Errors** caught by the runtime are logged with `Log.w("mkp", …)` after each change. `MKP_ANDROID_TRACE=1` in
+  else the system, picks one. tokens.xtpack says which values these are, and a unit test holds the two together.
+- **Errors** caught by the runtime are logged with `Log.w("xtmd", …)` after each change. `XTMD_ANDROID_TRACE=1` in
   the environment logs each redraw and each spot's measured size to standard error.
 
 ### How a page is drawn
@@ -89,25 +89,25 @@ page.markdown()                                        // the page as Markdown, 
 - **core.gfx** draws on a `Canvas` per shape, in the surface's units (y up); each shape has a box at its bounds for
   its semantics, clicks and hover. `shade` paints at most 4,096 samples from its shader, worked out in Rust off the
   main thread, and scales them up.
-- **Maths** is laid out from its TeX by the same reader as @mkp/dom's (`Math.kt`): on a line of its own, as
+- **Maths** is laid out from its TeX by the same reader as @extended-mark/dom's (`Math.kt`): on a line of its own, as
   boxes on a Canvas (scripts smaller and raised or lowered, a big operator's limits above and below it, a fraction
   stacked over its bar, a root under its sign); in a sentence, as an `AnnotatedString` (scripts with a baseline
   shift, a fraction as a/b, bracketed only where it would read wrongly). TeX it doesn't know shows as itself.
 - **Rows** (`flex` along X, `row`, wrapping or not) centre, start or end their children across as `align` says.
-- **A closed overlay's body** stays composed, unmeasured and hidden from accessibility, as @mkp/dom keeps it on
+- **A closed overlay's body** stays composed, unmeasured and hidden from accessibility, as @extended-mark/dom keeps it on
   the page; open, it is a `Popup` (popover, menu, tooltip) or a `Dialog`.
 
 ### Parts
 
-Every widget's root has its path in the semantics property `MkpSite`, and a `testTag` with its short name; its
-other parts have `testTag`s as @mkp/dom's `data-part`s (targets/ts/dom/README.md):
+Every widget's root has its path in the semantics property `XtmdSite`, and a `testTag` with its short name; its
+other parts have `testTag`s as @extended-mark/dom's `data-part`s (targets/ts/dom/README.md):
 
 | Widget | Parts (`testTag`) | Semantics |
 |---|---|---|
 | paragraph, heading | `paragraph`, `heading` | Rich text as an `AnnotatedString`; a heading is `heading()`; a widget in a sentence is inline content drawn from the slot the runtime puts it in (`~0`, `~1` …), its room the size it measured |
 | bullets, item | `bullets`; `item`, `item.check`, `item.body` | `collectionInfo`; the marker is hidden; the task box is a disabled checkbox named Done or Not done |
 | quote, code, math | `quote`; `code`, `code.text`; `math` | Code scrolls sideways and is selectable; maths is named by its TeX |
-| table, footnote, divider | `table`, `table.grid`, `table.header`, `table.cell`; `footnote`, `footnote.mark`, `footnote.body`; `divider` | A table is as @mkp/dom draws it: each column as wide as its widest cell, a line under each row, and it scrolls when wider than the page; a footnote is named "Footnote <mark>" |
+| table, footnote, divider | `table`, `table.grid`, `table.header`, `table.cell`; `footnote`, `footnote.mark`, `footnote.body`; `divider` | A table is as @extended-mark/dom draws it: each column as wide as its widest cell, a line under each row, and it scrolls when wider than the page; a footnote is named "Footnote <mark>" |
 | label, image, icon | `label`; `image`; `icon` | An image is named by its alt; an icon with a label is an image, else decoration |
 | press | `press`, `press.label`, `press.content`, `press.indicator` | BUTTON an `OutlinedButton` (a `Button` filled with its tone when it has one), PLAIN a `TextButton`, TOGGLE and OPTION a tonal or outlined button with `selected`, TAB a `Tab`, SWITCH, CHECK and RADIO a row with role switch, checkbox or radio button; with content, its label is its name |
 | field | `field`, `field.label`, `field.input` | An `OutlinedTextField`; Enter (its IME action) submits a one-line field, Ctrl+Enter a longer one |
@@ -128,17 +128,17 @@ Rust with the Android targets. Gradle comes from the wrapper (8.14.4); AGP 8.13.
 2025.10.01 and Robolectric 4.16.1 are the versions omnicui's Android example runs.
 
 ```sh
-targets/android/mkp/build.sh            # 1. libmkp_android.so for the host, arm64-v8a, armeabi-v7a and x86_64, and the bindings
+targets/android/xtmd/build.sh            # 1. libxtmd_android.so for the host, arm64-v8a, armeabi-v7a and x86_64, and the bindings
 cd targets/android/compose
-./gradlew :mkp-android:assembleRelease  # 2. the AAR: mkp-android/build/outputs/aar/mkp-android-release.aar
-./gradlew :mkp-android:publish          #    or published, as mkp:mkp-android:0.3.0, to build/repo
+./gradlew :xtmd-android:assembleRelease  # 2. the AAR: xtmd-android/build/outputs/aar/xtmd-android-release.aar
+./gradlew :xtmd-android:publish          #    or published, as xtmd:xtmd-android:0.3.0, to build/repo
 ./gradlew :sample:assembleDebug         # 3. the APK: sample/build/outputs/apk/debug/sample-debug.apk
-./gradlew :mkp-android:testDebugUnitTest   # the unit tests (Robolectric)
+./gradlew :xtmd-android:testDebugUnitTest   # the unit tests (Robolectric)
 ```
 
 The library's build stops with a message when `native/` is missing (step 1). The sample builds its pages' IR with
-`targets/rust/target/release/mkp` (`cargo build --release` in targets/rust) as part of its build:
-`examples/pages/shop.mkp.md` and `sample/pages/tour.mkp.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
+`targets/rust/target/release/xtmd` (`cargo build --release` in targets/rust) as part of its build:
+`examples/pages/shop.xt.md` and `sample/pages/tour.xt.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 
 ## Keeping it fast
 
@@ -163,20 +163,20 @@ every change. So a change's work is kept small, and a drag's is kept off the fra
   composable) parses the IR and mounts the page on a background thread; an IR with all of core in
   it takes 40 to 120 ms to mount here, a fraction of a second on a phone. The sample shows a
   progress indicator meanwhile.
-- **Tests wait for the off-main work**: `MkpWork.idle` is false while a load, a drag's write or a
+- **Tests wait for the off-main work**: `XtmdWork.idle` is false while a load, a drag's write or a
   pending frame write runs; every test and both check adapters register it as an idling resource.
 
 `DragPerfTest` measures the tour's three drags (the handle, the plane, the slider) on a phone-sized
 window, each step's main-thread processor time split from the runtime's off-main time, against a
 control step, and holds them to a budget and to what the fixes do (only changed widgets composed
-and sent, one write a step). It writes `mkp-android/build/drag-perf.txt`. `-Pmkp.jfr=<file>` records
-a Java Flight Recording of the tests, and `-Pmkp.perf.only=handle|plane|slider` runs one drag.
+and sent, one write a step). It writes `xtmd-android/build/drag-perf.txt`. `-Pxtmd.jfr=<file>` records
+a Java Flight Recording of the tests, and `-Pxtmd.perf.only=handle|plane|slider` runs one drag.
 
 ## Looking at it
 
-`./gradlew :sample:testDebugUnitTest -Pmkp.render=<folder>` draws the sample under Robolectric's native graphics
+`./gradlew :sample:testDebugUnitTest -Pxtmd.render=<folder>` draws the sample under Robolectric's native graphics
 (Skia, real fonts), as an Infinix X6516 shows it (360 by 806 dp at density 2), light and dark: each tab's first
-screen with the app around it, and each page whole. The same pages drawn by @mkp/dom in Chromium at 360 px wide
+screen with the app around it, and each page whole. The same pages drawn by @extended-mark/dom in Chromium at 360 px wide
 are what to hold them against. Compose's `captureToImage()` waits for a frame Robolectric's paused looper never
 draws, so `RenderTest` draws the window's views on a canvas itself.
 
@@ -186,29 +186,29 @@ Both adapters run Compose under Robolectric on a plain JVM (no emulator, no Grad
 classpath once, which also writes the classpath file target.yaml starts them with:
 
 ```sh
-targets/android/mkp/build.sh host
-(cd targets/android/compose && ./gradlew :mkp-android:checkAdapterArgs)    # writes build/check_adapter.args
+targets/android/xtmd/build.sh host
+(cd targets/android/compose && ./gradlew :xtmd-android:checkAdapterArgs)    # writes build/check_adapter.args
 ```
 
-**MKP's target checks** (`check_adapter: exec java @build/check_adapter.args mkp.android.CheckAdapter`):
+**Extended Mark's target checks** (`check_adapter: exec java @build/check_adapter.args xtmd.android.CheckAdapter`):
 
 ```sh
 cd targets/rust
-./target/release/mkp target check android     # android: 58 cases, 55 steps, 0 differ from the case (about 40 s)
-./target/release/mkp target check             # every target, each compared with every other
+./target/release/xtmd target check android     # android: 58 cases, 55 steps, 0 differ from the case (about 40 s)
+./target/release/xtmd target check             # every target, each compared with every other
 ```
 
-The adapter (`mkp-android/src/test/kotlin/mkp/android/CheckAdapter.kt`) keeps one Robolectric sandbox and one
-activity, at 640 dp wide (mdpi, so 1 dp is 1 px), and draws each case's document with `MkpDoc`, as an app
+The adapter (`xtmd-android/src/test/kotlin/xtmd/android/CheckAdapter.kt`) keeps one Robolectric sandbox and one
+activity, at 640 dp wide (mdpi, so 1 dp is 1 px), and draws each case's document with `XtmdDoc`, as an app
 does (its `$state` and externs given as values, checked), and the badge check pack's Android widget
-(`targets/checks/packs/badge/android.kt`). The calls and refusals it observes are the ones `MkpDoc` told the app. Each step goes through the drawn widget's semantics
+(`targets/checks/packs/badge/android.kt`). The calls and refusals it observes are the ones `XtmdDoc` told the app. Each step goes through the drawn widget's semantics
 where a person could take it: a click is the widget's click action, a submit its IME action, a slider's value
 its progress action (when it is on the grid), a field's text its text action, an overlay's `open` a press on
 its anchor. The rest (an exact point for a handle or a plane, an event with arguments) goes through the page.
 Then Compose settles, the planes are laid out with the checks' fixed sizes (`check/Sizes.kt`, a port of
 targets/ts/test/sizes.mjs, so every target's boxes agree exactly), and the observation is the runtime's, its
-tree only what Compose drew, with `MkpDoc`'s calls and refusals. `core/moment.local` is in UTC there, as on the
-test target. `MkpDocTest` holds `MkpDoc` to the web targets' test pages (targets/ts/bindings/testing).
+tree only what Compose drew, with `XtmdDoc`'s calls and refusals. `core/moment.local` is in UTC there, as on the
+test target. `XtmdDocTest` holds `XtmdDoc` to the web targets' test pages (targets/ts/bindings/testing).
 
 **omnicui's widget contracts** (targets/checks/targets/android/target.yaml):
 
@@ -216,10 +216,10 @@ test target. `MkpDocTest` holds `MkpDoc` to the web targets' test pages (targets
 "$(external/omnicui/fetch.sh)" --project targets/checks check android    # 118 pass, 1 platform exception (about 50 s)
 ```
 
-`mkp.android.OmnicuiAdapter` mounts one widget per contract test, in a fresh activity at the viewport and colour
+`xtmd.android.OmnicuiAdapter` mounts one widget per contract test, in a fresh activity at the viewport and colour
 scheme asked for (`dark` is the page theme DARK). Its pages are the web's, written by the same code
 (targets/checks/targets/android/page.mjs runs targets/ts/web/omnicui/source.mjs, so node is needed) and built with
-the `mkp` binary, cached in the system's temporary folder. Parts are found in the semantics tree in the web
+the `xtmd` binary, cached in the system's temporary folder. Parts are found in the semantics tree in the web
 adapter's order (an alias, the widget itself by its site, `<short>.<part>` inside it or in a popup, `<part>`
 anywhere, the nth). `press` is a mouse click and `hover` a mouse move, as Playwright's are; `drag` is a touch
 swipe; `focus` switches Compose to keyboard mode first, as a hardware keyboard's first key does; `type` types a
@@ -232,10 +232,10 @@ killed for memory, so omnicui runs it on its own.
 
 - **AGP's `test_config.properties` names its files relative to the module**, where Gradle runs tests; the adapters
   run from target.yaml's folder, so Robolectric couldn't open `apk-for-local-test.ap_`. `checkAdapterArgs` writes
-  a copy with whole paths (`mkp-android/build/check_adapter/com/android/tools/`) first on the classpath, and makes
+  a copy with whole paths (`xtmd-android/build/check_adapter/com/android/tools/`) first on the classpath, and makes
   the task depend on everything `testDebugUnitTest` depends on, the packaged resources included.
 - **JNA**: the app takes `net.java.dev.jna:jna:5.17.0@aar` (libjnidispatch for each processor); the unit tests take
-  the plain jar too (the host's libjnidispatch), and find libmkp_android.so through `-Djna.library.path`, set in
+  the plain jar too (the host's libjnidispatch), and find libxtmd_android.so through `-Djna.library.path`, set in
   check_adapter.args and on the Gradle test task.
 - **The plane's layout isn't idempotent for a spot with no box variable** (the graphs pack's link labels): each
   `layout()` writes its own `box` again and redraws. Laying out after every redraw never settled (Compose "did not

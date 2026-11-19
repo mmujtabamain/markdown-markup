@@ -1,9 +1,9 @@
 # The checks on every pull request, and on main after a merge: Rust's tests, every npm package's
-# tests and the playground's, and every target's conformance checks (mkp target check). Main's
+# tests and the playground's, and every target's conformance checks (xtmd target check). Main's
 # ruleset (.github/rulesets/main.json) requires the job named "Types, tests and conformance", which
 # passes only when the three before it do; the TypeScript builds are the type checks. The release
 # runs these same checks (release.yml calls this workflow).
-name: MKP
+name: Extended Mark
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   wasm:
-    name: mkp.wasm
+    name: xtmd.wasm
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -40,11 +40,11 @@ jobs:
       - name: zig
         run: pip install "ziglang==$ZIGLANG"
       - name: Build
-        run: MKP_ZIG="python3 -m ziglang" targets/rust/wasm/build.sh
+        run: XTMD_ZIG="python3 -m ziglang" targets/rust/wasm/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: checks-mkp-wasm
-          path: targets/ts/wasm/mkp.wasm
+          name: checks-xtmd-wasm
+          path: targets/ts/wasm/xtmd.wasm
           if-no-files-found: error
           retention-days: 3
 
@@ -82,14 +82,14 @@ jobs:
           key: release
       - uses: actions/download-artifact@v4
         with:
-          name: checks-mkp-wasm
+          name: checks-xtmd-wasm
           path: targets/ts/wasm
       - name: The compiler, which the packages' tests build their pages with
         working-directory: targets/rust
-        run: cargo build --release -p mkp-cli
+        run: cargo build --release -p xtmd-cli
       - name: A browser for the tests that draw in one
-        # every browser test reads MKP_CHROMIUM; the runner has Chrome
-        run: echo "MKP_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
+        # every browser test reads XTMD_CHROMIUM; the runner has Chrome
+        run: echo "XTMD_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
       - name: Built, in order
         run: node tools/release/build-ts.mjs
       - name: Tested
@@ -117,23 +117,23 @@ jobs:
           key: release
       - uses: actions/download-artifact@v4
         with:
-          name: checks-mkp-wasm
+          name: checks-xtmd-wasm
           path: targets/ts/wasm
       - name: The compiler, and the native runtime's and egui's check adapters
         working-directory: targets/rust
         run: |
-          cargo build --release -p mkp-cli -p mkp-runtime -p mkp-egui -p mkp-egui-live --bins
+          cargo build --release -p xtmd-cli -p xtmd-runtime -p xtmd-egui -p xtmd-egui-live --bins
           echo "$PWD/target/release" >> "$GITHUB_PATH"
       - name: The npm packages the web targets draw with
         run: node tools/release/build-ts.mjs
       - name: The Android libraries for the JVM
         run: |
-          targets/android/mkp/build.sh host
-          targets/android/mkp-live/build.sh host
+          targets/android/xtmd/build.sh host
+          targets/android/xtmd-live/build.sh host
       - name: A browser for the web targets
-        run: echo "MKP_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
+        run: echo "XTMD_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
       - name: Every target, every case
-        run: mkp target check
+        run: xtmd target check
 
   checks:
     # the check main's ruleset requires, by this name

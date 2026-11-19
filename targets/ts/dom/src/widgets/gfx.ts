@@ -2,7 +2,7 @@
 // coordinates), layers are groups, and shapes are SVG elements in it. `place` puts ordinary widgets
 // at a point; `handle` is dragged; `shade` paints a 2D canvas from a shader, per sampled pixel.
 
-import { MAX_STEPS, Num, ptValue, type Drawn, type Value } from "@mkp/runtime";
+import { MAX_STEPS, Num, ptValue, type Drawn, type Value } from "@extended-mark/runtime";
 import type { Action, Widget, WidgetContext, WidgetView } from "../api.js";
 import { attr, claim, css, h, isClaimed, kit, s } from "../kit.js";
 import { exact, field, flag, inner, kase, list, num, placesFor, point, region, sig, str, toNum, type XY } from "../values.js";
@@ -75,7 +75,7 @@ function shapeEvents(el: SVGElement, ctx: WidgetContext) {
     attr(el, "tabindex", live ? "0" : undefined);
     attr(el, "aria-label", name || undefined);
     attr(el, "aria-hidden", name || live ? undefined : "true");
-    el.classList.toggle("mkp-live", live);
+    el.classList.toggle("xtmd-live", live);
   };
 }
 
@@ -135,7 +135,7 @@ export const canvas: Widget = (d, ctx) => {
       css(el, "aspect-ratio", `${w} / ${ht}`);
       attr(el, "aria-label", str(d.props.get("label")) || undefined);
       listens = ctx.page.listens ? ctx.page.listens(d, "click") : d.events.has("click");
-      el.classList.toggle("mkp-clickable", listens);
+      el.classList.toggle("xtmd-clickable", listens);
       inSpace(space, () => ctx.children(svg, d.slots.get("layers") ?? []));
     },
   };
@@ -352,7 +352,7 @@ export const handle: Widget = (d, ctx) => {
         attr(c, "cx", String(space.x(at.x)));
         attr(c, "cy", String(space.y(at.y)));
       }
-      css(dot, "fill", kit(ctx).tokens.color(d.props.get("tone")) ?? "var(--mkp-color-accent)");
+      css(dot, "fill", kit(ctx).tokens.color(d.props.get("tone")) ?? "var(--xtmd-color-accent)");
       const o = num(d.props.get("opacity")) ?? 1;
       attr(el, "opacity", o === 1 ? undefined : String(o));
       attr(el, "aria-label", str(d.props.get("label")) || undefined);
@@ -408,7 +408,7 @@ export const shade: Widget = (d, ctx) => {
 /**
  * Paints a shade: a coarse pass now, so something shows at once, then every sampled pixel in
  * slices of a few milliseconds, so the page stays responsive. At most MAX_SHADE_PIXELS are worked
- * out, and fewer when the shader is MKP code: the whole shade keeps within the step limit.
+ * out, and fewer when the shader is Extended Mark code: the whole shade keeps within the step limit.
  */
 function paint(cv: HTMLCanvasElement, el: Element, d: Drawn, wPx: number, hPx: number, ctx: WidgetContext, id: number, current: () => number): void {
   const machine = ctx.page.machine;

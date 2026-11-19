@@ -1,7 +1,7 @@
 {
   "id": "read.a-unicode-escape-that-is-not-hex",
   "about": "a \\u escape that is not hex",
-  "source": "a-unicode-escape-that-is-not-hex.mkp",
+  "source": "a-unicode-escape-that-is-not-hex.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.bad-unicode-escape", "line": 3, "column": 16}

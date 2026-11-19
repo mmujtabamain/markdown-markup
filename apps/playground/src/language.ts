@@ -1,16 +1,16 @@
-// MKP for Monaco: a Monarch tokenizer for `.mkp.md` sources, code before the `@@@` line and
+// Extended Mark for Monaco: a Monarch tokenizer for `.xt.md` sources, code before the `@@@` line and
 // Markdown after it, and the brackets, quotes and comments the editor types and matches.
 //
-// Two language ids share the tokenizer and start in different states: `mkp` starts in code and
-// turns to prose at `@@@`; `mkp-prose` is prose all through, as a document with no `@@@` is.
+// Two language ids share the tokenizer and start in different states: `xtmd` starts in code and
+// turns to prose at `@@@`; `xtmd-prose` is prose all through, as a document with no `@@@` is.
 // languageFor() picks one for a source.
 
 import type { monaco as Monaco } from "./monaco.js";
 
 type Monarch = Monaco.languages.IMonarchLanguage;
 
-export const MKP = "mkp";
-export const MKP_PROSE = "mkp-prose";
+export const XTMD = "xtmd";
+export const XTMD_PROSE = "xtmd-prose";
 
 const keywords = [
   "package", "import", "enum", "record", "type", "interface", "implements", "widget", "extern", "expose", "fn",
@@ -30,7 +30,7 @@ const ident = /[a-z_][a-z0-9_]*/;
 function tokenizer(start: "code" | "prose"): Monarch {
   return {
     defaultToken: "",
-    tokenPostfix: ".mkp",
+    tokenPostfix: ".xtmd",
     start,
     keywords,
     coreTypes,
@@ -175,12 +175,12 @@ const configuration: Monaco.languages.LanguageConfiguration = {
 };
 
 /** Registers both ids, their tokenizer and their brackets. Safe to call once. */
-export function registerMkp(monaco: typeof Monaco): void {
+export function registerXtmd(monaco: typeof Monaco): void {
   for (const [id, start] of [
-    [MKP, "code"],
-    [MKP_PROSE, "prose"],
+    [XTMD, "code"],
+    [XTMD_PROSE, "prose"],
   ] as const) {
-    monaco.languages.register({ id, extensions: id === MKP ? [".mkp", ".mkp.md"] : [], aliases: [id === MKP ? "MKP" : "MKP prose"] });
+    monaco.languages.register({ id, extensions: id === XTMD ? [".xtpack", ".xt.md"] : [], aliases: [id === XTMD ? "Extended Mark" : "Extended Mark prose"] });
     monaco.languages.setMonarchTokensProvider(id, tokenizer(start));
     monaco.languages.setLanguageConfiguration(id, configuration);
   }
@@ -194,7 +194,7 @@ const CODE_FIRST = /^\s*(?:package|import|\$state|widget|record|enum|fn|let|exte
  * declaration, as in a pack's file).
  */
 export function languageFor(source: string): string {
-  if (/^@@@\s*$/m.test(source)) return MKP;
+  if (/^@@@\s*$/m.test(source)) return XTMD;
   const first = source.split("\n").find((l) => l.trim() !== "" && !l.trim().startsWith("//"));
-  return first !== undefined && CODE_FIRST.test(first) ? MKP : MKP_PROSE;
+  return first !== undefined && CODE_FIRST.test(first) ? XTMD : XTMD_PROSE;
 }

@@ -1,4 +1,4 @@
-// The badge pack's externs for the web target: a widget for @mkp/dom's registry, as a pack ships
+// The badge pack's externs for the web target: a widget for @extended-mark/dom's registry, as a pack ships
 // one per target it supports (plan tab 7: `import maps from "@acme/maps/web"`).
 
 function text(v) {

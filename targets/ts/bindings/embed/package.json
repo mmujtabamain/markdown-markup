@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/embed",
+  "name": "@extended-mark/embed",
   "version": "0.3.0",
-  "description": "An MKP page in an element, as every framework binding mounts it; and a page's Markdown as HTML for a server",
+  "description": "An Extended Mark page in an element, as every framework binding mounts it; and a page's Markdown as HTML for a server",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,12 +25,12 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/runtime": "file:../../runtime"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/runtime": "file:../../runtime"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
-    "@mkp/view": "file:../view",
+    "xtmd": "file:../../cli",
+    "@extended-mark/view": "file:../view",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3"

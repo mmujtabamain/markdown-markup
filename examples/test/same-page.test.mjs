@@ -3,7 +3,7 @@
 // page's Markdown, its `$state`, the text and widgets in the page's element, the extern fn calls
 // the app heard and what the app showed for them.
 //
-// Run it with `npm test` in this folder (see run.mjs). Chromium is MKP_CHROMIUM or
+// Run it with `npm test` in this folder (see run.mjs). Chromium is XTMD_CHROMIUM or
 // /usr/bin/chromium; it is never downloaded.
 
 import { test, before, after } from "node:test";
@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 const examples = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const chromiumPath = process.env.MKP_CHROMIUM || "/usr/bin/chromium";
-const skipBuild = process.env.MKP_SKIP_BUILD === "1";
+const chromiumPath = process.env.XTMD_CHROMIUM || "/usr/bin/chromium";
+const skipBuild = process.env.XTMD_SKIP_BUILD === "1";
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json" };
 
@@ -71,7 +71,7 @@ before(async () => {
   if (!skipBuild) {
     npm(["run", "build"], join(examples, "web-plain"));
     npm(["run", "build"], join(examples, "web-react"));
-    npm(["run", process.env.MKP_NEXT_BUNDLER === "webpack" ? "build:webpack" : "build"], join(examples, "web-next"));
+    npm(["run", process.env.XTMD_NEXT_BUNDLER === "webpack" ? "build:webpack" : "build"], join(examples, "web-next"));
   }
   apps.plain = await serve(join(examples, "web-plain/dist"));
   apps.react = await serve(join(examples, "web-react/dist"));
@@ -91,15 +91,15 @@ const settle = (page) => page.evaluate(() => new Promise((done) => requestAnimat
 function observe(page) {
   return page.evaluate(() => {
     const shop = document.getElementById("shop");
-    const slider = shop.querySelector('[data-mkp-widget="core/slider"] input[type="range"]');
+    const slider = shop.querySelector('[data-xtmd-widget="core/slider"] input[type="range"]');
     // reading the Markdown leaves the page as it was, so the steps after it still work
-    const markdown = window.__mkp.page.markdown();
+    const markdown = window.__xtmd.page.markdown();
     return {
       markdown,
-      state: window.__mkp.page.observeState(),
-      // what the page shows: a stylesheet in it (MkpDoc's) isn't text the reader sees
+      state: window.__xtmd.page.observeState(),
+      // what the page shows: a stylesheet in it (XtmdDoc's) isn't text the reader sees
       text: [...shop.childNodes].filter((n) => n.nodeName !== "STYLE").map((n) => n.textContent).join("").replace(/\s+/g, " ").trim(),
-      widgets: [...shop.querySelectorAll("[data-mkp-site]")].map((e) => `${e.getAttribute("data-mkp-site")} ${e.getAttribute("data-mkp-widget")}`),
+      widgets: [...shop.querySelectorAll("[data-xtmd-site]")].map((e) => `${e.getAttribute("data-xtmd-site")} ${e.getAttribute("data-xtmd-widget")}`),
       slider: slider?.value ?? null,
       calls: window.__calls,
       orders: [...document.querySelectorAll("#orders li")].map((li) => li.textContent),
@@ -112,31 +112,31 @@ async function until(page, what, fn, arg) {
   try {
     await page.waitForFunction(fn, arg, { timeout: 15000 });
   } catch {
-    const inside = await page.evaluate(() => ({ outcome: window.__mkp?.page.takeOutcome(), errors: window.__mkp?.page.errors.map(String), active: document.activeElement?.getAttribute("data-mkp-site") ?? document.activeElement?.tagName })).catch((e) => String(e));
+    const inside = await page.evaluate(() => ({ outcome: window.__xtmd?.page.takeOutcome(), errors: window.__xtmd?.page.errors.map(String), active: document.activeElement?.getAttribute("data-xtmd-site") ?? document.activeElement?.tagName })).catch((e) => String(e));
     throw new Error(`timed out waiting for ${what}: ${JSON.stringify(inside)} ${JSON.stringify(await observe(page).catch((e) => String(e)))}`);
   }
   await settle(page);
 }
 
-const press = (page, label) => page.locator('#shop [data-mkp-widget="core/press"]', { hasText: label }).first().click();
+const press = (page, label) => page.locator('#shop [data-xtmd-widget="core/press"]', { hasText: label }).first().click();
 
 /** The slider moved through its own input, as a reader's drag ends: input, then change. */
 const slide = (page, value) =>
-  page.locator('#shop [data-mkp-widget="core/slider"] input[type="range"]').evaluate((el, v) => {
+  page.locator('#shop [data-xtmd-widget="core/slider"] input[type="range"]').evaluate((el, v) => {
     el.value = v;
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }, String(value));
 
 /** Whether a `$state` field holds a number now. */
-const holds = ([field, n]) => window.__mkp?.page.observeState()[field]?.num === n;
+const holds = ([field, n]) => window.__xtmd?.page.observeState()[field]?.num === n;
 
 /** The steps, the same in each app; what each step should leave, to check they agree on it. */
 const STEPS = [
   {
     name: "loaded",
     act: async () => {},
-    wait: (page) => until(page, "the page to mount", () => window.__mkp !== undefined && document.querySelector("#shop [data-mkp-site]") !== null),
+    wait: (page) => until(page, "the page to mount", () => window.__xtmd !== undefined && document.querySelector("#shop [data-xtmd-site]") !== null),
     check: (o) => {
       assert.match(o.markdown, /^# Shop\n\nThe basket holds 3 items for 36 € of a 60 € budget\./);
       assert.deepEqual(o.state.budget, { num: "60" });
@@ -167,10 +167,10 @@ const STEPS = [
   {
     name: "slid it under the basket: refused by the rule",
     act: async (page) => {
-      await page.evaluate(() => window.__mkp.page.takeOutcome());
+      await page.evaluate(() => window.__xtmd.page.takeOutcome());
       await slide(page, 20);
     },
-    wait: (page) => until(page, "the refusal", () => window.__mkp.page.observeState().budget.num === "45" && document.querySelector('#shop [data-mkp-widget="core/slider"] input[type="range"]')?.value === "45"),
+    wait: (page) => until(page, "the refusal", () => window.__xtmd.page.observeState().budget.num === "45" && document.querySelector('#shop [data-xtmd-widget="core/slider"] input[type="range"]')?.value === "45"),
     check: (o) => {
       assert.deepEqual(o.state.budget, { num: "45" });
       assert.match(o.markdown, /of a 45 € budget\./);
@@ -179,7 +179,7 @@ const STEPS = [
   {
     name: "removed Honey",
     act: (page) => press(page, "Remove Honey"),
-    wait: (page) => until(page, "the row to go", () => window.__mkp.page.observeState().items.list.length === 2),
+    wait: (page) => until(page, "the row to go", () => window.__xtmd.page.observeState().items.list.length === 2),
     check: (o) => {
       assert.match(o.markdown, /The basket holds 2 items for 18 € of a 45 € budget\.\n\n- Tea: 12 €\n- Bread: 6 €\n/);
       assert.ok(!o.text.includes("Honey"));
@@ -199,11 +199,11 @@ const STEPS = [
   },
 ];
 
-test("Next.js renders the page itself on the server: MkpDoc's widgets, in the HTML", () => {
+test("Next.js renders the page itself on the server: XtmdDoc's widgets, in the HTML", () => {
   const html = apps.next.html.replace(/<!--[^>]*-->/g, "");
-  assert.match(html, /<div[^>]* id="shop"[^>]*class="mkp-root[^"]*"|<div[^>]* class="mkp-root[^"]*"[^>]* id="shop"/);
+  assert.match(html, /<div[^>]* id="shop"[^>]*class="xtmd-root[^"]*"|<div[^>]* class="xtmd-root[^"]*"[^>]* id="shop"/);
   assert.match(html, /The basket holds 3 items for 36 € of a 60 € budget\./);
-  assert.match(html, /data-mkp-widget="core\/slider"/);
+  assert.match(html, /data-xtmd-widget="core\/slider"/);
 });
 
 test("the same page from plain TypeScript, React and Next.js agrees after every step", async () => {

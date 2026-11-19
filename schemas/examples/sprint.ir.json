@@ -1,7 +1,7 @@
 {
   "ir": {
     "version": 3,
-    "mkp": "0.3.0",
+    "xtmd": "0.3.0",
     "module": "doc",
     "needs": {
       "core": [

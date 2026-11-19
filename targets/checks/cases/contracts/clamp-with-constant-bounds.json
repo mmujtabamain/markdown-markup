@@ -1,7 +1,7 @@
 {
   "id": "contracts.clamp-with-constant-bounds",
   "about": "clamp with constant bounds proves the range, and whole when all are",
-  "source": "clamp-with-constant-bounds.mkp",
+  "source": "clamp-with-constant-bounds.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 12}

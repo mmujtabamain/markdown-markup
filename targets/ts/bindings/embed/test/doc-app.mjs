@@ -1,6 +1,6 @@
-// The test app for the plain web's MkpDoc: drawn by @mkp/dom, `$state` controlled by the app, with
+// The test app for the plain web's XtmdDoc: drawn by @extended-mark/dom, `$state` controlled by the app, with
 // the controls the shared doc steps use (testing/browser.mjs, docSteps).
-import { MkpDoc } from "@mkp/embed";
+import { XtmdDoc } from "@extended-mark/embed";
 
 const heard = { states: [], errors: [], calls: [] };
 let props = {
@@ -14,7 +14,7 @@ let props = {
   onError: (e) => heard.errors.push(e),
   onCalls: (c) => heard.calls.push(c),
 };
-const doc = new MkpDoc(document.getElementById("app"), props);
+const doc = new XtmdDoc(document.getElementById("app"), props);
 
 function change(p) {
   props = { ...props, ...p };

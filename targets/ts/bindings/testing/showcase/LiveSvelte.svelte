@@ -1,5 +1,5 @@
 <script>
-  import { MkpLiveDoc } from "@mkp/svelte-live";
+  import { XtmdLiveDoc } from "@extended-mark/svelte-live";
 
   let { first, wasm, onError } = $props();
   // svelte-ignore state_referenced_locally
@@ -14,4 +14,4 @@
   }
 </script>
 
-<MkpLiveDoc bind:this={view} {source} {wasm} {onError} />
+<XtmdLiveDoc bind:this={view} {source} {wasm} {onError} />

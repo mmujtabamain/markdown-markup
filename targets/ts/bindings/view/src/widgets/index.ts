@@ -1,5 +1,5 @@
-// Core's widgets, by full name, as elements: each draws what @mkp/dom's widget of the same name
-// draws, with the same parts and classes, so @mkp/dom's stylesheet styles them.
+// Core's widgets, by full name, as elements: each draws what @extended-mark/dom's widget of the same name
+// draws, with the same parts and classes, so @extended-mark/dom's stylesheet styles them.
 
 import type { ViewWidget } from "../render.js";
 import { bullets, code, divider, footnote, heading, item, math, paragraph, quote, table } from "./blocks.js";

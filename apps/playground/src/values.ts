@@ -1,6 +1,6 @@
-// `$state` as a reader reads it: values and types written as MKP writes them, from the IR's form.
+// `$state` as a reader reads it: values and types written as Extended Mark writes them, from the IR's form.
 
-import type { ir } from "@mkp/runtime";
+import type { ir } from "@extended-mark/runtime";
 import { escapeHtml } from "./highlight.js";
 
 type Decl = Record<string, unknown>;
@@ -273,7 +273,7 @@ function field(name: string, v: ir.Expr, order: Order): Doc {
   return { flat: `${name} = ${d.flat}`, html: (i) => `${escapeHtml(name)} = ${d.html(i)}` };
 }
 
-/** A value on one line, as MKP writes it; a record's fields in the order `file` declares them. */
+/** A value on one line, as Extended Mark writes it; a record's fields in the order `file` declares them. */
 export function valueText(x: ir.Expr, file?: ir.File | ir.Module): string {
   return doc(x, orderOf(file)).flat;
 }

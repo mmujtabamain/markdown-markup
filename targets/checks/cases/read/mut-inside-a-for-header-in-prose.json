@@ -1,7 +1,7 @@
 {
   "id": "read.mut-inside-a-for-header-in-prose",
   "about": "mut inside a for header in prose",
-  "source": "mut-inside-a-for-header-in-prose.mkp.md",
+  "source": "mut-inside-a-for-header-in-prose.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "syntax.mut-before-for", "line": 1, "column": 7}

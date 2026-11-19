@@ -1,7 +1,7 @@
 {
   "id": "contracts.in-proves-only-inside-its-block",
   "about": "the proof ends with the block",
-  "source": "in-proves-only-inside-its-block.mkp",
+  "source": "in-proves-only-inside-its-block.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 11, "column": 17}

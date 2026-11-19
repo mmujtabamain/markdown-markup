@@ -1,5 +1,5 @@
-// Test helpers: pages built by the mkp binary, the harness bundled by esbuild, and a real
-// Chromium driven by playwright-core. No browser is downloaded: MKP_CHROMIUM or /usr/bin/chromium.
+// Test helpers: pages built by the xtmd binary, the harness bundled by esbuild, and a real
+// Chromium driven by playwright-core. No browser is downloaded: XTMD_CHROMIUM or /usr/bin/chromium.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,34 +12,34 @@ import { chromium } from "playwright-core";
 const here = dirname(fileURLToPath(import.meta.url));
 export const repo = join(here, "../../../..");
 
-function mkpBinary() {
+function xtmdBinary() {
   for (const kind of ["release", "debug"]) {
-    const p = join(repo, "targets/rust/target", kind, "mkp");
+    const p = join(repo, "targets/rust/target", kind, "xtmd");
     if (existsSync(p)) return p;
   }
-  throw new Error("no mkp binary: run `cargo build --release` in targets/rust");
+  throw new Error("no xtmd binary: run `cargo build --release` in targets/rust");
 }
 
-const dir = mkdtempSync(join(tmpdir(), "mkp-dom-test-"));
+const dir = mkdtempSync(join(tmpdir(), "xtmd-dom-test-"));
 let n = 0;
 
 /** A pack written into the work directory, for `ir(source, { packs })`: its directory. */
 export function pack(name, source) {
   const p = join(dir, name);
   mkdirSync(p, { recursive: true });
-  writeFileSync(join(p, `${name}.mkp`), source);
+  writeFileSync(join(p, `${name}.xtpack`), source);
   return p;
 }
 
-/** A document's IR, as text, built by the mkp binary. */
+/** A document's IR, as text, built by the xtmd binary. */
 export function ir(source, { packs = [] } = {}) {
-  const file = join(dir, `page${n++}.mkp.md`);
+  const file = join(dir, `page${n++}.xt.md`);
   writeFileSync(file, source);
-  const out = file.replace(/\.mkp\.md$/, ".ir.json");
+  const out = file.replace(/\.xt\.md$/, ".ir.json");
   try {
-    execFileSync(mkpBinary(), ["build", file, ...packs.flatMap((p) => ["--pack", p]), "--out", out], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+    execFileSync(xtmdBinary(), ["build", file, ...packs.flatMap((p) => ["--pack", p]), "--out", out], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   } catch (e) {
-    throw new Error(`mkp build failed:\n${e.stdout ?? ""}${e.stderr ?? ""}`);
+    throw new Error(`xtmd build failed:\n${e.stdout ?? ""}${e.stderr ?? ""}`);
   }
   return readFileSync(out, "utf8");
 }
@@ -52,10 +52,10 @@ async function harness() {
 }
 
 export async function launch() {
-  return chromium.launch({ executablePath: process.env.MKP_CHROMIUM || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
+  return chromium.launch({ executablePath: process.env.XTMD_CHROMIUM || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
 }
 
-const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>mkp dom test</title>
+const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>xtmd dom test</title>
 <style>body { margin: 0; padding: 16px; width: 720px; }</style></head><body><main id="app"></main></body></html>`;
 
 /** A browser page with a document mounted. Errors in the page fail the test that reads them. */
@@ -67,14 +67,14 @@ export async function open(browser, source, opts = {}) {
   await page.addScriptTag({ content: await harness() });
   const text = typeof source === "string" && source.trimStart().startsWith("{") ? source : ir(source);
   const { context, ...start } = opts;
-  await page.evaluate(([t, o]) => window.mkp.start(t, o), [text, start]);
+  await page.evaluate(([t, o]) => window.xtmd.start(t, o), [text, start]);
   page.errors = errors;
   return page;
 }
 
-/** Calls window.mkp[name](...args) in the page. */
-export function mkp(page, name, ...args) {
-  return page.evaluate(([n, a]) => window.mkp[n](...a), [name, args]);
+/** Calls window.xtmd[name](...args) in the page. */
+export function xtmd(page, name, ...args) {
+  return page.evaluate(([n, a]) => window.xtmd[n](...a), [name, args]);
 }
 
 export const num = (s) => ({ num: String(s) });

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// The check adapter of the targets drawn from @mkp/view (React, Vue, Svelte, Solid, Angular, and
-// their live targets): `mkp target check` drives it over JSON-RPC 2.0, one message per line on
+// The check adapter of the targets drawn from @extended-mark/view (React, Vue, Svelte, Solid, Angular, and
+// their live targets): `xtmd target check` drives it over JSON-RPC 2.0, one message per line on
 // standard input and output (plan tab 16); logs go to standard error. It runs the framework's
-// <MkpDoc> in a real Chromium through Playwright, bundled from the target's harness, which calls
+// <XtmdDoc> in a real Chromium through Playwright, bundled from the target's harness, which calls
 // view_harness.mjs's `install`.
 //
 //     node view_adapter.mjs <target name> <harness> [svelte] [decorators] [live]
 //
 // `live` is a real-time target: it is given each case's own text and its packs' files (`load`'s
-// `source` and `packs`), and compiles them in the tab with the target's @mkp/wasm, which the tab
-// fetches from WASM_URL. Chromium is MKP_CHROMIUM, or /usr/bin/chromium.
+// `source` and `packs`), and compiles them in the tab with the target's @extended-mark/wasm, which the tab
+// fetches from WASM_URL. Chromium is XTMD_CHROMIUM, or /usr/bin/chromium.
 
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -50,14 +50,14 @@ const bundle = await build({
   platform: "browser",
   target: "es2022",
   logLevel: "silent",
-  // the harness and the checks' shared files import @mkp/view and @mkp/runtime: the target's
-  nodePaths: [join(process.cwd(), "node_modules"), join(process.cwd(), "node_modules/@mkp/view/node_modules")],
+  // the harness and the checks' shared files import @extended-mark/view and @extended-mark/runtime: the target's
+  nodePaths: [join(process.cwd(), "node_modules"), join(process.cwd(), "node_modules/@extended-mark/view/node_modules")],
   conditions: options.includes("svelte") ? ["svelte", "browser"] : ["browser"],
   plugins: options.includes("svelte") ? [await sveltePlugin()] : [],
   define: { "process.env.NODE_ENV": '"production"', __VUE_OPTIONS_API__: "true", __VUE_PROD_DEVTOOLS__: "false", __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false" },
   ...(options.includes("decorators") ? { tsconfigRaw: { compilerOptions: { experimentalDecorators: true, useDefineForClassFields: false } } } : {}),
 });
-const browser = await chromium.launch({ executablePath: process.env.MKP_CHROMIUM ?? "/usr/bin/chromium", headless: true });
+const browser = await chromium.launch({ executablePath: process.env.XTMD_CHROMIUM ?? "/usr/bin/chromium", headless: true });
 browser.on("disconnected", () => {
   process.stderr.write(`${target} target: Chromium went away\n`);
   process.exit(1);
@@ -66,20 +66,20 @@ const tab = await browser.newPage({ viewport: { width: 800, height: 600 } });
 tab.on("console", (m) => process.stderr.write(`${target} target [page]: ${m.text()}\n`));
 tab.on("pageerror", (e) => process.stderr.write(`${target} target [page error]: ${e.stack ?? e}\n`));
 const live = options.includes("live");
-const WASM_URL = "http://mkp.test/mkp.wasm";
+const WASM_URL = "http://xtmd.test/xtmd.wasm";
 if (live) {
-  // the target's own @mkp/wasm, or the one its @mkp/live compiles with
+  // the target's own @extended-mark/wasm, or the one its @extended-mark/live compiles with
   const where = (() => {
     try {
-      return own.resolve("@mkp/wasm/mkp.wasm");
+      return own.resolve("@extended-mark/wasm/xtmd.wasm");
     } catch {
-      return join(process.cwd(), "node_modules/@mkp/live/node_modules/@mkp/wasm/mkp.wasm");
+      return join(process.cwd(), "node_modules/@extended-mark/live/node_modules/@extended-mark/wasm/xtmd.wasm");
     }
   })();
   const wasm = readFileSync(where);
   await tab.route(WASM_URL, (r) => r.fulfill({ status: 200, contentType: "application/wasm", headers: { "access-control-allow-origin": "*" }, body: wasm }));
 }
-await tab.setContent("<!doctype html><html lang=en><head><meta charset=utf-8><title>MKP check</title></head><body></body></html>");
+await tab.setContent("<!doctype html><html lang=en><head><meta charset=utf-8><title>Extended Mark check</title></head><body></body></html>");
 await tab.evaluate((url) => (window.__WASM_URL = url), WASM_URL);
 await tab.addScriptTag({ content: bundle.outputFiles[0].text });
 
@@ -92,36 +92,36 @@ const methods = {
   async load({ ir, source, packs = [], page = {}, state, externs }) {
     // a real-time target compiles the case's own text; the IR is for the rest
     const text = live && source ? { path: source, text: readFileSync(source, "utf8"), packs: packs.map((f) => ({ path: f, text: readFileSync(f, "utf8") })) } : undefined;
-    await tab.evaluate(([ir, p, s, x, t]) => window.mkpCheck.load(ir, p, s, x, t), [readFileSync(ir, "utf8"), page, state, externs, text]);
+    await tab.evaluate(([ir, p, s, x, t]) => window.xtmdCheck.load(ir, p, s, x, t), [readFileSync(ir, "utf8"), page, state, externs, text]);
     loaded = true;
     return {};
   },
   async event({ site, name, args = [] }) {
-    await tab.evaluate(([s, n, a]) => window.mkpCheck.event(s, n, a), [site, name, args]);
+    await tab.evaluate(([s, n, a]) => window.xtmdCheck.event(s, n, a), [site, name, args]);
     return {};
   },
   async write({ site, input, value }) {
-    await tab.evaluate(([s, i, v]) => window.mkpCheck.write(s, i, v), [site, input, value]);
+    await tab.evaluate(([s, i, v]) => window.xtmdCheck.write(s, i, v), [site, input, value]);
     return {};
   },
   async set(params) {
-    await tab.evaluate((s) => window.mkpCheck.set(s), params["$state"] ?? {});
+    await tab.evaluate((s) => window.xtmdCheck.set(s), params["$state"] ?? {});
     return {};
   },
   async expose({ channel, name, args = [] }) {
-    await tab.evaluate(([c, n, a]) => window.mkpCheck.expose(c, n, a), [channel, name, args]);
+    await tab.evaluate(([c, n, a]) => window.xtmdCheck.expose(c, n, a), [channel, name, args]);
     return {};
   },
   async extern({ channel, values }) {
-    await tab.evaluate(([c, v]) => window.mkpCheck.extern(c, v), [channel, values]);
+    await tab.evaluate(([c, v]) => window.xtmdCheck.extern(c, v), [channel, values]);
     return {};
   },
   async page({ page }) {
-    await tab.evaluate((p) => window.mkpCheck.page(p), page);
+    await tab.evaluate((p) => window.xtmdCheck.page(p), page);
     return {};
   },
   async observe() {
-    return tab.evaluate(() => window.mkpCheck.observe());
+    return tab.evaluate(() => window.xtmdCheck.observe());
   },
   async quit() {
     setImmediate(async () => {

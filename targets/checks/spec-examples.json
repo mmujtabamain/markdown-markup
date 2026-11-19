@@ -1,5 +1,5 @@
 {
-  "about": "The entry each MKP code block in docs/specs is read with, in the order the blocks appear on each page. java blocks are code; markdown blocks are documents. A markdown fragment is a document's prose shown on its own (no imports, names from around it): read and printed back, not compiled. A java later block is a file of a later version of a pack another block shows, such as a migration to it: read and printed back, not compiled with that pack.",
+  "about": "The entry each Extended Mark code block in docs/specs is read with, in the order the blocks appear on each page. java blocks are code; markdown blocks are documents. A markdown fragment is a document's prose shown on its own (no imports, names from around it): read and printed back, not compiled. A java later block is a file of a later version of a pack another block shows, such as a migration to it: read and printed back, not compiled with that pack.",
   "pages": {
     "01-overview.md": ["markdown doc", "markdown fragment"],
     "02-values-and-types.md": ["java file", "java decls", "java body", "java body", "java body", "java fields", "java decls", "java decls", "java decls", "java decls", "java decls"],

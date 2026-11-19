@@ -1,7 +1,7 @@
 {
   "id": "markdown.a-document-widget-built-from-its-view",
   "about": "a document's widget with no markdown block writes what its view writes",
-  "source": "a-document-widget-built-from-its-view.mkp.md",
+  "source": "a-document-widget-built-from-its-view.xt.md",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "a-document-widget-built-from-its-view.expected.md"}

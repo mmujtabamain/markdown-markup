@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// The pages mkp-android's omnicui adapter mounts: one per contract test, written by the same code as
-// the web's (targets/ts/web/omnicui/source.mjs: the widget called on its own, its props as MKP
+// The pages xtmd-android's omnicui adapter mounts: one per contract test, written by the same code as
+// the web's (targets/ts/web/omnicui/source.mjs: the widget called on its own, its props as Extended Mark
 // literals, each `mut` input bound to `$state`, each event to a handler, its slots filled), so both
-// targets mount exactly the same page, and built with the mkp binary (cached per source).
+// targets mount exactly the same page, and built with the xtmd binary (cached per source).
 //
 // The adapter starts it once and writes one request per line on standard input; each answer is one
 // line on standard output:
@@ -35,33 +35,33 @@ if (contractsFile && existsSync(contractsFile)) {
   }
 }
 
-const mkp = process.env.MKP_BINARY ?? ["release", "debug"].map((kind) => join(repo, "targets/rust/target", kind, "mkp")).find(existsSync);
-if (!mkp) {
-  process.stderr.write("[android] no mkp binary: run `cargo build --release` in targets/rust, or set MKP_BINARY\n");
+const xtmd = process.env.XTMD_BINARY ?? ["release", "debug"].map((kind) => join(repo, "targets/rust/target", kind, "xtmd")).find(existsSync);
+if (!xtmd) {
+  process.stderr.write("[android] no xtmd binary: run `cargo build --release` in targets/rust, or set XTMD_BINARY\n");
   process.exit(2);
 }
 
 // one folder per compiler and core; the others are stale and go
 const stamp = createHash("sha256");
-for (const f of [mkp, ...readdirSync(join(repo, "core")).map((f) => join(repo, "core", f))]) {
+for (const f of [xtmd, ...readdirSync(join(repo, "core")).map((f) => join(repo, "core", f))]) {
   const s = statSync(f);
   stamp.update(`${f}:${s.size}:${s.mtimeMs}\n`);
 }
 const salt = stamp.digest("hex").slice(0, 16);
-const caches = process.env.MKP_OMNICUI_ANDROID_CACHE ?? join(tmpdir(), "mkp-omnicui-android-ir");
+const caches = process.env.XTMD_OMNICUI_ANDROID_CACHE ?? join(tmpdir(), "xtmd-omnicui-android-ir");
 const cache = join(caches, salt);
 mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
 /** A page's IR file, built once per source. */
-function build(source, ext = ".mkp.md") {
+function build(source, ext = ".xt.md") {
   const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json`);
   if (!existsSync(out)) {
     const src = join(cache, `${hash}${ext}`);
     writeFileSync(src, source);
     try {
-      execFileSync(mkp, ["build", src, "--out", `${out}.part`], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+      execFileSync(xtmd, ["build", src, "--out", `${out}.part`], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
     } catch (e) {
       throw Object.assign(new Error(`the page didn't build: ${String(e.stdout ?? "") + String(e.stderr ?? "")}`.replace(/\s+/g, " ").trim()), { code: STEP_FAILED });
     }
@@ -71,7 +71,7 @@ function build(source, ext = ".mkp.md") {
 }
 
 // every core declaration: a pack's IR keeps all of core it builds on, a page's only what it uses
-const decls = declarations(JSON.parse(readFileSync(build("package omnicui_core;\n", ".mkp"), "utf8")));
+const decls = declarations(JSON.parse(readFileSync(build("package omnicui_core;\n", ".xtpack"), "utf8")));
 
 createInterface({ input: process.stdin }).on("line", (line) => {
   if (!line.trim()) return;

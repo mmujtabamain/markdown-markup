@@ -1,7 +1,7 @@
 {
   "id": "views.unknown-slot",
   "about": "unknown slot",
-  "source": "unknown-slot.mkp",
+  "source": "unknown-slot.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "views.unknown-slot", "line": 27, "column": 13}

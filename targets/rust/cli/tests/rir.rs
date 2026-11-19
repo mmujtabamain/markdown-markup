@@ -34,16 +34,16 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-fn sources(dir: &Path, names: &[&str]) -> Vec<mkp_check::Source> {
-    fn add(p: &Path, out: &mut Vec<mkp_check::Source>) {
+fn sources(dir: &Path, names: &[&str]) -> Vec<xtmd_check::Source> {
+    fn add(p: &Path, out: &mut Vec<xtmd_check::Source>) {
         if p.is_dir() {
             let mut files: Vec<PathBuf> = std::fs::read_dir(p).unwrap().map(|e| e.unwrap().path()).collect();
             files.sort();
             for f in files {
                 add(&f, out);
             }
-        } else if p.extension().map_or(false, |x| x == "mkp") {
-            out.push(mkp_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
+        } else if p.extension().map_or(false, |x| x == "xtpack") {
+            out.push(xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
         }
     }
     let mut out = Vec::new();
@@ -71,14 +71,14 @@ fn spans(v: &Value, out: &mut Vec<(u64, u64)>) {
 
 #[test]
 fn every_compiling_case_writes_a_resolved_ir_that_fits_its_schema() {
-    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    // a case runs Extended Mark to the depth limit at compile time, deeper than a test thread's stack
     std::thread::Builder::new().stack_size(64 << 20).spawn(write_every_case).unwrap().join().unwrap();
 }
 
 fn write_every_case() {
     let v = validator();
     let core = sources(&repo().join("core"), &["."]);
-    let base = mkp_check::compile_core(&core);
+    let base = xtmd_check::compile_core(&core);
     let mut cases = Vec::new();
     walk(&repo().join("targets/checks/cases"), &mut cases);
     let (mut written, mut failures) = (0, Vec::new());
@@ -90,9 +90,9 @@ fn write_every_case() {
         let packs = sources(dir, &names);
         let path = dir.join(source);
         let name = path.to_string_lossy().into_owned();
-        let main = mkp_check::Source { path: name.clone(), text: std::fs::read_to_string(&path).unwrap() };
-        let module = if name.ends_with(".mkp.md") { "doc" } else { "t" };
-        let (_, rir) = mkp_check::compile_rir(&base, &[packs], &[main], module);
+        let main = xtmd_check::Source { path: name.clone(), text: std::fs::read_to_string(&path).unwrap() };
+        let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
+        let (_, rir) = xtmd_check::compile_rir(&base, &[packs], &[main], module);
         let Some(rir) = rir else { continue };
         let errs: Vec<String> = v.iter_errors(&rir).map(|e| format!("{} at {}", e, e.instance_path())).take(3).collect();
         if !errs.is_empty() {
@@ -115,10 +115,10 @@ fn write_every_case() {
 }
 
 #[test]
-fn the_example_is_what_mkp_build_rir_writes() {
-    let (path, want) = ("schemas/examples/counter.mkp.md", repo().join("schemas/examples/counter.rir.json"));
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_mkp")).current_dir(repo()).args(["build", path, "--rir"]).output().unwrap();
+fn the_example_is_what_xtmd_build_rir_writes() {
+    let (path, want) = ("schemas/examples/counter.xt.md", repo().join("schemas/examples/counter.rir.json"));
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_xtmd")).current_dir(repo()).args(["build", path, "--rir"]).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let got: Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(got, json(&want), "schemas/examples/counter.rir.json is not what `mkp build --rir` writes: run it with --out");
+    assert_eq!(got, json(&want), "schemas/examples/counter.rir.json is not what `xtmd build --rir` writes: run it with --out");
 }

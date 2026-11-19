@@ -1,6 +1,6 @@
 //! A page running: the lowered IR mounted, redrawn after every change, with every change made
 //! through a transaction that is checked and undone when it fails (page 6, plan tab 11). A port
-//! of @mkp/runtime's `page.ts`, kept to its order of evaluation, its messages and its sites, so
+//! of @extended-mark/runtime's `page.ts`, kept to its order of evaluation, its messages and its sites, so
 //! the native and web targets observe the same page.
 //!
 //! No drawing: a page is drawn by whoever reads its tree (the egui and Android targets, the
@@ -15,13 +15,13 @@ use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
-use mkp_eval::interp::{Outer, Place, PlaceRoot, Step, R};
-use mkp_eval::value::{Case, Closure, List, Record, ViewValue};
-use mkp_eval::{Binding, Constants, FailKind, Failure, Host, Machine, Num, Program, Row, Value};
-use mkp_ir::check::{Call, CallCall, Mounted, PageTheme, PageWidth};
-use mkp_ir::ir::{self, Expr, Node, Stmt};
+use xtmd_eval::interp::{Outer, Place, PlaceRoot, Step, R};
+use xtmd_eval::value::{Case, Closure, List, Record, ViewValue};
+use xtmd_eval::{Binding, Constants, FailKind, Failure, Host, Machine, Num, Program, Row, Value};
+use xtmd_ir::check::{Call, CallCall, Mounted, PageTheme, PageWidth};
+use xtmd_ir::ir::{self, Expr, Node, Stmt};
 
-pub use mkp_ir::check::Broken;
+pub use xtmd_ir::check::Broken;
 
 /// The locals around a node: values, or references to places (a `mut for` row's item).
 pub type Bindings = Vec<(Rc<str>, Binding)>;
@@ -389,7 +389,7 @@ struct Frame {
     dirty: bool,
 }
 
-/// A widget written in MKP as it was last drawn, with what its drawing read.
+/// A widget written in Extended Mark as it was last drawn, with what its drawing read.
 struct Memo {
     frame: Frame,
     template: String,
@@ -447,7 +447,7 @@ fn same_place(a: &Place, b: &Place) -> bool {
         })
 }
 
-/// A widget instance: one call of a widget written in MKP, kept by its key across redraws.
+/// A widget instance: one call of a widget written in Extended Mark, kept by its key across redraws.
 struct Instance {
     id: u64,
     path: String,
@@ -1232,7 +1232,7 @@ impl Rt {
         })
     }
 
-    /// A widget written in MKP: its instance, kept by its key, and its view.
+    /// A widget written in Extended Mark: its instance, kept by its key, and its view.
     #[allow(clippy::too_many_arguments)]
     fn draw_use(
         &self,
@@ -1540,7 +1540,7 @@ pub struct Page {
 }
 
 impl Page {
-    /// A page from the IR file `mkp build` writes, as JSON.
+    /// A page from the IR file `xtmd build` writes, as JSON.
     pub fn from_json(json: &str, opts: PageOptions) -> R<Page> {
         let file: ir::File = serde_json::from_str(json).map_err(|e| Failure::ir(format!("the IR doesn't read: {}", e)))?;
         Page::new(file, opts)
@@ -1796,7 +1796,7 @@ impl Page {
         self.rt.w.borrow().state.iter().map(|(k, v)| (k.clone(), v.to_ir())).collect()
     }
 
-    /// Every widget's own variables, by the place it is drawn at: an MKP widget's `mut` variables,
+    /// Every widget's own variables, by the place it is drawn at: an Extended Mark widget's `mut` variables,
     /// and an extern widget's own values for `mut` inputs its caller gave no variable. With
     /// `$state`, what a snapshot holds.
     pub fn observe_own(&self) -> BTreeMap<String, BTreeMap<String, Expr>> {
@@ -1960,7 +1960,7 @@ impl Page {
 
     /// A layout pass's writes, as one change: a value equal to the one there is no change, and a
     /// refused write undoes the pass. Whether the layout has to run again: only when a variable
-    /// changed, since a widget's own values are read by no MKP code.
+    /// changed, since a widget's own values are read by no Extended Mark code.
     pub fn layout_write(&mut self, writes: Vec<LayoutWrite>) -> R<bool> {
         self.reset_steps();
         let snap = self.snapshot();
@@ -2133,11 +2133,11 @@ impl Page {
     pub fn markdown(&self) -> R<String> {
         self.reset_steps();
         let blocks = self.with_machine(|rt, m| crate::markdown::page_blocks(rt, m))?;
-        Ok(if self.rt.defect("unescaped-markdown") { mkp_markdown::write_unescaped(&blocks) } else { mkp_markdown::write(&blocks) })
+        Ok(if self.rt.defect("unescaped-markdown") { xtmd_markdown::write_unescaped(&blocks) } else { xtmd_markdown::write(&blocks) })
     }
 
     /// The page's Markdown as blocks, before they are written.
-    pub fn markdown_blocks(&self) -> R<Vec<mkp_markdown::Block>> {
+    pub fn markdown_blocks(&self) -> R<Vec<xtmd_markdown::Block>> {
         self.reset_steps();
         self.with_machine(|rt, m| crate::markdown::page_blocks(rt, m))
     }

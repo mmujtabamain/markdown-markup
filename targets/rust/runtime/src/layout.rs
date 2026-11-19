@@ -1,7 +1,7 @@
 //! The plane's layout (page 5, plane; plan tab 15). A target measures what it drew; this works
 //! out, in the plane's units, where each spot landed, the plane's bounds when they are left out,
 //! its centre kept inside them and the region it draws, and writes them as one change per pass.
-//! A port of @mkp/runtime's `layout.ts`.
+//! A port of @extended-mark/runtime's `layout.ts`.
 //!
 //! At zoom 1 one unit of the plane is one of the page's own lengths (an egui point, an Android
 //! dp), so a spot's box is its child's size on the page, placed at its point: panning and
@@ -9,9 +9,9 @@
 
 use std::rc::Rc;
 
-use mkp_eval::interp::R;
-use mkp_eval::value::Record;
-use mkp_eval::{Num, Value};
+use xtmd_eval::interp::R;
+use xtmd_eval::value::Record;
+use xtmd_eval::{Num, Value};
 
 use crate::page::{Drawn, LayoutWrite, Page};
 

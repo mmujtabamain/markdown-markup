@@ -1,6 +1,6 @@
 // The test app: an Embed on its own, given new props as a framework would, with the controls the
 // shared steps use (testing/browser.mjs).
-import { Embed } from "@mkp/embed";
+import { Embed } from "@extended-mark/embed";
 
 const heard = { calls: [], states: [], outcomes: [], mounts: 0 };
 let props = {

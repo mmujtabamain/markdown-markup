@@ -1,7 +1,7 @@
 import { createComponent, createSignal } from "solid-js";
 import { render } from "solid-js/web";
-import { MkpDoc } from "@mkp/solid";
-import { MkpLiveDoc } from "@mkp/solid-live";
+import { XtmdDoc } from "@extended-mark/solid";
+import { XtmdLiveDoc } from "@extended-mark/solid-live";
 import { S, compiled, failed, onEdit, showState } from "./common.mjs";
 
 const id = "solid";
@@ -9,7 +9,7 @@ const [state, setState] = createSignal(undefined);
 let run;
 render(
   () =>
-    createComponent(MkpDoc, {
+    createComponent(XtmdDoc, {
       ref: (h) => (run = h),
       ir: S.ir,
       get state() {
@@ -25,7 +25,7 @@ const [source, setSource] = createSignal(S.source);
 let live;
 render(
   () =>
-    createComponent(MkpLiveDoc, {
+    createComponent(XtmdLiveDoc, {
       ref: (h) => (live = h),
       get source() {
         return source();

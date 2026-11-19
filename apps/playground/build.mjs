@@ -1,7 +1,7 @@
-// Bundles the UI into dist/: app.js (the playground, with Monaco's editor API and MKP's language),
+// Bundles the UI into dist/: app.js (the playground, with Monaco's editor API and Extended Mark's language),
 // app.css (ours, and Monaco's), Monaco's codicon font, editor.worker.js, Monaco's web worker, as an
 // entry of its own (src/monaco.ts finds it through MonacoEnvironment.getWorkerUrl), and the
-// compiler: compiler.worker.js, which runs mkp.wasm (@mkp/wasm's, copied beside it). targets.js is
+// compiler: compiler.worker.js, which runs xtmd.wasm (@extended-mark/wasm's, copied beside it). targets.js is
 // the Targets page's (targets.html), with the counter example's IR built ahead for its run-time half.
 // `npm run build` runs it; the server runs it at startup when dist/app.js is missing.
 // `node build.mjs --dev` leaves the code readable and writes source maps.
@@ -19,18 +19,18 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
   // the compiler the page runs: targets/rust/wasm/build.sh makes it
   let wasm;
   try {
-    wasm = createRequire(join(here, "package.json")).resolve("@mkp/wasm/mkp.wasm");
+    wasm = createRequire(join(here, "package.json")).resolve("@extended-mark/wasm/xtmd.wasm");
   } catch {
     wasm = undefined;
   }
-  if (!wasm || !existsSync(wasm)) throw new Error("no mkp.wasm in @mkp/wasm: run targets/rust/wasm/build.sh");
+  if (!wasm || !existsSync(wasm)) throw new Error("no xtmd.wasm in @extended-mark/wasm: run targets/rust/wasm/build.sh");
   rmSync(outdir, { recursive: true, force: true });
   mkdirSync(outdir, { recursive: true });
-  copyFileSync(wasm, join(outdir, "mkp.wasm"));
+  copyFileSync(wasm, join(outdir, "xtmd.wasm"));
   // the Targets page's run-time half draws an IR built ahead, as a reader's page is: built here
-  const { Compiler } = await import("@mkp/wasm");
+  const { Compiler } = await import("@extended-mark/wasm");
   const compiler = await Compiler.load(pathToFileURL(wasm));
-  const built = compiler.build("page.mkp.md", readFileSync(join(here, "examples/counter.mkp.md"), "utf8"));
+  const built = compiler.build("page.xt.md", readFileSync(join(here, "examples/counter.xt.md"), "utf8"));
   if (!built.ir) throw new Error(`the counter example doesn't compile: ${JSON.stringify(built.diagnostics)}`);
   writeFileSync(join(outdir, "targets-counter.ir.json"), JSON.stringify(built.ir));
   const common = {
@@ -66,7 +66,7 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
     build({
       ...common,
       entryPoints: { targets: join(here, "src/targets.ts") },
-      // React's production build, for the Targets page's React row, and one copy of it: @mkp/react
+      // React's production build, for the Targets page's React row, and one copy of it: @extended-mark/react
       // is linked from its own folder, which has a React of its own
       define: { "process.env.NODE_ENV": '"production"' },
       alias: { react: join(here, "node_modules/react"), "react-dom": join(here, "node_modules/react-dom") },
@@ -76,5 +76,5 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   await buildBundle({ minify: !process.argv.includes("--dev") });
-  process.stderr.write("built dist/: app.js, app.css, editor.worker.js, compiler.worker.js, mkp.wasm, targets.js and the codicon font\n");
+  process.stderr.write("built dist/: app.js, app.css, editor.worker.js, compiler.worker.js, xtmd.wasm, targets.js and the codicon font\n");
 }

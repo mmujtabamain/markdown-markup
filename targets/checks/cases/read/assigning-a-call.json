@@ -1,7 +1,7 @@
 {
   "id": "read.assigning-a-call",
   "about": "assigning a call",
-  "source": "assigning-a-call.mkp",
+  "source": "assigning-a-call.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.not-a-place", "line": 4, "column": 5}

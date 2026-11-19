@@ -1,11 +1,11 @@
 [package]
-name = "mkp-schemagen"
+name = "xtmd-schemagen"
 description = "Writes the Rust and TypeScript types of schemas/: the IR and the check protocol"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+# shipped another way (a tool here; xtmd.wasm; the Android libraries), not as a crate
 publish = false
 
 [dependencies]

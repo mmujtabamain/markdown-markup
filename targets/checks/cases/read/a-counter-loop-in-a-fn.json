@@ -1,7 +1,7 @@
 {
   "id": "read.a-counter-loop-in-a-fn",
   "about": "a counter loop in a fn",
-  "source": "a-counter-loop-in-a-fn.mkp",
+  "source": "a-counter-loop-in-a-fn.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-counter-loop", "line": 4, "column": 5}

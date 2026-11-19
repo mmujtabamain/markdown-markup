@@ -1,6 +1,6 @@
 [package]
-name = "mkp-syntax"
-description = "MKP's reader: the lexer, the lossless syntax tree, the parser for code and prose, and mkp fmt's printer"
+name = "xtmd-syntax"
+description = "Extended Mark's reader: the lexer, the lossless syntax tree, the parser for code and prose, and xtmd fmt's printer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

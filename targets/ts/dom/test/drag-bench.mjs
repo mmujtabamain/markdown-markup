@@ -2,7 +2,7 @@
 // handle and a plane's pan, each with the page's reuse on and off, alternating in one browser so a
 // busy machine weighs on both alike. Prints the median ms per step.
 //
-//   node test/drag-bench.mjs <page.mkp.md>      (e.g. ../android/compose/sample/pages/tour.mkp.md)
+//   node test/drag-bench.mjs <page.xt.md>      (e.g. ../android/compose/sample/pages/tour.xt.md)
 import { launch, open } from "./browser.mjs";
 import { readFileSync } from "node:fs";
 const browser = await launch();

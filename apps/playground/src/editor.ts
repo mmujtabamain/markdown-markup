@@ -1,9 +1,9 @@
-// The source editor: Monaco, with MKP's language and the playground's colours. Monaco draws the
+// The source editor: Monaco, with Extended Mark's language and the playground's colours. Monaco draws the
 // text, the caret and the selection itself, measured from what it draws, so they stay together
 // whatever the font. The compiler's diagnostics are its markers.
 
 import { monaco } from "./monaco.js";
-import { MKP, languageFor, registerMkp } from "./language.js";
+import { XTMD, languageFor, registerXtmd } from "./language.js";
 import { defineThemes, themeFor } from "./themes.js";
 
 export interface Diagnostic {
@@ -24,9 +24,9 @@ export interface EditorEvents {
 }
 
 /** Whose markers these are, in Monaco's marker service. */
-export const MARKER_OWNER = "mkp";
+export const MARKER_OWNER = "xtmd";
 /** The markers of widgets that failed while the page was drawn: the page's, not the compiler's. */
-export const FAILURE_OWNER = "mkp-page";
+export const FAILURE_OWNER = "xtmd-page";
 
 const FONT = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace';
 /** Where the gutter's border is, past the line numbers' right edge (style.css draws it). */
@@ -45,18 +45,18 @@ export class Editor {
 
   constructor(host: HTMLElement, on: EditorEvents) {
     if (!registered) {
-      registerMkp(monaco);
+      registerXtmd(monaco);
       defineThemes(monaco);
       registered = true;
     }
     const dark = matchMedia("(prefers-color-scheme: dark)");
-    this.model = monaco.editor.createModel("", MKP, monaco.Uri.parse("inmemory://playground/page.mkp.md"));
+    this.model = monaco.editor.createModel("", XTMD, monaco.Uri.parse("inmemory://playground/page.xt.md"));
     // the model is ours, so its own options: four spaces, and brackets in the text's colour
     this.model.updateOptions({ tabSize: 4, indentSize: 4, insertSpaces: true, bracketColorizationOptions: { enabled: false, independentColorPoolPerBracketType: false } });
     this.view = monaco.editor.create(host, {
       model: this.model,
       theme: themeFor(dark.matches),
-      ariaLabel: "The page's MKP source",
+      ariaLabel: "The page's Extended Mark source",
       automaticLayout: true,
       fixedOverflowWidgets: true,
       // the look the editor had: the font, its size and lines, the gutter, no minimap or rulers
@@ -174,7 +174,7 @@ export class Editor {
         endColumn: d.end?.col ?? d.col,
         message: d.message,
         code: d.code,
-        source: "mkp",
+        source: "xtmd",
       })),
     );
     // and the gutter's numbers on their lines, red or amber, as before
@@ -248,7 +248,7 @@ export class Editor {
     }));
   }
 
-  /** A line's tokens as MKP's tokenizer reads it, with their text. */
+  /** A line's tokens as Extended Mark's tokenizer reads it, with their text. */
   tokens(line: number): { text: string; type: string }[] {
     const lines = monaco.editor.tokenize(this.model.getValue(), this.model.getLanguageId());
     const text = this.model.getLineContent(line);

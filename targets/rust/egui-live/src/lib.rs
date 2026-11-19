@@ -1,18 +1,18 @@
-//! MKP's real-time desktop target: [`MkpLiveDoc`], a document's text compiled in the app as it is
-//! edited and drawn by mkp-egui's [`MkpDoc`]. A text that compiles replaces the page, keeping
+//! Extended Mark's real-time desktop target: [`XtmdLiveDoc`], a document's text compiled in the app as it is
+//! edited and drawn by xtmd-egui's [`XtmdDoc`]. A text that compiles replaces the page, keeping
 //! `$state` where its fields still exist. One that doesn't leaves the last page that did, and its
-//! errors come back with the next frame ([`DocError::Compile`]) and from [`MkpLiveDoc::diagnostics`].
+//! errors come back with the next frame ([`DocError::Compile`]) and from [`XtmdLiveDoc::diagnostics`].
 //! When to give it a new text (each key, a pause, a save) is the app's.
 //!
-//! The compiler is mkp-live's, with core compiled once for the app ([`compiler`]). The run-time
-//! target, mkp-egui, doesn't carry it.
+//! The compiler is xtmd-live's, with core compiled once for the app ([`compiler`]). The run-time
+//! target, xtmd-egui, doesn't carry it.
 
 use std::rc::Rc;
 
 use egui::Ui;
-use mkp_egui::doc::{DocError, DocOptions, DocResponse, MkpDoc, State};
-pub use mkp_live::{Compiler, Diagnostic, Followed, Source};
-use mkp_live::Live;
+use xtmd_egui::doc::{DocError, DocOptions, DocResponse, XtmdDoc, State};
+pub use xtmd_live::{Compiler, Diagnostic, Followed, Source};
+use xtmd_live::Live;
 
 thread_local! {
     static COMPILER: Rc<Compiler> = Rc::new(Compiler::new());
@@ -24,26 +24,26 @@ pub fn compiler() -> Rc<Compiler> {
 }
 
 /// A document from its text, drawn by egui.
-pub struct MkpLiveDoc {
+pub struct XtmdLiveDoc {
     compiler: Rc<Compiler>,
     live: Live,
-    doc: Option<MkpDoc>,
+    doc: Option<XtmdDoc>,
     /// How the first page that compiles starts; the pages after it keep its widgets.
     options: Option<DocOptions>,
     externs: Vec<(String, State)>,
     errors: Vec<DocError>,
 }
 
-impl MkpLiveDoc {
-    /// A document from `text`, at `page.mkp.md`, compiled now with the app's compiler.
-    pub fn new(text: &str, options: DocOptions) -> MkpLiveDoc {
-        MkpLiveDoc::with(compiler(), "page.mkp.md", Vec::new(), text, options)
+impl XtmdLiveDoc {
+    /// A document from `text`, at `page.xt.md`, compiled now with the app's compiler.
+    pub fn new(text: &str, options: DocOptions) -> XtmdLiveDoc {
+        XtmdLiveDoc::with(compiler(), "page.xt.md", Vec::new(), text, options)
     }
 
     /// A document at `path`, with the files of the packs it uses, compiled by `compiler`.
-    pub fn with(compiler: Rc<Compiler>, path: &str, packs: Vec<Source>, text: &str, options: DocOptions) -> MkpLiveDoc {
+    pub fn with(compiler: Rc<Compiler>, path: &str, packs: Vec<Source>, text: &str, options: DocOptions) -> XtmdLiveDoc {
         let externs = options.externs.clone();
-        let mut d = MkpLiveDoc { compiler, live: Live::new(path).with_packs(packs), doc: None, options: Some(options), externs, errors: Vec::new() };
+        let mut d = XtmdLiveDoc { compiler, live: Live::new(path).with_packs(packs), doc: None, options: Some(options), externs, errors: Vec::new() };
         d.set_text(text);
         d
     }
@@ -58,8 +58,8 @@ impl MkpLiveDoc {
                 let file = self.live.ir().cloned().expect("a text that compiled has its IR");
                 let r = match (&mut self.doc, self.options.take()) {
                     (Some(doc), _) => doc.replace(file, self.externs.clone()),
-                    (None, Some(options)) => MkpDoc::new(file, options).map(|d| self.doc = Some(d)),
-                    (None, None) => MkpDoc::new(file, DocOptions { externs: self.externs.clone(), ..DocOptions::default() }).map(|d| self.doc = Some(d)),
+                    (None, Some(options)) => XtmdDoc::new(file, options).map(|d| self.doc = Some(d)),
+                    (None, None) => XtmdDoc::new(file, DocOptions { externs: self.externs.clone(), ..DocOptions::default() }).map(|d| self.doc = Some(d)),
                 };
                 if let Err(e) = r {
                     self.errors.push(e);
@@ -85,11 +85,11 @@ impl MkpLiveDoc {
     }
 
     /// The document drawn: the last text that compiled. None until one has.
-    pub fn doc(&self) -> Option<&MkpDoc> {
+    pub fn doc(&self) -> Option<&XtmdDoc> {
         self.doc.as_ref()
     }
 
-    pub fn doc_mut(&mut self) -> Option<&mut MkpDoc> {
+    pub fn doc_mut(&mut self) -> Option<&mut XtmdDoc> {
         self.doc.as_mut()
     }
 
@@ -107,7 +107,7 @@ impl MkpLiveDoc {
         r
     }
 
-    /// [`MkpDoc::show_controlled`] on the last page that compiled.
+    /// [`XtmdDoc::show_controlled`] on the last page that compiled.
     pub fn show_controlled(&mut self, ui: &mut Ui, state: &mut State) -> DocResponse {
         let mut r = match &mut self.doc {
             Some(doc) => doc.show_controlled(ui, state),
@@ -119,16 +119,16 @@ impl MkpLiveDoc {
 }
 
 #[cfg(feature = "check")]
-impl mkp_egui::check::adapter::AsDoc for MkpLiveDoc {
-    fn doc(&mut self) -> &mut MkpDoc {
+impl xtmd_egui::check::adapter::AsDoc for XtmdLiveDoc {
+    fn doc(&mut self) -> &mut XtmdDoc {
         self.doc.as_mut().expect("a loaded case has compiled")
     }
 
-    fn doc_ref(&self) -> &MkpDoc {
+    fn doc_ref(&self) -> &XtmdDoc {
         self.doc.as_ref().expect("a loaded case has compiled")
     }
 
     fn show(&mut self, ui: &mut Ui) -> DocResponse {
-        MkpLiveDoc::show(self, ui)
+        XtmdLiveDoc::show(self, ui)
     }
 }

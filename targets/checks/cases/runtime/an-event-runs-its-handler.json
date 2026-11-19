@@ -1,7 +1,7 @@
 {
   "id": "runtime.an-event-runs-its-handler",
   "about": "a reader's event runs its handler, which changes $state, and the page is redrawn once",
-  "source": "an-event-runs-its-handler.mkp.md",
+  "source": "an-event-runs-its-handler.xt.md",
   "target": {
     "levels": [
       "core.draw",

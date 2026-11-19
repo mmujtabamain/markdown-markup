@@ -1,9 +1,9 @@
 // Layout, as elements: flex and grid as CSS flexbox and grid, cell as a grid item, and sizing as
-// the flex item whose grow, shrink, basis and limits it says, as @mkp/dom draws them (the same
+// the flex item whose grow, shrink, basis and limits it says, as @extended-mark/dom draws them (the same
 // parts and classes, so the same stylesheet). Lengths are core's tokens, as custom properties.
 
-import type { Drawn } from "@mkp/runtime";
-import { field, flag, inner, kase, list, num, str } from "@mkp/dom/shared";
+import type { Drawn } from "@extended-mark/runtime";
+import { field, flag, inner, kase, list, num, str } from "@extended-mark/dom/shared";
 import type { ViewContext, ViewWidget } from "../render.js";
 import type { Act } from "../act.js";
 import { attr, cls, css, h, on, type VNode } from "../vnode.js";
@@ -42,7 +42,7 @@ function box(el: VNode, d: Drawn, ctx: ViewContext): void {
  * control inside already took is left to it. */
 function clickable(el: VNode, d: Drawn, ctx: ViewContext): void {
   const listens = ctx.page.listens ? ctx.page.listens(d, "click") : d.events.has("click");
-  cls(el, "mkp-clickable", listens);
+  cls(el, "xtmd-clickable", listens);
   attr(el, "tabindex", listens ? "0" : undefined);
   if (!listens) return;
   on(el, "click", (e) => {
@@ -154,6 +154,6 @@ export const sizing: ViewWidget = (d, ctx) => {
 
 // ---- acting through the element, for the checks
 
-/** None: @mkp/dom's layout views have no act, so a check's click on a flex or a grid goes
+/** None: @extended-mark/dom's layout views have no act, so a check's click on a flex or a grid goes
  * through the page. */
 export const acts: Record<string, Act> = {};

@@ -1,7 +1,7 @@
 {
   "id": "types.a-bad-literal-is-refused",
   "about": "a literal whose from gives opt.NONE is a compile error on its line, with the rule's message",
-  "source": "a-bad-literal-is-refused.mkp",
+  "source": "a-bad-literal-is-refused.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.literal-refused", "line": 3, "column": 18}

@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/vue",
+  "name": "@extended-mark/vue",
   "version": "0.3.0",
-  "description": "MKP documents in Vue 3, run time: <MkpDoc src={…} /> or ir={…}, drawn by Vue itself with core's widgets, on a server and in the browser. No compiler; @mkp/vue-live compiles in the browser",
+  "description": "Extended Mark documents in Vue 3, run time: <XtmdDoc src={…} /> or ir={…}, drawn by Vue itself with core's widgets, on a server and in the browser. No compiler; @extended-mark/vue-live compiles in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,14 +21,14 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/embed": "file:../embed",
-    "@mkp/view": "file:../view"
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "vue": "^3.3.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3",

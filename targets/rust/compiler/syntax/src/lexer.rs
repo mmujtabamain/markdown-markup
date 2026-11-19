@@ -1,7 +1,7 @@
-//! The lexer for MKP code: names, capitals, keywords, numbers, durations, texts and symbols.
+//! The lexer for Extended Mark code: names, capitals, keywords, numbers, durations, texts and symbols.
 //!
 //! Comments and line breaks are not thrown away: each token carries the trivia in front of it,
-//! so the syntax tree can keep every comment and blank line for `mkp fmt`.
+//! so the syntax tree can keep every comment and blank line for `xtmd fmt`.
 
 use crate::diag::{codes, Diagnostic};
 use crate::span::Span;
@@ -339,7 +339,7 @@ impl<'a> Lexer<'a> {
                 return Err(Diagnostic::error(
                     codes::ATTRIBUTE,
                     Span::new(p, e),
-                    format!("MKP has no attributes, so `{}` means nothing in code: a token type is declared with `token`, a widget is pointed at through a variable that holds it, and a widget's markdown block decides what it shows", &self.src[p..e]),
+                    format!("Extended Mark has no attributes, so `{}` means nothing in code: a token type is declared with `token`, a widget is pointed at through a variable that holds it, and a widget's markdown block decides what it shows", &self.src[p..e]),
                 ));
             }
             Some(_) => {
@@ -360,7 +360,7 @@ impl<'a> Lexer<'a> {
                         return Err(Diagnostic::error(
                             codes::UNEXPECTED_CHAR,
                             Span::new(p, p + c.len_utf8()),
-                            format!("`{}` is not part of MKP's code", c),
+                            format!("`{}` is not part of Extended Mark's code", c),
                         ));
                     }
                 }

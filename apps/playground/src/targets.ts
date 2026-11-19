@@ -1,10 +1,10 @@
 // The playground's Targets page: one page drawn by the plain web's two kinds of target. Run time is
-// @mkp/embed's MkpDoc, from an IR built ahead (build.mjs writes it with mkp.wasm). Real time is
-// @mkp/embed-live's MkpLiveDoc, from the text in the box, compiled by mkp.wasm as it changes.
+// @extended-mark/embed's XtmdDoc, from an IR built ahead (build.mjs writes it with xtmd.wasm). Real time is
+// @extended-mark/embed-live's XtmdLiveDoc, from the text in the box, compiled by xtmd.wasm as it changes.
 
-import { MkpDoc, type Snapshot } from "@mkp/embed";
-import { MkpLiveDoc, type LiveDocProps } from "@mkp/embed-live";
-import type { ir } from "@mkp/runtime";
+import { XtmdDoc, type Snapshot } from "@extended-mark/embed";
+import { XtmdLiveDoc, type LiveDocProps } from "@extended-mark/embed-live";
+import type { ir } from "@extended-mark/runtime";
 import { mountReact } from "./targets-react.js";
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -29,7 +29,7 @@ function report(kind: string, message: string): void {
 // ---- run time
 
 const runState = el("run-state");
-const run = new MkpDoc(el("run-page"), {
+const run = new XtmdDoc(el("run-page"), {
   src: "/targets-counter.ir.json",
   onStateChange: (s) => (runState.textContent = stateLine(s)),
   onError: (e) => {
@@ -55,12 +55,12 @@ const status = el("live-status");
 const liveState = el("live-state");
 let props: LiveDocProps = {
   source: "",
-  wasm: "/mkp.wasm",
+  wasm: "/xtmd.wasm",
   onStateChange: (s) => (liveState.textContent = stateLine(s)),
   onError: (e) => {
     if (e.kind === "compile") {
       status.dataset.state = "errors";
-      status.textContent = e.message.replace(/^page\.mkp\.md doesn't compile/, "Doesn't compile");
+      status.textContent = e.message.replace(/^page\.xt\.md doesn't compile/, "Doesn't compile");
     } else if (e.kind === "load") {
       status.dataset.state = "errors";
       status.textContent = e.message;
@@ -73,7 +73,7 @@ let props: LiveDocProps = {
     liveState.textContent = stateLine(live.state());
   },
 };
-let live: MkpLiveDoc;
+let live: XtmdLiveDoc;
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 source.addEventListener("input", () => {
@@ -91,7 +91,7 @@ async function start(): Promise<void> {
   const { examples } = (await res.json()) as { examples: { id: string; source: string }[] };
   source.value = examples.find((e) => e.id === "counter")?.source ?? "";
   props = { ...props, source: source.value };
-  live = new MkpLiveDoc(el("live-page"), props);
+  live = new XtmdLiveDoc(el("live-page"), props);
   // the same page and text, in React
   const irFile = await (await fetch("/targets-counter.ir.json")).json();
   mountReact(el("react"), irFile, source.value);

@@ -1,24 +1,24 @@
-// @mkp/solid-live: <MkpLiveDoc source={text()} />, an MKP document compiled in the browser by
-// @mkp/wasm as it is edited, and drawn by @mkp/solid's <MkpDoc>. A text that compiles replaces the
+// @extended-mark/solid-live: <XtmdLiveDoc source={text()} />, an Extended Mark document compiled in the browser by
+// @extended-mark/wasm as it is edited, and drawn by @extended-mark/solid's <XtmdDoc>. A text that compiles replaces the
 // page, keeping `$state` where its fields still exist; one that doesn't leaves the last page that
 // did, and its errors reach `onError` ({ kind: "compile", diagnostics }). The run-time target,
-// @mkp/solid, ships no WebAssembly; this one does. Written without JSX.
+// @extended-mark/solid, ships no WebAssembly; this one does. Written without JSX.
 
 import { createComponent, createEffect, createSignal, mergeProps, onCleanup, splitProps, untrack, type JSX } from "solid-js";
-import { MkpDoc, type MkpDocProps } from "@mkp/solid";
-import { Live, type LiveProps } from "@mkp/live";
-import type { Ir } from "@mkp/embed";
+import { XtmdDoc, type XtmdDocProps } from "@extended-mark/solid";
+import { Live, type LiveProps } from "@extended-mark/live";
+import type { Ir } from "@extended-mark/embed";
 
-export interface MkpLiveDocProps extends Omit<MkpDocProps, "ir" | "src">, LiveProps {}
+export interface XtmdLiveDocProps extends Omit<XtmdDocProps, "ir" | "src">, LiveProps {}
 
 const LIVE = ["source", "path", "packs", "wasm", "compiler"] as const;
 
 /**
- * An MKP document from its text. `wasm` is where mkp.wasm is (`@mkp/wasm/mkp.wasm` as the
+ * An Extended Mark document from its text. `wasm` is where xtmd.wasm is (`@extended-mark/wasm/xtmd.wasm` as the
  * bundler gives its URL), or `compiler` a compiler in hand; given one already loaded, the first
- * render has the page, on a server too. The rest is <MkpDoc>'s, `ref` its handle.
+ * render has the page, on a server too. The rest is <XtmdDoc>'s, `ref` its handle.
  */
-export function MkpLiveDoc(props: MkpLiveDocProps): JSX.Element {
+export function XtmdLiveDoc(props: XtmdLiveDocProps): JSX.Element {
   const [given, rest] = splitProps(props, LIVE);
   const [ir, setIr] = createSignal<Ir | undefined>(undefined, { equals: false });
   const live = new Live(() => setIr(() => live.ir));
@@ -31,7 +31,7 @@ export function MkpLiveDoc(props: MkpLiveDocProps): JSX.Element {
   createEffect(() => live.update(current(), (e) => props.onError?.(e)));
   onCleanup(() => live.destroy());
   return createComponent(
-    MkpDoc,
+    XtmdDoc,
     mergeProps(rest, {
       get ir() {
         return ir();
@@ -40,6 +40,6 @@ export function MkpLiveDoc(props: MkpLiveDocProps): JSX.Element {
   );
 }
 
-export { Compiler, compiler, type Builds, type LiveProps, type PackFile, type WasmSource } from "@mkp/live";
-export type { MkpDocHandle, MkpDocProps } from "@mkp/solid";
-export type { DocError, Restored, Snapshot } from "@mkp/view";
+export { Compiler, compiler, type Builds, type LiveProps, type PackFile, type WasmSource } from "@extended-mark/live";
+export type { XtmdDocHandle, XtmdDocProps } from "@extended-mark/solid";
+export type { DocError, Restored, Snapshot } from "@extended-mark/view";

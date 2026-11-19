@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn main() {
     let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let file = [here.join("core/entities.mkp"), here.join("../../../../core/entities.mkp")].into_iter().find(|p| p.is_file()).expect("core/entities.mkp, in the crate or the repository");
+    let file = [here.join("core/entities.xtpack"), here.join("../../../../core/entities.xtpack")].into_iter().find(|p| p.is_file()).expect("core/entities.xtpack, in the crate or the repository");
     println!("cargo:rerun-if-changed={}", file.display());
-    println!("cargo:rustc-env=MKP_ENTITIES={}", file.canonicalize().unwrap().display());
+    println!("cargo:rustc-env=XTMD_ENTITIES={}", file.canonicalize().unwrap().display());
 }

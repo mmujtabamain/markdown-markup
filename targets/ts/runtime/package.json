@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/runtime",
+  "name": "@extended-mark/runtime",
   "version": "0.3.0",
-  "description": "MKP's runtime for the web: the evaluator that runs the compiler's IR, exact decimal128 numbers, values, the native fns and the limits",
+  "description": "Extended Mark's runtime for the web: the evaluator that runs the compiler's IR, exact decimal128 numbers, values, the native fns and the limits",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

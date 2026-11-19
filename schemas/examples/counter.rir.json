@@ -4,7 +4,7 @@
       "declarations": [],
       "imports": [],
       "kind": "document",
-      "path": "schemas/examples/counter.mkp.md",
+      "path": "schemas/examples/counter.xt.md",
       "prose": [
         {
           "markdown": {
@@ -211,7 +211,7 @@
     "core.draw",
     "core.live"
   ],
-  "mkp": "0.3.0",
+  "xtmd": "0.3.0",
   "packs": [],
   "rir": 1
 }

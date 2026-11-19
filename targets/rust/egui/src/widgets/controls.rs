@@ -4,7 +4,7 @@
 
 use egui::accesskit::{HasPopup, Role, Toggled};
 use egui::{Align, Color32, Key, Layout, Modifiers, Rect, Sense, Stroke, Ui, UiBuilder};
-use mkp_runtime::{Num, Value};
+use xtmd_runtime::{Num, Value};
 
 use super::kit::{self, Lay};
 use crate::values::{self, exact, inner, to_f64};
@@ -404,7 +404,7 @@ fn ten() -> Num {
 /// The ends and step a variable's type gives: `int 0..10` is 0, 10 and 1.
 fn contract_ends(ctx: &Ctx<'_>) -> (Option<Num>, Option<Num>, Option<Num>) {
     let Some(t) = ctx.write_type("value") else { return (None, None, None) };
-    let n = |x: Option<&mkp_runtime::ir::Expr>| x.and_then(|x| ctx.page().value(x).ok()).and_then(|v| exact(Some(&v)));
+    let n = |x: Option<&xtmd_runtime::ir::Expr>| x.and_then(|x| ctx.page().value(x).ok()).and_then(|v| exact(Some(&v)));
     let c = t.contract.as_ref();
     let range = c.and_then(|c| c.range.as_ref());
     let mut step = n(c.and_then(|c| c.step.as_ref()));

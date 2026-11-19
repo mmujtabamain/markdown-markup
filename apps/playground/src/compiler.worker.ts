@@ -1,11 +1,11 @@
-// The compiler, in a worker of its own: mkp.wasm with core compiled as it loads, and every build
+// The compiler, in a worker of its own: xtmd.wasm with core compiled as it loads, and every build
 // run here, so the editor never waits on one. A message is a build; its answer has its id.
 
-import { Compiler, type Built, type PackFile } from "@mkp/wasm";
+import { Compiler, type Built, type PackFile } from "@extended-mark/wasm";
 
 export interface Request {
   id: number;
-  /** Where mkp.wasm is. */
+  /** Where xtmd.wasm is. */
   wasm: string;
   /** Left out: only load the compiler, so core is compiled before the first page asks. */
   build?: { path: string; text: string; packs: PackFile[] };

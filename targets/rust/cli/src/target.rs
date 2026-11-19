@@ -1,4 +1,4 @@
-//! `mkp target check`: every target check, run on targets through their check adapters
+//! `xtmd target check`: every target check, run on targets through their check adapters
 //! (plan tab 16). The compiler is checked once, by its own tests; a target is given the IR the
 //! compiler wrote for each case, and is checked on running and drawing it. After every step the
 //! runner asks for one observation and compares what the step states; with several targets, every
@@ -119,7 +119,7 @@ impl Adapter {
         let mut cmd = Command::new(&t.adapter[0]);
         cmd.args(&t.adapter[1..]).current_dir(&t.dir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit());
         if let Some(d) = defect {
-            cmd.env("MKP_TEST_DEFECT", d);
+            cmd.env("XTMD_TEST_DEFECT", d);
         }
         let mut child = cmd.spawn().map_err(|e| format!("{}: can't start {:?}: {}", t.name, t.adapter, e))?;
         let input = child.stdin.take().unwrap();
@@ -175,17 +175,17 @@ struct Case {
     levels: Vec<String>,
 }
 
-/// Markdown text read as blocks, by MKP's own reader.
-fn read_blocks(base: &mkp_check::Checker, text: &str) -> Result<Value, String> {
-    let c = mkp_check::compile_on(base, &[], &[mkp_check::Source { path: "observed.mkp.md".into(), text: text.into() }], "doc");
+/// Markdown text read as blocks, by Extended Mark's own reader.
+fn read_blocks(base: &xtmd_check::Checker, text: &str) -> Result<Value, String> {
+    let c = xtmd_check::compile_on(base, &[], &[xtmd_check::Source { path: "observed.xt.md".into(), text: text.into() }], "doc");
     let mut m = c.module.ok_or("the Markdown doesn't read")?;
-    mkp_lower::lower(&mut m);
-    let b = mkp_markdown::page(&m).map_err(|e| e.0)?;
-    Ok(mkp_markdown::blocks_json(&b))
+    xtmd_lower::lower(&mut m);
+    let b = xtmd_markdown::page(&m).map_err(|e| e.0)?;
+    Ok(xtmd_markdown::blocks_json(&b))
 }
 
 /// What differs between a step's expectations and an observation: empty when it all holds.
-fn compare(base: &mkp_check::Checker, dir: &Path, want: &Value, got: &Value) -> Vec<String> {
+fn compare(base: &xtmd_check::Checker, dir: &Path, want: &Value, got: &Value) -> Vec<String> {
     let mut out = Vec::new();
     let Some(want) = want.as_object() else { return out };
     for (k, w) in want {
@@ -286,7 +286,7 @@ fn compare(base: &mkp_check::Checker, dir: &Path, want: &Value, got: &Value) -> 
     out
 }
 
-/// The repository: where `targets/checks` is, from here or above, else the one this mkp was built
+/// The repository: where `targets/checks` is, from here or above, else the one this xtmd was built
 /// from, so the checks run from any folder; and whether it is that one.
 fn repo() -> Option<(PathBuf, bool)> {
     let here = std::env::current_dir().unwrap_or_default();
@@ -296,7 +296,7 @@ fn repo() -> Option<(PathBuf, bool)> {
 
 /// The cases that run on targets: every one whose source compiles. A case that expects a compile
 /// error checks the compiler only.
-fn cases(base: &mkp_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
+fn cases(base: &xtmd_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
         let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
@@ -327,22 +327,22 @@ fn cases(base: &mkp_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
             let p = cdir.join(p.as_str().unwrap_or(""));
             let mut files = Vec::new();
             if p.is_dir() {
-                walk_mkp(&p, &mut files);
+                walk_xtmd(&p, &mut files);
             } else {
                 files.push(p);
             }
             for f in files {
-                packs.push(mkp_check::Source { path: f.to_string_lossy().into_owned(), text: std::fs::read_to_string(&f).unwrap_or_default() });
+                packs.push(xtmd_check::Source { path: f.to_string_lossy().into_owned(), text: std::fs::read_to_string(&f).unwrap_or_default() });
             }
         }
         let pack_files: Vec<PathBuf> = packs.iter().map(|p| PathBuf::from(&p.path)).collect();
         let path = src.to_string_lossy().into_owned();
-        let module = if path.ends_with(".mkp.md") { "doc" } else { "t" };
-        let c = mkp_check::compile_on(base, &[packs], &[mkp_check::Source { path, text }], module);
+        let module = if path.ends_with(".xt.md") { "doc" } else { "t" };
+        let c = xtmd_check::compile_on(base, &[packs], &[xtmd_check::Source { path, text }], module);
         let Some(mut m) = c.module else { continue };
-        mkp_lower::lower(&mut m);
+        xtmd_lower::lower(&mut m);
         let ir = tmp.join(format!("{}.ir.json", id));
-        if std::fs::write(&ir, serde_json::to_string(&mkp_ir::ir::File { ir: m }).unwrap()).is_err() {
+        if std::fs::write(&ir, serde_json::to_string(&xtmd_ir::ir::File { ir: m }).unwrap()).is_err() {
             continue;
         }
         out.push(Case {
@@ -360,14 +360,14 @@ fn cases(base: &mkp_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
     out
 }
 
-fn walk_mkp(dir: &Path, out: &mut Vec<PathBuf>) {
+fn walk_xtmd(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
     paths.sort();
     for p in paths {
         if p.is_dir() {
-            walk_mkp(&p, out);
-        } else if p.extension().map_or(false, |x| x == "mkp") {
+            walk_xtmd(&p, out);
+        } else if p.extension().map_or(false, |x| x == "xtpack") {
             out.push(p);
         }
     }
@@ -375,7 +375,7 @@ fn walk_mkp(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// One target, every case: each case's observations, by step (0 is the page as loaded), and
 /// what differed from the case.
-fn run_target(base: &mkp_check::Checker, t: &Target, cases: &[Case], defect: Option<&str>) -> Result<(BTreeMap<String, Vec<Value>>, Vec<String>, usize), String> {
+fn run_target(base: &xtmd_check::Checker, t: &Target, cases: &[Case], defect: Option<&str>) -> Result<(BTreeMap<String, Vec<Value>>, Vec<String>, usize), String> {
     let mut adapter = Adapter::start(t, defect)?;
     let ad = adapter.call("advertise", json!({ "protocol": "1" }))?;
     if ad["protocol"].as_str() != Some("1") {
@@ -448,10 +448,10 @@ fn comparable(o: &Value) -> Value {
     o
 }
 
-/// `mkp target check [target…] [--cases dir] [--defect name] [--expect-failures] [--require target:name]…`
+/// `xtmd target check [target…] [--cases dir] [--defect name] [--expect-failures] [--require target:name]…`
 pub fn target_check(args: &[String]) -> ExitCode {
     let Some((root, built)) = repo() else {
-        eprintln!("mkp target check needs an MKP checkout: there is no targets/checks/cases here, in a folder above, or in the checkout this mkp was built from. Run it in one.");
+        eprintln!("xtmd target check needs an Extended Mark checkout: there is no targets/checks/cases here, in a folder above, or in the checkout this xtmd was built from. Run it in one.");
         return ExitCode::from(2);
     };
     let mut names = Vec::new();
@@ -544,8 +544,8 @@ pub fn target_check(args: &[String]) -> ExitCode {
         }
         return ExitCode::from(1);
     }
-    let base = mkp_check::compile_core(&crate::core_sources());
-    let tmp = std::env::temp_dir().join(format!("mkp-target-check-{}", std::process::id()));
+    let base = xtmd_check::compile_core(&crate::core_sources());
+    let tmp = std::env::temp_dir().join(format!("xtmd-target-check-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&tmp);
     let cases = cases(&base, &cases_dir, &tmp);
     if cases.is_empty() {
@@ -555,7 +555,7 @@ pub fn target_check(args: &[String]) -> ExitCode {
     }
     // where the cases come from, and what runs: on stderr, so the results stay what is printed
     if !json {
-        eprintln!("cases: {} cases from {}{}", cases.len(), cases_dir.display(), if built && !cases_given { " (the checkout this mkp was built from)" } else { "" });
+        eprintln!("cases: {} cases from {}{}", cases.len(), cases_dir.display(), if built && !cases_given { " (the checkout this xtmd was built from)" } else { "" });
         if targets.len() > 1 {
             eprintln!("running {} targets, one after another: {}", targets.len(), targets.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", "));
         }

@@ -1,5 +1,5 @@
-// The loader webpack and Turbopack run for each `.mkp.md` file: its IR, as a module. CommonJS, so
-// both load it; @mkp/cli is ESM, so it is imported when first needed.
+// The loader webpack and Turbopack run for each `.xt.md` file: its IR, as a module. CommonJS, so
+// both load it; xtmd is ESM, so it is imported when first needed.
 
 interface LoaderContext {
   resourcePath: string;
@@ -8,12 +8,12 @@ interface LoaderContext {
   addDependency?(file: string): void;
 }
 
-function mkpLoader(this: LoaderContext): void {
+function xtmdLoader(this: LoaderContext): void {
   const done = this.async();
   const options = this.getOptions?.() ?? {};
   for (const p of options.packs ?? []) this.addDependency?.(p);
   if (options.config) this.addDependency?.(options.config);
-  import("@mkp/cli")
+  import("xtmd")
     .then(({ build }) => build(this.resourcePath, options))
     .then(
       (ir) => done(null, `export default ${JSON.stringify(ir)};`),
@@ -21,4 +21,4 @@ function mkpLoader(this: LoaderContext): void {
     );
 }
 
-export = mkpLoader;
+export = xtmdLoader;

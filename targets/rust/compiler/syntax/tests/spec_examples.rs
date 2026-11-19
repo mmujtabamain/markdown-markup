@@ -1,8 +1,8 @@
-//! Every MKP code block in docs/specs reads, and `mkp fmt` prints it back unchanged.
+//! Every Extended Mark code block in docs/specs reads, and `xtmd fmt` prints it back unchanged.
 //!
 //! targets/checks/spec-examples.json says which entry each block is read with.
 
-use mkp_syntax::{format, parse, Entry, Lines};
+use xtmd_syntax::{format, parse, Entry, Lines};
 use std::path::PathBuf;
 
 fn repo() -> PathBuf {
@@ -45,7 +45,7 @@ fn examples(page: &str) -> Vec<Example> {
 
 fn entry(tag: &str) -> Entry {
     match tag {
-        "java file" | "java later" => Entry::Mkp,
+        "java file" | "java later" => Entry::Xtmd,
         "java decls" => Entry::Decls,
         "java body" => Entry::Body,
         "java fields" => Entry::Fields,
@@ -73,7 +73,7 @@ fn every_spec_example_reads_and_prints_back_unchanged() {
     for (page, tags) in manifest["pages"].as_object().unwrap() {
         let found = examples(page);
         let tags: Vec<&str> = tags.as_array().unwrap().iter().map(|t| t.as_str().unwrap()).collect();
-        assert_eq!(found.len(), tags.len(), "{}: {} MKP blocks on the page, {} in the manifest", page, found.len(), tags.len());
+        assert_eq!(found.len(), tags.len(), "{}: {} Extended Mark blocks on the page, {} in the manifest", page, found.len(), tags.len());
         for (ex, tag) in found.iter().zip(tags) {
             assert!(tag.starts_with(&ex.lang), "{}:{}: a {} block tagged {}", ex.page, ex.line, ex.lang, tag);
             count += 1;
@@ -100,6 +100,6 @@ fn every_spec_example_reads_and_prints_back_unchanged() {
             }
         }
     }
-    assert_eq!(count, 58, "the spec has 58 MKP code blocks");
+    assert_eq!(count, 58, "the spec has 58 Extended Mark code blocks");
     assert!(failures.is_empty(), "{} of {} examples failed:\n{}", failures.len(), count, failures.join("\n"));
 }

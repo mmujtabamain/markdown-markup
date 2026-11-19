@@ -1,8 +1,8 @@
-# targets/checks/targets/web/target.yaml: omnicui's target for MKP's widget contracts
-# (targets/checks/contracts/), on the web: @mkp/runtime and @mkp/dom in a real Chromium.
+# targets/checks/targets/web/target.yaml: omnicui's target for Extended Mark's widget contracts
+# (targets/checks/contracts/), on the web: @extended-mark/runtime and @extended-mark/dom in a real Chromium.
 #
-# This is an omnicui target, not an MKP one: it has no `check_adapter:`, so `mkp target check`
-# skips it (MKP's own web target is targets/ts/web/target.yaml).
+# This is an omnicui target, not an Extended Mark one: it has no `check_adapter:`, so `xtmd target check`
+# skips it (Extended Mark's own web target is targets/ts/web/target.yaml).
 #
 # omnicui runs both commands with /bin/sh -c in this folder. `stubs:` writes every contract (JSON,
 # from standard input) where the adapter reads each one's prop defaults; `adapter:` is the

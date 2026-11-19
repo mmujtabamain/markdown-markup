@@ -22,7 +22,7 @@ comment   = "//" to the end of the line
 doc       = "//@about" words | "//@param" name words | "//@deprecated" words   above a declaration
 ```
 
-A keyword is never a `name`. `$state` is a keyword, written as one word, and the only token that starts with `$`: `$` on its own, or in front of any other name (`$abc`), is a compile error, so no name can collide with `$state`. Maths in code is a `latex` value, written as a text literal where one is expected. MKP has no attributes: `#` is not a token in code, and in prose a `#` at the start of a line is always a Markdown heading. `1...` is the tokens `1` and `...`, and `0..10` is `0`, `..` and `10`, because a number needs a digit on both sides of its dot.
+A keyword is never a `name`. `$state` is a keyword, written as one word, and the only token that starts with `$`: `$` on its own, or in front of any other name (`$abc`), is a compile error, so no name can collide with `$state`. Maths in code is a `latex` value, written as a text literal where one is expected. Extended Mark has no attributes: `#` is not a token in code, and in prose a `#` at the start of a line is always a Markdown heading. `1...` is the tokens `1` and `...`, and `0..10` is `0`, `..` and `10`, because a number needs a digit on both sides of its dot.
 
 A text with holes is a template literal: its pieces, the text between the holes, and its holes are kept apart, so a hole is always a value and never text that is read again. Where a type that fits `literal<template>` is wanted, the literal reaches that type's `from` as a `template` (page 4). A hole that holds an `opt` makes the literal an `opt`.
 
@@ -59,7 +59,7 @@ rtype     = type | "void"                                 no return type means v
 widget    = "widget" name [ generics ] "(" [ inputs ] ")" [ implements ] "{" wbody "}"
 inputs    = field { "," field } [ "," ]
 wbody     = { "param" field ";" } { slot } { event } { require } { own | let }
-            { fn } "view" vblock [ "markdown" prose-block ]      markdown required in a .mkp file
+            { fn } "view" vblock [ "markdown" prose-block ]      markdown required in a .xtpack file
 slot      = "slot" name ":" type ";"
 event     = "event" name "(" [ params ] ")" ";"
 require   = "require" text block
@@ -215,7 +215,7 @@ in code     code spans, fenced code and indented code have no escapes and no hol
 
 ### The reference parser
 
-`mkpcheck.py` is a parser for this grammar, written for this doc. It reads every MKP code block in the nine pages, and on top of the grammar it checks what can be checked without types.
+`xtmdcheck.py` is a parser for this grammar, written for this doc. It reads every Extended Mark code block in the nine pages, and on top of the grammar it checks what can be checked without types.
 
 - **Keywords and names** (pass): A keyword is never a name, after a dot included. A name is all small letters, or all capitals for a case. `$state` is a keyword, and `$` starts no other name.
 - **Declared types** (pass): Every `let` and `mut` writes its type. Definitions write their parameter types; a lambda may leave them out.
@@ -224,7 +224,7 @@ in code     code spans, fenced code and indented code have no escapes and no hol
 - **Widget calls** (pass): Every argument is named, is a declared input or event, and is set once. Every input without a default is given.
 - **Blocks and slots** (pass): A block of children goes to a widget with exactly one slot. A named block, or a `@slot` line in prose, names a real slot. No slot has a widget's name.
 - **Cases and tokens** (pass): Every `type.CAPITALS` is a declared enum case or token case, counting the cases that `tokens` blocks add. Every `tokens` line names a declared token type, and a `match` on a token has a `case else`.
-- **Widget bodies** (pass): The body order, a `markdown` block on every widget in a .mkp file, no `expose` in a widget, and `//@param` lines that name real inputs.
+- **Widget bodies** (pass): The body order, a `markdown` block on every widget in a .xtpack file, no `expose` in a widget, and `//@param` lines that name real inputs.
 - **State** (pass): No `mut` at the top of a document or a file. At most one `$state` block, above a document's `@@@` line, each field with a starting value. No `$state` and no `expose` in a pack's files.
 - **Documents and prose** (pass): Front matter, the `@@@` divider, no drawing above it, calls, control lines, slot lines, block ends, `$$` maths blocks, holes and `\@`, and no call inside a quote or a list item.
 - **Types, proofs, effects** (skipped): Not checked by a program. A type checker is the next step, and these rules were checked by hand.

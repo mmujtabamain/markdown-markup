@@ -1,15 +1,15 @@
-// The MKP playground: edit a page on the left, see it drawn on the right, and under it its
+// The Extended Mark playground: edit a page on the left, see it drawn on the right, and under it its
 // Markdown, its diagnostics and its `$state`, all live. The page compiles here, in the browser:
-// mkp.wasm in a worker (compiler.worker.ts).
+// xtmd.wasm in a worker (compiler.worker.ts).
 
 import "./style.css";
-import { Num, Page, type Broken, type Outcome, type ir } from "@mkp/runtime";
-import { mount } from "@mkp/dom";
+import { Num, Page, type Broken, type Outcome, type ir } from "@extended-mark/runtime";
+import { mount } from "@extended-mark/dom";
 import { Editor, type Diagnostic } from "./editor.js";
 import { escapeHtml, proseLines } from "./highlight.js";
 import { clockExterns, targetFns, themeNow, widthOf } from "./host.js";
 import { plainCases, shapeError, stateDecl, typeSignature, typeText, valueHtml, valueText } from "./values.js";
-import type { Built, PackFile } from "@mkp/wasm";
+import type { Built, PackFile } from "@extended-mark/wasm";
 import type { Answer, Request } from "./compiler.worker.js";
 import { failedCalls } from "./failures.js";
 
@@ -33,7 +33,7 @@ interface CompileResult {
 
 const DEBOUNCE_MS = 300;
 /** The page's own path, as the compiler names it in diagnostics. */
-const SOURCE_NAME = "page.mkp.md";
+const SOURCE_NAME = "page.xt.md";
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -190,10 +190,10 @@ function drainOutcome(o: Outcome = mounted ? mounted.page.takeOutcome() : { refu
   return o;
 }
 
-// ---- compiling: mkp.wasm, in a worker (src/compiler.worker.ts)
+// ---- compiling: xtmd.wasm, in a worker (src/compiler.worker.ts)
 
 const compiler = new Worker(new URL("/compiler.worker.js", location.href), { type: "module" });
-const WASM = new URL("/mkp.wasm", location.href).href;
+const WASM = new URL("/xtmd.wasm", location.href).href;
 const waiting = new Map<number, (a: Answer) => void>();
 compiler.onmessage = (e: MessageEvent<Answer>) => {
   waiting.get(e.data.id)?.(e.data);
@@ -281,7 +281,7 @@ function applyResult(result: CompileResult, source: string, fresh: boolean): voi
     else showEmpty("This page has errors", "Fix them, and the page is drawn here.");
     return;
   }
-  // `mkp md`'s Markdown: the page as it starts, with its starting values
+  // `xtmd md`'s Markdown: the page as it starts, with its starting values
   try {
     compiledMarkdown = makePage(result.ir, {}).markdown();
   } catch {

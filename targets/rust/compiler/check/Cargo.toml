@@ -1,5 +1,5 @@
 [package]
-name = "mkp-check"
+name = "xtmd-check"
 description = "The checker: names and types, constants worked out at compile time, and the IR"
 version.workspace = true
 edition.workspace = true
@@ -7,13 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-mkp-syntax = { path = "../syntax", version = "0.3.0" }
-mkp-ir = { path = "../ir", version = "0.3.0" }
-mkp-eval = { path = "../../eval", version = "0.3.0" }
+xtmd-syntax = { path = "../syntax", version = "0.3.0" }
+xtmd-ir = { path = "../ir", version = "0.3.0" }
+xtmd-eval = { path = "../../eval", version = "0.3.0" }
 serde_json.workspace = true
 
 [dev-dependencies]
-mkp-lower = { path = "../lower" }
-mkp-eval = { path = "../../eval" }
+xtmd-lower = { path = "../lower" }
+xtmd-eval = { path = "../../eval" }
 serde_json.workspace = true
 jsonschema = { version = "0.61", default-features = false }

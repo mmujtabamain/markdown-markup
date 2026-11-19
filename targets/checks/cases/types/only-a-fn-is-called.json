@@ -1,7 +1,7 @@
 {
   "id": "types.only-a-fn-is-called",
   "about": "a value of a fn type is called with its arguments; nothing else can be called",
-  "source": "only-a-fn-is-called.mkp",
+  "source": "only-a-fn-is-called.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.not-callable", "line": 4, "column": 12}

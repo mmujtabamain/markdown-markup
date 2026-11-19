@@ -1,7 +1,7 @@
 {
   "id": "read.widget-body-out-of-order",
   "about": "widget body out of order",
-  "source": "widget-body-out-of-order.mkp",
+  "source": "widget-body-out-of-order.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "widget.body-order", "line": 5, "column": 5}

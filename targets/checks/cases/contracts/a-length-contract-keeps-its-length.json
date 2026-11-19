@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-length-contract-keeps-its-length",
   "about": "add, insert and the removes are for lists with no length contract",
-  "source": "a-length-contract-keeps-its-length.mkp",
+  "source": "a-length-contract-keeps-its-length.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.length-change", "line": 7, "column": 5}

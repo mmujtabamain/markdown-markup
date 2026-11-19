@@ -1,7 +1,7 @@
 {
   "id": "runtime.page-values-change",
   "about": "the page's values come from the app: a new width redraws what reads it",
-  "source": "page-values-change.mkp.md",
+  "source": "page-values-change.xt.md",
   "target": {
     "levels": [
       "core.draw"

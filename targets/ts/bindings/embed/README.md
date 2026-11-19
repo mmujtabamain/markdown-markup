@@ -1,20 +1,20 @@
-# @mkp/embed
+# @extended-mark/embed
 
-MKP documents on the plain web, the run-time target: `MkpDoc` draws a page from an IR built ahead,
-with @mkp/dom's widgets, into an element, and needs no framework, no compiler and no WebAssembly. It
-takes the same props as the frameworks' `<MkpDoc>`. The real-time target, which compiles a document's
-text in the browser, is [@mkp/embed-live](../embed-live). Under `MkpDoc` is `Embed`, a page in an
-element following the props it is given; and `@mkp/embed/html` writes a page's Markdown as HTML,
+Extended Mark documents on the plain web, the run-time target: `XtmdDoc` draws a page from an IR built ahead,
+with @extended-mark/dom's widgets, into an element, and needs no framework, no compiler and no WebAssembly. It
+takes the same props as the frameworks' `<XtmdDoc>`. The real-time target, which compiles a document's
+text in the browser, is [@extended-mark/embed-live](../embed-live). Under `XtmdDoc` is `Embed`, a page in an
+element following the props it is given; and `@extended-mark/embed/html` writes a page's Markdown as HTML,
 with no DOM, for a server.
 
 ```sh
-npm install @mkp/embed
+npm install @extended-mark/embed
 ```
 
 ```ts
-import { MkpDoc } from "@mkp/embed";
+import { XtmdDoc } from "@extended-mark/embed";
 
-const doc = new MkpDoc(document.getElementById("shop")!, {
+const doc = new XtmdDoc(document.getElementById("shop")!, {
   src: "/pages/shop.ir.json",                   // or ir: the IR in hand
   defaultState: saved,                          // or state + onStateChange, controlled
   externs: { shop: { currency: { text: "EUR" } } },
@@ -27,14 +27,14 @@ doc.restore(snap);                                 // all of it with the same IR
 doc.destroy();
 ```
 
-**On a server**, with no DOM, @mkp/view writes the same page as HTML, its widgets drawn as `MkpDoc`
-draws them: `toHtml(new Doc({ ir }).render())`. Put it in the element, and `MkpDoc` takes the element
+**On a server**, with no DOM, @extended-mark/view writes the same page as HTML, its widgets drawn as `XtmdDoc`
+draws them: `toHtml(new Doc({ ir }).render())`. Put it in the element, and `XtmdDoc` takes the element
 over in the browser.
 
-`MkpDoc`'s props are the frameworks' (`src` or `ir`, `state` and `onStateChange` or `defaultState`,
+`XtmdDoc`'s props are the frameworks' (`src` or `ir`, `state` and `onStateChange` or `defaultState`,
 `defaultSnapshot`, `onError`, `onCalls`, `externs`, `fns`, `page`, `widgets`, `measure`, and
 `onMount`); its handle is `set`, `state`, `markdown`, `expose`, `extern`, `snapshot`, `restore`,
-`running` and `mounted`. `mkp target check embed` runs the conformance cases through it
+`running` and `mounted`. `xtmd target check embed` runs the conformance cases through it
 (`check/harness.mjs`), and `npm test` puts it through the frameworks' shared steps in Chromium.
 
 ## Embed's props
@@ -46,7 +46,7 @@ over in the browser.
 | `page` | `{ width, theme }`. A change calls `page.setPage`. |
 | `externs` | Each channel's values, in the IR's form. A changed channel calls `page.setExtern`. |
 | `fns` | Value fns the app supplies, by full name. |
-| `widgets` | The app's widgets by full name, in place of @mkp/dom's. A change remounts. |
+| `widgets` | The app's widgets by full name, in place of @extended-mark/dom's. A change remounts. |
 | `onCalls` | The app's extern fn calls, after each change that made any. |
 | `onState` | `$state`, after each change to it. |
 | `onOutcome` | Refused writes and failures, after each change that had any. |

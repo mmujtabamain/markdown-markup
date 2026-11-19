@@ -4,7 +4,7 @@
 //! A case whose diagnostics come from a pass the compiler doesn't have yet is counted as
 //! waiting, and listed, so the gap stays visible until that pass exists.
 
-use mkp_syntax::{entry_for, parse, Lines};
+use xtmd_syntax::{entry_for, parse, Lines};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -29,24 +29,24 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 
 type Found = (String, u32, u32);
 
-fn core() -> Vec<mkp_check::Source> {
+fn core() -> Vec<xtmd_check::Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
-    files.into_iter().map(|p| mkp_check::Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
+    files.into_iter().map(|p| xtmd_check::Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
 
-/// The `.mkp` files of a case's packs: files or folders beside it.
-fn packs(case_dir: &Path, case: &Value) -> Vec<mkp_check::Source> {
-    fn add(p: &Path, out: &mut Vec<mkp_check::Source>) {
+/// The `.xtpack` files of a case's packs: files or folders beside it.
+fn packs(case_dir: &Path, case: &Value) -> Vec<xtmd_check::Source> {
+    fn add(p: &Path, out: &mut Vec<xtmd_check::Source>) {
         if p.is_dir() {
             let mut files: Vec<PathBuf> = std::fs::read_dir(p).unwrap().map(|e| e.unwrap().path()).collect();
             files.sort();
             for f in files {
                 add(&f, out);
             }
-        } else if p.extension().map_or(false, |x| x == "mkp") {
-            out.push(mkp_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
+        } else if p.extension().map_or(false, |x| x == "xtpack") {
+            out.push(xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
         }
     }
     let mut out = Vec::new();
@@ -57,28 +57,28 @@ fn packs(case_dir: &Path, case: &Value) -> Vec<mkp_check::Source> {
 }
 
 /// The case's source, compiled with core and its packs; only the source's own diagnostics.
-fn compile(path: &Path, core: &[mkp_check::Source], packs: &[mkp_check::Source]) -> Vec<Found> {
+fn compile(path: &Path, core: &[xtmd_check::Source], packs: &[xtmd_check::Source]) -> Vec<Found> {
     let name = path.to_str().unwrap().to_string();
     let src = std::fs::read_to_string(path).unwrap();
-    entry_for(&name).unwrap_or_else(|| panic!("{}: not an MKP file", name));
+    entry_for(&name).unwrap_or_else(|| panic!("{}: not an Extended Mark file", name));
     let parsed = parse(&src, entry_for(&name).unwrap());
     let lines = Lines::new(&src);
-    let place = |d: &mkp_syntax::Diagnostic| {
+    let place = |d: &xtmd_syntax::Diagnostic| {
         let at = lines.place(d.span.start);
         (d.code.to_string(), at.line, at.column)
     };
     if parsed.has_errors() {
         return parsed.diagnostics.iter().map(place).collect();
     }
-    let main = mkp_check::Source { path: name.clone(), text: src.clone() };
-    let module = if name.ends_with(".mkp.md") { "doc" } else { "t" };
-    let c = mkp_check::compile(core, &[packs.to_vec()], &[main], module);
+    let main = xtmd_check::Source { path: name.clone(), text: src.clone() };
+    let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
+    let c = xtmd_check::compile(core, &[packs.to_vec()], &[main], module);
     c.diagnostics.iter().filter(|d| d.file == name).map(|d| place(&d.diagnostic)).collect()
 }
 
 #[test]
 fn every_case_reports_its_diagnostics() {
-    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    // a case runs Extended Mark to the depth limit at compile time, deeper than a test thread's stack
     std::thread::Builder::new().stack_size(64 << 20).spawn(run_cases).unwrap().join().unwrap();
 }
 

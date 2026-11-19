@@ -1,4 +1,4 @@
-// @mkp/dom: MKP's default web widgets in plain DOM. `mount` draws a @mkp/runtime page into an
+// @extended-mark/dom: Extended Mark's default web widgets in plain DOM. `mount` draws a @extended-mark/runtime page into an
 // element; `run` makes the page from its IR first; `widgets` are ours, by full name.
 
 export { mount, run } from "./mount.js";

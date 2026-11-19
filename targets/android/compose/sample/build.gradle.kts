@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// The sample app: MkpPage showing two pages built from MKP source when the app is built, with the
-// mkp binary (targets/rust/target/release/mkp): examples/pages/shop.mkp.md, and pages/tour.mkp.md,
+// The sample app: XtmdPage showing two pages built from Extended Mark source when the app is built, with the
+// xtmd binary (targets/rust/target/release/xtmd): examples/pages/shop.xt.md, and pages/tour.xt.md,
 // a tour of core's widgets. `./gradlew :sample:assembleDebug` writes the APK.
 plugins {
     alias(libs.plugins.android.application)
@@ -9,20 +9,20 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val pages = layout.buildDirectory.dir("generated/mkp/assets")
+val pages = layout.buildDirectory.dir("generated/xtmd/assets")
 
 android {
-    namespace = "mkp.sample"
+    namespace = "xtmd.sample"
     compileSdk = 36
     buildToolsVersion = "36.1.0"
     ndkVersion = "30.0.16248370"
     defaultConfig {
-        applicationId = "mkp.android.sample"
+        applicationId = "xtmd.android.sample"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "0.3.0"
-        // the processors mkp-android's native runtime is built for (../mkp/build.sh android)
+        // the processors xtmd-android's native runtime is built for (../xtmd/build.sh android)
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
     compileOptions {
@@ -38,7 +38,7 @@ android {
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
 
 dependencies {
-    implementation(project(":mkp-android"))
+    implementation(project(":xtmd-android"))
     implementation(libs.activity.compose)
 
     // the app itself under Robolectric, with the host's native runtime
@@ -50,26 +50,26 @@ dependencies {
 }
 
 tasks.withType<Test>().configureEach {
-    systemProperty("jna.library.path", rootProject.file("mkp-android/native/host/linux-x86-64").absolutePath)
+    systemProperty("jna.library.path", rootProject.file("xtmd-android/native/host/linux-x86-64").absolutePath)
     maxHeapSize = "2g"
-    // `-Pmkp.render=<folder>`: RenderTest draws both pages there, as PNGs (README: Looking at it)
-    (project.findProperty("mkp.render") as String?)?.let { systemProperty("mkp.render", file(it).absolutePath) }
+    // `-Pxtmd.render=<folder>`: RenderTest draws both pages there, as PNGs (README: Looking at it)
+    (project.findProperty("xtmd.render") as String?)?.let { systemProperty("xtmd.render", file(it).absolutePath) }
 }
 
-// The pages' IR, from their MKP source, by the compiler: `mkp build <page> --out <name>.ir.json`.
-val mkp = rootProject.file("../../rust/target/release/mkp")
+// The pages' IR, from their Extended Mark source, by the compiler: `xtmd build <page> --out <name>.ir.json`.
+val xtmd = rootProject.file("../../rust/target/release/xtmd")
 val sources = mapOf(
-    "shop" to rootProject.file("../../../examples/pages/shop.mkp.md"),
-    "tour" to file("pages/tour.mkp.md"),
+    "shop" to rootProject.file("../../../examples/pages/shop.xt.md"),
+    "tour" to file("pages/tour.xt.md"),
 )
 val buildPages = sources.map { (name, src) ->
-    tasks.register<Exec>("mkpPage${name.replaceFirstChar { it.uppercase() }}") {
+    tasks.register<Exec>("xtmdPage${name.replaceFirstChar { it.uppercase() }}") {
         inputs.file(src)
-        inputs.file(mkp)
+        inputs.file(xtmd)
         val out = pages.map { it.file("$name.ir.json") }
         outputs.file(out)
         doFirst { out.get().asFile.parentFile.mkdirs() }
-        commandLine(mkp.absolutePath, "build", src.absolutePath, "--out", out.get().asFile.absolutePath)
+        commandLine(xtmd.absolutePath, "build", src.absolutePath, "--out", out.get().asFile.absolutePath)
     }
 }
 tasks.named("preBuild") { dependsOn(buildPages) }

@@ -1,5 +1,5 @@
 {
- "spec": "GitHub Flavored Markdown 0.29-gfm, all examples, https://github.github.com/gfm/ (CC BY-SA 4.0). Where an example's Markdown is also a CommonMark example, GitHub's output is the one MKP is held to, since MKP is CommonMark with GitHub's extensions.",
+ "spec": "GitHub Flavored Markdown 0.29-gfm, all examples, https://github.github.com/gfm/ (CC BY-SA 4.0). Where an example's Markdown is also a CommonMark example, GitHub's output is the one Extended Mark is held to, since Extended Mark is CommonMark with GitHub's extensions.",
  "examples": [
   {
    "example": 1,

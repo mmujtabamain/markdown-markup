@@ -1,16 +1,16 @@
 // A page's tree as elements: each drawn extern widget by its widget, keyed by who it is across
 // redraws (a loop row's widgets follow its item) and marked with the place it is drawn at, as
-// @mkp/dom marks its own, so focus and what is being typed survive a redraw in every framework.
+// @extended-mark/dom marks its own, so focus and what is being typed survive a redraw in every framework.
 
-import type { Drawn, Page, Value } from "@mkp/runtime";
-import { styleText, Tokens, str } from "@mkp/dom/shared";
+import type { Drawn, Page, Value } from "@extended-mark/runtime";
+import { styleText, Tokens, str } from "@extended-mark/dom/shared";
 import { h, type VNode } from "./vnode.js";
 
 /** What a widget can do on the page it is drawn on. */
 export interface ViewContext {
   readonly page: Page;
   readonly tokens: Tokens;
-  /** A prefix unique to this document, for element ids (`mkpv3-`). */
+  /** A prefix unique to this document, for element ids (`xtmdv3-`). */
   readonly uid: string;
   /** The reader's event on this widget: runs the caller's handler, as one change. */
   event(name: string, args?: Value[]): void;
@@ -45,8 +45,8 @@ export interface Drawing {
  * drawn widget. */
 export function renderPage(dr: Drawing): VNode {
   const theme = dr.tokens.theme();
-  const root = h("div", undefined, { class: "mkp-root", "data-mkp-root": "", "data-mkp-theme": theme.toLowerCase() }, [
-    { tag: "style", attrs: { "data-mkp-dom": "" }, children: [styleText] },
+  const root = h("div", undefined, { class: "xtmd-root", "data-xtmd-root": "", "data-xtmd-theme": theme.toLowerCase() }, [
+    { tag: "style", attrs: { "data-xtmd-dom": "" }, children: [styleText] },
     ...children(dr, dr.page.tree()),
   ]);
   root.style = { ...dr.tokens.properties(), "color-scheme": theme === "DARK" ? "dark" : "light" };
@@ -62,8 +62,8 @@ export function children(dr: Drawing, nodes: Drawn[]): VNode[] {
     seen.add(key);
     const v = draw(dr, d);
     v.key = key;
-    v.attrs["data-mkp-site"] = d.path;
-    v.attrs["data-mkp-widget"] = d.widget;
+    v.attrs["data-xtmd-site"] = d.path;
+    v.attrs["data-xtmd-widget"] = d.widget;
     return v;
   });
 }

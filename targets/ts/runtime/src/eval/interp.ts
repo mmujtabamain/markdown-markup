@@ -1138,7 +1138,7 @@ export class Machine {
     return this.call(c.name, args);
   }
 
-  /** Calls a fn by its full name: a native, an extern, one written in MKP, or an interface's.
+  /** Calls a fn by its full name: a native, an extern, one written in Extended Mark, or an interface's.
    * `undefined` when it returns nothing. */
   call(name: string, args: readonly Binding[]): Value | undefined {
     this.step();

@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/svelte-live",
+  "name": "@extended-mark/svelte-live",
   "version": "0.3.0",
-  "description": "MKP documents in Svelte 5, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/svelte's <MkpDoc>",
+  "description": "Extended Mark documents in Svelte 5, compiled in the browser as they are edited: <XtmdLiveDoc source={…} />, @extended-mark/wasm's compiler and @extended-mark/svelte's <XtmdDoc>",
   "license": "MIT",
   "type": "module",
   "svelte": "./dist/index.js",
@@ -23,15 +23,15 @@
     "test": "npm run build && npm run check && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/svelte": "file:../svelte",
-    "@mkp/live": "file:../live",
-    "@mkp/view": "file:../view"
+    "@extended-mark/svelte": "file:../svelte",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "svelte": "5.57.3",

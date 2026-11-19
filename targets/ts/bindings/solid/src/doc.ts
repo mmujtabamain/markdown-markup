@@ -1,4 +1,4 @@
-// <MkpDoc>: an MKP page drawn by Solid itself. @mkp/view runs the document and gives the page as
+// <XtmdDoc>: an Extended Mark page drawn by Solid itself. @extended-mark/view runs the document and gives the page as
 // plain elements after every change; this follows them with Solid's own fine-grained rendering:
 // each element is made once, kept by key among its siblings while its tag stays, and only what
 // changed is set on it, so focus and what is being typed survive a change. On a server the same
@@ -6,7 +6,7 @@
 
 import { createComponent, createEffect, createMemo, createSignal, mapArray, mergeProps, onCleanup, onMount, untrack, type Accessor, type JSX } from "solid-js";
 import { Dynamic, isServer } from "solid-js/web";
-import { Doc, type Child, type DocProps, type Restored, type Snapshot, type VNode, type Value, type ir } from "@mkp/view";
+import { Doc, type Child, type DocProps, type Restored, type Snapshot, type VNode, type Value, type ir } from "@extended-mark/view";
 
 /** A child's key among its siblings: its own, or its place, with its tag (a new tag is a new element). */
 function keyOf(c: Child, i: number): string {
@@ -85,13 +85,13 @@ function Node(props: { v: Accessor<VNode> }): JSX.Element {
   );
 }
 
-/** One of @mkp/view's elements, followed by Solid: give it an accessor to the latest render. */
-export function MkpNode(props: { v: Accessor<VNode> }): JSX.Element {
+/** One of @extended-mark/view's elements, followed by Solid: give it an accessor to the latest render. */
+export function XtmdNode(props: { v: Accessor<VNode> }): JSX.Element {
   return createComponent(Node, props);
 }
 
-/** What `ref` on <MkpDoc> is given. */
-export interface MkpDocHandle {
+/** What `ref` on <XtmdDoc> is given. */
+export interface XtmdDocHandle {
   readonly doc: Doc;
   set(changes: Record<string, ir.Expr | Value>): void;
   state(): Record<string, ir.Expr>;
@@ -101,13 +101,13 @@ export interface MkpDocHandle {
   restore(snap: Snapshot): Restored;
 }
 
-export interface MkpDocProps extends DocProps {
-  ref?: (handle: MkpDocHandle) => void;
+export interface XtmdDocProps extends DocProps {
+  ref?: (handle: XtmdDocHandle) => void;
   id?: string;
   class?: string;
 }
 
-function current(p: MkpDocProps): DocProps {
+function current(p: XtmdDocProps): DocProps {
   return {
     ir: p.ir,
     src: p.src,
@@ -126,12 +126,12 @@ function current(p: MkpDocProps): DocProps {
 }
 
 /**
- * An MKP page. `src` is where its IR is fetched from, or `ir` the IR in hand. `state` with
- * `onStateChange` controls `$state`, or `defaultState` starts it; every write is checked by mkp,
+ * An Extended Mark page. `src` is where its IR is fetched from, or `ir` the IR in hand. `state` with
+ * `onStateChange` controls `$state`, or `defaultState` starts it; every write is checked by xtmd,
  * and what it refuses reaches `onError`. `ref` is given the handle: `snapshot`, `restore`, `set`,
  * `state`, `markdown` and `expose`.
  */
-export function MkpDoc(props: MkpDocProps): JSX.Element {
+export function XtmdDoc(props: XtmdDocProps): JSX.Element {
   const doc = untrack(() => new Doc(current(props)));
   const [version, setVersion] = createSignal(0);
   onCleanup(doc.subscribe(() => setVersion((v) => v + 1)));

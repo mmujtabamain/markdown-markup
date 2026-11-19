@@ -1,10 +1,10 @@
 # Apps, packs and implementers
 
-Page 6 of 9. Packs and imports, versions and migrations, tokens, talking to the app, what implementing MKP means, failures, warnings and limits.
+Page 6 of 9. Packs and imports, versions and migrations, tokens, talking to the app, what implementing Extended Mark means, failures, warnings and limits.
 
 ### Packs and imports
 
-A pack is a folder of `.mkp` files that all start with the same `package` line. They share one scope, so they use each other's declarations without importing. One of the files holds the `pack` block.
+A pack is a folder of `.xtpack` files that all start with the same `package` line. They share one scope, so they use each other's declarations without importing. One of the files holds the `pack` block.
 
 ```java
 package kit;
@@ -37,7 +37,7 @@ tokens brand {
 
 ### Versions and migrations
 
-A pack's version is a promise: a use that compiles against a release of `kit@1` compiles against every later release of `kit@1`. A change that could break a use makes a new version, `kit@2`, and the new version ships a **migration**: statements that say how each use of `kit@1` becomes a use of `kit@2`. The tools apply it to the documents and packs that use `kit`. A migration is MKP that runs when migrating, never on a page, and the compiler checks it like any other code.
+A pack's version is a promise: a use that compiles against a release of `kit@1` compiles against every later release of `kit@1`. A change that could break a use makes a new version, `kit@2`, and the new version ships a **migration**: statements that say how each use of `kit@1` becomes a use of `kit@2`. The tools apply it to the documents and packs that use `kit`. A migration is Extended Mark that runs when migrating, never on a page, and the compiler checks it like any other code.
 
 ```java
 package kit;
@@ -68,7 +68,7 @@ migration kit@1 to kit@2 {
 }
 ```
 
-- **A migration** belongs to the pack of the version it moves to, as one of its files, by convention `migrations/kit@2.mkp`. `kit@3` holds `migration kit@1 to kit@2` and `migration kit@2 to kit@3`, so a use written for `kit@1` moves through each in turn. A pack may drop its oldest migrations, and a use older than them is then left for a person.
+- **A migration** belongs to the pack of the version it moves to, as one of its files, by convention `migrations/kit@2.xtpack`. `kit@3` holds `migration kit@1 to kit@2` and `migration kit@2 to kit@3`, so a use written for `kit@1` moves through each in turn. A pack may drop its oldest migrations, and a use older than them is then left for a person.
 - **A block** says what happens to the uses of one declaration. It is headed by the declaration's kind and its `kit@1` name: `widget chart`, `record stat`, `enum state`, `token color`, `fn text.slug`. A widget's event has a block of its own inside the widget's, `event click { … }`.
 - **Statements apply in order**, each to what the one before it left: after `rename(to = plot)`, the block is working on `plot`.
 - **A statement is a call with named arguments.** Where a parameter takes a name, the argument is written bare and checked: `input = color` is an input `chart` had in `kit@1`, and `to = tone` one `plot` has in `kit@2`. Anywhere else a name is the value the use gave, so in `set(input = values, value = values.map(…))` the first `values` is the input and the second its value. A case is written in full, `state.LATE`.
@@ -120,7 +120,7 @@ A use moves exactly, never by searching the text. Each file is compiled against 
 
 Migrations and surfaces never reach a page: the IR has neither, and building a document never reads them.
 
-The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. A page's IR is whole, and holds only what the page uses: its own declarations, and the ones from core and its packs that its calls, types and fns reach, with what an extern fn of core is said to build on (page 5). The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `mkp migrate` works from it, and so can an editor, a linter or a program that writes MKP. Both are JSON with a versioned schema (`schemas/`): `mkp build` writes the IR and `mkp build --rir` the resolved IR, and no target reads the resolved IR.
+The compiler writes a build in two forms. The **IR** is what a target runs: checked and lowered, with no Markdown left in it. A page's IR is whole, and holds only what the page uses: its own declarations, and the ones from core and its packs that its calls, types and fns reach, with what an extern fn of core is said to build on (page 5). The **resolved IR** is for tools: what the checker understood, with every name resolved to what it names and every value typed, nothing lowered, and each part's place in its source and its comments kept. `xtmd migrate` works from it, and so can an editor, a linter or a program that writes Extended Mark. Both are JSON with a versioned schema (`schemas/`): `xtmd build` writes the IR and `xtmd build --rir` the resolved IR, and no target reads the resolved IR.
 
 ### Tokens
 
@@ -135,14 +135,14 @@ A token type is an enum whose cases each stand for a value of one type: `token s
 
 ### Talking to the app
 
-A document and its app talk through channels. An `extern` block declares what the app supplies, and its fns are how MKP tells the app what happened. An `expose` block declares fns the app may call into MKP. One name, here `scores`, ties the two halves of one channel together. The document's `$state` block holds what its widgets share, and the app can read and write it.
+A document and its app talk through channels. An `extern` block declares what the app supplies, and its fns are how Extended Mark tells the app what happened. An `expose` block declares fns the app may call into Extended Mark. One name, here `scores`, ties the two halves of one channel together. The document's `$state` block holds what its widgets share, and the app can read and write it.
 
 ```markdown
 //@about What the app and the quiz tell each other.
 extern scores {
     unit: text = "K";                             // used if the app gives none
     best: opt<list<number>> = opt.NONE;           // not loaded yet
-    fn saved(total: int);                         // MKP calls it, the app receives it
+    fn saved(total: int);                         // Extended Mark calls it, the app receives it
 }
 
 //@about What this document's widgets share, and what the app can read and write.
@@ -150,7 +150,7 @@ $state {
     points: int 0... = 0;
 }
 
-// MKP supplies these, and the app calls them
+// Extended Mark supplies these, and the app calls them
 expose scores {
     fn clear() {
         $state.points = 0;
@@ -188,14 +188,14 @@ widget tally(mut points: int) {
 
 - **`$state`** holds the only variables outside widgets: one block per document, above its `@@@` line. Every widget and fn in the document reads a field as `$state.name`, and only actions assign one. Contracts and `require` blocks link the fields, and every change checks the rules that read it (page 2).
 - **A pack's widget** can't see `$state`. It takes what it shares as a `mut` input, as `tally` takes `points`, and the document passes it a field. So everything shared is in one place, where the document's own rules can link it. `tally`'s input is an `int` with no range, so whole-number arithmetic proves `points + 1`; each write back is checked against the field's own `int 0...` (page 2, sharing).
-- **The app reads and writes `$state`.** It can get the whole of it and set any field. A write from the app is checked like any change: one that breaks a contract or a `require` is refused, and the app is told; one that fits redraws the page once. The app never watches `$state`. It hears what happened only when MKP calls one of a channel's fns, as an event.
-- **extern values** flow from the app to MKP. Each has a type and a default, and is constant to MKP code. When the app changes one, everything that reads it is worked out again. The runtime checks each value against its type as it arrives. One that doesn't fit is dropped, the default is used, and the app is told.
+- **The app reads and writes `$state`.** It can get the whole of it and set any field. A write from the app is checked like any change: one that breaks a contract or a `require` is refused, and the app is told; one that fits redraws the page once. The app never watches `$state`. It hears what happened only when Extended Mark calls one of a channel's fns, as an event.
+- **extern values** flow from the app to Extended Mark. Each has a type and a default, and is constant to Extended Mark code. When the app changes one, everything that reads it is worked out again. The runtime checks each value against its type as it arrives. One that doesn't fit is dropped, the default is used, and the app is told.
 - **extern fns** are the same two kinds as every fn. Without a return type, one is an action sent to the app, and can only be called from event handlers, never while drawing: that is how the page tells the app what happened, as `saved` does. With a return type, it changes nothing: it is a value only its supplier can work out, such as `moment.local`, and may be called while drawing. The supplier has to give the same answer for the same arguments. A shader for `shade` (page 5) is one of these, and the target runs it for every pixel.
-- **Waiting.** MKP has no waiting and no callbacks. Something that isn't there yet is an `opt` extern value, and the view says what to show for both cases, as `best` does above.
-- **expose** is written only at the top of a document, never in a pack or a widget: a pack has no `$state` for it to change, and the app has no way to say which widget on the page it means. `expose scores` declares no name of its own. It answers the `extern` channel of that name, or starts one if the document has none. Its fns are called only by the app, never by MKP code. They return nothing, take constant parameters, and may assign `$state`.
-- **Keeping things.** Variables last while the page is open. To keep `$state` between visits, the app saves it and hands it back when it next mounts the page. What it hands back goes through the same checks as a write from the app: a field that doesn't fit keeps its starting value, and the app is told. Anything else is kept through a channel: MKP calls an `extern` fn, and the app hands the value back as an `extern` value next time.
+- **Waiting.** Extended Mark has no waiting and no callbacks. Something that isn't there yet is an `opt` extern value, and the view says what to show for both cases, as `best` does above.
+- **expose** is written only at the top of a document, never in a pack or a widget: a pack has no `$state` for it to change, and the app has no way to say which widget on the page it means. `expose scores` declares no name of its own. It answers the `extern` channel of that name, or starts one if the document has none. Its fns are called only by the app, never by Extended Mark code. They return nothing, take constant parameters, and may assign `$state`.
+- **Keeping things.** Variables last while the page is open. To keep `$state` between visits, the app saves it and hands it back when it next mounts the page. What it hands back goes through the same checks as a write from the app: a field that doesn't fit keeps its starting value, and the app is told. Anything else is kept through a channel: Extended Mark calls an `extern` fn, and the app hands the value back as an `extern` value next time.
 
-**extern in front of a declaration** means it is supplied from outside MKP: `extern type`, `extern fn` and `extern widget`. Who supplies it depends on where it is declared.
+**extern in front of a declaration** means it is supplied from outside Extended Mark: `extern type`, `extern fn` and `extern widget`. Who supplies it depends on where it is declared.
 
 | Declared in | Supplied by |
 |---|---|
@@ -206,13 +206,13 @@ widget tally(mut points: int) {
 - **Nobody supplies it.** An extern widget nobody supplies shows its Markdown instead, whether it is core's or a pack's. A shader nobody supplies draws nothing, and is reported when the page is mounted.
 - **A default.** Only an `extern fn` may have a body, which is its default: it runs when its supplier gives none, and a supplier may replace it.
 
-### Implementing MKP
+### Implementing Extended Mark
 
-This spec doesn't depend on how MKP is built, or in what language. MKP is the spec, the `core` pack written in MKP itself, and the target checks. An implementer makes a target, MKP on one platform such as the web or Android, and the target supplies every `extern` in `core`: the extern widgets, `page`, `moment.local`, and the native fns on numbers, text and lists. Passing the target checks is what implementing MKP means.
+This spec doesn't depend on how Extended Mark is built, or in what language. Extended Mark is the spec, the `core` pack written in Extended Mark itself, and the target checks. An implementer makes a target, Extended Mark on one platform such as the web or Android, and the target supplies every `extern` in `core`: the extern widgets, `page`, `moment.local`, and the native fns on numbers, text and lists. Passing the target checks is what implementing Extended Mark means.
 
-MKP ends at the IR. How a target comes by a page's IR, and how it draws it, are the target's: built ahead and fetched or bundled with an app, or compiled where the page is read, as an editor does with every change. The targets that come with MKP are templates: an implementer takes one as it is, changes it, or writes their own.
+Extended Mark ends at the IR. How a target comes by a page's IR, and how it draws it, are the target's: built ahead and fetched or bundled with an app, or compiled where the page is read, as an editor does with every change. The targets that come with Extended Mark are templates: an implementer takes one as it is, changes it, or writes their own.
 
-The targets that come with MKP each come in two kinds, and an app picks one. A **run-time** target draws an IR built ahead, and carries no compiler. A **real-time** target is given the document's text and compiles it where it runs, with the compiler built into the target (WebAssembly in a browser, a native library in an app), for an editor or a live preview. It draws the IR `mkp build` would write, the way its run-time twin draws it. While a draft has errors, it keeps the last page that compiled and says why. Either kind can take what a page holds, its `$state` and every widget's own variables, and put it back. The shape of that snapshot is the target's, and all of it goes back only into the IR it was taken from: into another, only `$state` goes back, checked as the app's write. The target checks give a target each case's IR, and also its text and its packs, so a real-time target is checked on what it compiled itself.
+The targets that come with Extended Mark each come in two kinds, and an app picks one. A **run-time** target draws an IR built ahead, and carries no compiler. A **real-time** target is given the document's text and compiles it where it runs, with the compiler built into the target (WebAssembly in a browser, a native library in an app), for an editor or a live preview. It draws the IR `xtmd build` would write, the way its run-time twin draws it. While a draft has errors, it keeps the last page that compiled and says why. Either kind can take what a page holds, its `$state` and every widget's own variables, and put it back. The shape of that snapshot is the target's, and all of it goes back only into the IR it was taken from: into another, only `$state` goes back, checked as the app's write. The target checks give a target each case's IR, and also its text and its packs, so a real-time target is checked on what it compiled itself.
 
 ```java
 package acme;
@@ -242,7 +242,7 @@ extern widget jump(to: opt<view>, label: text) {
 | Level | What the target can do | What needs it |
 |---|---|---|
 | Markdown only | Compile, and write every widget's Markdown | Nothing more. Every widget has a markdown block, perhaps an empty one, or is a Markdown block, so this always works |
-| `core.draw` | Draw the 23 extern widgets of `core.draw`, Markdown's own blocks, `plane` and `spot` among them, glyphs, tokens and page values. The other base widgets are written in MKP on top of them | Every widget |
+| `core.draw` | Draw the 23 extern widgets of `core.draw`, Markdown's own blocks, `plane` and `spot` among them, glyphs, tokens and page values. The other base widgets are written in Extended Mark on top of them | Every widget |
 | `core.live` | Hold variables and change `$state`, run events and redraw, and move a plane as the reader drags, pinches or scrolls | A call that has variables of its own, gives a variable to a `mut` input, or sets an event to a handler that can change something (one that assigns a variable, calls an extern action, or invokes an event its own caller set), or that places one that does. An event that is declared but never set needs nothing. Without `core.live`, `$state` keeps its starting values and never changes, and a plane is drawn where its centre puts it and doesn't move |
 | `core.gfx` | Draw its 7 widgets: a `canvas`, and the `layer`s of `circle`s, `path`s, `place`d widgets, `handle`s and `shade`s that go on a canvas or on a plane's background | Those widgets, and a plane with a background |
 | `core.motion` | A reserved name for timed controls | Nothing in this spec. See page 8 |
@@ -251,7 +251,7 @@ The compiler works out the level each call needs from the table. A call in a doc
 
 A target has written obligations, each proved by the target checks: evaluation exactly as page 2 defines it, exact base-10 numbers, events run in order with one redraw, the limits below, failures contained as below, untrusted content kept sandboxed, extern values and the app's writes to `$state` checked, a widget in a sentence (`Press \{@press(…)} to start`) drawn among its words and taking its events like any other, and accessible controls.
 
-A write to `$state`, a reader's through a widget or the app's, is checked against every contract and `require` block it touches (page 2), and is done whole or refused with the rule's message. A `$state` the app gives a page as it starts is checked the same way: a field that doesn't fit is refused and reported, never set unchecked. The rest of input is the target's: whether a widget writes on every keystroke or only when the reader submits, how a refusal is shown, and what to do with state an app saved from an earlier version of the document. How it manages memory is its own choice: MKP code can't make a reference cycle, so freeing a widget's values when it leaves the page, or plain reference counting, is enough.
+A write to `$state`, a reader's through a widget or the app's, is checked against every contract and `require` block it touches (page 2), and is done whole or refused with the rule's message. A `$state` the app gives a page as it starts is checked the same way: a field that doesn't fit is refused and reported, never set unchecked. The rest of input is the target's: whether a widget writes on every keystroke or only when the reader submits, how a refusal is shown, and what to do with state an app saved from an earlier version of the document. How it manages memory is its own choice: Extended Mark code can't make a reference cycle, so freeing a widget's values when it leaves the page, or plain reference counting, is enough.
 
 ### Failures
 
@@ -286,7 +286,7 @@ A warning never stops a page from compiling.
 |---|---|
 | An empty `markdown { }` | Where the widget is declared, so it shows whenever that file is compiled, a pack's included |
 | A spot outside its plane's bounds | At compile time when both are constants. When the page runs, it is reported to the app, not as a failure, and the spot is clipped |
-| An MKP fn given to `shade` | At compile time: the runtime calls it for every pixel within the step limit, so only small areas fit |
+| An Extended Mark fn given to `shade` | At compile time: the runtime calls it for every pixel within the step limit, so only small areas fit |
 | A bare `$state.name` in a sentence of prose | At compile time: it is shown as text; put it in a hole (page 1) |
 | A document widget whose built Markdown depends on a variable | At compile time, on the branch that depends on it (page 1) |
 | A use of a `//@deprecated` declaration | At compile time, on every use (page 3) |

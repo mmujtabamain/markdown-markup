@@ -1,8 +1,8 @@
 // A page's Markdown as HTML, for a server to put in the element a binding mounts the page into:
 // search engines and readers without JavaScript get the page's content, with the values it starts
-// with, and @mkp/dom replaces it when the page mounts. No DOM: it runs in Node, on a server.
+// with, and @extended-mark/dom replaces it when the page mounts. No DOM: it runs in Node, on a server.
 
-import { pageBlocks, type Block, type Inline, type PageOptions } from "@mkp/runtime";
+import { pageBlocks, type Block, type Inline, type PageOptions } from "@extended-mark/runtime";
 import { makePage, type Ir } from "./page.js";
 
 /** The page's blocks as HTML: everything escaped, links and images only to safe addresses. */
@@ -46,12 +46,12 @@ function run(r: Inline): string {
     return h;
   }
   if ("code" in r) return `<code>${escapeHtml(r.code)}</code>`;
-  if ("math" in r) return `<span class="mkp-math">${escapeHtml(r.math)}</span>`;
+  if ("math" in r) return `<span class="xtmd-math">${escapeHtml(r.math)}</span>`;
   if ("image" in r) {
     const src = safeUrl(r.image.src);
     return src === undefined ? escapeHtml(r.image.alt) : `<img src="${escapeHtml(src)}" alt="${escapeHtml(r.image.alt)}">`;
   }
-  if ("note" in r) return `<sup><a href="#mkp-fn-${escapeHtml(r.note)}">${escapeHtml(r.note)}</a></sup>`;
+  if ("note" in r) return `<sup><a href="#xtmd-fn-${escapeHtml(r.note)}">${escapeHtml(r.note)}</a></sup>`;
   return "<br>";
 }
 
@@ -79,15 +79,15 @@ function block(b: Block): string {
   }
   if ("quote" in b) return `<blockquote>${blocksHtml(b.quote)}</blockquote>`;
   if ("code" in b) return `<pre><code${b.code.lang ? ` class="language-${escapeHtml(b.code.lang)}"` : ""}>${escapeHtml(b.code.src)}</code></pre>`;
-  if ("math" in b) return `<div class="mkp-math">${escapeHtml(b.math)}</div>`;
+  if ("math" in b) return `<div class="xtmd-math">${escapeHtml(b.math)}</div>`;
   if ("table" in b) {
     const { head, rows, align } = b.table;
     const th = head.map((c, k) => `<th${cellAlign(align[k])}>${inline(c)}</th>`).join("");
     const trs = rows.map((r) => `<tr>${r.map((c, k) => `<td${cellAlign(align[k])}>${inline(c)}</td>`).join("")}</tr>`).join("");
     return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
   }
-  if ("footnote" in b) return `<div class="mkp-footnote" id="mkp-fn-${escapeHtml(b.footnote.mark)}"><sup>${escapeHtml(b.footnote.mark)}</sup> ${blocksHtml(b.footnote.blocks)}</div>`;
+  if ("footnote" in b) return `<div class="xtmd-footnote" id="xtmd-fn-${escapeHtml(b.footnote.mark)}"><sup>${escapeHtml(b.footnote.mark)}</sup> ${blocksHtml(b.footnote.blocks)}</div>`;
   return "<hr>";
 }
 
-export type { Block, Inline } from "@mkp/runtime";
+export type { Block, Inline } from "@extended-mark/runtime";

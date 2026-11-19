@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/vue-live",
+  "name": "@extended-mark/vue-live",
   "version": "0.3.0",
-  "description": "MKP documents in Vue, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/vue's <MkpDoc>",
+  "description": "Extended Mark documents in Vue, compiled in the browser as they are edited: <XtmdLiveDoc source={…} />, @extended-mark/wasm's compiler and @extended-mark/vue's <XtmdDoc>",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,15 +21,15 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/vue": "file:../vue",
-    "@mkp/live": "file:../live",
-    "@mkp/view": "file:../view"
+    "@extended-mark/vue": "file:../vue",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "vue": "^3.3.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3",

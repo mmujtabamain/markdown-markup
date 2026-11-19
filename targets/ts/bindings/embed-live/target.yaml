@@ -1,9 +1,9 @@
-# targets/ts/bindings/embed-live/target.yaml: the plain web, real time: MkpLiveDoc (@mkp/embed-live), each
-# case's own text compiled in the browser with @mkp/wasm, then drawn by @mkp/dom
+# targets/ts/bindings/embed-live/target.yaml: the plain web, real time: XtmdLiveDoc (@extended-mark/embed-live), each
+# case's own text compiled in the browser with @extended-mark/wasm, then drawn by @extended-mark/dom
 name: embed-live
 levels: [core.draw, core.live, core.gfx]
 supplies:
   widgets: [core/*]                     # core's externs only; a pack brings its own
   fns: [core/can_draw_tex, core/moment.local]
-tokens: core                            # @mkp/dom draws core's own tokens
+tokens: core                            # @extended-mark/dom draws core's own tokens
 check_adapter: exec node ../testing/view_adapter.mjs embed-live check/harness.mjs live

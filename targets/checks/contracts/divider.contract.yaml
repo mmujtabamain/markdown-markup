@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/divider (core/blocks.mkp): a line across the page. @mkp/dom draws an <hr>.
+# core/divider (core/blocks.xtpack): a line across the page. @extended-mark/dom draws an <hr>.
 id: core.divider
 
 parts:

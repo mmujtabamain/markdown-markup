@@ -1,4 +1,4 @@
-//! Embeds core's MKP sources in the binary, so `mkp` compiles core itself, with no files around it.
+//! Embeds core's Extended Mark sources in the binary, so `xtmd` compiles core itself, with no files around it.
 
 use std::path::PathBuf;
 
@@ -7,7 +7,7 @@ fn main() {
     let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let core = if here.join("core").is_dir() { here.join("core") } else { here.join("../../../core") };
     println!("cargo:rerun-if-changed={}", core.display());
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&core).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&core).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     let mut out = String::from("/// core's sources, as (path, text).\npub const CORE: &[(&str, &str)] = &[\n");
     for f in files {
@@ -27,6 +27,6 @@ fn main() {
     let sha = std::fs::read_to_string(&lock).ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("sha256 = ").map(|v| v.trim_matches('"').to_string()))).unwrap_or_default();
     let file = frozen.join("migrate-0.2.cjs");
     let in_repo = if sha.is_empty() || !file.is_file() { String::new() } else { file.canonicalize().unwrap().display().to_string() };
-    println!("cargo:rustc-env=MKP_MIGRATE_02_SHA256={}", sha);
-    println!("cargo:rustc-env=MKP_MIGRATE_02_REPO={}", in_repo);
+    println!("cargo:rustc-env=XTMD_MIGRATE_02_SHA256={}", sha);
+    println!("cargo:rustc-env=XTMD_MIGRATE_02_REPO={}", in_repo);
 }

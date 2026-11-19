@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-range-loop-with-constant-bounds",
   "about": "a range loop with constant bounds is in its range, and a plain number otherwise",
-  "source": "a-range-loop-with-constant-bounds.mkp",
+  "source": "a-range-loop-with-constant-bounds.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 18, "column": 22}

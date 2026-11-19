@@ -1,4 +1,4 @@
-//! MKP's evaluator: exact numbers, values, the native fns and the limits.
+//! Extended Mark's evaluator: exact numbers, values, the native fns and the limits.
 //!
 //! The compiler runs it on constants (a literal's `from`, a `require` on constants, a constant
 //! `let`), and the native runtime runs pages on it, so compile time and run time are the same

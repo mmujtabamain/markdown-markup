@@ -1,7 +1,7 @@
 {
   "id": "views.a-widget-require-on-constant-inputs",
   "about": "a widget's require is checked by the compiler when its inputs are constants",
-  "source": "a-widget-require-on-constant-inputs.mkp.md",
+  "source": "a-widget-require-on-constant-inputs.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "views.widget-require-false", "line": 12, "column": 2}

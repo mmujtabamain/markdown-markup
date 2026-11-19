@@ -1,6 +1,6 @@
-"""A framework's two kinds of target, in React: the same MKP page drawn by @mkp/react's <MkpDoc>
+"""A framework's two kinds of target, in React: the same Extended Mark page drawn by @extended-mark/react's <XtmdDoc>
 (an IR built ahead, `$state` held in React's own state, no compiler in the page) and by
-@mkp/react-live's <MkpLiveDoc> (the text compiled in the browser by mkp.wasm as it is typed). Vue,
+@extended-mark/react-live's <XtmdLiveDoc> (the text compiled in the browser by xtmd.wasm as it is typed). Vue,
 Svelte, Solid and Angular have the same pair.
 
 Recorded with: devbench video record react-targets
@@ -9,7 +9,7 @@ The Targets page's own ids (apps/playground/targets.html, src/targets-react.ts) 
 selector; the drawn pages' widgets are found by their data-part names.
 """
 
-TITLE = "React's two targets: <MkpDoc> and <MkpLiveDoc>"
+TITLE = "React's two targets: <XtmdDoc> and <XtmdLiveDoc>"
 
 ROW = "[data-testid='react-row']"
 RUN = "[data-testid='react-run-page']"
@@ -30,15 +30,15 @@ def type_at_end(t, selector, text, delay=55):
 def take(t):
     t.goto("/")
     t.mark_ready()
-    t.say("Every MKP target comes in two kinds. Here is React's pair.", 3.4)
+    t.say("Every Extended Mark target comes in two kinds. Here is React's pair.", 3.4)
     t.beat("[data-testid='targets-link']", "The playground's Targets page draws one page with both.", 3.2)
     t.zoom_click("[data-testid='targets-link']")
     t.wait(2.4)
 
     t.page.locator(ROW).scroll_into_view_if_needed()
     t.wait(0.8)
-    t.beat("[data-testid='react-run-time']", "Run time: React's <MkpDoc> draws an IR built ahead, with React's own components. No compiler.", 4.6)
-    t.hold_caption("A reader presses Add 1: the page writes $state, mkp checks it, and React's state follows.")
+    t.beat("[data-testid='react-run-time']", "Run time: React's <XtmdDoc> draws an IR built ahead, with React's own components. No compiler.", 4.6)
+    t.hold_caption("A reader presses Add 1: the page writes $state, xtmd checks it, and React's state follows.")
     t.click(RUN_ADD, after=1.0)
     t.click(RUN_ADD, after=1.6)
     t.release_caption()
@@ -53,7 +53,7 @@ def take(t):
     t.release_caption()
     t.beat("[data-testid='react-run-state']", "Back to the count it had.", 2.6)
 
-    t.beat("[data-testid='react-real-time']", "Real time: React's <MkpLiveDoc> compiles this text in the browser, with mkp.wasm.", 4.4)
+    t.beat("[data-testid='react-real-time']", "Real time: React's <XtmdLiveDoc> compiles this text in the browser, with xtmd.wasm.", 4.4)
     t.hold_caption("An edit: a counter that steps by 10.")
     type_at_end(t, SOURCE, "\n@counter(by = 10);\n")
     t.wait(2.0)

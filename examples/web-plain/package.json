@@ -1,8 +1,8 @@
 {
-  "name": "@mkp/example-web-plain",
+  "name": "@extended-mark/example-web-plain",
   "version": "0.3.0",
   "private": true,
-  "description": "The shop page from plain TypeScript: compiled by @mkp/cli/vite, run by @mkp/runtime, drawn by @mkp/dom",
+  "description": "The shop page from plain TypeScript: compiled by xtmd/vite, run by @extended-mark/runtime, drawn by @extended-mark/dom",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,11 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../targets/ts/dom",
-    "@mkp/runtime": "file:../../targets/ts/runtime"
+    "@extended-mark/dom": "file:../../targets/ts/dom",
+    "@extended-mark/runtime": "file:../../targets/ts/runtime"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../targets/ts/cli",
+    "xtmd": "file:../../targets/ts/cli",
     "typescript": "5.9.3",
     "vite": "6.4.6"
   }

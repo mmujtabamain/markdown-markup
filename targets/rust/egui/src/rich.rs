@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Align, Color32, FontFamily, FontId, Stroke};
-use mkp_runtime::Value;
+use xtmd_runtime::Value;
 
 use crate::values::{case, field, flag, inner, list, tex, text};
 
@@ -115,7 +115,7 @@ pub fn pieces(v: Option<&Value>) -> Vec<Piece<'_>> {
         if !run.is_empty() {
             out.push(Piece::Run(std::mem::take(&mut run)));
         }
-        if let Some(slot) = mkp_runtime::inline_slot(field(part, "child")) {
+        if let Some(slot) = xtmd_runtime::inline_slot(field(part, "child")) {
             out.push(Piece::View(slot));
         }
     }

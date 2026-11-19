@@ -1,4 +1,4 @@
-//! MKP's one number type: exact base-10, IEEE 754 decimal128 with 34 significant digits,
+//! Extended Mark's one number type: exact base-10, IEEE 754 decimal128 with 34 significant digits,
 //! rounding halves to even (page 2), through IBM's libdecnumber.
 //!
 //! There is no negative zero: every result that is zero is plain `0`, so a number has one
@@ -99,7 +99,7 @@ impl Num {
         Num(cx().from_i128(n as i128))
     }
 
-    /// An MKP number literal (`1_000`, `0.25`) or an IR number (`-7`, `3.5`).
+    /// An Extended Mark number literal (`1_000`, `0.25`) or an IR number (`-7`, `3.5`).
     pub fn parse(s: &str) -> Option<Num> {
         let t: String = s.chars().filter(|c| *c != '_').collect();
         let body = t.strip_prefix('-').unwrap_or(&t);

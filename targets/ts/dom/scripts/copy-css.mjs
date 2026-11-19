@@ -10,5 +10,5 @@ const css = readFileSync(join(root, "src/style.css"), "utf8");
 writeFileSync(join(root, "dist/style.css"), css);
 const js = join(root, "dist/style.js");
 const text = readFileSync(js, "utf8");
-if (!text.includes('"__MKP_DOM_STYLE_CSS__"')) throw new Error("dist/style.js has no place for the stylesheet");
-writeFileSync(js, text.replace('"__MKP_DOM_STYLE_CSS__"', () => JSON.stringify(css)));
+if (!text.includes('"__XTMD_DOM_STYLE_CSS__"')) throw new Error("dist/style.js has no place for the stylesheet");
+writeFileSync(js, text.replace('"__XTMD_DOM_STYLE_CSS__"', () => JSON.stringify(css)));

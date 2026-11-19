@@ -1,7 +1,7 @@
 {
   "id": "read.event-set-to-nothing",
   "about": "event set to nothing",
-  "source": "event-set-to-nothing.mkp",
+  "source": "event-set-to-nothing.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.expected", "line": 5, "column": 37}

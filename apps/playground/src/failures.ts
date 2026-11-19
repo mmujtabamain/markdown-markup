@@ -1,11 +1,11 @@
 // Where a widget that failed is written: the page draws a notice in its place, at its site path
 // (`s1/s0`, a loop's row `s3[2]`), and the compile says where each call in the document is written
 // (`Built.sites`, by template and site; no IR holds it). The path is walked through the IR's
-// templates from the page's own, `doc`: a call to a widget written in MKP takes the walk into its
+// templates from the page's own, `doc`: a call to a widget written in Extended Mark takes the walk into its
 // template, and the last call on the way that is written in the document is the one to mark.
 
-import type { Page, ir } from "@mkp/runtime";
-import type { Built, Written } from "@mkp/wasm";
+import type { Page, ir } from "@extended-mark/runtime";
+import type { Built, Written } from "@extended-mark/wasm";
 
 /** A notice on the page, and where in the document its call is written. */
 export interface Failed {

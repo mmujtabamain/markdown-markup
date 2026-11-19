@@ -1,10 +1,10 @@
-# targets/rust/runtime/headless/target.yaml: mkp-runtime with no screen, laying widgets out with
+# targets/rust/runtime/headless/target.yaml: xtmd-runtime with no screen, laying widgets out with
 # the test target's fixed sizes. It runs the prebuilt release binary, so build it first:
-#   cd targets/rust && cargo build --release -p mkp-runtime
+#   cd targets/rust && cargo build --release -p xtmd-runtime
 name: native
 levels: [core.draw, core.live, core.gfx]
 supplies:
   widgets: [core/*]                     # core's externs only; a pack brings its own
   fns: [core/can_draw_tex, core/moment.local]
 tokens: core                            # the build's own: core's tokens block
-check_adapter: exec ../../target/release/mkp_runtime_check
+check_adapter: exec ../../target/release/xtmd_runtime_check

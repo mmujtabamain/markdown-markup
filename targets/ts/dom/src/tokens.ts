@@ -1,8 +1,8 @@
 // The page's tokens as CSS custom properties on the root, so a widget names a token
-// (`var(--mkp-color-ink)`) and a theme change is one set of properties, not a redraw of every
+// (`var(--xtmd-color-ink)`) and a theme change is one set of properties, not a redraw of every
 // colour. Values come from the build's tokens block, as the evaluator gives them.
 
-import { Value as V, type Page, type Value } from "@mkp/runtime";
+import { Value as V, type Page, type Value } from "@extended-mark/runtime";
 import { field, inner, num, str } from "./values.js";
 
 export type Theme = "LIGHT" | "DARK";
@@ -12,9 +12,9 @@ function short(ty: string): string {
   return (ty.startsWith("core/") ? ty.slice(5) : ty.replace("/", "-")).toLowerCase().replace(/[^a-z0-9-]/g, "-");
 }
 
-/** The custom property of a token case: `--mkp-color-ink`, `--mkp-space-m`. */
+/** The custom property of a token case: `--xtmd-color-ink`, `--xtmd-space-m`. */
 export function tokenVar(ty: string, name: string): string {
-  return `--mkp-${short(ty)}-${name.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
+  return `--xtmd-${short(ty)}-${name.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
 }
 
 export class Tokens {
@@ -78,7 +78,7 @@ export class Tokens {
     const theme = this.theme();
     if (theme === this.applied.get(root)) return;
     this.applied.set(root, theme);
-    root.setAttribute("data-mkp-theme", theme.toLowerCase());
+    root.setAttribute("data-xtmd-theme", theme.toLowerCase());
     root.style.colorScheme = theme === "DARK" ? "dark" : "light";
     for (const [prop, css] of Object.entries(this.properties())) root.style.setProperty(prop, css);
   }
@@ -104,9 +104,9 @@ export class Tokens {
 
   /** Removes what apply wrote, when the page is unmounted. */
   clear(root: HTMLElement): void {
-    for (const p of [...root.style].filter((p) => p.startsWith("--mkp-"))) root.style.removeProperty(p);
+    for (const p of [...root.style].filter((p) => p.startsWith("--xtmd-"))) root.style.removeProperty(p);
     root.style.colorScheme = "";
-    root.removeAttribute("data-mkp-theme");
+    root.removeAttribute("data-xtmd-theme");
     this.applied.delete(root);
   }
 

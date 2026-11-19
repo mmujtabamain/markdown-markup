@@ -1,7 +1,7 @@
 // The value fns the web supplies (target.yaml's `fns`): the reader's own time zone, which only the
 // browser knows. can_draw_tex keeps core's default: TeX our reader doesn't know is shown as itself.
 
-import { Num, type Value } from "@mkp/runtime";
+import { Num, type Value } from "@extended-mark/runtime";
 import { field, num } from "./values.js";
 
 type Entries = readonly (readonly [string, Value])[];

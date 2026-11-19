@@ -1,9 +1,9 @@
-// The test app for <mkp-doc>: drawn by Angular itself through Renderer2, zoneless, `$state`
+// The test app for <xtmd-doc>: drawn by Angular itself through Renderer2, zoneless, `$state`
 // controlled by the app, with the controls the shared doc steps use (testing/browser.mjs).
 import "@angular/compiler";
 import { Component, ViewChild, computed, provideZonelessChangeDetection, signal } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
-import { MkpDoc } from "@mkp/angular";
+import { XtmdDoc } from "@extended-mark/angular";
 
 const heard = { states: [] as unknown[], errors: [] as unknown[], calls: [] as unknown[] };
 const irs = (window as any).__IR;
@@ -11,9 +11,9 @@ const irs = (window as any).__IR;
 @Component({
   selector: "test-app",
   standalone: true,
-  imports: [MkpDoc],
+  imports: [XtmdDoc],
   template: `@if (shown()) {
-    <mkp-doc #view [ir]="ir()" [state]="state()" [page]="pageValues()" [externs]="externs()" (stateChange)="changed($event)" (error)="heard.errors.push($event)" (calls)="heard.calls.push($event)" />
+    <xtmd-doc #view [ir]="ir()" [state]="state()" [page]="pageValues()" [externs]="externs()" (stateChange)="changed($event)" (error)="heard.errors.push($event)" (calls)="heard.calls.push($event)" />
   }`,
 })
 class TestApp {
@@ -26,7 +26,7 @@ class TestApp {
   externs = computed(() => ({ app: { unit: { text: this.unit() } } }));
   ir = computed(() => irs[this.which()]);
   pageValues = computed(() => ({ theme: this.theme() }));
-  @ViewChild("view") view?: MkpDoc;
+  @ViewChild("view") view?: XtmdDoc;
   changed(s: unknown) {
     heard.states.push(s);
     this.state.set(s);

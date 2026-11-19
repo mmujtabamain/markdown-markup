@@ -1,5 +1,5 @@
-// Written by mkp-schemagen from schemas/check.schema.json. Don't edit: change the schema, then run
-// `cargo run -p mkp-schemagen`.
+// Written by xtmd-schemagen from schemas/check.schema.json. Don't edit: change the schema, then run
+// `cargo run -p xtmd-schemagen`.
 
 import type { Expr, Level } from "./ir.js";
 
@@ -121,7 +121,7 @@ export interface Call {
 /** What the compiler gives: its diagnostics, and the page's Markdown with its starting values. */
 export interface CaseExpect {
   diagnostics: Diagnostic[];
-  /** The page's Markdown with its starting values, as `mkp md` writes it, before any step. */
+  /** The page's Markdown with its starting values, as `xtmd md` writes it, before any step. */
   markdown?: MarkdownExpected;
 }
 
@@ -139,7 +139,7 @@ export interface Case {
   /** Packs to build with, beside the case. */
   packs?: string[];
   page?: Page;
-  /** The .mkp.md or .mkp file, beside the case. */
+  /** The .xt.md or .xtpack file, beside the case. */
   source: string;
   steps?: Step[];
   target?: CaseTarget;
@@ -206,7 +206,7 @@ export type Inline =
   | { note: string }
   | { break: { [key: string]: never } };
 
-/** The params of `load`: the IR the mkp binary wrote for the case, and the page. */
+/** The params of `load`: the IR the xtmd binary wrote for the case, and the page. */
 export interface Load {
   externs?: { [key: string]: { [key: string]: Expr } };
   /** A path to the .ir.json file. */
@@ -238,7 +238,7 @@ export interface ObservationShaded {
   shader: string;
 }
 
-/** Everything MKP decides about the page, after a step. */
+/** Everything Extended Mark decides about the page, after a step. */
 export interface Observation {
   boxes?: { [key: string]: Box };
   calls: Call[];
@@ -276,7 +276,7 @@ export interface Point {
 
 export type RequestMethod = "advertise" | "load" | "event" | "write" | "set" | "expose" | "extern" | "page" | "observe" | "quit";
 
-/** A JSON-RPC 2.0 request from `mkp target check` to a target's check adapter, one per line on its standard input. */
+/** A JSON-RPC 2.0 request from `xtmd target check` to a target's check adapter, one per line on its standard input. */
 export interface Request {
   id: number;
   jsonrpc: string;

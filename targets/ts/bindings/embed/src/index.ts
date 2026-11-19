@@ -1,16 +1,16 @@
-// @mkp/embed: an MKP page in an element, for the framework bindings. Each binding (@mkp/react,
-// @mkp/vue, @mkp/svelte, @mkp/solid, @mkp/angular) makes one Embed when its element is in the
+// @extended-mark/embed: an Extended Mark page in an element, for the framework bindings. Each binding (@extended-mark/react,
+// @extended-mark/vue, @extended-mark/svelte, @extended-mark/solid, @extended-mark/angular) makes one Embed when its element is in the
 // document, hands it the props it was given whenever they change, and destroys it when it leaves.
 // Everything else is here, so the bindings agree: how a page is made from the props, what a change
 // of props does to it, and when the app hears what the page did.
 
-import { toIr, type Call, type Outcome, type Page, type PageOptions, type PageValues, type Value, type ir } from "@mkp/runtime";
-import { mount, type MountOptions, type Mounted, type Widget } from "@mkp/dom";
+import { toIr, type Call, type Outcome, type Page, type PageOptions, type PageValues, type Value, type ir } from "@extended-mark/runtime";
+import { mount, type MountOptions, type Mounted, type Widget } from "@extended-mark/dom";
 import { channelName, channelsOf, empty, isValue, makePage, moduleOf, type Given, type Ir } from "./page.js";
 
 export { channelName, makePage, stateFields, type Given, type Ir } from "./page.js";
 export { RELEASE, hash, type DocError, type Restored, type Snapshot } from "./snapshot.js";
-export { MkpDoc, type DocProps } from "./doc.js";
+export { XtmdDoc, type DocProps } from "./doc.js";
 
 /** What every binding takes: the page, what the app gives it, and what the app wants to hear. */
 export interface PageProps {
@@ -26,7 +26,7 @@ export interface PageProps {
   externs?: Record<string, Record<string, ir.Expr>>;
   /** Value fns the app supplies, by full name (`acme/rate`). The latest are always the ones called. */
   fns?: PageOptions["fns"];
-  /** The app's widgets by full name (`core/press`), in place of @mkp/dom's. A change remounts. */
+  /** The app's widgets by full name (`core/press`), in place of @extended-mark/dom's. A change remounts. */
   widgets?: Record<string, Widget>;
   /** How the plane's spots are measured, for the page it is given: left out, from the DOM. The
    * checks give fixed sizes. */
@@ -45,7 +45,7 @@ export interface PageProps {
 export interface Handle {
   /** The running page. */
   readonly page: Page;
-  /** The page as @mkp/dom drew it. */
+  /** The page as @extended-mark/dom drew it. */
   readonly mounted: Mounted;
   /** Writes `$state` fields as one change, checked as every change is: refused whole, or done. */
   set(changes: Record<string, Given>): void;
@@ -75,7 +75,7 @@ function sameJson(a: unknown, b: unknown): boolean {
 }
 
 /**
- * An MKP page drawn into an element by @mkp/dom, following the props it is given. The bindings make
+ * An Extended Mark page drawn into an element by @extended-mark/dom, following the props it is given. The bindings make
  * one when their element is in the document (never on a server) and destroy it when it leaves.
  */
 export class Embed implements Handle {
@@ -102,7 +102,7 @@ export class Embed implements Handle {
   }
 
   get mounted(): Mounted {
-    if (!this.current) throw new Error("@mkp/embed: the page isn't mounted");
+    if (!this.current) throw new Error("@extended-mark/embed: the page isn't mounted");
     return this.current;
   }
 
@@ -252,5 +252,5 @@ export function embed(root: HTMLElement, props: PageProps): Embed {
   return new Embed(root, props);
 }
 
-export type { Call, Outcome, Page, PageValues, Value, ir } from "@mkp/runtime";
-export type { Mounted, Widget } from "@mkp/dom";
+export type { Call, Outcome, Page, PageValues, Value, ir } from "@extended-mark/runtime";
+export type { Mounted, Widget } from "@extended-mark/dom";

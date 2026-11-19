@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use mkp_syntax::ast::{self, ExprKind as E};
-use mkp_syntax::Span;
+use xtmd_syntax::ast::{self, ExprKind as E};
+use xtmd_syntax::Span;
 
 use crate::body::{Cx, LocalKind};
 use crate::{codes, Checker};

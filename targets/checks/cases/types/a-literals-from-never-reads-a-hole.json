@@ -1,7 +1,7 @@
 {
   "id": "types.a-literals-from-never-reads-a-hole",
   "about": "a literal whose from would have to read a hole is a compile error on the hole, which names it and the record to build",
-  "source": "a-literals-from-never-reads-a-hole.mkp",
+  "source": "a-literals-from-never-reads-a-hole.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 4, "column": 20}

@@ -17,7 +17,7 @@ summary: One sentence on the biggest change, at most 140 characters.
 ```
 
 - `version` is the file's name; `date` the day it ships; `summary` is the release's title.
-- Sections are New, Changed and Fixed, each optional. Write for MKP's users, not about internals:
+- Sections are New, Changed and Fixed, each optional. Write for Extended Mark's users, not about internals:
   what they can now do, what changed (a breaking change first, with what to do instead), what no
   longer goes wrong.
 - A merge into main whose `VERSION` has no release yet publishes it (`.github/workflows/release.yml`).

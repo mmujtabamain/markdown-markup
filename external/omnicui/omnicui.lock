@@ -1,4 +1,4 @@
-# omnicui, vendored by its release: what MKP's widget contracts run on. Nothing of omnicui is
+# omnicui, vendored by its release: what Extended Mark's widget contracts run on. Nothing of omnicui is
 # copied here; fetch.sh downloads the release file for this machine and checks it against these
 # hashes, which are the release's own SHA256SUMS. To move to another release, change all of it
 # in one commit: the version, the commit it was released from, and every line's hash.

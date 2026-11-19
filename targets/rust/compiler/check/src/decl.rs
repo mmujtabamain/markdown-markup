@@ -15,7 +15,7 @@ pub struct Out {
     pub channel_defaults: HashMap<(usize, String), ir::Expr>,
     pub state: Option<ir::State>,
     pub exposes: Vec<ir::Expose>,
-    /// Widgets written in MKP, lowered, by their def.
+    /// Widgets written in Extended Mark, lowered, by their def.
     pub templates: Vec<(DefId, ir::Template)>,
     /// Extern widgets' markdown, as nodes.
     pub extern_markdown: HashMap<DefId, Vec<ir::Node>>,
@@ -589,7 +589,7 @@ impl Checker {
         let app_needs: Vec<String> = self.channels.iter().filter(|c| c.pack == self.module).flat_map(|c| c.fns.iter().map(move |f| format!("{}.{}", c.full, f.0))).collect();
         let mut m = ir::Module {
             version: 3,
-            mkp: env!("CARGO_PKG_VERSION").to_string(),
+            xtmd: env!("CARGO_PKG_VERSION").to_string(),
             module: self.module.clone(),
             levels: Vec::new(),
             front_matter: self.front_matter(),

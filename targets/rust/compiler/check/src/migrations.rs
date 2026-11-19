@@ -4,8 +4,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use mkp_syntax::ast::{self, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt};
-use mkp_syntax::span::Span;
+use xtmd_syntax::ast::{self, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt};
+use xtmd_syntax::span::Span;
 
 use crate::versions::{breaks, Api, ApiItem, Break};
 use crate::body::{Cx, Local, LocalKind};
@@ -106,7 +106,7 @@ impl Checker {
             chain_to = Some(to);
             let start = format!("{}@{}", pack, from);
             if !self.packs.contains_key(&start) {
-                self.error(*file, codes::MIGRATION, head, format!("this migration needs {}'s surface, a file that starts `package {};`: `mkp surface` writes it when that version is released", start, start));
+                self.error(*file, codes::MIGRATION, head, format!("this migration needs {}'s surface, a file that starts `package {};`: `xtmd surface` writes it when that version is released", start, start));
                 continue;
             }
             let end = if to == version { pack.to_string() } else { format!("{}@{}", pack, to) };

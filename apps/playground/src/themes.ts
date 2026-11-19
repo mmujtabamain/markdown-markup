@@ -76,8 +76,8 @@ const DARK: Palette = {
   },
 };
 
-export const LIGHT_THEME = "mkp-light";
-export const DARK_THEME = "mkp-dark";
+export const LIGHT_THEME = "xtmd-light";
+export const DARK_THEME = "xtmd-dark";
 
 const hex = (c: string) => c.replace("#", "");
 /** A colour with an alpha, from a fraction. */

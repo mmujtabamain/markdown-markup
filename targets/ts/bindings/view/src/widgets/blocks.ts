@@ -1,9 +1,9 @@
 // Markdown's own blocks, as the HTML elements they are: p, h1–h6, ul/ol/li with task boxes,
-// blockquote, pre>code, table, footnotes and hr, as @mkp/dom draws them (the same parts and
+// blockquote, pre>code, table, footnotes and hr, as @extended-mark/dom draws them (the same parts and
 // classes, so the same stylesheet). Props are read as markdown.ts reads them, so the page's words
 // and its Markdown agree.
 
-import { flag, inner, kase, list, noteId, num, str, texOf } from "@mkp/dom/shared";
+import { flag, inner, kase, list, noteId, num, str, texOf } from "@extended-mark/dom/shared";
 import type { ViewWidget } from "../render.js";
 import type { Act } from "../act.js";
 import { cls, css, h, prop, type VNode } from "../vnode.js";
@@ -31,7 +31,7 @@ export const bullets: ViewWidget = (d, ctx) => {
   const start = num(d.props.get("start")) ?? 1;
   const items = d.slots.get("items") ?? [];
   const el = h(ordered ? "ol" : "ul", "bullets", { start: ordered && start !== 1 ? String(start) : undefined }, ctx.children(items));
-  return cls(el, "mkp-tasks", items.some((i) => i.widget === "core/item" && inner(i.props.get("done")) !== undefined));
+  return cls(el, "xtmd-tasks", items.some((i) => i.widget === "core/item" && inner(i.props.get("done")) !== undefined));
 };
 
 export const item: ViewWidget = (d, ctx) => {
@@ -47,7 +47,7 @@ export const item: ViewWidget = (d, ctx) => {
     prop(box, "disabled", true);
     prop(box, "checked", done.b);
     el.children.unshift(box);
-    cls(el, "mkp-task");
+    cls(el, "xtmd-task");
   }
   return el;
 };

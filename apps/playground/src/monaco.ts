@@ -1,4 +1,4 @@
-// Monaco, as little of it as the playground uses: the editor API, no languages but MKP's, and the
+// Monaco, as little of it as the playground uses: the editor API, no languages but Extended Mark's, and the
 // handful of editor features a source editor wants. Its web worker is a separate bundle,
 // dist/editor.worker.js (build.mjs), found through MonacoEnvironment.getWorkerUrl.
 

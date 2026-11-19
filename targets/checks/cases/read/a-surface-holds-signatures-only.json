@@ -1,7 +1,7 @@
 {
   "id": "read.a-surface-holds-signatures-only",
   "about": "a surface with a fn body, where a surface holds signatures only",
-  "source": "a-surface-holds-signatures-only.mkp",
+  "source": "a-surface-holds-signatures-only.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "pack.surface", "line": 3, "column": 4}

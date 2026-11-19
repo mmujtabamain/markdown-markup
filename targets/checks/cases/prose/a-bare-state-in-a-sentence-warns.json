@@ -1,7 +1,7 @@
 {
   "id": "prose.a-bare-state-in-a-sentence-warns",
   "about": "a bare $state.tries in a sentence is shown as text, with a warning",
-  "source": "a-bare-state-in-a-sentence-warns.mkp.md",
+  "source": "a-bare-state-in-a-sentence-warns.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.bare-state", "line": 5, "column": 1}

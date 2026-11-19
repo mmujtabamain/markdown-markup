@@ -1,0 +1,10 @@
+{
+  "id": "views.an-xtmd-fn-given-to-shade-warns",
+  "about": "an Extended Mark fn fits a shader's type too, and the compiler warns",
+  "source": "an-xtmd-fn-given-to-shade-warns.xt.md",
+  "expect": {
+    "diagnostics": [
+      {"code": "views.shade-given-an-xtmd-fn", "line": 9, "column": 111}
+    ]
+  }
+}

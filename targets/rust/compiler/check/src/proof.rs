@@ -5,10 +5,10 @@
 
 use std::collections::HashMap;
 
-use mkp_eval::interp::Constants;
-use mkp_eval::{Machine, Num, Program, Value};
-use mkp_ir::ir;
-use mkp_syntax::Span;
+use xtmd_eval::interp::Constants;
+use xtmd_eval::{Machine, Num, Program, Value};
+use xtmd_ir::ir;
+use xtmd_syntax::Span;
 
 use crate::{codes, Checker};
 
@@ -528,14 +528,14 @@ impl Checker {
     /// constants: a `false` is a compile error on the call (page 2).
     pub(crate) fn settle_widget_requires(&mut self, prog: &Program) {
         struct Inputs(HashMap<String, Value>);
-        impl mkp_eval::Host for Inputs {
-            fn read(&self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
+        impl xtmd_eval::Host for Inputs {
+            fn read(&self, m: &mut Machine, what: &xtmd_eval::interp::Outer, owner: Option<u64>) -> Result<Value, xtmd_eval::Failure> {
                 match what {
-                    mkp_eval::interp::Outer::Input(n) => self.0.get(&**n).cloned().ok_or_else(|| mkp_eval::Failure::new(mkp_eval::FailKind::NotConstant, "an input with no value")),
+                    xtmd_eval::interp::Outer::Input(n) => self.0.get(&**n).cloned().ok_or_else(|| xtmd_eval::Failure::new(xtmd_eval::FailKind::NotConstant, "an input with no value")),
                     _ => Constants.read(m, what, owner),
                 }
             }
-            fn write(&self, m: &mut Machine, what: &mkp_eval::interp::Outer, owner: Option<u64>, v: Value) -> Result<(), mkp_eval::Failure> {
+            fn write(&self, m: &mut Machine, what: &xtmd_eval::interp::Outer, owner: Option<u64>, v: Value) -> Result<(), xtmd_eval::Failure> {
                 Constants.write(m, what, owner, v)
             }
         }
@@ -623,7 +623,7 @@ impl Checker {
             }
             let mut m = Machine::new(prog, Box::new(Constants));
             if let Err(f) = m.eval(&x) {
-                let why = if f.kind == mkp_eval::FailKind::NotConstant { "it reads something only known when the page runs".to_string() } else { f.message };
+                let why = if f.kind == xtmd_eval::FailKind::NotConstant { "it reads something only known when the page runs".to_string() } else { f.message };
                 self.error(file, codes::BOUND_NOT_CONSTANT, span, format!("a contract's bound is a constant: {}", why));
             }
         }
@@ -671,7 +671,7 @@ impl Checker {
 use crate::body::Cx;
 use crate::ty::Ty;
 use crate::DefKind;
-use mkp_syntax::ast::{self, BinOp, ExprKind as E, UnOp};
+use xtmd_syntax::ast::{self, BinOp, ExprKind as E, UnOp};
 
 impl Checker {
     pub(crate) fn known_of(&self, cx: &Cx, e: &ast::Expr) -> Known {
@@ -775,7 +775,7 @@ impl Checker {
 
     /// What a call gives: its declared return type, and page 2's proofs for `clamp`, `round`,
     /// `floor`, `ceil` and `len()`.
-    pub(crate) fn note_call_known(&mut self, cx: &Cx, span: mkp_syntax::Span, f: usize, recv: Option<&ast::Expr>, args: &[&ast::Expr]) {
+    pub(crate) fn note_call_known(&mut self, cx: &Cx, span: xtmd_syntax::Span, f: usize, recv: Option<&ast::Expr>, args: &[&ast::Expr]) {
         let r = recv.map(|e| self.known_of(cx, e)).unwrap_or_default();
         let a: Vec<Known> = args.iter().map(|e| self.known_of(cx, e)).collect();
         let k = match self.fns[f].full.as_str() {

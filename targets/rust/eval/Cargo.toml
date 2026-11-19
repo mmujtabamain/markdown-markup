@@ -1,6 +1,6 @@
 [package]
-name = "mkp-eval"
-description = "MKP's evaluator: exact decimal128 numbers, values, the native fns and the limits. Shared by the compiler and the native runtime."
+name = "xtmd-eval"
+description = "Extended Mark's evaluator: exact decimal128 numbers, values, the native fns and the limits. Shared by the compiler and the native runtime."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,5 +8,5 @@ repository.workspace = true
 
 [dependencies]
 dec = "0.4.11"
-mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
+xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
 serde_json.workspace = true

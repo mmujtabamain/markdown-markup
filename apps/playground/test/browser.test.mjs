@@ -1,6 +1,6 @@
 // The playground in a real Chromium: it loads, draws a page, follows the editor, and the page's
-// Markdown and $state follow the reader. Chromium is MKP_CHROMIUM, or /usr/bin/chromium; none is
-// downloaded. Skipped when @mkp/dom isn't built yet, or there is no Chromium or mkp.wasm.
+// Markdown and $state follow the reader. Chromium is XTMD_CHROMIUM, or /usr/bin/chromium; none is
+// downloaded. Skipped when @extended-mark/dom isn't built yet, or there is no Chromium or xtmd.wasm.
 
 import { test, before, after, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -11,15 +11,15 @@ import { startServer } from "../server.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = join(here, "..");
-const chromiumPath = process.env.MKP_CHROMIUM ?? "/usr/bin/chromium";
-const domBuilt = existsSync(join(app, "node_modules/@mkp/dom/dist/index.js"));
+const chromiumPath = process.env.XTMD_CHROMIUM ?? "/usr/bin/chromium";
+const domBuilt = existsSync(join(app, "node_modules/@extended-mark/dom/dist/index.js"));
 
 const skip = !domBuilt
-  ? "@mkp/dom is not built: run npm run build in targets/ts/dom"
+  ? "@extended-mark/dom is not built: run npm run build in targets/ts/dom"
   : !existsSync(chromiumPath)
-    ? `no Chromium at ${chromiumPath}: set MKP_CHROMIUM`
-    : !existsSync(join(app, "node_modules/@mkp/wasm/mkp.wasm"))
-      ? "no mkp.wasm: run targets/rust/wasm/build.sh"
+    ? `no Chromium at ${chromiumPath}: set XTMD_CHROMIUM`
+    : !existsSync(join(app, "node_modules/@extended-mark/wasm/xtmd.wasm"))
+      ? "no xtmd.wasm: run targets/rust/wasm/build.sh"
       : false;
 
 const quiet = { info() {}, warn() {}, error: (m, f) => process.stderr.write(`server: ${m} ${JSON.stringify(f ?? {})}\n`) };
@@ -84,18 +84,18 @@ describe("the playground in Chromium", { skip }, () => {
     assert.equal(await tab.locator("#preview-pane").getAttribute("data-stale"), "false");
   });
 
-  test("the editor colours MKP: $state and a Markdown heading get their tokens and colours", async () => {
-    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp");
+  test("the editor colours Extended Mark: $state and a Markdown heading get their tokens and colours", async () => {
+    assert.equal(await tab.evaluate(() => window.playground.language()), "xtmd");
     const lines = (await source()).split("\n");
     const state = await tab.evaluate(() => window.playground.tokens(1));
-    assert.deepEqual(state[0], { text: "$state", type: "state.mkp" });
+    assert.deepEqual(state[0], { text: "$state", type: "state.xtmd" });
     const headingLine = lines.indexOf("# A counter") + 1;
     assert.ok(headingLine > 0);
-    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), headingLine), [{ text: "# A counter", type: "heading.mkp" }]);
+    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), headingLine), [{ text: "# A counter", type: "heading.xtmd" }]);
     const divider = await tab.evaluate((n) => window.playground.tokens(n), lines.indexOf("@@@") + 1);
-    assert.deepEqual(divider, [{ text: "@@@", type: "divider.mkp" }]);
+    assert.deepEqual(divider, [{ text: "@@@", type: "divider.xtmd" }]);
     const call = await tab.evaluate((n) => window.playground.tokens(n), lines.indexOf("@counter;") + 1);
-    assert.equal(call[0].type, "call.mkp");
+    assert.equal(call[0].type, "call.xtmd");
     // and Monaco draws them with the playground's colours: a class of its own for each. It
     // draws only the lines in view, so the heading's line is brought into view first
     assert.equal(await tab.evaluate(() => window.playground.select("# A counter")), true);
@@ -290,7 +290,7 @@ describe("the playground in Chromium", { skip }, () => {
   test("a $state list edited as JSON, and a value of the wrong shape refused", async () => {
     await tab.getByTestId("tab-state").click();
     const row = tab.getByTestId("state-tasks");
-    // written as MKP writes it, each record's fields in the order task declares them
+    // written as Extended Mark writes it, each record's fields in the order task declares them
     assert.match(await row.locator("pre.value").textContent(), /task \{ title = "Ship it", done = false \}/);
     await row.getByRole("button", { name: "Edit" }).click();
     const area = row.locator("textarea");
@@ -371,17 +371,17 @@ describe("the playground in Chromium", { skip }, () => {
     await editor.click();
     await editor.press("Control+a");
     await tab.keyboard.type("# Just prose\n\nSome *words* and `code`.\n");
-    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp-prose");
-    assert.deepEqual(await tab.evaluate(() => window.playground.tokens(1)), [{ text: "# Just prose", type: "heading.mkp" }]);
+    assert.equal(await tab.evaluate(() => window.playground.language()), "xtmd-prose");
+    assert.deepEqual(await tab.evaluate(() => window.playground.tokens(1)), [{ text: "# Just prose", type: "heading.xtmd" }]);
     const types = (await tab.evaluate(() => window.playground.tokens(3))).map((t) => t.type);
-    assert.ok(types.includes("emphasis.mkp") && types.includes("code.mkp"), types.join(" "));
+    assert.ok(types.includes("emphasis.xtmd") && types.includes("code.xtmd"), types.join(" "));
     await compiled("ok");
     await tab.waitForFunction(() => document.getElementById("markdown-output")?.textContent?.includes("# Just prose"));
 
     await editor.press("Control+a");
     await tab.keyboard.type("$state {\n");
-    assert.equal(await tab.evaluate(() => window.playground.language()), "mkp");
-    assert.equal((await tab.evaluate(() => window.playground.tokens(1)))[0].type, "state.mkp");
+    assert.equal(await tab.evaluate(() => window.playground.language()), "xtmd");
+    assert.equal((await tab.evaluate(() => window.playground.tokens(1)))[0].type, "state.xtmd");
     // back to an example, for the tests after this one
     await tab.getByTestId("example-picker").selectOption("counter");
     await compiled("ok");
@@ -395,7 +395,7 @@ describe("the playground in Chromium", { skip }, () => {
     const lines = (await tab.evaluate(() => window.playground.source())).split("\n");
     const at = lines.findIndex((l) => l.startsWith("@// a note")) + 1;
     assert.ok(at > 0);
-    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), at), [{ text: "@// a note nobody sees", type: "comment.mkp" }]);
+    assert.deepEqual(await tab.evaluate((n) => window.playground.tokens(n), at), [{ text: "@// a note nobody sees", type: "comment.xtmd" }]);
     assert.doesNotMatch(await markdown().textContent(), /a note nobody sees/);
     assert.doesNotMatch(await preview().textContent(), /a note nobody sees/);
   });
@@ -414,7 +414,7 @@ describe("the playground in Chromium", { skip }, () => {
   test("a compiler that can't be loaded says so, and the server is told", async () => {
     const other = await browser.newPage({ viewport: { width: 1200, height: 800 } });
     try {
-      await other.route("**/mkp.wasm", (r) => r.fulfill({ status: 404, body: "gone" }));
+      await other.route("**/xtmd.wasm", (r) => r.fulfill({ status: 404, body: "gone" }));
       const reported = other.waitForRequest((r) => r.url().endsWith("/api/report") && r.method() === "POST");
       await other.goto(server.url);
       const req = await reported;
@@ -455,10 +455,10 @@ describe("the playground in Chromium", { skip }, () => {
       // a broken draft: the last page stays, and why is said
       await box.fill((await box.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
       await t.waitForFunction(() => document.getElementById("live-status").dataset.state === "errors");
-      assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.mkp\.md:\d+:\d+: /);
+      assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xt\.md:\d+:\d+: /);
       assert.ok(await live.getByRole("button", { name: "Add 5" }).isVisible(), "the last page that compiled stays");
 
-      // React: <MkpDoc>, its $state in React's own state, and a snapshot that brings it back
+      // React: <XtmdDoc>, its $state in React's own state, and a snapshot that brings it back
       const rrun = t.getByTestId("react-run-page");
       await rrun.getByRole("button", { name: "Add 1" }).click();
       await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 1");
@@ -467,7 +467,7 @@ describe("the playground in Chromium", { skip }, () => {
       await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 2");
       await t.getByTestId("react-restore").click();
       await t.waitForFunction(() => document.getElementById("react-run-state").textContent === "count = 1");
-      // React: <MkpLiveDoc>, compiled in the tab, an edit drawn, a broken draft kept back
+      // React: <XtmdLiveDoc>, compiled in the tab, an edit drawn, a broken draft kept back
       const rlive = t.getByTestId("react-live-page");
       await t.waitForFunction(() => document.querySelector("[data-testid=react-live-status]").dataset.state === "ok");
       const rbox = t.getByTestId("react-live-source");
@@ -475,7 +475,7 @@ describe("the playground in Chromium", { skip }, () => {
       await rlive.getByRole("button", { name: "Add 5" }).waitFor();
       await rbox.fill((await rbox.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
       await t.waitForFunction(() => document.querySelector("[data-testid=react-live-status]").dataset.state === "errors");
-      assert.match(await t.getByTestId("react-live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.mkp\.md:\d+:\d+: /);
+      assert.match(await t.getByTestId("react-live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xt\.md:\d+:\d+: /);
       assert.ok(await rlive.getByRole("button", { name: "Add 5" }).isVisible(), "React keeps the last page that compiled");
       assert.deepEqual(errors, []);
     } finally {

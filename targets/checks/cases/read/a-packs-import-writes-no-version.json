@@ -1,7 +1,7 @@
 {
   "id": "read.a-packs-import-writes-no-version",
   "about": "a pack's file imports with no version too: the pack block's uses line says which version it builds on",
-  "source": "a-packs-import-writes-no-version.mkp",
+  "source": "a-packs-import-writes-no-version.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.version-in-import", "line": 3, "column": 11}

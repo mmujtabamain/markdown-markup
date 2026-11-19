@@ -1,8 +1,8 @@
-// The test app for <MkpDoc>: drawn by Solid itself, `$state` controlled by the app, with the
+// The test app for <XtmdDoc>: drawn by Solid itself, `$state` controlled by the app, with the
 // controls the shared doc steps use (testing/browser.mjs, docSteps).
 import { createComponent, createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
-import { MkpDoc } from "@mkp/solid";
+import { XtmdDoc } from "@extended-mark/solid";
 
 const heard = { states: [], errors: [], calls: [] };
 const [which, setIr] = createSignal("v1");
@@ -19,7 +19,7 @@ render(
         return shown();
       },
       get children() {
-        return createComponent(MkpDoc, {
+        return createComponent(XtmdDoc, {
           ref: (h) => (handle = h),
           get ir() {
             return window.__IR[which()];

@@ -1,7 +1,7 @@
 {
   "id": "widgets.divider",
   "about": "claims are checked: a divider between two paragraphs",
-  "source": "divider.mkp.md",
+  "source": "divider.xt.md",
   "target": {
     "levels": [
       "core.draw"

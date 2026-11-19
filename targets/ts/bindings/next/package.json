@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/next",
+  "name": "@extended-mark/next",
   "version": "0.3.0",
-  "description": "MKP pages in Next.js: <MkpPage> as a client component, .mkp.md imports compiled at build time, and the page's Markdown as HTML for the server",
+  "description": "Extended Mark pages in Next.js: <XtmdPage> as a client component, .xt.md imports compiled at build time, and the page's Markdown as HTML for the server",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,13 +20,13 @@
       "default": "./dist/config.js"
     },
     "./loader": "./dist/loader.cjs",
-    "./mkp-md": {
-      "types": "./mkp-md.d.ts"
+    "./xtmd-md": {
+      "types": "./xtmd-md.d.ts"
     }
   },
   "files": [
     "dist",
-    "mkp-md.d.ts"
+    "xtmd-md.d.ts"
   ],
   "sideEffects": false,
   "scripts": {
@@ -34,9 +34,9 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/cli": "file:../../cli",
-    "@mkp/embed": "file:../embed",
-    "@mkp/react": "file:../react"
+    "xtmd": "file:../../cli",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/react": "file:../react"
   },
   "peerDependencies": {
     "next": ">=15.3.0",

@@ -1,15 +1,15 @@
 "use client";
-// The shop page in Next.js: <MkpDoc> draws it, rendered on the server and hydrated, and the app
+// The shop page in Next.js: <XtmdDoc> draws it, rendered on the server and hydrated, and the app
 // hears each checkout through onCalls.
 import { useState } from "react";
-import { MkpDoc, type Call, type MkpDocHandle } from "@mkp/next";
-import shop from "../../pages/shop.mkp.md";
+import { XtmdDoc, type Call, type XtmdDocHandle } from "@extended-mark/next";
+import shop from "../../pages/shop.xt.md";
 
 if (typeof window !== "undefined") window.__calls = [];
 
 /** The running page, for the same-page test. */
-function seen(h: MkpDocHandle | null) {
-  if (h) window.__mkp = { get page() { return h.doc.running!; } };
+function seen(h: XtmdDocHandle | null) {
+  if (h) window.__xtmd = { get page() { return h.doc.running!; } };
 }
 
 export function Shop() {
@@ -25,7 +25,7 @@ export function Shop() {
   return (
     <main>
       <p className="from">Next.js</p>
-      <MkpDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
+      <XtmdDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
       <h2>Orders sent to the app</h2>
       <ul id="orders">
         {orders.map((o) => (

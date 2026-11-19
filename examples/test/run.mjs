@@ -1,5 +1,5 @@
 // `npm test`: everything the same-page test needs, then the test. Installs each local package that
-// has no node_modules, builds each one whose dist is missing or older than its src (the mkp binary
+// has no node_modules, builds each one whose dist is missing or older than its src (the xtmd binary
 // included), and runs same-page.test.mjs, which builds and serves the three examples.
 
 import { execFileSync } from "node:child_process";
@@ -26,8 +26,8 @@ function newest(dir) {
 }
 
 // the compiler
-const binary = join(repo, "targets/rust/target/release/mkp");
-if (!existsSync(binary)) run("cargo", ["build", "--release", "-p", "mkp-cli"], join(repo, "targets/rust"), { PATH: `${process.env.HOME}/.cargo/bin:${process.env.PATH}` });
+const binary = join(repo, "targets/rust/target/release/xtmd");
+if (!existsSync(binary)) run("cargo", ["build", "--release", "-p", "xtmd-cli"], join(repo, "targets/rust"), { PATH: `${process.env.HOME}/.cargo/bin:${process.env.PATH}` });
 
 // the packages, each after what it links to
 const packages = ["runtime", "cli", "dom", "bindings/embed", "bindings/react", "bindings/next"].map((p) => join(ts, p));

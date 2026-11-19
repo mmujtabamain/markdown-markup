@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 export const SECTIONS = ['New', 'Changed', 'Fixed'];
 
-/** A changelog's sections (changelog/<version>.mkp.md), in this order, each optional. */
+/** A changelog's sections (changelog/<version>.xt.md), in this order, each optional. */
 export const CHANGELOG_SECTIONS = ['Breaking', 'New', 'Changed', 'Fixed', 'API', 'Migration'];
 /** The kinds an API change comes in, as ### headings under ## API, in this order. */
 export const API_KINDS = ['Added', 'Changed', 'Deprecated', 'Removed'];
@@ -132,12 +132,12 @@ export function quote(s) {
 
 /** A note to copy when the one for `version` is missing. */
 export function template(version, date = new Date().toISOString().slice(0, 10)) {
-  return `---\nversion: ${version}\ndate: ${date}\nsummary: One sentence on the biggest change, for MKP's users (at most ${SUMMARY_MAX} characters).\n---\n## New\n- **What it is.** What someone can now do, and how.\n## Changed\n- **What changed.** A breaking change comes first and says what to do instead.\n## Fixed\n- What went wrong, as the author saw it.\n`;
+  return `---\nversion: ${version}\ndate: ${date}\nsummary: One sentence on the biggest change, for Extended Mark's users (at most ${SUMMARY_MAX} characters).\n---\n## New\n- **What it is.** What someone can now do, and how.\n## Changed\n- **What changed.** A breaking change comes first and says what to do instead.\n## Fixed\n- What went wrong, as the author saw it.\n`;
 }
 
 /** A changelog to copy when the one for `version` is missing. */
 export function changelogTemplate(version, date = new Date().toISOString().slice(0, 10)) {
-  return `---\nversion: ${version}\ndate: ${date}\nsummary: The note's summary, the same sentence.\n---\n# ${version}\n\n## Breaking\n- **What changed.** Why, and what to do instead (and the mkp migrate id, if there is one).\n## New\n- **What it is.** Why it's there and how to use it, with a demonstration under it where one helps.\n## Changed\n## Fixed\n## API\n### Added\n### Changed\n### Deprecated\n### Removed\n## Migration\n- From the previous release: what mkp migrate does, the looks you can keep, what to check by hand.\n`;
+  return `---\nversion: ${version}\ndate: ${date}\nsummary: The note's summary, the same sentence.\n---\n# ${version}\n\n## Breaking\n- **What changed.** Why, and what to do instead (and the xtmd migrate id, if there is one).\n## New\n- **What it is.** Why it's there and how to use it, with a demonstration under it where one helps.\n## Changed\n## Fixed\n## API\n### Added\n### Changed\n### Deprecated\n### Removed\n## Migration\n- From the previous release: what xtmd migrate does, the looks you can keep, what to check by hand.\n`;
 }
 
 /** Checks one changelog's front matter and sections; problems go to err and warn. */
@@ -227,7 +227,7 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
     });
     named.set(stem, rel);
   }
-  // the descriptive changelog (changelog/<version>.mkp.md), once a repo has one: each release's, and
+  // the descriptive changelog (changelog/<version>.xt.md), once a repo has one: each release's, and
   // the current version's above all
   const cdir = join(root, changelogDir);
   if (existsSync(cdir)) {
@@ -235,9 +235,9 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
     const have = new Set();
     for (const f of logs) {
       const rel = `${changelogDir}/${f}`;
-      const stem = f.replace(/\.mkp\.md$|\.md$/, '');
-      if (!f.endsWith('.mkp.md') || versionProblem(stem)) {
-        warn(rel, 1, `${f} is not named for a version, so it is not a changelog; name it <version>.mkp.md, such as 0.3.0.mkp.md`);
+      const stem = f.replace(/\.xt\.md$|\.md$/, '');
+      if (!f.endsWith('.xt.md') || versionProblem(stem)) {
+        warn(rel, 1, `${f} is not named for a version, so it is not a changelog; name it <version>.xt.md, such as 0.3.0.xt.md`);
         continue;
       }
       have.add(stem);
@@ -246,8 +246,8 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
       if (!noteFront) warn(rel, 1, `${rel} has no note beside it: add ${notesDir}/${stem}.md, the short version for the release page`);
       checkChangelog(rel, readFileSync(join(cdir, f), 'utf8'), stem, noteFront, err, warn);
     }
-    for (const v of named.keys()) if (!have.has(v) && v !== version) warn(`${changelogDir}/${v}.mkp.md`, 1, `${v} has a note but no changelog: add ${changelogDir}/${v}.mkp.md, the full account of it`);
-    if (version && !have.has(version)) err(`${changelogDir}/${version}.mkp.md`, 1, `there is no changelog for ${version}: add ${changelogDir}/${version}.mkp.md beside its note. Start from:\n\n${changelogTemplate(version)}`);
+    for (const v of named.keys()) if (!have.has(v) && v !== version) warn(`${changelogDir}/${v}.xt.md`, 1, `${v} has a note but no changelog: add ${changelogDir}/${v}.xt.md, the full account of it`);
+    if (version && !have.has(version)) err(`${changelogDir}/${version}.xt.md`, 1, `there is no changelog for ${version}: add ${changelogDir}/${version}.xt.md beside its note. Start from:\n\n${changelogTemplate(version)}`);
   }
   if (version && !named.has(version) && !errors.some((e) => e.file === `${notesDir}/${version}.md`)) {
     const near = files.find((f) => f !== `${version}.md` && f.replace(/^v/i, '').replace(/\.(md|markdown)$/, '') === version);

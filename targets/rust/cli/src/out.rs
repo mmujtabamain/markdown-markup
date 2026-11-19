@@ -3,7 +3,7 @@
 //! target check) prints one JSON object per line, each with its `type`, and a `summary` last.
 //! Diagnostics are JSON objects wherever they go, with the same fields everywhere.
 
-use mkp_syntax::Diagnostic;
+use xtmd_syntax::Diagnostic;
 use serde_json::{json, Value};
 
 /// `--format json`, or `--format text` (the default); anything else is a usage error.
@@ -33,7 +33,7 @@ pub(crate) fn wants_json(args: &[String]) -> Result<bool, String> {
 /// A diagnostic as JSON: its file, code and severity, where it starts and ends by line and column,
 /// its message and its fix.
 pub(crate) fn diagnostic(file: &str, text: &str, d: &Diagnostic) -> Value {
-    let lines = mkp_syntax::Lines::new(text);
+    let lines = xtmd_syntax::Lines::new(text);
     let (at, end) = (lines.place(d.span.start), lines.place(d.span.end));
     json!({
         "type": "diagnostic", "file": file, "code": d.code, "severity": d.severity, "line": at.line, "column": at.column,
@@ -91,7 +91,7 @@ pub(crate) fn print(s: &str) {
     match SINK.lock().unwrap().as_mut() {
         Some((_, buf)) => buf.extend_from_slice(s.as_bytes()),
         None => {
-            // a pipe closed early (`mkp build … | head`) ends mkp quietly, as SIGPIPE ends a C
+            // a pipe closed early (`xtmd build … | head`) ends xtmd quietly, as SIGPIPE ends a C
             // program, and with its exit code
             if let Err(e) = std::io::stdout().write_all(s.as_bytes()) {
                 if e.kind() == std::io::ErrorKind::BrokenPipe {

@@ -1,9 +1,9 @@
-import type { Call, Page } from "@mkp/react";
+import type { Call, Page } from "@extended-mark/react";
 
 declare global {
   interface Window {
     /** The running page, for the same-page test. */
-    __mkp: { page: Page };
+    __xtmd: { page: Page };
     /** Every extern fn call the app heard, for the same-page test. */
     __calls: Call[];
   }

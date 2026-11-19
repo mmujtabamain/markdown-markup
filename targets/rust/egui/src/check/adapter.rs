@@ -1,9 +1,9 @@
-//! The egui targets' check adapter: `mkp target check egui` (and `egui-live`) drive it over
+//! The egui targets' check adapter: `xtmd target check egui` (and `egui-live`) drive it over
 //! JSON-RPC 2.0, one message per line on standard input and output (plan tab 16). Logs go to
 //! standard error only.
 //!
 //! Each case's document runs headless in egui_kittest's harness as an app holds it: an
-//! [`MkpDoc`], or what the target makes around one (mkp-egui-live's, from the case's text). What
+//! [`XtmdDoc`], or what the target makes around one (xtmd-egui-live's, from the case's text). What
 //! the observation reports of calls and refusals is what the document told the app, frame by
 //! frame. Every step runs frames until the page has settled. Steps go through the drawn widgets
 //! where they can, as the web's go through its DOM: a press's click is a real pointer click on
@@ -13,7 +13,7 @@
 //! included, kept on the page hidden).
 //!
 //! The plane's layout uses the checks' fixed sizes ([`crate::measure::Fixed`]), as the web's check
-//! harness does, so every target's boxes agree. `MKP_TEST_DEFECT` switches on the runtime's
+//! harness does, so every target's boxes agree. `XTMD_TEST_DEFECT` switches on the runtime's
 //! defects, as on the test and native targets.
 
 use std::collections::HashSet;
@@ -22,33 +22,33 @@ use std::path::{Path, PathBuf};
 
 use egui::accesskit::Role;
 use egui::UiBuilder;
-use mkp_runtime::ir::Expr;
-use mkp_runtime::layout::region_of;
-use mkp_runtime::{Broken, Call, Drawn, Page, PageTheme, PageValues, PageWidth, Value};
+use xtmd_runtime::ir::Expr;
+use xtmd_runtime::layout::region_of;
+use xtmd_runtime::{Broken, Call, Drawn, Page, PageTheme, PageValues, PageWidth, Value};
 use serde_json::{json, Value as Json};
 
 use crate::check::{self, Drawable, Headless};
-use crate::doc::{DocError, DocOptions, DocResponse, MkpDoc, State};
+use crate::doc::{DocError, DocOptions, DocResponse, XtmdDoc, State};
 use crate::measure::Fixed;
 use crate::widgets::kit::{self, Lay};
-use crate::{Act, Ctx, MkpPage, Props, Registry};
+use crate::{Act, Ctx, XtmdPage, Props, Registry};
 
 /// What the adapter drives: a document, as an app holds one.
 pub trait AsDoc: 'static {
-    fn doc(&mut self) -> &mut MkpDoc;
-    fn doc_ref(&self) -> &MkpDoc;
+    fn doc(&mut self) -> &mut XtmdDoc;
+    fn doc_ref(&self) -> &XtmdDoc;
     /// One frame of it.
     fn show(&mut self, ui: &mut egui::Ui) -> DocResponse {
         self.doc().show(ui)
     }
 }
 
-impl AsDoc for MkpDoc {
-    fn doc(&mut self) -> &mut MkpDoc {
+impl AsDoc for XtmdDoc {
+    fn doc(&mut self) -> &mut XtmdDoc {
         self
     }
 
-    fn doc_ref(&self) -> &MkpDoc {
+    fn doc_ref(&self) -> &XtmdDoc {
         self
     }
 }
@@ -80,11 +80,11 @@ impl<T: AsDoc> Drawable for Driven<T> {
         self.heard(r);
     }
 
-    fn view(&mut self) -> &mut MkpPage {
+    fn view(&mut self) -> &mut XtmdPage {
         self.inner.doc().view_mut()
     }
 
-    fn view_ref(&self) -> &MkpPage {
+    fn view_ref(&self) -> &XtmdPage {
         self.inner.doc_ref().view()
     }
 }
@@ -191,7 +191,7 @@ fn boxes(nodes: &[Drawn], out: &mut serde_json::Map<String, Json>) {
     for n in nodes {
         if n.widget == "core/spot" {
             if let Some(r) = region_of(n.props.get("box")) {
-                let num = |x: mkp_runtime::Num| json!({ "num": x.show() });
+                let num = |x: xtmd_runtime::Num| json!({ "num": x.show() });
                 out.insert(n.path.clone(), json!({ "from": { "x": num(r.from.x), "y": num(r.from.y) }, "to": { "x": num(r.to.x), "y": num(r.to.y) } }));
             }
         }
@@ -217,7 +217,7 @@ impl<T: AsDoc> Adapter<T> {
         Ok(self.ui()?.drawn())
     }
 
-    fn doc(&mut self) -> Result<&mut MkpDoc, String> {
+    fn doc(&mut self) -> Result<&mut XtmdDoc, String> {
         Ok(self.driven()?.inner.doc())
     }
 
@@ -384,7 +384,7 @@ impl<T: AsDoc> Adapter<T> {
 /// Serves a target over standard input and output until it is told to quit.
 pub fn serve<T: AsDoc>(target: Target<T>) {
     let name = target.name;
-    let defects: Vec<String> = std::env::var("MKP_TEST_DEFECT").unwrap_or_default().split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
+    let defects: Vec<String> = std::env::var("XTMD_TEST_DEFECT").unwrap_or_default().split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
     for d in &defects {
         if !DEFECTS.contains(&d.as_str()) {
             eprintln!("{} target: no defect {}; the defects are {}", name, d, DEFECTS.join(", "));

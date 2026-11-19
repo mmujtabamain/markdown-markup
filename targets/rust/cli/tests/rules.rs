@@ -86,7 +86,7 @@ fn every_rule_has_a_check_and_every_code_a_rule() {
     // every code the compiler can report belongs to a rule
     let mut declared = declared_codes(&repo().join("targets/rust/compiler/syntax/src/diag.rs"));
     declared.extend(declared_codes(&repo().join("targets/rust/compiler/check/src/lib.rs")));
-    // `mkp fmt`'s own refusals are a tool's, not the language's rules
+    // `xtmd fmt`'s own refusals are a tool's, not the language's rules
     for c in declared.iter().filter(|c| !c.starts_with("fmt.")) {
         if !listed.contains(c) {
             problems.push(format!("the code {} belongs to no rule", c));

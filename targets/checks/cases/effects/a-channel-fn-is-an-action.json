@@ -1,7 +1,7 @@
 {
   "id": "effects.a-channel-fn-is-an-action",
   "about": "a channel's fn with no return type is an action sent to the app: called in a fn that returns a value, directly or through an action that calls it, it is refused",
-  "source": "a-channel-fn-is-an-action.mkp.md",
+  "source": "a-channel-fn-is-an-action.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "effects.action-where-nothing-changes", "line": 8, "column": 5},

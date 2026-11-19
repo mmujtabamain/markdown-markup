@@ -1,7 +1,7 @@
 {
   "id": "read.a-state-field-with-no-starting-value",
   "about": "a $state field with no starting value",
-  "source": "a-state-field-with-no-starting-value.mkp.md",
+  "source": "a-state-field-with-no-starting-value.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "file.state-field-starting-value", "line": 2, "column": 19}

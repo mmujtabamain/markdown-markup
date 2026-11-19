@@ -2,7 +2,7 @@
 // element lives as long as the widget does, and focus, the caret and what is being typed survive
 // a redraw. The plane's layout runs after every change, with sizes read from the DOM.
 
-import { Num, Page, layout as runLayout, type Drawn, type Measure, type PageOptions, type ir } from "@mkp/runtime";
+import { Num, Page, layout as runLayout, type Drawn, type Measure, type PageOptions, type ir } from "@extended-mark/runtime";
 import type { Action, Mounted, MountOptions, Widget, WidgetContext, WidgetView } from "./api.js";
 import { giveKit, newUid, tokensOf, type Kit } from "./kit.js";
 import { webFns } from "./fns.js";
@@ -28,9 +28,9 @@ function injectStyle(root: HTMLElement): void {
   if (styled.has(target)) return;
   styled.add(target);
   const parent = host instanceof ShadowRoot ? host : root.ownerDocument.head;
-  if (parent.querySelector?.("style[data-mkp-dom]")) return;
+  if (parent.querySelector?.("style[data-xtmd-dom]")) return;
   const style = root.ownerDocument.createElement("style");
-  style.setAttribute("data-mkp-dom", "");
+  style.setAttribute("data-xtmd-dom", "");
   style.textContent = styleText;
   parent.prepend(style);
 }
@@ -74,8 +74,8 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
   let again = false;
   let settling = false;
 
-  root.classList.add("mkp-root");
-  root.setAttribute("data-mkp-root", "");
+  root.classList.add("xtmd-root");
+  root.setAttribute("data-xtmd-root", "");
   root.replaceChildren();
 
   const kitFor: Kit = {
@@ -91,8 +91,8 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
     e.path = d.path;
     byPath.set(d.path, e);
     const el = e.view.el;
-    if (el.getAttribute("data-mkp-site") !== d.path) el.setAttribute("data-mkp-site", d.path);
-    if (el.getAttribute("data-mkp-widget") !== d.widget) el.setAttribute("data-mkp-widget", d.widget);
+    if (el.getAttribute("data-xtmd-site") !== d.path) el.setAttribute("data-xtmd-site", d.path);
+    if (el.getAttribute("data-xtmd-widget") !== d.widget) el.setAttribute("data-xtmd-widget", d.widget);
   }
 
   function make(d: Drawn): Entry {
@@ -276,8 +276,8 @@ export function mount(page: Page, root: HTMLElement, opts: MountOptions = {}): M
       byPath.clear();
       live = false;
       tokens.clear(root);
-      root.classList.remove("mkp-root");
-      root.removeAttribute("data-mkp-root");
+      root.classList.remove("xtmd-root");
+      root.removeAttribute("data-xtmd-root");
       root.replaceChildren();
     },
   };

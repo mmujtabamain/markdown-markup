@@ -1,11 +1,11 @@
-// @mkp/dom's API, fixed before its widgets so that the bindings, the web target, the omnicui
+// @extended-mark/dom's API, fixed before its widgets so that the bindings, the web target, the omnicui
 // target and the playground can all be written against it.
 //
-// A page is drawn from @mkp/runtime's tree: each drawn extern widget becomes one WidgetView,
+// A page is drawn from @extended-mark/runtime's tree: each drawn extern widget becomes one WidgetView,
 // kept across redraws by its key (a loop row's widgets follow its item), and updated in place,
 // so focus, selection and scroll survive a change.
 
-import type { Drawn, Measure, Page, PageOptions, Value, ir } from "@mkp/runtime";
+import type { Drawn, Measure, Page, PageOptions, Value, ir } from "@extended-mark/runtime";
 
 /** What a widget can do on the page it is drawn on. */
 export interface WidgetContext {
@@ -22,7 +22,7 @@ export interface WidgetContext {
 
 /** One drawn widget: its element, and how it follows the page. */
 export interface WidgetView {
-  /** Its root element. @mkp/dom sets `data-mkp-site` (its path) and `data-mkp-widget` on it. */
+  /** Its root element. @extended-mark/dom sets `data-xtmd-site` (its path) and `data-xtmd-widget` on it. */
   readonly el: Element;
   /** The page changed: show this widget's new props and slots. */
   update(d: Drawn): void;

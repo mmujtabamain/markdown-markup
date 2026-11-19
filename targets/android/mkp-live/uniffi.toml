@@ -1,5 +1,0 @@
-# What uniffi-bindgen writes for Kotlin: the package the generated file declares, and the library
-# JNA loads (libmkp_android_live.so, from jniLibs on Android and from jna.library.path on the JVM).
-[bindings.kotlin]
-package_name = "mkp.android.live.ffi"
-cdylib_name = "mkp_android_live"

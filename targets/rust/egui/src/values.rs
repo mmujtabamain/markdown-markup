@@ -1,9 +1,9 @@
-//! Reading the runtime's values for drawing, as @mkp/dom's `values.ts` reads them. Every input
+//! Reading the runtime's values for drawing, as @extended-mark/dom's `values.ts` reads them. Every input
 //! arrives with its default filled in, so these only unwrap: an opt to its value, a case to its
 //! name, a record to its fields. Numbers are read as `f64` for drawing only: writes go back as
 //! exact [`Num`]s.
 
-use mkp_runtime::{Num, Value};
+use xtmd_runtime::{Num, Value};
 
 /// The value inside an opt (and inside that one), or the value itself; `None` for none.
 pub fn inner(v: Option<&Value>) -> Option<&Value> {
@@ -141,7 +141,7 @@ pub fn tex(latex: Option<&Value>) -> String {
 
 /// A point value in the IR's record form.
 pub fn point_value(x: Num, y: Num) -> Value {
-    mkp_runtime::layout::pt_value(&mkp_runtime::Pt { x, y })
+    xtmd_runtime::layout::pt_value(&xtmd_runtime::Pt { x, y })
 }
 
 #[cfg(test)]

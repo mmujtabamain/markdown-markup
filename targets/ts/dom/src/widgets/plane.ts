@@ -4,7 +4,7 @@
 // on each spot's own size, which the transform never changes. Dragging pans; the wheel, a pinch or
 // + and - zoom; each writes `center` or `zoom` through a checked write.
 
-import { around, ptValue, regionOf, type Drawn, type Region } from "@mkp/runtime";
+import { around, ptValue, regionOf, type Drawn, type Region } from "@extended-mark/runtime";
 import type { Widget, WidgetView } from "../api.js";
 import { attr, claim, css, h, isClaimed, kit, s } from "../kit.js";
 import { flag, inner, kase, num, placesFor, point, str, toNum, type XY } from "../values.js";
@@ -101,7 +101,7 @@ export const plane: Widget = (d, ctx) => {
       if (Math.hypot(dx, dy) < DRAG_START) return;
       drag.moved = true;
       view.setPointerCapture?.(e.pointerId);
-      view.classList.add("mkp-panning");
+      view.classList.add("xtmd-panning");
     }
     move({ x: drag.c.x - dx / z, y: drag.c.y + dy / z });
   });
@@ -111,7 +111,7 @@ export const plane: Widget = (d, ctx) => {
     if (pointers.size < 2) pinch = undefined;
     if (pointers.size === 0) {
       drag = undefined;
-      view.classList.remove("mkp-panning");
+      view.classList.remove("xtmd-panning");
     }
   };
   view.addEventListener("pointerup", up);
@@ -200,7 +200,7 @@ export const plane: Widget = (d, ctx) => {
       }
       low = Math.max(0.1, (range && range.kind === "range" ? (num(range.low ?? undefined) ?? 1) : 1) * base);
       high = Math.min(10, (range && range.kind === "range" ? (num(range.high ?? undefined) ?? 1) : 1) * base);
-      el.classList.toggle("mkp-zoomable", high > low);
+      el.classList.toggle("xtmd-zoomable", high > low);
       inSpace(space, () => ctx.children(bg, d.slots.get("background") ?? []));
       ctx.children(items, d.slots.get("items") ?? []);
       if (ro) {

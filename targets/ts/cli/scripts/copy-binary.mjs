@@ -1,6 +1,6 @@
-// Puts a release build of mkp in its platform package: platforms/<os>-<cpu>/bin.
+// Puts a release build of xtmd in its platform package: platforms/<os>-<cpu>/bin.
 //
-//   node scripts/copy-binary.mjs                        this machine's: cargo build --release -p mkp-cli
+//   node scripts/copy-binary.mjs                        this machine's: cargo build --release -p xtmd-cli
 //   node scripts/copy-binary.mjs --target <triple>      one cross-built for another platform, as the
 //                                                       release workflow builds each with cargo zigbuild
 //
@@ -28,21 +28,21 @@ if (at > 0 && !(target in TARGETS)) {
 }
 const platform = target ? TARGETS[target] : `${process.platform}-${process.arch}`;
 const [os, cpu] = platform.split("-");
-const exe = os === "win32" ? "mkp.exe" : "mkp";
+const exe = os === "win32" ? "xtmd.exe" : "xtmd";
 const built = join(here, "..", "..", "..", "rust", "target", ...(target ? [target] : []), "release", exe);
 if (!existsSync(built)) {
-  console.error(`no release build at ${built}: run cargo ${target ? `zigbuild --release -p mkp-cli --target ${target}` : "build --release -p mkp-cli"} in targets/rust`);
+  console.error(`no release build at ${built}: run cargo ${target ? `zigbuild --release -p xtmd-cli --target ${target}` : "build --release -p xtmd-cli"} in targets/rust`);
   process.exit(1);
 }
 const dir = join(here, "..", "platforms", platform);
 mkdirSync(join(dir, "bin"), { recursive: true });
 if (!existsSync(join(dir, "package.json"))) {
-  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: `@mkp/cli-${platform}`, version: "0.3.0", description: `The mkp binary for ${os} on ${cpu}`, license: "MIT", os: [os], cpu: [cpu], files: ["bin"] }, null, 2) + "\n");
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: `@extended-mark/cli-${platform}`, version: "0.3.0", description: `The xtmd binary for ${os} on ${cpu}`, license: "MIT", os: [os], cpu: [cpu], files: ["bin"] }, null, 2) + "\n");
 }
 copyFileSync(built, join(dir, "bin", exe));
 chmodSync(join(dir, "bin", exe), 0o755);
 console.log(`${platform}: ${join(dir, "bin", exe)}`);
-// MKP 0.3.0 only: the frozen 0.2 → 0.3 step beside the binary, where `mkp migrate` looks for it
+// Extended Mark 0.3.0 only: the frozen 0.2 → 0.3 step beside the binary, where `xtmd migrate` looks for it
 // (tools/migrate-0.2/frozen; later releases build without it)
 const frozen = join(here, "..", "..", "..", "..", "tools", "migrate-0.2", "frozen", "migrate-0.2.cjs");
 if (existsSync(frozen)) {

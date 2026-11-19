@@ -1,7 +1,7 @@
 {
   "id": "read.a-token-with-fields-instead-of-cases",
   "about": "a token with fields instead of cases",
-  "source": "a-token-with-fields-instead-of-cases.mkp",
+  "source": "a-token-with-fields-instead-of-cases.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.token-shape", "line": 3, "column": 18}

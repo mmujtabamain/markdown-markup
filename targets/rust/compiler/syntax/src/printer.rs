@@ -1,4 +1,4 @@
-//! `mkp fmt`'s printer: the syntax tree back to text, in the canonical layout.
+//! `xtmd fmt`'s printer: the syntax tree back to text, in the canonical layout.
 //!
 //! Inside a line, spacing is always the canonical one. Across lines, the printer keeps what the
 //! author chose where the spec leaves a choice: a list written over several lines stays over
@@ -1098,7 +1098,7 @@ impl<'a> Printer<'a> {
         self.nl();
     }
 
-    fn mkp_line_start(&mut self, base: usize, indent: &str) {
+    fn xtmd_line_start(&mut self, base: usize, indent: &str) {
         for _ in 0..base {
             self.out.push(' ');
         }
@@ -1106,7 +1106,7 @@ impl<'a> Printer<'a> {
     }
 
     fn close_line(&mut self, base: usize, indent: &str, text: &str) {
-        self.mkp_line_start(base, indent);
+        self.xtmd_line_start(base, indent);
         self.w(text);
         self.nl();
     }
@@ -1136,13 +1136,13 @@ impl<'a> Printer<'a> {
                     }
                 }
                 ProseNode::Comment { indent, span } => {
-                    self.mkp_line_start(base, indent);
+                    self.xtmd_line_start(base, indent);
                     let raw = self.src[span.range()].trim_end().to_string();
                     self.w(&raw);
                     self.nl();
                 }
                 ProseNode::Call(c) => {
-                    self.mkp_line_start(base, &c.indent);
+                    self.xtmd_line_start(base, &c.indent);
                     self.indent = base + c.indent.len();
                     self.view_call(&c.call);
                     match &c.block {
@@ -1159,7 +1159,7 @@ impl<'a> Printer<'a> {
                     }
                 }
                 ProseNode::If { indent, branches, otherwise, .. } => {
-                    self.mkp_line_start(base, indent);
+                    self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
                     for (k, (cond, body, close)) in branches.iter().enumerate() {
                         if k == 0 {
@@ -1169,7 +1169,7 @@ impl<'a> Printer<'a> {
                         self.w(") {");
                         self.nl();
                         self.prose(body, base);
-                        self.mkp_line_start(base, close);
+                        self.xtmd_line_start(base, close);
                         if k + 1 < branches.len() {
                             self.w("} else if (");
                         } else if otherwise.is_some() {
@@ -1186,7 +1186,7 @@ impl<'a> Printer<'a> {
                     }
                 }
                 ProseNode::For { indent, mutable, key, name, over, body, close, .. } => {
-                    self.mkp_line_start(base, indent);
+                    self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
                     self.w(if *mutable { "@mut for (" } else { "@for (" });
                     self.loop_head(key, name, over);
@@ -1196,14 +1196,14 @@ impl<'a> Printer<'a> {
                     self.close_line(base, close, "}");
                 }
                 ProseNode::Match { indent, subject, cases, close, .. } => {
-                    self.mkp_line_start(base, indent);
+                    self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
                     self.w("@match (");
                     self.expr(subject);
                     self.w(") {");
                     self.nl();
                     for c in cases {
-                        self.mkp_line_start(base, &c.indent);
+                        self.xtmd_line_start(base, &c.indent);
                         self.w("case ");
                         self.patterns(&c.patterns);
                         self.w(" {");
@@ -1214,7 +1214,7 @@ impl<'a> Printer<'a> {
                     self.close_line(base, close, "}");
                 }
                 ProseNode::Slot { indent, name, body, close, .. } => {
-                    self.mkp_line_start(base, indent);
+                    self.xtmd_line_start(base, indent);
                     self.w("@slot ");
                     self.w(&name.name);
                     self.w(" {");

@@ -1,7 +1,7 @@
 // What the playground, as the app, gives a page: where it is read (width and theme), the clock
 // (`core/page.today` and `core/page.now`), and `core/moment.local` from the browser's time zone.
 
-import { Num, type Page, type PageOptions, type PageValues, type Value, type ir } from "@mkp/runtime";
+import { Num, type Page, type PageOptions, type PageValues, type Value, type ir } from "@extended-mark/runtime";
 
 const n = (v: number): ir.Expr => ({ num: String(v) });
 

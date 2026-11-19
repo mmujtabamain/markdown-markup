@@ -1,6 +1,6 @@
 //! Prose: a document below its `@@@` line, and a widget's `markdown` block.
 //!
-//! Prose is read a line at a time. MKP's own lines come first: calls, control lines, `@slot`
+//! Prose is read a line at a time. Extended Mark's own lines come first: calls, control lines, `@slot`
 //! lines and the `}` lines that end their blocks. Every other line is Markdown, whose holes are
 //! found and read as expressions. Fenced code is skipped whole, and a `$$` line opens a maths
 //! block that the next one closes. The Markdown blocks themselves are left as lines here.
@@ -104,7 +104,7 @@ fn inside_quote_or_item(s: &str) -> Option<&str> {
     }
 }
 
-fn starts_mkp_line(s: &str) -> bool {
+fn starts_xtmd_line(s: &str) -> bool {
     let b = s.as_bytes();
     b.first() == Some(&b'@') && b.get(1).map_or(false, |c| c.is_ascii_lowercase())
 }
@@ -339,7 +339,7 @@ impl<'a> Parser<'a> {
             }
 
             if let Some(inner) = inside_quote_or_item(s) {
-                if starts_mkp_line(inner) || inner.starts_with("@//") || inner == "}" || inner.starts_with("} else") {
+                if starts_xtmd_line(inner) || inner.starts_with("@//") || inner == "}" || inner.starts_with("} else") {
                     let at = line.content + line.lead;
                     return Err(Diagnostic::error(
                         codes::IN_QUOTE_OR_ITEM,
@@ -397,9 +397,9 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            if line.lead <= 3 && starts_mkp_line(&line.text[line.lead..]) {
+            if line.lead <= 3 && starts_xtmd_line(&line.text[line.lead..]) {
                 let at = line.content + line.lead;
-                let (node, after) = self.mkp_line(&line, at, region, mode)?;
+                let (node, after) = self.xtmd_line(&line, at, region, mode)?;
                 nodes.push(node);
                 pos = after;
                 para_open = false;
@@ -426,7 +426,7 @@ impl<'a> Parser<'a> {
     }
 
     /// A line that starts with `@` and a small letter: a call, a control line or a slot.
-    fn mkp_line(&mut self, line: &Line, at: usize, region: Region, mode: Mode) -> R<(ProseNode, usize)> {
+    fn xtmd_line(&mut self, line: &Line, at: usize, region: Region, mode: Mode) -> R<(ProseNode, usize)> {
         let indent = " ".repeat(line.lead);
         let word: String = line.text[line.lead + 1..].bytes().take_while(|c| c.is_ascii_alphanumeric() || *c == b'_').map(|c| c as char).collect();
         let after = &line.text[line.lead + 1 + word.len()..];
@@ -465,7 +465,7 @@ impl<'a> Parser<'a> {
             Diagnostic::error(
                 codes::NOT_A_CALL,
                 Span::new(at, line.end),
-                format!("a line that starts with `@{}` is MKP: end the call with `;` or ` {{`, or write `\\@` to show an @ as text", &p.src[call.name.span.range()]),
+                format!("a line that starts with `@{}` is Extended Mark: end the call with `;` or ` {{`, or write `\\@` to show an @ as text", &p.src[call.name.span.range()]),
             )
         };
         let next_kind = match self.kind() {

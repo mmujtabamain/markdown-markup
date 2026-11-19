@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/live",
+  "name": "@extended-mark/live",
   "version": "0.3.0",
-  "description": "What every real-time MKP target on the web shares: a document's text compiled in the browser by @mkp/wasm into the IR a run-time target draws, the last page that compiled kept while a draft has errors",
+  "description": "What every real-time Extended Mark target on the web shares: a document's text compiled in the browser by @extended-mark/wasm into the IR a run-time target draws, the last page that compiled kept while a draft has errors",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,13 +21,13 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/embed": "file:../embed",
-    "@mkp/runtime": "file:../../runtime",
-    "@mkp/wasm": "file:../../wasm"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/runtime": "file:../../runtime",
+    "@extended-mark/wasm": "file:../../wasm"
   },
   "devDependencies": {
     "typescript": "5.9.3",
-    "@mkp/view": "file:../view"
+    "@extended-mark/view": "file:../view"
   }
 }

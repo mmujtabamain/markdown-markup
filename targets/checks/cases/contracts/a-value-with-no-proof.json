@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-value-with-no-proof",
   "about": "a plain number where a contract is wanted asks for a proof",
-  "source": "a-value-with-no-proof.mkp",
+  "source": "a-value-with-no-proof.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 8, "column": 17}

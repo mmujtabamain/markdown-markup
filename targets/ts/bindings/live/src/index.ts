@@ -1,15 +1,15 @@
-// What every real-time target shares: a document's text compiled in the browser by @mkp/wasm,
-// into the IR a run-time target's <MkpDoc> draws. A text that compiles replaces the page (its
+// What every real-time target shares: a document's text compiled in the browser by @extended-mark/wasm,
+// into the IR a run-time target's <XtmdDoc> draws. A text that compiles replaces the page (its
 // `$state` carried over where its fields still exist); one that doesn't leaves the last page that
 // did, and its errors go to the app, so a preview keeps up with an editor and only a broken draft
 // waits. When to compile (each key, a pause, a save) is the app's: it changes `source`.
 
-import { Compiler, type Built, type PackFile, type WasmSource } from "@mkp/wasm";
-import type { DocError, Ir } from "@mkp/embed";
+import { Compiler, type Built, type PackFile, type WasmSource } from "@extended-mark/wasm";
+import type { DocError, Ir } from "@extended-mark/embed";
 
-export { Compiler, type Built, type PackFile, type WasmSource } from "@mkp/wasm";
+export { Compiler, type Built, type PackFile, type WasmSource } from "@extended-mark/wasm";
 
-/** What compiles a text: @mkp/wasm's compiler, or anything that builds the same way, such as one
+/** What compiles a text: @extended-mark/wasm's compiler, or anything that builds the same way, such as one
  * the app runs in a worker, which answers with a promise. */
 export interface Builds {
   build(path: string, text: string, packs?: PackFile[]): Built | Promise<Built>;
@@ -19,11 +19,11 @@ export interface Builds {
 export interface LiveProps {
   /** The document's text. */
   source: string;
-  /** Its path, for diagnostics and to say it is a document: `page.mkp.md` when left out. */
+  /** Its path, for diagnostics and to say it is a document: `page.xt.md` when left out. */
   path?: string;
   /** The files of the packs it uses. */
   packs?: PackFile[];
-  /** Where mkp.wasm is, when the compiler isn't given: its URL, its bytes or the module. */
+  /** Where xtmd.wasm is, when the compiler isn't given: its URL, its bytes or the module. */
   wasm?: WasmSource;
   /** The compiler: left out, one loaded from `wasm` and shared by every document on the page. */
   compiler?: Builds;
@@ -64,7 +64,7 @@ export class Live {
   update(props: LiveProps, onError?: (e: DocError) => void): void {
     this.props = props;
     this.onError = onError;
-    const key = JSON.stringify([props.path ?? "page.mkp.md", props.source, props.packs ?? []]);
+    const key = JSON.stringify([props.path ?? "page.xt.md", props.source, props.packs ?? []]);
     if (key === this.wanted) return;
     this.wanted = key;
     if (props.compiler) {
@@ -92,7 +92,7 @@ export class Live {
     const key = this.wanted;
     if (key === this.done) return;
     const seq = ++this.seq;
-    const path = p.path ?? "page.mkp.md";
+    const path = p.path ?? "page.xt.md";
     let built: Built | Promise<Built>;
     try {
       built = this.builds!.build(path, p.source, p.packs ?? []);

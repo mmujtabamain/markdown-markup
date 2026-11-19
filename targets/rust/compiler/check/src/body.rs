@@ -3,8 +3,8 @@
 use crate::proof::Known;
 use crate::ty::{FnParam, Ty};
 use crate::*;
-use mkp_syntax::ast::{BinOp, ExprKind as E, UnOp};
-use mkp_syntax::lexer::decode_piece;
+use xtmd_syntax::ast::{BinOp, ExprKind as E, UnOp};
+use xtmd_syntax::lexer::decode_piece;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LocalKind {

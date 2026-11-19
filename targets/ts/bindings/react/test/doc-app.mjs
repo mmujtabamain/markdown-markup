@@ -1,8 +1,8 @@
-// The test app for <MkpDoc>: drawn by React itself, `$state` controlled by the app, with the
+// The test app for <XtmdDoc>: drawn by React itself, `$state` controlled by the app, with the
 // controls the shared doc steps use (testing/browser.mjs, docSteps).
 import { createElement as h, useState, useRef, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MkpDoc } from "@mkp/react";
+import { XtmdDoc } from "@extended-mark/react";
 
 const heard = { states: [], errors: [], calls: [] };
 let controls;
@@ -16,7 +16,7 @@ function App() {
   const ref = useRef(null);
   controls = { setIr, setTheme, setUnit, setState, unmount: () => setShown(false), ref };
   if (!shown) return null;
-  return h(MkpDoc, {
+  return h(XtmdDoc, {
     ref,
     ir: window.__IR[which],
     state,

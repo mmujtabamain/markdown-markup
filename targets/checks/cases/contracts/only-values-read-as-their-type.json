@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-values-read-as-their-type",
   "about": "a date's only values are read as dates (a call with one of them compiles), and a list's, an opt's and an inline record's compare when what they hold does",
-  "source": "only-values-read-as-their-type.mkp",
+  "source": "only-values-read-as-their-type.xtpack",
   "expect": {
     "diagnostics": []
   }

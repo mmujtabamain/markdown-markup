@@ -1,7 +1,7 @@
 {
   "id": "widgets.bullets",
   "about": "claims are checked: bullet, numbered and task lists",
-  "source": "bullets.mkp.md",
+  "source": "bullets.xt.md",
   "target": {
     "levels": [
       "core.draw"

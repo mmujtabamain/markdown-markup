@@ -1,8 +1,8 @@
-// The test app for <MkpLiveDoc>: its text compiled in the tab, with the controls the shared live
+// The test app for <XtmdLiveDoc>: its text compiled in the tab, with the controls the shared live
 // steps use (testing/browser.mjs, liveSteps).
 import { createComponent, createSignal } from "solid-js";
 import { render } from "solid-js/web";
-import { MkpLiveDoc } from "@mkp/solid-live";
+import { XtmdLiveDoc } from "@extended-mark/solid-live";
 
 const heard = { states: [], errors: [], calls: [] };
 const [source, setSource] = createSignal(window.__SRC.v1);
@@ -11,7 +11,7 @@ let handle;
 
 render(
   () =>
-    createComponent(MkpLiveDoc, {
+    createComponent(XtmdLiveDoc, {
       ref: (h) => (handle = h),
       get source() {
         return source();

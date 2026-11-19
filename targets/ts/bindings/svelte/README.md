@@ -1,33 +1,33 @@
-# @mkp/svelte
+# @extended-mark/svelte
 
-MKP documents in Svelte 5, the run-time target: `MkpDoc` draws a page from an IR built ahead
-(`mkp build`, or @mkp/cli's bundler plugin), with no compiler and no WebAssembly in the app. Core's
+Extended Mark documents in Svelte 5, the run-time target: `XtmdDoc` draws a page from an IR built ahead
+(`xtmd build`, or xtmd's bundler plugin), with no compiler and no WebAssembly in the app. Core's
 widgets are drawn by Svelte itself (`svelte:element`, recursively), server-rendered with `svelte/server`. The real-time target, which compiles a document's text in the
-browser, is [@mkp/svelte-live](../svelte-live).
+browser, is [@extended-mark/svelte-live](../svelte-live).
 
 ```sh
-npm install @mkp/svelte
+npm install @extended-mark/svelte
 ```
 
 ```svelte
 <script>
-  import { MkpDoc } from "@mkp/svelte";
+  import { XtmdDoc } from "@extended-mark/svelte";
   let state = $state.raw(saved);
   let doc;   // doc.snapshot(), doc.restore(…), doc.set(…), doc.getState()
 </script>
 
-<MkpDoc bind:this={doc} src="/pages/shop.ir.json" {state} onStateChange={(s) => (state = s)}
+<XtmdDoc bind:this={doc} src="/pages/shop.ir.json" {state} onStateChange={(s) => (state = s)}
   externs={{ shop: { currency: { text: "EUR" } } }} onError={console.warn} onCalls={handle} />
 ```
 
 ## Props
 
-The same in every framework (@mkp/view's `DocProps`):
+The same in every framework (@extended-mark/view's `DocProps`):
 
 | Prop | What it does |
 |---|---|
 | `src` or `ir` | Where to fetch the IR from, or the IR in hand. A new one keeps `$state` where its fields still exist. |
-| `state` and `onStateChange`, or `defaultState` | `$state` controlled by the app, or started from. A new `state` is a write checked by mkp; one it refuses leaves the page as it was. |
+| `state` and `onStateChange`, or `defaultState` | `$state` controlled by the app, or started from. A new `state` is a write checked by xtmd; one it refuses leaves the page as it was. |
 | `defaultSnapshot` | A snapshot to start from: `$state` and every widget's own variables. |
 | `onError` | `{ kind: "refused" }` (the rule, the code, the widget), `"failed"`, `"load"` (an IR that couldn't be had). |
 | `onCalls` | The app's extern fns the page called. |
@@ -40,12 +40,12 @@ it back; with another, `$state` only.
 ## Real time
 
 ```svelte
-<MkpLiveDoc source={text} wasm={wasmUrl} onError={(e) => e.kind === "compile" && show(e.diagnostics)} />
-<!-- import { MkpLiveDoc } from "@mkp/svelte-live" -->
+<XtmdLiveDoc source={text} wasm={wasmUrl} onError={(e) => e.kind === "compile" && show(e.diagnostics)} />
+<!-- import { XtmdLiveDoc } from "@extended-mark/svelte-live" -->
 ```
 
 ## Tests
 
-`npm test`: `MkpDoc` rendered on a server, then the shared steps in Chromium (`../testing/browser.mjs`,
+`npm test`: `XtmdDoc` rendered on a server, then the shared steps in Chromium (`../testing/browser.mjs`,
 `docSteps`): controlled `$state`, refusals, the handle, props, a new IR, widgets' own variables and
-snapshots. `mkp target check svelte` runs the conformance cases through `check/harness`.
+snapshots. `xtmd target check svelte` runs the conformance cases through `check/harness`.

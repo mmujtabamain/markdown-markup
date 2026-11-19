@@ -1,22 +1,22 @@
 #!/usr/bin/env node
-// The test target's check adapter: `mkp target check` drives @mkp/runtime through it over
+// The test target's check adapter: `xtmd target check` drives @extended-mark/runtime through it over
 // JSON-RPC 2.0, one message per line on standard input and output (plan tab 16). Logs go to
 // standard error only.
 //
 // The test target draws nothing. It lays widgets out with fixed sizes (sizes.mjs), so a check can
-// say exactly which boxes a plane's spots must write, and MKP_TEST_DEFECT switches on defects, so
+// say exactly which boxes a plane's spots must write, and XTMD_TEST_DEFECT switches on defects, so
 // each check is shown to catch a broken target.
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
-import { Page, layout, regionOf, toIr } from "@mkp/runtime";
+import { Page, layout, regionOf, toIr } from "@extended-mark/runtime";
 import { measure, targetFns } from "./sizes.mjs";
 import { DEFECTS } from "./defects.mjs";
 
 
-const defects = (process.env.MKP_TEST_DEFECT ?? "").split(",").filter(Boolean);
+const defects = (process.env.XTMD_TEST_DEFECT ?? "").split(",").filter(Boolean);
 for (const d of defects) {
   if (!(d in DEFECTS)) {
     process.stderr.write(`test target: no defect ${d}; the defects are ${Object.keys(DEFECTS).join(", ")}\n`);

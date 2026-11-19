@@ -1,7 +1,7 @@
 {
   "id": "plane.bounds-come-from-the-spots",
   "about": "a plane given no bounds takes the region around every spot's box; drawn larger than them, its centre is their middle, and written back",
-  "source": "bounds-come-from-the-spots.mkp.md",
+  "source": "bounds-come-from-the-spots.xt.md",
   "target": {
     "levels": [
       "core.draw",

@@ -1,8 +1,8 @@
-// The page the browser tests drive: @mkp/dom bundled with @mkp/runtime, and a few helpers on
-// window.mkp that take and give values in the IR's form, as the checks do.
+// The page the browser tests drive: @extended-mark/dom bundled with @extended-mark/runtime, and a few helpers on
+// window.xtmd that take and give values in the IR's form, as the checks do.
 
 import { mount, run, widgets } from "../dist/index.js";
-import { Num, toIr } from "@mkp/runtime";
+import { Num, toIr } from "@extended-mark/runtime";
 
 let mounted;
 
@@ -25,7 +25,7 @@ function fixedMeasure(page) {
   };
 }
 
-window.mkp = {
+window.xtmd = {
   start(irText, opts = {}) {
     if (mounted) mounted.unmount();
     const root = document.getElementById("app");

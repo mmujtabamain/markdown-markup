@@ -1,7 +1,7 @@
 {
   "id": "views.a-spot-outside-its-planes-bounds-warns",
   "about": "a spot outside the bounds is a warning at compile time when both are constants",
-  "source": "a-spot-outside-its-planes-bounds-warns.mkp.md",
+  "source": "a-spot-outside-its-planes-bounds-warns.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "views.spot-outside-bounds", "line": 8, "column": 18}

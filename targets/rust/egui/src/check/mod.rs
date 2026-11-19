@@ -1,5 +1,5 @@
-//! Driving a page headless, as the check adapters do: an [`MkpPage`] (or a document around one,
-//! [`crate::doc::MkpDoc`]) in egui_kittest's harness,
+//! Driving a page headless, as the check adapters do: an [`XtmdPage`] (or a document around one,
+//! [`crate::doc::XtmdDoc`]) in egui_kittest's harness,
 //! with real egui input (pointer, keys, text) aimed at the nodes of its AccessKit tree, and the
 //! tree read back the way a screen reader reads it.
 //!
@@ -14,35 +14,35 @@ use egui::{Event, Key, Modifiers, PointerButton, Pos2, Rect, Vec2};
 use egui_kittest::kittest::AccessKitNode;
 use egui_kittest::Harness;
 
-use crate::MkpPage;
+use crate::XtmdPage;
 
 /// Simulated time per frame: 60 frames a second.
 pub const STEP_DT: f32 = 1.0 / 60.0;
 
-/// What the harness draws every frame: a page ([`MkpPage`]), or a document around one.
+/// What the harness draws every frame: a page ([`XtmdPage`]), or a document around one.
 pub trait Drawable: 'static {
     fn draw(&mut self, ui: &mut egui::Ui);
     /// The page it draws, to act on its widgets and read it.
-    fn view(&mut self) -> &mut MkpPage;
-    fn view_ref(&self) -> &MkpPage;
+    fn view(&mut self) -> &mut XtmdPage;
+    fn view_ref(&self) -> &XtmdPage;
 }
 
-impl Drawable for MkpPage {
+impl Drawable for XtmdPage {
     fn draw(&mut self, ui: &mut egui::Ui) {
         self.show(ui);
     }
 
-    fn view(&mut self) -> &mut MkpPage {
+    fn view(&mut self) -> &mut XtmdPage {
         self
     }
 
-    fn view_ref(&self) -> &MkpPage {
+    fn view_ref(&self) -> &XtmdPage {
         self
     }
 }
 
 /// A page, or a document, in a headless harness.
-pub struct Headless<D: Drawable = MkpPage> {
+pub struct Headless<D: Drawable = XtmdPage> {
     pub harness: Harness<'static, D>,
 }
 
@@ -75,7 +75,7 @@ impl<D: Drawable> Headless<D> {
         Headless { harness }
     }
 
-    pub fn page(&mut self) -> &mut MkpPage {
+    pub fn page(&mut self) -> &mut XtmdPage {
         self.harness.state_mut().view()
     }
 

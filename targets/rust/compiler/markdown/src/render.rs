@@ -5,10 +5,10 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use mkp_eval::interp::Outer;
-use mkp_eval::value::ViewValue;
-use mkp_eval::{FailKind, Host, Machine, Program, Value};
-use mkp_ir::ir::{self, Expr, Node};
+use xtmd_eval::interp::Outer;
+use xtmd_eval::value::ViewValue;
+use xtmd_eval::{FailKind, Host, Machine, Program, Value};
+use xtmd_ir::ir::{self, Expr, Node};
 
 use crate::{join_runs, Align, Block, Inline, Item};
 
@@ -18,7 +18,7 @@ pub struct Failure(pub String);
 
 type R<T> = Result<T, Failure>;
 
-fn fail(e: mkp_eval::Failure) -> Failure {
+fn fail(e: xtmd_eval::Failure) -> Failure {
     Failure(e.message)
 }
 
@@ -53,12 +53,12 @@ const SLOT: &str = "#slot";
 struct Page(Rc<RefCell<Shared>>);
 
 impl Host for Page {
-    fn read(&self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> Result<Value, mkp_eval::Failure> {
+    fn read(&self, m: &mut Machine, what: &Outer, owner: Option<u64>) -> Result<Value, xtmd_eval::Failure> {
         let mut sh = self.0.borrow_mut();
-        let missing = |what: &Outer| mkp_eval::Failure::new(FailKind::Ir, format!("{:?} isn't known here", what));
+        let missing = |what: &Outer| xtmd_eval::Failure::new(FailKind::Ir, format!("{:?} isn't known here", what));
         match what {
             Outer::State(n) => sh.state.get(&**n).cloned().ok_or_else(|| missing(what)),
-            Outer::Extern(n) => sh.externs.get(&**n).cloned().ok_or_else(|| mkp_eval::Failure::new(FailKind::NotConstant, format!("`{}` is given when the page runs", n))),
+            Outer::Extern(n) => sh.externs.get(&**n).cloned().ok_or_else(|| xtmd_eval::Failure::new(FailKind::NotConstant, format!("`{}` is given when the page runs", n))),
             Outer::Let(n) => match m.prog.lets.get(&**n) {
                 Some(v) => Ok(v.clone()),
                 None => sh.lets.get(&**n).cloned().ok_or_else(|| missing(what)),
@@ -72,7 +72,7 @@ impl Host for Page {
                         sh.held.push(h);
                         let id = sh.held.len() - 1;
                         let mut args = BTreeMap::new();
-                        args.insert("id".to_string(), Value::Num(mkp_eval::Num::int(id as i64)));
+                        args.insert("id".to_string(), Value::Num(xtmd_eval::Num::int(id as i64)));
                         Ok(Value::View(Rc::new(ViewValue { widget: Rc::from(SLOT), args, slots: BTreeMap::new(), events: BTreeMap::new(), exprs: BTreeMap::new(), captured: Vec::new(), owner: None })))
                     }
                     // a slot left empty
@@ -82,8 +82,8 @@ impl Host for Page {
         }
     }
 
-    fn write(&self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> Result<(), mkp_eval::Failure> {
-        Err(mkp_eval::Failure::new(FailKind::NotConstant, format!("writing the page's Markdown changes nothing, so {:?} isn't written", what)))
+    fn write(&self, _m: &mut Machine, what: &Outer, _owner: Option<u64>, _value: Value) -> Result<(), xtmd_eval::Failure> {
+        Err(xtmd_eval::Failure::new(FailKind::NotConstant, format!("writing the page's Markdown changes nothing, so {:?} isn't written", what)))
     }
 }
 
@@ -177,7 +177,7 @@ impl<'p> Writer<'p> {
                     for (k, v) in values.into_iter().enumerate() {
                         let mut inner = env.clone();
                         if let Some(p) = &f.position {
-                            inner.locals.push((Rc::from(p.as_str()), Value::Num(mkp_eval::Num::int(k as i64))));
+                            inner.locals.push((Rc::from(p.as_str()), Value::Num(xtmd_eval::Num::int(k as i64))));
                         }
                         let v = if f.mutable { Value::some(v) } else { v };
                         inner.locals.push((Rc::from(f.name.as_str()), v));
@@ -253,7 +253,7 @@ impl<'p> Writer<'p> {
             let mut sh = self.shared.borrow_mut();
             sh.held.push((vec![node], env));
             let mut args = BTreeMap::new();
-            args.insert("id".to_string(), Value::Num(mkp_eval::Num::int((sh.held.len() - 1) as i64)));
+            args.insert("id".to_string(), Value::Num(xtmd_eval::Num::int((sh.held.len() - 1) as i64)));
             out.push(Value::View(Rc::new(ViewValue { widget: Rc::from(SLOT), args, slots: BTreeMap::new(), events: BTreeMap::new(), exprs: BTreeMap::new(), captured: Vec::new(), owner: None })));
         }
         Ok(out)
@@ -278,7 +278,7 @@ impl<'p> Writer<'p> {
                     for (k, v) in values.into_iter().enumerate() {
                         let mut inner = env.clone();
                         if let Some(p) = &f.position {
-                            inner.locals.push((Rc::from(p.as_str()), Value::Num(mkp_eval::Num::int(k as i64))));
+                            inner.locals.push((Rc::from(p.as_str()), Value::Num(xtmd_eval::Num::int(k as i64))));
                         }
                         let v = if f.mutable { Value::some(v) } else { v };
                         inner.locals.push((Rc::from(f.name.as_str()), v));
@@ -354,7 +354,7 @@ impl<'p> Writer<'p> {
                 ("NONE", None) => true,
                 _ => false,
             },
-            (ir::Pattern::Num(n), Value::Num(x)) => mkp_eval::Num::parse(n).map_or(false, |n| self.m.equal(&Value::Num(n), &Value::Num(*x)).unwrap_or(false)),
+            (ir::Pattern::Num(n), Value::Num(x)) => xtmd_eval::Num::parse(n).map_or(false, |n| self.m.equal(&Value::Num(n), &Value::Num(*x)).unwrap_or(false)),
             (ir::Pattern::Text(t), Value::Text(x)) => **x == **t,
             (ir::Pattern::Bool(b), Value::Bool(x)) => b == x,
             _ => false,
@@ -520,7 +520,7 @@ impl<'p> Writer<'p> {
             }
             _ => {}
         }
-        // a widget written in MKP: its markdown, with its inputs and its own variables
+        // a widget written in Extended Mark: its markdown, with its inputs and its own variables
         if let Some(t) = self.templates.get(name).cloned() {
             let id = self.new_instance(Instance::default());
             let env = Env { owner: Some(id), locals: Vec::new() };

@@ -1,9 +1,0 @@
-package core;
-
-//@about What the app tells MKP about the page being read.
-extern page {
-    width: width = width.WIDE;
-    theme: theme = theme.LIGHT;
-    today: date = "1970-01-01";
-    now: moment = "1970-01-01T00:00+00:00";      // the app's clock
-}

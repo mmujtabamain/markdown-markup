@@ -1,20 +1,20 @@
-//! What a real-time MKP target embeds: the compiler, with core compiled once when it is made, which
-//! builds a document's text (and the packs it uses, as text) into the IR `mkp build` writes; and
+//! What a real-time Extended Mark target embeds: the compiler, with core compiled once when it is made, which
+//! builds a document's text (and the packs it uses, as text) into the IR `xtmd build` writes; and
 //! [`Live`], a text followed as it is edited, which keeps the last IR that compiled while a draft
 //! has errors. The run-time targets don't depend on this crate: an app that only draws pages it was
 //! given carries no compiler.
 //!
-//! mkp-egui-live and mkp-android-live link it into the app; mkp-wasm wraps it for the browser.
+//! xtmd-egui-live and xtmd-android-live link it into the app; xtmd-wasm wraps it for the browser.
 
 use std::collections::BTreeMap;
 
-use mkp_check::Checker;
-use mkp_syntax::Lines;
+use xtmd_check::Checker;
+use xtmd_syntax::Lines;
 use serde::Serialize;
 
-pub use mkp_check::Source;
-pub use mkp_ir::ir;
-pub use mkp_syntax::Severity;
+pub use xtmd_check::Source;
+pub use xtmd_ir::ir;
+pub use xtmd_syntax::Severity;
 
 include!(concat!(env!("OUT_DIR"), "/core.rs"));
 
@@ -25,7 +25,7 @@ pub struct Place {
     pub column: u32,
 }
 
-/// A diagnostic, as `mkp check --format json` writes one.
+/// A diagnostic, as `xtmd check --format json` writes one.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Diagnostic {
     #[serde(rename = "type")]
@@ -72,7 +72,7 @@ pub struct Built {
 }
 
 impl Built {
-    /// As JSON, `{ "ir", "diagnostics", "errors", "sites" }`: the IR as `mkp build` writes it, on one line.
+    /// As JSON, `{ "ir", "diagnostics", "errors", "sites" }`: the IR as `xtmd build` writes it, on one line.
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|e| format!("{{\"ir\":null,\"diagnostics\":[],\"errors\":1,\"sites\":{{}},\"why\":{:?}}}", e.to_string()))
     }
@@ -93,16 +93,16 @@ impl Compiler {
     /// Compiles core, from the sources embedded in this library.
     pub fn new() -> Compiler {
         let core: Vec<Source> = CORE.iter().map(|(p, t)| Source { path: p.to_string(), text: t.to_string() }).collect();
-        Compiler { base: mkp_check::compile_core(&core) }
+        Compiler { base: xtmd_check::compile_core(&core) }
     }
 
-    /// Builds one file: `path` ending in `.mkp.md` for a document, else a pack's file; its text;
-    /// and the files of the packs it may use. The IR is the one `mkp build` writes: every prop
+    /// Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its text;
+    /// and the files of the packs it may use. The IR is the one `xtmd build` writes: every prop
     /// that isn't constant a binding, and a page's only what it uses.
     pub fn build(&self, path: &str, text: &str, packs: &[Source]) -> Built {
         let packs: Vec<Source> = packs.iter().filter(|p| p.path != path).cloned().collect();
-        let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-        let c = mkp_check::compile_on(&self.base, &[packs], &[Source { path: path.to_string(), text: text.to_string() }], module);
+        let module = if path.ends_with(".xt.md") { "doc" } else { "main" };
+        let c = xtmd_check::compile_on(&self.base, &[packs], &[Source { path: path.to_string(), text: text.to_string() }], module);
         let diagnostics = c
             .diagnostics
             .iter()
@@ -132,7 +132,7 @@ impl Compiler {
             sites.entry(s.template.clone()).or_default().insert(s.site.clone(), Written { line: at.line, column: at.column, end: Place { line: end.line, column: end.column } });
         }
         let ir = c.module.map(|mut m| {
-            mkp_lower::lower(&mut m);
+            xtmd_lower::lower(&mut m);
             ir::File { ir: m }
         });
         Built { ir: if errors == 0 { ir } else { None }, diagnostics, errors, sites }
@@ -166,12 +166,12 @@ pub struct Live {
 
 impl Default for Live {
     fn default() -> Self {
-        Live::new("page.mkp.md")
+        Live::new("page.xt.md")
     }
 }
 
 impl Live {
-    /// A text to follow at `path` (`page.mkp.md` for a document), for diagnostics and the module.
+    /// A text to follow at `path` (`page.xt.md` for a document), for diagnostics and the module.
     pub fn new(path: &str) -> Live {
         Live { path: path.to_string(), packs: Vec::new(), built: None, ir: None, diagnostics: Vec::new(), errors: 0, revision: 0 }
     }
@@ -225,8 +225,8 @@ impl Live {
         self.errors
     }
 
-    /// The latest text's errors as one line, as a target tells an app: `page.mkp.md doesn't
-    /// compile (1 error): page.mkp.md:5:3: …`; none when it compiled.
+    /// The latest text's errors as one line, as a target tells an app: `page.xt.md doesn't
+    /// compile (1 error): page.xt.md:5:3: …`; none when it compiled.
     pub fn why(&self) -> Option<String> {
         if self.errors == 0 {
             return None;

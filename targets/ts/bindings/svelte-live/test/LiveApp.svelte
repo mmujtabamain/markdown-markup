@@ -1,6 +1,6 @@
-<!-- The test app for <MkpLiveDoc>: its text compiled in the tab, with the controls the shared live steps use (testing/browser.mjs, liveSteps). -->
+<!-- The test app for <XtmdLiveDoc>: its text compiled in the tab, with the controls the shared live steps use (testing/browser.mjs, liveSteps). -->
 <script>
-  import { MkpLiveDoc } from "@mkp/svelte-live";
+  import { XtmdLiveDoc } from "@extended-mark/svelte-live";
 
   const heard = { states: [], errors: [], calls: [] };
   let source = $state(window.__SRC.v1);
@@ -18,7 +18,7 @@
   };
 </script>
 
-<MkpLiveDoc
+<XtmdLiveDoc
   bind:this={view}
   {source}
   wasm={window.__WASM_URL}

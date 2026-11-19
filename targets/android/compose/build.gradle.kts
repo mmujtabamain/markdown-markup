@@ -5,4 +5,4 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
 }
 
-subprojects { group = "mkp" }
+subprojects { group = "xtmd" }

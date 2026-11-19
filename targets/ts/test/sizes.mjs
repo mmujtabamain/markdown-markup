@@ -8,7 +8,7 @@
 // - Anything else is 80 by 20.
 // - A plane given no width is 640 wide, the test page's width.
 
-import { Num } from "@mkp/runtime";
+import { Num } from "@extended-mark/runtime";
 
 export const CHAR = 8;
 export const LINE = 20;

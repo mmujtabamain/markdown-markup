@@ -1,11 +1,11 @@
-//! Steps between releases of MKP 0.3: what a release changes in the files written for an earlier
-//! one, beyond any pack's migrations. Each step is a fn from a file to its edits, made with MKP's own
+//! Steps between releases of Extended Mark 0.3: what a release changes in the files written for an earlier
+//! one, beyond any pack's migrations. Each step is a fn from a file to its edits, made with Extended Mark's own
 //! reader (the parser, or its lexer for a form the parser no longer reads), never by searching the
-//! text. `mkp migrate` runs the steps of every release after the one a tree is written for
-//! (mkp.toml's `mkp`), oldest first and before anything else; a 0.2 document's run once the 0.2
+//! text. `xtmd migrate` runs the steps of every release after the one a tree is written for
+//! (xtmd.toml's `xtmd`), oldest first and before anything else; a 0.2 document's run once the 0.2
 //! step has written it as 0.3.0.
 
-use mkp_syntax::Entry;
+use xtmd_syntax::Entry;
 
 use crate::migrate::release_of;
 use crate::migrate_step::{apply, Edit};
@@ -16,7 +16,7 @@ pub(crate) struct ReleaseStep {
     pub release: &'static str,
     /// What changes and why, as whoever migrates is told.
     pub why: &'static str,
-    /// The edits it makes to one file, read as a document or a `.mkp` file; an error says why the
+    /// The edits it makes to one file, read as a document or a `.xtpack` file; an error says why the
     /// file can't be moved, and refuses it.
     pub edits: fn(&str, Entry) -> Result<Vec<Edit>, String>,
 }
@@ -34,16 +34,16 @@ pub(crate) fn between<'s>(from: &str, to: &str, steps: &'s [ReleaseStep]) -> Vec
 
 /// A file moved through the steps: its text after them, and what each step that changed it says.
 pub(crate) fn run(text: &str, path: &str, steps: &[&ReleaseStep]) -> Result<(String, Vec<String>), String> {
-    let Some(entry) = mkp_syntax::entry_for(path) else { return Ok((text.to_string(), Vec::new())) };
+    let Some(entry) = xtmd_syntax::entry_for(path) else { return Ok((text.to_string(), Vec::new())) };
     let mut now = text.to_string();
     let mut said = Vec::new();
     for s in steps {
-        let edits = (s.edits)(&now, entry).map_err(|e| format!("mkp {}: {}", s.release, e))?;
+        let edits = (s.edits)(&now, entry).map_err(|e| format!("xtmd {}: {}", s.release, e))?;
         if edits.is_empty() {
             continue;
         }
         now = apply(&now, &edits);
-        said.push(format!("mkp {}: {}", s.release, s.why));
+        said.push(format!("xtmd {}: {}", s.release, s.why));
     }
     Ok((now, said))
 }
@@ -51,11 +51,11 @@ pub(crate) fn run(text: &str, path: &str, steps: &[&ReleaseStep]) -> Result<(Str
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use mkp_syntax::ast::ProseNode;
+    use xtmd_syntax::ast::ProseNode;
 
     /// A release that renamed core's `rule` to `divider`: every call of it in prose.
     fn rule(text: &str, entry: Entry) -> Result<Vec<Edit>, String> {
-        let parsed = mkp_syntax::parse(text, entry);
+        let parsed = xtmd_syntax::parse(text, entry);
         let file = parsed.file.ok_or("it doesn't read")?;
         let mut out = Vec::new();
         for n in file.prose.iter().flat_map(|p| p.nodes.iter()) {
@@ -91,10 +91,10 @@ pub(crate) mod tests {
     #[test]
     fn a_step_edits_what_the_reader_finds_and_says_why() {
         let doc = "# Notes\n\nA rule, in words.\n\n@rule();\n";
-        let (text, said) = run(doc, "notes.mkp.md", &between("0.3.0", "0.3.2", STEPS)).unwrap();
+        let (text, said) = run(doc, "notes.xt.md", &between("0.3.0", "0.3.2", STEPS)).unwrap();
         assert_eq!(text, "# Notes\n\nA rule, in words.\n\n@divider();\n");
-        assert_eq!(said, ["mkp 0.3.2: `rule` is `divider` now"]);
-        let e = run(doc, "notes.mkp.md", &between("0.3.2", "0.4.0", STEPS)).unwrap_err();
-        assert_eq!(e, "mkp 0.4.0: a form only a person can rewrite");
+        assert_eq!(said, ["xtmd 0.3.2: `rule` is `divider` now"]);
+        let e = run(doc, "notes.xt.md", &between("0.3.2", "0.4.0", STEPS)).unwrap_err();
+        assert_eq!(e, "xtmd 0.4.0: a form only a person can rewrite");
     }
 }

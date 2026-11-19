@@ -1,5 +1,5 @@
 // Builds the showcase into dist/: each framework's entry bundled with its own binding's esbuild
-// and node_modules (React, Vue, Svelte, Solid, Angular, and their -live), mkp.wasm, and the
+// and node_modules (React, Vue, Svelte, Solid, Angular, and their -live), xtmd.wasm, and the
 // counter example's text and IR. `node build.mjs`, then `node serve.mjs`.
 
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -52,16 +52,16 @@ for (const [fw, o] of Object.entries(FRAMEWORKS)) {
     conditions: o.svelte ? ["svelte", "browser"] : ["browser"],
     define: o.define ?? {},
     // the live binding is the run-time one's sibling folder, in no node_modules
-    alias: { [`@mkp/${fw}-live`]: join(bindings, `${fw}-live/dist/index.js`) },
+    alias: { [`@extended-mark/${fw}-live`]: join(bindings, `${fw}-live/dist/index.js`) },
     plugins,
     ...(o.decorators ? { tsconfigRaw: { compilerOptions: { experimentalDecorators: true, useDefineForClassFields: false } } } : {}),
   });
 }
 
 const repo = join(bindings, "../../..");
-copyFileSync(join(repo, "targets/ts/wasm/mkp.wasm"), join(out, "mkp.wasm"));
-const counter = join(repo, "apps/playground/examples/counter.mkp.md");
-copyFileSync(counter, join(out, "counter.mkp.md"));
-const cli = await import(pathToFileURL(join(bindings, "react/node_modules/@mkp/cli/dist/index.js")).href);
+copyFileSync(join(repo, "targets/ts/wasm/xtmd.wasm"), join(out, "xtmd.wasm"));
+const counter = join(repo, "apps/playground/examples/counter.xt.md");
+copyFileSync(counter, join(out, "counter.xt.md"));
+const cli = await import(pathToFileURL(join(bindings, "react/node_modules/xtmd/dist/index.js")).href);
 writeFileSync(join(out, "counter.ir.json"), JSON.stringify(await cli.build(counter)));
-process.stderr.write("built dist/: react, vue, svelte, solid, angular, mkp.wasm, counter\n");
+process.stderr.write("built dist/: react, vue, svelte, solid, angular, xtmd.wasm, counter\n");

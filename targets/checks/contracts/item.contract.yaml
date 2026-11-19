@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/item (core/blocks.mkp): one item of a list; done is a task box, ticked, not ticked, or none
-# for an ordinary item. Mounted inside a core/bullets. @mkp/dom draws an <li>, with an
+# core/item (core/blocks.xtpack): one item of a list; done is a task box, ticked, not ticked, or none
+# for an ordinary item. Mounted inside a core/bullets. @extended-mark/dom draws an <li>, with an
 # <input type=checkbox> for a task.
 id: core.item
 

@@ -1,7 +1,7 @@
 {
   "id": "runtime.extern-calls-and-expose",
   "about": "an app channel's fn is a call the app receives; an exposed fn is one the app calls; channel values come from the app",
-  "source": "extern-calls-and-expose.mkp.md",
+  "source": "extern-calls-and-expose.xt.md",
   "target": {
     "levels": [
       "core.draw",

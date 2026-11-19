@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use mkp_ir::ir::{self, Level, Node, Stmt};
+use xtmd_ir::ir::{self, Level, Node, Stmt};
 
 /// A set of levels, written in page 6's order.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -107,7 +107,7 @@ impl<'m> Levels<'m> {
         events.values().any(|id| self.handlers.get(id.as_str()).map_or(false, |b| self.changes(b)))
     }
 
-    /// A widget written in MKP: its own variables and everything its view calls.
+    /// A widget written in Extended Mark: its own variables and everything its view calls.
     fn template(&mut self, name: &str) -> Set {
         if let Some(s) = self.done.get(name) {
             return *s;

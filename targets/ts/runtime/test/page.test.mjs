@@ -1,5 +1,5 @@
-// A page running on @mkp/runtime: mounted, changed only through checked transactions, and
-// written back as Markdown (page 6, plan tab 11). Each page is built by the mkp binary.
+// A page running on @extended-mark/runtime: mounted, changed only through checked transactions, and
+// written back as Markdown (page 6, plan tab 11). Each page is built by the xtmd binary.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,17 +7,17 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Page, Num, layout, place, keepInside, around } from "../dist/index.js";
-import { mkpBinary, workdir, repo as repoRoot } from "./mkp.mjs";
+import { xtmdBinary, workdir, repo as repoRoot } from "./xtmd.mjs";
 
 const dir = workdir();
 let n = 0;
 
-/** A document's IR, built by the mkp binary. */
+/** A document's IR, built by the xtmd binary. */
 function page(source, opts = {}) {
-  const file = join(dir, `page${n++}.mkp.md`);
+  const file = join(dir, `page${n++}.xt.md`);
   writeFileSync(file, source);
-  const out = file.replace(/\.mkp\.md$/, ".ir.json");
-  execFileSync(mkpBinary(), ["build", file, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
+  const out = file.replace(/\.xt\.md$/, ".ir.json");
+  execFileSync(xtmdBinary(), ["build", file, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   return new Page(JSON.parse(readFileSync(out, "utf8")), opts);
 }
 
@@ -189,10 +189,10 @@ test("an app's write of the wrong type is refused, whatever its contract", () =>
 
 test("an extern widget the target doesn't supply shows its Markdown, and is reported", () => {
   const pack = join(repoRoot, "targets/checks/packs/badge");
-  const file = join(dir, "pack-page.mkp.md");
+  const file = join(dir, "pack-page.xt.md");
   writeFileSync(file, 'import badge;\n@@@\n# Votes\n\n@badge(label = "Votes", count = 2);\n\n@seal(text = "Checked by nobody");\n');
-  const out = file.replace(/\.mkp\.md$/, ".ir.json");
-  execFileSync(mkpBinary(), ["build", file, "--pack", pack, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
+  const out = file.replace(/\.xt\.md$/, ".ir.json");
+  execFileSync(xtmdBinary(), ["build", file, "--pack", pack, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   const ir = JSON.parse(readFileSync(out, "utf8"));
   assert.deepEqual(ir.ir.needs.packs, [{ externs: ["badge/badge", "badge/seal"], name: "badge", version: 1 }]);
   const p = new Page(ir, { supplies: (w) => w.startsWith("core/") || w === "badge/badge" });

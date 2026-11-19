@@ -19,7 +19,7 @@ compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-mani
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-# JNA loads libmkp_android.so for the UniFFI bindings: the AAR on Android (its own libjnidispatch
+# JNA loads libxtmd_android.so for the UniFFI bindings: the AAR on Android (its own libjnidispatch
 # for each processor), the plain jar on the JVM (Robolectric, which has the host's)
 jna-aar = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }

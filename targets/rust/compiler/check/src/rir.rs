@@ -4,9 +4,9 @@
 
 use std::collections::HashMap;
 
-use mkp_ir::ir;
-use mkp_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, Stmt};
-use mkp_syntax::span::Span;
+use xtmd_ir::ir;
+use xtmd_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, Stmt};
+use xtmd_syntax::span::Span;
 use serde_json::{json, Map, Value};
 
 use crate::ty::Ty;
@@ -26,7 +26,7 @@ pub fn compile_rir(base: &Checker, packs: &[Vec<Source>], main: &[Source], modul
     let mut w = Writer::new(&mut c);
     let files: Vec<Value> = (first..w.c.files.len()).map(|f| w.file(f)).collect();
     let packs = w.packs();
-    let root = json!({ "rir": 1, "mkp": env!("CARGO_PKG_VERSION"), "packs": packs, "files": files });
+    let root = json!({ "rir": 1, "xtmd": env!("CARGO_PKG_VERSION"), "packs": packs, "files": files });
     (compiled, Some(root))
 }
 
@@ -444,7 +444,7 @@ impl<'c> Writer<'c> {
         Value::Object(o)
     }
 
-    fn field(&mut self, f: usize, owner: &str, fl: &ast::Field, leading: Option<&[ast::Leading]>, trailing: &[mkp_syntax::lexer::Comment]) -> Value {
+    fn field(&mut self, f: usize, owner: &str, fl: &ast::Field, leading: Option<&[ast::Leading]>, trailing: &[xtmd_syntax::lexer::Comment]) -> Value {
         let mut o = Map::new();
         o.insert("name".into(), json!(fl.name.name));
         o.insert("id".into(), json!(format!("{}.{}", owner, fl.name.name)));
@@ -1099,7 +1099,7 @@ fn node_parts<T>(o: &mut Map<String, Value>, sp: Span, n: &ast::Node<T>) {
 }
 
 /// The comments before a node and after it, its doc comments left to `doc`.
-fn comments_of(leading: &[ast::Leading], trailing: &[mkp_syntax::lexer::Comment]) -> Option<Value> {
+fn comments_of(leading: &[ast::Leading], trailing: &[xtmd_syntax::lexer::Comment]) -> Option<Value> {
     let before: Vec<String> = leading.iter().filter_map(|l| if let ast::Leading::Comment(c) = l { (!c.is_doc()).then(|| c.text.clone()) } else { None }).collect();
     let after: Vec<String> = trailing.iter().map(|c| c.text.clone()).collect();
     if before.is_empty() && after.is_empty() {

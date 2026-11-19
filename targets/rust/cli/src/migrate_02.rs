@@ -1,7 +1,7 @@
-//! The 0.2 → 0.3 step of `mkp migrate`. A document written for MKP 0.2 is read by 0.2.10's own
+//! The 0.2 → 0.3 step of `xtmd migrate`. A document written for MKP 0.2 is read by 0.2.10's own
 //! compiler and written as 0.3 by the migrator, both frozen into one JS file
-//! (tools/migrate-0.2/frozen) that runs with Node. Only MKP 0.3.0 carries it: a later release
-//! sends a 0.2 document to `npx mkp@0.3.0 migrate`.
+//! (tools/migrate-0.2/frozen) that runs with Node. Only Extended Mark 0.3.0 carries it: a later release
+//! sends a 0.2 document to `npx xtmd@0.3.0 migrate`.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -9,14 +9,14 @@ use std::process::Command;
 
 /// The frozen file's SHA-256, from the lock this binary was built beside; empty when it carries no
 /// 0.2 step.
-const SHA256: &str = env!("MKP_MIGRATE_02_SHA256");
+const SHA256: &str = env!("XTMD_MIGRATE_02_SHA256");
 /// Where the frozen file is in the repository this binary was built from.
-const IN_REPO: &str = env!("MKP_MIGRATE_02_REPO");
+const IN_REPO: &str = env!("XTMD_MIGRATE_02_REPO");
 
 /// What the frozen step wrote for one 0.2 document.
 pub(crate) struct Migrated {
     pub doc: String,
-    /// The packs it uses, as stand-ins made from their 0.2 definitions: name → `.mkp` text.
+    /// The packs it uses, as stand-ins made from their 0.2 definitions: name → `.xtpack` text.
     pub packs: BTreeMap<String, String>,
     /// What 0.3 can't say as 0.2 did, each left in the document with a TODO, by its 0.2 line.
     pub todos: Vec<String>,
@@ -54,17 +54,17 @@ pub(crate) fn looks_02(text: &str) -> Option<&'static str> {
     })
 }
 
-/// MKP 0.3 in a document's prose: a call, a control line or a hole, as 0.3's parser reads it. A
+/// Extended Mark 0.3 in a document's prose: a call, a control line or a hole, as 0.3's parser reads it. A
 /// 0.2 document has none: its widgets are fences and its values `\val{…}`.
 pub(crate) fn speaks_03(text: &str) -> bool {
-    fn any(p: &mkp_syntax::ast::Prose) -> bool {
+    fn any(p: &xtmd_syntax::ast::Prose) -> bool {
         p.nodes.iter().any(|n| match n {
-            mkp_syntax::ast::ProseNode::Text(l) => !l.holes.is_empty(),
-            mkp_syntax::ast::ProseNode::Fence(_) | mkp_syntax::ast::ProseNode::Maths(_) | mkp_syntax::ast::ProseNode::Comment { .. } => false,
+            xtmd_syntax::ast::ProseNode::Text(l) => !l.holes.is_empty(),
+            xtmd_syntax::ast::ProseNode::Fence(_) | xtmd_syntax::ast::ProseNode::Maths(_) | xtmd_syntax::ast::ProseNode::Comment { .. } => false,
             _ => true,
         })
     }
-    mkp_syntax::parse(text, mkp_syntax::Entry::Document).file.as_ref().and_then(|f| f.prose.as_ref()).map_or(false, any)
+    xtmd_syntax::parse(text, xtmd_syntax::Entry::Document).file.as_ref().and_then(|f| f.prose.as_ref()).map_or(false, any)
 }
 
 /// A 0.2 pack: a folder with a `manifest.mkp`, or a pack's `.zip`.
@@ -75,16 +75,16 @@ pub(crate) fn is_pack(p: &Path) -> bool {
 /// The frozen file, checked against the SHA-256 this binary was built with.
 fn frozen() -> Result<PathBuf, String> {
     if SHA256.is_empty() {
-        return Err("this mkp doesn't carry the 0.2 → 0.3 step: run `npx mkp@0.3.0 migrate` on it first".into());
+        return Err("this xtmd doesn't carry the 0.2 → 0.3 step: run `npx xtmd@0.3.0 migrate` on it first".into());
     }
     let beside = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("migrate-0.2.cjs")));
-    let found = std::env::var_os("MKP_MIGRATE_02").map(PathBuf::from).into_iter().chain(beside).chain((!IN_REPO.is_empty()).then(|| PathBuf::from(IN_REPO))).find(|p| p.is_file());
+    let found = std::env::var_os("XTMD_MIGRATE_02").map(PathBuf::from).into_iter().chain(beside).chain((!IN_REPO.is_empty()).then(|| PathBuf::from(IN_REPO))).find(|p| p.is_file());
     let Some(path) = found else {
-        return Err("the 0.2 → 0.3 step (migrate-0.2.cjs) isn't beside this mkp; set MKP_MIGRATE_02 to it".into());
+        return Err("the 0.2 → 0.3 step (migrate-0.2.cjs) isn't beside this xtmd; set XTMD_MIGRATE_02 to it".into());
     };
     let bytes = std::fs::read(&path).map_err(|e| format!("{}: {}", path.display(), e))?;
-    if mkp_check::sha256_hex(&bytes) != SHA256 {
-        return Err(format!("{} isn't the 0.2 → 0.3 step this mkp was built with (its SHA-256 differs): not run", path.display()));
+    if xtmd_check::sha256_hex(&bytes) != SHA256 {
+        return Err(format!("{} isn't the 0.2 → 0.3 step this xtmd was built with (its SHA-256 differs): not run", path.display()));
     }
     Ok(path)
 }
@@ -98,7 +98,7 @@ pub(crate) enum Failed {
 /// Runs the frozen step on one document, with the 0.2 packs it is built with.
 pub(crate) fn run(doc: &Path, packs: &[PathBuf]) -> Result<Migrated, Failed> {
     let file = frozen().map_err(Failed::NotRun)?;
-    let node = std::env::var_os("MKP_NODE").unwrap_or_else(|| "node".into());
+    let node = std::env::var_os("XTMD_NODE").unwrap_or_else(|| "node".into());
     let mut cmd = Command::new(&node);
     cmd.arg(&file).arg(doc);
     for p in packs {
@@ -133,7 +133,7 @@ pub(crate) fn version_of(stand_in: &str) -> Option<u32> {
 
 /// A stand-in with a TODO under its `package` line: a person replaces it with the pack's own release.
 pub(crate) fn marked(stand_in: &str, name: &str) -> String {
-    let todo = format!("// TODO(mkp migrate): a stand-in made from the 0.2 definitions of {}, so the documents that use it compile; the pack's own 0.3 release replaces it.\n", name);
+    let todo = format!("// TODO(xtmd migrate): a stand-in made from the 0.2 definitions of {}, so the documents that use it compile; the pack's own 0.3 release replaces it.\n", name);
     match stand_in.find('\n') {
         Some(i) => format!("{}\n{}{}", &stand_in[..i], todo, &stand_in[i + 1..]),
         None => format!("{}\n{}", stand_in, todo),
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn two_documents_stand_ins_of_one_pack_merge_into_one() {
         let m = merge(&marked(A, "kit"), B);
-        assert!(m.contains("// TODO(mkp migrate): a stand-in made from the 0.2 definitions of kit,"), "{}", m);
+        assert!(m.contains("// TODO(xtmd migrate): a stand-in made from the 0.2 definitions of kit,"), "{}", m);
         assert!(m.contains("    provides stat, stats, callout;\n"), "{}", m);
         assert_eq!(m.matches("record stat {").count(), 1, "{}", m);
         assert!(m.contains("extern widget stats(") && m.contains("//@about A box.\nextern widget callout("), "{}", m);

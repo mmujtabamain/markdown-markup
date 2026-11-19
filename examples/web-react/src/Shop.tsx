@@ -1,14 +1,14 @@
-// The shop page in React: <MkpDoc> draws it with React's own components, and the app hears each
+// The shop page in React: <XtmdDoc> draws it with React's own components, and the app hears each
 // checkout through onCalls.
 import { useState } from "react";
-import { MkpDoc, type Call, type MkpDocHandle } from "@mkp/react";
-import shop from "../../pages/shop.mkp.md";
+import { XtmdDoc, type Call, type XtmdDocHandle } from "@extended-mark/react";
+import shop from "../../pages/shop.xt.md";
 
 window.__calls = [];
 
 /** The running page, for the same-page test. */
-function seen(h: MkpDocHandle | null) {
-  if (h) window.__mkp = { get page() { return h.doc.running!; } };
+function seen(h: XtmdDocHandle | null) {
+  if (h) window.__xtmd = { get page() { return h.doc.running!; } };
 }
 
 export function Shop() {
@@ -24,7 +24,7 @@ export function Shop() {
   return (
     <main>
       <p className="from">React</p>
-      <MkpDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
+      <XtmdDoc id="shop" ir={shop} onCalls={heard} ref={seen} />
       <h2>Orders sent to the app</h2>
       <ul id="orders">
         {orders.map((o) => (

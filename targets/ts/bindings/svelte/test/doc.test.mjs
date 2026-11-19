@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { compile } from "svelte/compiler";
 import * as esbuild from "esbuild";
 import { chromium } from "playwright-core";
-import * as cli from "@mkp/cli";
+import * as cli from "xtmd";
 import { bundle, compilePages, docSteps, launch, open } from "../../testing/browser.mjs";
 
 const irs = await compilePages(cli);
@@ -23,21 +23,21 @@ const svelte = (generate) => ({
   },
 });
 
-test("<MkpDoc> on a server renders the page itself, its widgets drawn by Svelte", async () => {
+test("<XtmdDoc> on a server renders the page itself, its widgets drawn by Svelte", async () => {
   const r = await esbuild.build({
-    stdin: { contents: 'export { render } from "svelte/server"; export { MkpDoc } from "@mkp/svelte";', resolveDir: fileURLToPath(new URL(".", import.meta.url)) },
+    stdin: { contents: 'export { render } from "svelte/server"; export { XtmdDoc } from "@extended-mark/svelte";', resolveDir: fileURLToPath(new URL(".", import.meta.url)) },
     bundle: true, write: false, format: "esm", platform: "node", conditions: ["svelte"], plugins: [svelte("server")], logLevel: "silent",
   });
-  const { render, MkpDoc } = await import(`data:text/javascript;base64,${Buffer.from(r.outputFiles[0].text).toString("base64")}`);
-  const { body } = render(MkpDoc, { props: { ir: irs.v1, defaultState: { n: { num: "2" } }, externs: { app: { unit: { text: "items" } } } } });
+  const { render, XtmdDoc } = await import(`data:text/javascript;base64,${Buffer.from(r.outputFiles[0].text).toString("base64")}`);
+  const { body } = render(XtmdDoc, { props: { ir: irs.v1, defaultState: { n: { num: "2" } }, externs: { app: { unit: { text: "items" } } } } });
   // Svelte marks its blocks with comments for hydration
   const html = body.replace(/<!--[^>]*-->/g, "");
-  assert.match(html, /<div[^>]* class="mkp-root"/);
+  assert.match(html, /<div[^>]* class="xtmd-root"/);
   assert.ok(html.includes("Count: 2 items"), html);
   assert.match(html, /data-part="press\.label"[^>]*>Add one</);
 });
 
-test("<MkpDoc> in Chromium: controlled $state, refusals, props, snapshots", async () => {
+test("<XtmdDoc> in Chromium: controlled $state, refusals, props, snapshots", async () => {
   const js = await bundle(esbuild, fileURLToPath(new URL("./doc-app.mjs", import.meta.url)), { plugins: [svelte("client")], conditions: ["svelte", "browser"] });
   const browser = await launch(chromium);
   try {

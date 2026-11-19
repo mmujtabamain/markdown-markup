@@ -1,16 +1,16 @@
 [package]
-name = "mkp-wasm"
-description = "The MKP compiler for the browser: what mkp build does, on a core compiled once, for a real-time target"
+name = "xtmd-wasm"
+description = "The Extended Mark compiler for the browser: what xtmd build does, on a core compiled once, for a real-time target"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-# shipped another way (a tool here; mkp.wasm; the Android libraries), not as a crate
+# shipped another way (a tool here; xtmd.wasm; the Android libraries), not as a crate
 publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mkp-live = { path = "../live", version = "0.3.0" }
+xtmd-live = { path = "../live", version = "0.3.0" }
 serde_json.workspace = true

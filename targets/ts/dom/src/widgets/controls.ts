@@ -1,7 +1,7 @@
 // Drawing and input: label, image, icon, press, field, slider and overlay, as the native controls
 // they are, with their roles and states, so a screen reader and the keyboard get them for free.
 
-import { Num, Value as V, type Drawn, type Page, type ir } from "@mkp/runtime";
+import { Num, Value as V, type Drawn, type Page, type ir } from "@extended-mark/runtime";
 import type { Action, Widget, WidgetView } from "../api.js";
 import { FILLED, GLYPHS } from "../icons.js";
 import { attr, claim, css, h, kit, s, text } from "../kit.js";
@@ -27,9 +27,9 @@ export const label: Widget = (d, ctx) => {
       attr(el, "data-font", font ? font.toLowerCase() : undefined);
       const a = kase(p("align")) ?? "START";
       css(el, "text-align", a === "START" ? undefined : ALIGN[a]);
-      el.classList.toggle("mkp-nowrap", !flag(p("wrap"), true));
-      el.classList.toggle("mkp-clip", flag(p("clip")));
-      el.classList.toggle("mkp-halo", flag(p("halo")));
+      el.classList.toggle("xtmd-nowrap", !flag(p("wrap"), true));
+      el.classList.toggle("xtmd-clip", flag(p("clip")));
+      el.classList.toggle("xtmd-halo", flag(p("halo")));
       // a clipped label still says all of itself
       attr(el, "title", flag(p("clip")) ? str(p("value")) : undefined);
     },
@@ -66,7 +66,7 @@ function setGlyph(el: SVGSVGElement, name: string | undefined): void {
   if (el.getAttribute("data-glyph") === (name ?? "")) return;
   el.setAttribute("data-glyph", name ?? "");
   const path = s("path", undefined, { d: GLYPHS[name ?? ""] ?? "M12 12v.01" });
-  el.classList.toggle("mkp-filled", FILLED.has(name ?? ""));
+  el.classList.toggle("xtmd-filled", FILLED.has(name ?? ""));
   el.replaceChildren(path);
 }
 
@@ -139,11 +139,11 @@ export const press: Widget = (d, ctx) => {
       el.dataset.kind = kind.toLowerCase();
       attr(el, "role", k.role);
       for (const a of ["aria-pressed", "aria-selected", "aria-checked"]) attr(el, a, a === k.state ? String(selected) : undefined);
-      el.classList.toggle("mkp-selected", selected);
+      el.classList.toggle("xtmd-selected", selected);
       el.disabled = flag(p("disabled"));
       const tone = kit(ctx).tokens.color(p("tone"));
-      css(el, "--mkp-tone", tone);
-      el.classList.toggle("mkp-toned", !!tone);
+      css(el, "--xtmd-tone", tone);
+      el.classList.toggle("xtmd-toned", !!tone);
       const nodes = d.slots.get("content") ?? [];
       // with content of its own, the label is its accessible name; with none, its text
       const name = str(p("label"));

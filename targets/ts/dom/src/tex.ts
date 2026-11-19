@@ -237,7 +237,7 @@ export function texToMathML(tex: string, display: boolean): Element | undefined 
   }
 }
 
-/** Draws TeX into a `mkp-math` element: MathML to see, the TeX as its accessible text. */
+/** Draws TeX into a `xtmd-math` element: MathML to see, the TeX as its accessible text. */
 export function drawTex(into: HTMLElement, tex: string, display: boolean): void {
   if (into.getAttribute("data-tex") === tex && into.firstChild) return;
   into.setAttribute("data-tex", tex);
@@ -246,11 +246,11 @@ export function drawTex(into: HTMLElement, tex: string, display: boolean): void 
   const m = texToMathML(tex, display);
   if (m) {
     m.setAttribute("aria-hidden", "true");
-    into.classList.remove("mkp-math-tex");
+    into.classList.remove("xtmd-math-tex");
     into.replaceChildren(m);
   } else {
     // TeX this reader doesn't know: shown as it is written
-    into.classList.add("mkp-math-tex");
+    into.classList.add("xtmd-math-tex");
     into.textContent = tex;
   }
 }

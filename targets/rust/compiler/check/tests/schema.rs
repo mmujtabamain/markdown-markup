@@ -1,8 +1,8 @@
 //! Every IR the compiler writes validates against schemas/ir.schema.json: core's, every case's
 //! that compiles, and every whole file and document among the spec's examples that compiles on
-//! its own. MKP_SCHEMA_TRACE=1 says what each step does and why a spec example didn't compile.
+//! its own. XTMD_SCHEMA_TRACE=1 says what each step does and why a spec example didn't compile.
 
-use mkp_check::{compile_core, compile_on, Source};
+use xtmd_check::{compile_core, compile_on, Source};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -11,7 +11,7 @@ fn repo() -> PathBuf {
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -21,7 +21,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let p = e.unwrap().path();
         if p.is_dir() {
             walk(&p, out);
-        } else if p.to_str().unwrap().ends_with(".mkp.md") || p.extension().map_or(false, |x| x == "mkp") {
+        } else if p.to_str().unwrap().ends_with(".xt.md") || p.extension().map_or(false, |x| x == "xtpack") {
             out.push(p);
         }
     }
@@ -29,7 +29,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 
 #[test]
 fn every_ir_the_compiler_writes_validates() {
-    // a case runs MKP to the depth limit at compile time, deeper than a test thread's stack
+    // a case runs Extended Mark to the depth limit at compile time, deeper than a test thread's stack
     std::thread::Builder::new().stack_size(64 << 20).spawn(validate_all).unwrap().join().unwrap();
 }
 
@@ -38,17 +38,17 @@ fn validate_all() {
     let schema: Value = serde_json::from_str(&std::fs::read_to_string(repo().join("schemas/ir.schema.json")).unwrap()).unwrap();
     let registry = jsonschema::Registry::new().add(id, schema.clone()).unwrap().prepare().unwrap();
     let validator = jsonschema::options().with_registry(&registry).build(&schema).unwrap();
-    let trace = std::env::var("MKP_SCHEMA_TRACE").is_ok();
+    let trace = std::env::var("XTMD_SCHEMA_TRACE").is_ok();
     let base = compile_core(&core_sources());
     // (name, what it compiled to, whether it must compile)
-    let mut compiled: Vec<(String, mkp_check::Compiled, bool)> = vec![("core".into(), compile_on(&base, &[], &[], "core"), true)];
+    let mut compiled: Vec<(String, xtmd_check::Compiled, bool)> = vec![("core".into(), compile_on(&base, &[], &[], "core"), true)];
     // each check's source, with core: an error case doesn't compile, as its check expects
     let mut sources = Vec::new();
     walk(&repo().join("targets/checks"), &mut sources);
     for p in sources {
         let path = p.strip_prefix(repo()).unwrap().to_str().unwrap().to_string();
         let src = Source { path: path.clone(), text: std::fs::read_to_string(&p).unwrap() };
-        let module = if path.ends_with(".mkp.md") { "doc" } else { "t" };
+        let module = if path.ends_with(".xt.md") { "doc" } else { "t" };
         compiled.push((path, compile_on(&base, &[], &[src], module), false));
     }
     // the spec's packs, each compiled whole from its files across the pages (page 5's being core
@@ -74,8 +74,8 @@ fn validate_all() {
         };
         // the IR as the compiler writes it: lowered
         let mut m = m;
-        mkp_lower::lower(&mut m);
-        let json = serde_json::to_value(&mkp_ir::ir::File { ir: m }).unwrap();
+        xtmd_lower::lower(&mut m);
+        let json = serde_json::to_value(&xtmd_ir::ir::File { ir: m }).unwrap();
         if trace {
             eprintln!("validate {} ({} bytes)", name, json.to_string().len());
         }
@@ -128,13 +128,13 @@ fn spec_packs() -> (Vec<(String, Vec<Source>)>, Vec<Source>) {
                 match tags[n].as_str().unwrap() {
                     "java file" => {
                         let name = text.lines().find_map(|l| l.strip_prefix("package ")).map(|l| l.trim_end_matches(';').trim().to_string()).unwrap_or_default();
-                        let src = Source { path: format!("{}.mkp", at), text };
+                        let src = Source { path: format!("{}.xtpack", at), text };
                         match packs.iter_mut().find(|(p, _)| *p == name) {
                             Some((_, files)) => files.push(src),
                             None => packs.push((name, vec![src])),
                         }
                     }
-                    "markdown doc" => documents.push(Source { path: format!("{}.mkp.md", at), text }),
+                    "markdown doc" => documents.push(Source { path: format!("{}.xt.md", at), text }),
                     _ => {}
                 }
                 n += 1;

@@ -1,27 +1,27 @@
 [package]
-name = "mkp-egui"
-description = "MKP's desktop target: the native runtime drawn with egui. Our default egui widgets for every core extern widget, MkpPage::new(page), and the check adapters that drive it headless through egui_kittest and AccessKit."
+name = "xtmd-egui"
+description = "Extended Mark's desktop target: the native runtime drawn with egui. Our default egui widgets for every core extern widget, XtmdPage::new(page), and the check adapters that drive it headless through egui_kittest and AccessKit."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [lib]
-name = "mkp_egui"
+name = "xtmd_egui"
 
-# The check adapters: `mkp target check egui` (target.yaml) and omnicui's widget contracts
+# The check adapters: `xtmd target check egui` (target.yaml) and omnicui's widget contracts
 # (targets/checks/targets/egui/target.yaml). Both drive egui headless through egui_kittest.
 [[bin]]
-name = "mkp_check_adapter"
-path = "src/bin/mkp_check_adapter.rs"
+name = "xtmd_check_adapter"
+path = "src/bin/xtmd_check_adapter.rs"
 required-features = ["check"]
 
 [[bin]]
-name = "mkp_omnicui_adapter"
-path = "src/bin/mkp_omnicui_adapter.rs"
+name = "xtmd_omnicui_adapter"
+path = "src/bin/xtmd_omnicui_adapter.rs"
 required-features = ["check"]
 
-# A window showing a page: `cargo run -p mkp-egui --example page --features app -- page.ir.json`.
+# A window showing a page: `cargo run -p xtmd-egui --example page --features app -- page.ir.json`.
 [[example]]
 name = "page"
 required-features = ["app"]
@@ -32,24 +32,24 @@ default = ["fonts", "check"]
 # that installs fonts of its own turns it off.
 fonts = ["egui/default_fonts", "egui/monochrome_emoji_fonts"]
 # The headless harness and the adapters; an app that only draws pages turns it off.
-check = ["dep:egui_kittest", "dep:mkp-check", "dep:mkp-lower"]
+check = ["dep:egui_kittest", "dep:xtmd-check", "dep:xtmd-lower"]
 # The example's window.
 app = ["dep:eframe"]
 
 [dependencies]
-mkp-runtime = { path = "../runtime", version = "0.3.0" }
-mkp-eval = { path = "../eval", version = "0.3.0" }
-mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
+xtmd-runtime = { path = "../runtime", version = "0.3.0" }
+xtmd-eval = { path = "../eval", version = "0.3.0" }
+xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true
 egui = "0.37"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 egui_kittest = { version = "0.37", optional = true }
-# the omnicui adapter compiles each contract's page itself, as the mkp binary does
-mkp-check = { path = "../compiler/check", version = "0.3.0", optional = true }
-mkp-lower = { path = "../compiler/lower", version = "0.3.0", optional = true }
+# the omnicui adapter compiles each contract's page itself, as the xtmd binary does
+xtmd-check = { path = "../compiler/check", version = "0.3.0", optional = true }
+xtmd-lower = { path = "../compiler/lower", version = "0.3.0", optional = true }
 eframe = { version = "0.37", optional = true, default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [dev-dependencies]
-mkp-check = { path = "../compiler/check" }
-mkp-lower = { path = "../compiler/lower" }
+xtmd-check = { path = "../compiler/check" }
+xtmd-lower = { path = "../compiler/lower" }

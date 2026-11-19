@@ -1,6 +1,6 @@
-// The badge pack's externs for the Android target: a composable for mkp-android's registry, as a
-// pack ships one per target it supports (web.mjs is the web's). mkp-android's check adapters
-// compile this file with their own sources (targets/android/compose/mkp-android/build.gradle.kts).
+// The badge pack's externs for the Android target: a composable for xtmd-android's registry, as a
+// pack ships one per target it supports (web.mjs is the web's). xtmd-android's check adapters
+// compile this file with their own sources (targets/android/compose/xtmd-android/build.gradle.kts).
 package badge
 
 import androidx.compose.foundation.border
@@ -14,10 +14,10 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import mkp.android.Props
-import mkp.android.Widget
-import mkp.android.WidgetContext
-import mkp.android.site
+import xtmd.android.Props
+import xtmd.android.Widget
+import xtmd.android.WidgetContext
+import xtmd.android.site
 
 /** A count with its label: one status line, its text following the page. */
 @Composable

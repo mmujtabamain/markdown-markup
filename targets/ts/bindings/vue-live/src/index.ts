@@ -1,23 +1,23 @@
-// @mkp/vue-live: <MkpLiveDoc :source="text" />, an MKP document compiled in the browser by
-// @mkp/wasm as it is edited, and drawn by @mkp/vue's <MkpDoc>. A text that compiles replaces the
+// @extended-mark/vue-live: <XtmdLiveDoc :source="text" />, an Extended Mark document compiled in the browser by
+// @extended-mark/wasm as it is edited, and drawn by @extended-mark/vue's <XtmdDoc>. A text that compiles replaces the
 // page, keeping `$state` where its fields still exist; one that doesn't leaves the last page that
 // did, and its errors reach `@error` ({ kind: "compile", diagnostics }). The run-time target,
-// @mkp/vue, ships no WebAssembly; this one does.
+// @extended-mark/vue, ships no WebAssembly; this one does.
 
 import { defineComponent, h, markRaw, onBeforeUnmount, ref, shallowRef, watch, type PropType } from "vue";
-import { MkpDoc, docProps as all, type MkpDocRef } from "@mkp/vue";
-import { Live, type Builds, type PackFile, type WasmSource } from "@mkp/live";
-import type { Doc, DocError } from "@mkp/view";
+import { XtmdDoc, docProps as all, type XtmdDocRef } from "@extended-mark/vue";
+import { Live, type Builds, type PackFile, type WasmSource } from "@extended-mark/live";
+import type { Doc, DocError } from "@extended-mark/view";
 
 const { ir: _ir, src: _src, ...docProps } = all;
 
 /**
- * An MKP document from its text. `wasm` is where mkp.wasm is (`@mkp/wasm/mkp.wasm` as the
+ * An Extended Mark document from its text. `wasm` is where xtmd.wasm is (`@extended-mark/wasm/xtmd.wasm` as the
  * bundler gives its URL), or `compiler` a compiler in hand; given one already loaded, the first
- * render has the page, on a server too. The rest is <MkpDoc>'s; a template ref holds its handle.
+ * render has the page, on a server too. The rest is <XtmdDoc>'s; a template ref holds its handle.
  */
-export const MkpLiveDoc = defineComponent({
-  name: "MkpLiveDoc",
+export const XtmdLiveDoc = defineComponent({
+  name: "XtmdLiveDoc",
   props: {
     ...docProps,
     /** The document's text. */
@@ -37,8 +37,8 @@ export const MkpLiveDoc = defineComponent({
     ir.value = live.ir;
     watch(given, (next) => live.update(next, onError), { deep: true });
     onBeforeUnmount(() => live.destroy());
-    const inner = ref<MkpDocRef | null>(null);
-    const handle: MkpDocRef = {
+    const inner = ref<XtmdDocRef | null>(null);
+    const handle: XtmdDocRef = {
       get doc() {
         return inner.value!.doc as Doc;
       },
@@ -52,11 +52,11 @@ export const MkpLiveDoc = defineComponent({
     expose(handle);
     return () => {
       const { source: _s, path: _p, packs: _k, wasm: _w, compiler: _c, ...rest } = p;
-      return h(MkpDoc, { ...rest, ir: ir.value as never, ref: inner });
+      return h(XtmdDoc, { ...rest, ir: ir.value as never, ref: inner });
     };
   },
 });
 
-export { Compiler, compiler, type Builds, type LiveProps, type PackFile, type WasmSource } from "@mkp/live";
-export type { MkpDocRef } from "@mkp/vue";
-export type { DocError, Restored, Snapshot } from "@mkp/view";
+export { Compiler, compiler, type Builds, type LiveProps, type PackFile, type WasmSource } from "@extended-mark/live";
+export type { XtmdDocRef } from "@extended-mark/vue";
+export type { DocError, Restored, Snapshot } from "@extended-mark/view";

@@ -1,8 +1,8 @@
 {
-  "name": "@mkp/example-web-next",
+  "name": "@extended-mark/example-web-next",
   "version": "0.3.0",
   "private": true,
-  "description": "The shop page in Next.js's app router: <MkpPage> from @mkp/next, the page compiled by mkp at build time and pre-rendered as HTML on the server",
+  "description": "The shop page in Next.js's app router: <XtmdPage> from @extended-mark/next, the page compiled by xtmd at build time and pre-rendered as HTML on the server",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mkp/next": "file:../../targets/ts/bindings/next",
+    "@extended-mark/next": "file:../../targets/ts/bindings/next",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1"

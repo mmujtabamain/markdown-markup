@@ -1,7 +1,7 @@
-// The MKP compiler in the browser: mkp-wasm, built for wasm32-wasip1 (targets/rust/wasm), and the
+// The Extended Mark compiler in the browser: xtmd-wasm, built for wasm32-wasip1 (targets/rust/wasm), and the
 // little it asks of its host. A real-time target compiles a document's text as it is edited with
 // `Compiler.build`, and draws the IR it gives as a run-time target draws one it was given: the
-// same IR `mkp build` writes.
+// same IR `xtmd build` writes.
 //
 // The module asks for six WASI functions only (randomness, the clock, its environment, writing to
 // standard error, and exiting); they are answered here, so nothing else is needed, in a browser,
@@ -13,7 +13,7 @@ export interface PackFile {
   text: string;
 }
 
-/** A diagnostic, as `mkp check --format json` writes one. */
+/** A diagnostic, as `xtmd check --format json` writes one. */
 export interface Diagnostic {
   type: "diagnostic";
   file: string;
@@ -33,7 +33,7 @@ export interface Written {
   end: { line: number; column: number };
 }
 
-/** What a build gives: the IR file `mkp build` writes, or null when there are errors; every
+/** What a build gives: the IR file `xtmd build` writes, or null when there are errors; every
  * diagnostic of the file built (and the errors of its packs); and where each call in the file is
  * written, by its template (`doc`, `doc/share`) and site (`s1`), so an editor can mark the call a
  * failed widget's site names. No IR holds that: a page runs without its source. */
@@ -50,10 +50,10 @@ export type WasmSource = string | URL | ArrayBuffer | ArrayBufferView | Response
 interface Exports {
   memory: WebAssembly.Memory;
   _initialize(): void;
-  mkp_alloc(len: number): number;
-  mkp_free(ptr: number, len: number): void;
-  mkp_new(): number;
-  mkp_build(compiler: number, ptr: number, len: number): number;
+  xtmd_alloc(len: number): number;
+  xtmd_free(ptr: number, len: number): void;
+  xtmd_new(): number;
+  xtmd_build(compiler: number, ptr: number, len: number): number;
 }
 
 /** The module stopped (`proc_exit`): a panic in the compiler. The instance can't be used again. */
@@ -99,7 +99,7 @@ function wasi(memory: () => WebAssembly.Memory, log: (line: string) => void) {
       return 0;
     },
     proc_exit(code: number): never {
-      throw new Exit(`mkp.wasm exited with ${code}`);
+      throw new Exit(`xtmd.wasm exited with ${code}`);
     },
   };
 }
@@ -116,7 +116,7 @@ async function compile(source: WasmSource): Promise<WebAssembly.Module> {
     return WebAssembly.compile(await readFile(url));
   }
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`mkp.wasm couldn't be loaded from ${url}: ${r.status} ${r.statusText}`);
+  if (!r.ok) throw new Error(`xtmd.wasm couldn't be loaded from ${url}: ${r.status} ${r.statusText}`);
   return WebAssembly.compile(await r.arrayBuffer());
 }
 
@@ -132,12 +132,12 @@ export class Compiler {
   private constructor(private readonly module: WebAssembly.Module) {}
 
   /**
-   * Loads the compiler. `source` is where mkp.wasm is: its URL (as a bundler gives it for
-   * `@mkp/wasm/mkp.wasm`), its bytes, or the module compiled; left out, the mkp.wasm beside this
+   * Loads the compiler. `source` is where xtmd.wasm is: its URL (as a bundler gives it for
+   * `@extended-mark/wasm/xtmd.wasm`), its bytes, or the module compiled; left out, the xtmd.wasm beside this
    * file, which works where `import.meta.url` is this file's own (Node, an unbundled module).
    */
   static async load(source?: WasmSource): Promise<Compiler> {
-    const c = new Compiler(await compile(source ?? new URL("../mkp.wasm", import.meta.url)));
+    const c = new Compiler(await compile(source ?? new URL("../xtmd.wasm", import.meta.url)));
     c.start();
     return c;
   }
@@ -149,12 +149,12 @@ export class Compiler {
     this.ex = instance.exports as unknown as Exports;
     memory = this.ex.memory;
     this.ex._initialize();
-    this.handle = this.ex.mkp_new();
+    this.handle = this.ex.xtmd_new();
   }
 
   /**
-   * Builds one file: `path` ending in `.mkp.md` for a document, else a pack's file; its `text`; and
-   * the files of the packs it uses. Gives the IR as `mkp build` writes it, or the errors.
+   * Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its `text`; and
+   * the files of the packs it uses. Gives the IR as `xtmd build` writes it, or the errors.
    */
   build(path: string, text: string, packs: PackFile[] = []): Built {
     const req = this.encoder.encode(JSON.stringify({ path, text, packs }));
@@ -162,12 +162,12 @@ export class Compiler {
     this.said = [];
     let reply: number;
     try {
-      const ptr = ex.mkp_alloc(req.length);
+      const ptr = ex.xtmd_alloc(req.length);
       new Uint8Array(ex.memory.buffer, ptr, req.length).set(req);
       try {
-        reply = ex.mkp_build(this.handle, ptr, req.length);
+        reply = ex.xtmd_build(this.handle, ptr, req.length);
       } finally {
-        ex.mkp_free(ptr, req.length);
+        ex.xtmd_free(ptr, req.length);
       }
     } catch (e) {
       // a panic: the instance is spent, so the next build starts a new one
@@ -177,7 +177,7 @@ export class Compiler {
     }
     const len = new DataView(ex.memory.buffer).getUint32(reply, true);
     const json = this.decoder.decode(new Uint8Array(ex.memory.buffer, reply + 4, len));
-    ex.mkp_free(reply, 4 + len);
+    ex.xtmd_free(reply, 4 + len);
     return JSON.parse(json) as Built;
   }
 }

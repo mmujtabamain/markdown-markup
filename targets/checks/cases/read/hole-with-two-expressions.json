@@ -1,7 +1,7 @@
 {
   "id": "read.hole-with-two-expressions",
   "about": "hole with two expressions",
-  "source": "hole-with-two-expressions.mkp",
+  "source": "hole-with-two-expressions.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.hole-holds-one-expression", "line": 3, "column": 20}

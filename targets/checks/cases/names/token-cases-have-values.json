@@ -1,7 +1,7 @@
 {
   "id": "names.token-cases-have-values",
   "about": "every named case a token declaration lists needs a value from its pack",
-  "source": "token-cases-have-values.mkp",
+  "source": "token-cases-have-values.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "names.token-case-without-value", "line": 3, "column": 7}

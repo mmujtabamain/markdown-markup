@@ -1,7 +1,7 @@
 {
   "id": "types.implements-is-a-checked-promise",
   "about": "implements is checked where the type is declared: a missing field is reported there",
-  "source": "implements-is-a-checked-promise.mkp",
+  "source": "implements-is-a-checked-promise.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.implements-unkept", "line": 11, "column": 8}

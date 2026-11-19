@@ -1,7 +1,7 @@
 {
   "id": "names.unknown-token",
   "about": "unknown token",
-  "source": "unknown-token.mkp",
+  "source": "unknown-token.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-case", "line": 5, "column": 42}

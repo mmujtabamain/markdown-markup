@@ -1,9 +1,9 @@
-//! mkp fmt: the canonical layout, what it keeps of the author's choices, and what it refuses.
+//! xtmd fmt: the canonical layout, what it keeps of the author's choices, and what it refuses.
 
-use mkp_syntax::{format, Entry};
+use xtmd_syntax::{format, Entry};
 
 fn fmt(src: &str) -> String {
-    format(src, Entry::Mkp).unwrap_or_else(|d| panic!("{:?}", d))
+    format(src, Entry::Xtmd).unwrap_or_else(|d| panic!("{:?}", d))
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn a_markdown_block_is_indented_one_step_inside_its_widget() {
 #[test]
 fn a_comment_fmt_has_no_place_for_is_refused_not_dropped() {
     let src = "package t;\n\nlet a: number = 1 + // one\n    2;\n";
-    let err = format(src, Entry::Mkp).unwrap_err();
+    let err = format(src, Entry::Xtmd).unwrap_err();
     assert_eq!(err[0].code, "fmt.comment-cannot-be-kept");
 }
 
@@ -68,7 +68,7 @@ fn a_comment_inside_a_list_written_on_one_line_opens_the_list_over_lines() {
 
 #[test]
 fn a_file_that_does_not_read_is_not_printed() {
-    let err = format("package t;\n\nlet a = 1;\n", Entry::Mkp).unwrap_err();
+    let err = format("package t;\n\nlet a = 1;\n", Entry::Xtmd).unwrap_err();
     assert_eq!(err.last().unwrap().code, "syntax.missing-type");
 }
 
@@ -82,7 +82,7 @@ fn a_migration_reads_and_prints_back_as_written() {
 
 #[test]
 fn a_migration_holds_blocks_headed_by_a_kind_and_an_old_name() {
-    let err = |src: &str| format(src, Entry::Mkp).unwrap_err()[0].code;
+    let err = |src: &str| format(src, Entry::Xtmd).unwrap_err()[0].code;
     assert_eq!(err("package kit;\nmigration kit@1 to kit@2 { rename(to = plot); }\n"), "syntax.migration-line");
     assert_eq!(err("package kit;\nmigration kit@1 kit@2 { }\n"), "syntax.expected");
     assert_eq!(format("migration kit@1 to kit@2 { }\n@@@\nHi\n", Entry::Document).unwrap_err()[0].code, "syntax.migration-line");

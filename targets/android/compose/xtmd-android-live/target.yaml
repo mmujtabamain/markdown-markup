@@ -1,0 +1,11 @@
+# targets/android/compose/xtmd-android-live/target.yaml: xtmd-android-live, the real-time Android target:
+# each case's own text compiled on the device (libxtmd_android_live.so), then drawn by xtmd-android's
+# XtmdDoc with our Compose widgets, under Robolectric on a plain JVM. Build it first:
+#   ../../xtmd/build.sh host && ../../xtmd-live/build.sh host && ../gradlew -p .. :xtmd-android:checkAdapterArgs
+name: android-live
+levels: [core.draw, core.live, core.gfx]
+supplies:
+  widgets: [core/*]                     # core's externs only; a pack brings its own
+  fns: [core/can_draw_tex, core/moment.local]
+tokens: ../tokens.xtpack                   # Material 3 colours, type and spacing
+check_adapter: exec java @../build/check_adapter.args xtmd.android.LiveCheckAdapter   # Compose under Robolectric, on the JVM

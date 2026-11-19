@@ -1,16 +1,16 @@
 {
-  "name": "@mkp/web-target",
+  "name": "@extended-mark/web-target",
   "version": "0.3.0",
   "private": true,
-  "description": "MKP's web target: @mkp/runtime with @mkp/dom in a real Chromium, driven by mkp target check",
+  "description": "Extended Mark's web target: @extended-mark/runtime with @extended-mark/dom in a real Chromium, driven by xtmd target check",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../dom",
-    "@mkp/runtime": "file:../runtime"
+    "@extended-mark/dom": "file:../dom",
+    "@extended-mark/runtime": "file:../runtime"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

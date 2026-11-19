@@ -1,19 +1,19 @@
-// The mkp compiler, run for build tools. Every call runs the native binary: there is one
+// The xtmd compiler, run for build tools. Every call runs the native binary: there is one
 // compiler, and nothing here turns source into IR itself. On a platform with no binary, `build`
-// and `check` run the same compiler built as WebAssembly (@mkp/wasm).
+// and `check` run the same compiler built as WebAssembly (@extended-mark/wasm).
 
 import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { Built, Compiler, PackFile } from "@mkp/wasm";
+import type { Built, Compiler, PackFile } from "@extended-mark/wasm";
 import { findBinary, locateBinary } from "./binary.js";
 
 export { findBinary, locateBinary } from "./binary.js";
 
 export interface Options {
-  /** Packs the document uses: folders and .mkp files. */
+  /** Packs the document uses: folders and .xtpack files. */
   packs?: string[];
-  /** An mkp.toml; left out, mkp looks beside the file and in the folders above. */
+  /** An xtmd.toml; left out, xtmd looks beside the file and in the folders above. */
   config?: string;
 }
 
@@ -28,16 +28,16 @@ export interface Diagnostic {
   fix?: string | null;
 }
 
-/** The IR file `mkp build` writes: `{ "ir": { … } }`, as schemas/ir.schema.json defines it. */
+/** The IR file `xtmd build` writes: `{ "ir": { … } }`, as schemas/ir.schema.json defines it. */
 export interface IrFile {
   ir: { version: number; module: string; levels: string[]; [key: string]: unknown };
 }
 
 /** A compile that failed, with what the compiler said. */
-export class MkpError extends Error {
+export class XtmdError extends Error {
   constructor(message: string, readonly output: string) {
     super(message);
-    this.name = "MkpError";
+    this.name = "XtmdError";
   }
 }
 
@@ -47,7 +47,7 @@ interface Run {
   stderr: string;
 }
 
-/** Runs `mkp` with these arguments. A non-zero exit is an answer, not a failure to run. */
+/** Runs `xtmd` with these arguments. A non-zero exit is an answer, not a failure to run. */
 export function run(args: string[]): Promise<Run> {
   const binary = findBinary();
   return new Promise((resolve, reject) => {
@@ -70,13 +70,13 @@ function flags(o: Options = {}): string[] {
 
 let wasm: Promise<Compiler> | undefined;
 
-/** A pack's files, as the compiler reads them: each `.mkp` in a folder, and each file named. */
+/** A pack's files, as the compiler reads them: each `.xtpack` in a folder, and each file named. */
 async function packFiles(packs: string[] = []): Promise<PackFile[]> {
   const out: PackFile[] = [];
   const add = async (path: string): Promise<void> => {
     if ((await stat(path)).isDirectory()) {
       for (const name of (await readdir(path)).sort()) await add(join(path, name));
-    } else if (path.endsWith(".mkp")) {
+    } else if (path.endsWith(".xtpack")) {
       out.push({ path, text: await readFile(path, "utf8") });
     }
   };
@@ -84,17 +84,17 @@ async function packFiles(packs: string[] = []): Promise<PackFile[]> {
   return out;
 }
 
-/** A file built by @mkp/wasm, the same compiler: what `build` and `check` give where no binary
- * fits the platform. It reads no mkp.toml, so a document whose packs' versions it names needs
+/** A file built by @extended-mark/wasm, the same compiler: what `build` and `check` give where no binary
+ * fits the platform. It reads no xtmd.toml, so a document whose packs' versions it names needs
  * the binary. */
 async function wasmBuild(file: string, options: Options = {}): Promise<Built> {
-  if (options.config) throw new MkpError(`no mkp binary for ${process.platform}-${process.arch}, and @mkp/wasm reads no mkp.toml (${options.config})`, "");
-  wasm ??= import("@mkp/wasm").then((m) => m.Compiler.load());
+  if (options.config) throw new XtmdError(`no xtmd binary for ${process.platform}-${process.arch}, and @extended-mark/wasm reads no xtmd.toml (${options.config})`, "");
+  wasm ??= import("@extended-mark/wasm").then((m) => m.Compiler.load());
   const compiler = await wasm;
   return compiler.build(file, await readFile(file, "utf8"), await packFiles(options.packs));
 }
 
-/** Diagnostics as `mkp check` prints them: `file:line:column: severity[code]: message`. */
+/** Diagnostics as `xtmd check` prints them: `file:line:column: severity[code]: message`. */
 function said(ds: Diagnostic[]): string {
   return ds.map((d) => `${d.file}:${d.line}:${d.column}: ${d.severity}[${d.code}]: ${d.message}`).join("\n");
 }
@@ -108,7 +108,7 @@ export async function check(file: string, options?: Options): Promise<Diagnostic
     return b.diagnostics.filter((d) => d.severity !== "note").map(({ type: _, ...d }) => d as Diagnostic);
   }
   const r = await run(["check", "--format", "json", ...flags(options), file]);
-  if (r.code === 2) throw new MkpError(r.stderr.trim(), r.stderr);
+  if (r.code === 2) throw new XtmdError(r.stderr.trim(), r.stderr);
   // a JSON object a line: each diagnostic, each file, then the summary
   const lines = r.stdout.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as { type: string } & Diagnostic);
   return lines.filter((l) => l.type === "diagnostic").map(({ type: _, ...d }) => d as Diagnostic);
@@ -120,25 +120,25 @@ export async function build(file: string, options?: Options): Promise<IrFile> {
     const b = await wasmBuild(file, options);
     if (!b.ir) {
       const text = said(b.diagnostics.filter((d) => d.severity === "error").map(({ type: _, ...d }) => d as Diagnostic));
-      throw new MkpError(`${file} doesn't compile:\n${text}`, text);
+      throw new XtmdError(`${file} doesn't compile:\n${text}`, text);
     }
     return b.ir as unknown as IrFile;
   }
   const r = await run(["build", ...flags(options), file]);
-  if (r.code !== 0) throw new MkpError(`${file} doesn't compile:\n${r.stderr.trim()}`, r.stderr);
+  if (r.code !== 0) throw new XtmdError(`${file} doesn't compile:\n${r.stderr.trim()}`, r.stderr);
   return JSON.parse(r.stdout) as IrFile;
 }
 
 /** A document's Markdown, with its starting values. */
 export async function md(file: string, options?: Options): Promise<string> {
   const r = await run(["md", ...flags(options), file]);
-  if (r.code !== 0) throw new MkpError(`${file} doesn't compile:\n${r.stderr.trim()}`, r.stderr);
+  if (r.code !== 0) throw new XtmdError(`${file} doesn't compile:\n${r.stderr.trim()}`, r.stderr);
   return r.stdout;
 }
 
 /** Whether a file is in the canonical layout (`check`), or the file printed in it. */
 export async function format(file: string, opts: { check?: boolean } = {}): Promise<boolean> {
   const r = await run(["fmt", ...(opts.check ? ["--check"] : []), file]);
-  if (r.code === 2) throw new MkpError(r.stderr.trim(), r.stderr);
+  if (r.code === 2) throw new XtmdError(r.stderr.trim(), r.stderr);
   return r.code === 0;
 }

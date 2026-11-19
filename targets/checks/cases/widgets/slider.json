@@ -1,7 +1,7 @@
 {
   "id": "widgets.slider",
   "about": "claims are checked: a slider with its range writing to $state",
-  "source": "slider.mkp.md",
+  "source": "slider.xt.md",
   "target": {
     "levels": [
       "core.draw",

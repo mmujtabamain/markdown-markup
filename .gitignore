@@ -7,4 +7,4 @@ dist/
 !schemas/examples/*.ir.json
 core.[0-9]*
 .omnicui/
-targets/ts/wasm/mkp.wasm
+targets/ts/wasm/xtmd.wasm

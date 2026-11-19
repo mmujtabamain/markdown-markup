@@ -1,7 +1,7 @@
 {
   "id": "read.a-list-method-named-after-a-keyword",
   "about": "a list method named after a keyword",
-  "source": "a-list-method-named-after-a-keyword.mkp",
+  "source": "a-list-method-named-after-a-keyword.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.keyword-as-name", "line": 4, "column": 15}

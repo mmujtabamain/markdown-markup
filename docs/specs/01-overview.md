@@ -1,6 +1,6 @@
 # Overview
 
-MKP (Markdown Markup) is a statically typed language for drawing widgets in Markdown documents. This page has the rules, the words, the two file types and how a document is read.
+Extended Mark (called MKP, Markdown Markup, up to 0.2) is a statically typed language for drawing widgets in Markdown documents. This page has the rules, the words, the two file types and how a document is read.
 
 > **The language in five lines**
 >
@@ -9,26 +9,26 @@ MKP (Markdown Markup) is a statically typed language for drawing widgets in Mark
 | | |
 |---|---|
 | Keywords | **41** |
-| File types | **2** (.mkp and .mkp.md) |
+| File types | **2** (.xtpack and .xt.md) |
 | Rules | **19** |
 
 ### The rules
 
-1. **Two file types.** .mkp holds definitions only and can't draw. .mkp.md is a document: definitions, then a line that holds only `@@@`, then Markdown that MKP renders. Nothing above the line draws, and below it an `mkp` code fence is ordinary code.
+1. **Two file types.** .xtpack holds definitions only and can't draw. .xt.md is a document: definitions, then a line that holds only `@@@`, then Markdown that Extended Mark renders. Nothing above the line draws, and below it an `xtmd` code fence is ordinary code.
 2. **@ starts a view.** `@name(…)` builds a widget. A fn that returns a view is called with @ too, and `@name` stands for a view held in a value. A view written as a statement inside a view is drawn there. Empty parentheses can be left out: `@column { … }`.
-3. **The look comes from tokens.** A token type is an enum, and each of its named cases stands for a value written only in a `tokens` block. Everywhere else a token is used by name: `tone = color.OK`, `gap = space.M`. A token type that fits `literal<T>` also accepts a plain value, through a case that carries one: core's `stroke`, for drawing on a canvas, where the named strokes are the convention. The page's colours, spacing and sizes take tokens only. MKP has no attributes, so a `#` at the start of a line is always a Markdown heading.
+3. **The look comes from tokens.** A token type is an enum, and each of its named cases stands for a value written only in a `tokens` block. Everywhere else a token is used by name: `tone = color.OK`, `gap = space.M`. A token type that fits `literal<T>` also accepts a plain value, through a case that carries one: core's `stroke`, for drawing on a canvas, where the named strokes are the convention. The page's colours, spacing and sizes take tokens only. Extended Mark has no attributes, so a `#` at the start of a line is always a Markdown heading.
 4. **Constant by default, mut to change.** Locals, a widget's own variables, inputs, parameters and record fields. A document's shared variables are the fields of its `$state` block, which are variables without saying `mut` (rule 17). Everything is passed by reference: a plain parameter or input is read-only, and `mut` on it lets the fn or widget write through it to the caller's value. The caller's variable may have a narrower contract than the input, and every value written back is checked against it. To assign `a.b`, both `a` and `b` have to be mut.
 5. **Types follow names, and definitions write them.** `name: type`. Names are small, with `_` between words (`text_size`, `remove_where`), and capitals mean two things that never meet: an enum case after its type and a dot (`stage.DONE`, or a token such as `color.OK`, since a token type is an enum), and a type parameter on its own (`list<T>`, `opt<T>`). So a small name in front of capitals is always a type, and a bare capital is always a type parameter. Every `let` and `mut`, field, input and parameter writes its type. A fn with no return type returns nothing. A lambda written where a fn type is expected may leave its types out and takes them from there.
 6. **Every statement ends with a semicolon.** A statement that is itself a block needs none: `if`, `for`, `match`, a declaration with a body, and a widget call with a block. A statement that only ends in a block, such as `let f: fn() = fn() { … };`, still takes one. In code, line breaks mean nothing.
 7. **One brace layout.** An opening brace ends its line, and a closing brace starts its own line. In prose this is grammar, because it is how a block's end is found. In code it is the required style: a compiler reports another layout as a warning and never reads it differently. Empty blocks, one-line data, lambdas and case bodies may stay on one line.
 8. **Inputs go in the parentheses, slots go in the block.** `name = value` in the parentheses sets an input or an event. The block after the call fills the slots: the children directly when the widget has one slot, or one named block per slot. In code a named block can also set inputs, one `name = value;` per line. Setting anything twice is an error.
 9. **Every name is declared or imported, and declared once.** There are two sets of names, types and values, and where a name is written says which set it is looked up in. A declaration can't reuse a name that is already visible in its set. core is imported by every file without saying so.
-10. **No exceptions for core.** Whatever core does, a pack can do the same way. The compiler knows only the syntax (literals, operators, holes, prose and `@`) and what is declared `extern`. Everything else is declared in core, in MKP. A type fits an interface when it has what the interface asks for, and that is how a pack's type joins the syntax: literals, holes, comparisons and arithmetic. Writing `implements` is a promise that is checked where it is written.
+10. **No exceptions for core.** Whatever core does, a pack can do the same way. The compiler knows only the syntax (literals, operators, holes, prose and `@`) and what is declared `extern`. Everything else is declared in core, in Extended Mark. A type fits an interface when it has what the interface asks for, and that is how a pack's type joins the syntax: literals, holes, comparisons and arithmetic. Writing `implements` is a promise that is checked where it is written.
 11. **Widget calls name every argument, and an event takes a fn.** `key = value`. Plain fns take arguments in order. An event is set to a fn that runs when it fires, never to a call.
 12. **A match covers every case, and there is no null.** An opt value has to be opened before use.
 13. **Two loops, and every loop ends.** `for` reads, and can't change its list or its items. `mut for` walks a copy of its list made when it starts, once per item, and its variable is an `opt` for the real item, opened with `if (mut x: T = t)` to write it. `for` walks a list or a range and `mut for` a `mut` list, so there is no while loop and a document can never hang a page. Rows follow their items, so a widget in a loop keeps its own variables with its item.
 14. **One hole, always replaced.** Backslash and braces around an expression, in text, prose and maths. A second backslash escapes it. Code spans, fenced code and indented code are literal. A hole's value is never read as Markdown, or as part of the literal it sits in.
-15. **Every widget has a markdown block.** So the Markdown of any view is always complete. An empty one, `markdown { }`, says the widget writes nothing, for parts whose meaning the widget around them writes, such as a canvas's shapes. The compiler warns where such a widget is declared, and compiles it all the same. A widget declared in a document may leave the block out, and MKP builds it from the view. Markdown's own blocks, such as `paragraph` and `heading`, are extern and write themselves out as the block they stand for.
+15. **Every widget has a markdown block.** So the Markdown of any view is always complete. An empty one, `markdown { }`, says the widget writes nothing, for parts whose meaning the widget around them writes, such as a canvas's shapes. The compiler warns where such a widget is declared, and compiles it all the same. A widget declared in a document may leave the block out, and Extended Mark builds it from the view. Markdown's own blocks, such as `paragraph` and `heading`, are extern and write themselves out as the block they stand for.
 16. **Widgets can't inherit.** Reuse is by calling, slots, interfaces and fns added to types.
 17. **Variables live while the page is open.** A document's shared variables are the fields of its one `$state` block, used as `$state.name` by every widget and fn in the document. A `mut` at the top of a file is a compile error that points to `$state`, and a pack has no state of its own. A `mut` in a widget is that widget's own variable, one per use of the widget. Nothing persists across sessions by itself: the app can read `$state`, keep it, and hand it back when the page opens, where it is checked like any write from the app (page 6).
 18. **A fn that returns a value changes nothing.** Only a fn with no return type can assign variables, fire an event or call an `extern` fn that has no return type. A view, a markdown block, a `require` and a starting value can only call the first kind, so drawing a page never changes it.
@@ -63,8 +63,8 @@ Two sets of names exist, and the place a name is written decides which set it is
 
 ### Files
 
-- **.mkp** (definitions): `package`, then imports, then declarations: `enum`, `record`, `token`, `type`, `interface`, `fn`, `widget`, `extern`, `tokens`, `pack` and top-level `let`s. A view statement outside a widget is a compile error, and so is a `mut` at the top of the file, which points to `$state` (rule 17).
-- **.mkp.md** (documents): definitions, a `@@@` line, and the document. The definitions are what a .mkp file holds, without `package` and `pack`, and two things only a document has: one `$state` block, and `expose` blocks. In a .mkp file, each of those is a compile error. The document is Markdown, with widget calls and control lines in it.
+- **.xtpack** (definitions): `package`, then imports, then declarations: `enum`, `record`, `token`, `type`, `interface`, `fn`, `widget`, `extern`, `tokens`, `pack` and top-level `let`s. A view statement outside a widget is a compile error, and so is a `mut` at the top of the file, which points to `$state` (rule 17).
+- **.xt.md** (documents): definitions, a `@@@` line, and the document. The definitions are what a .xtpack file holds, without `package` and `pack`, and two things only a document has: one `$state` block, and `expose` blocks. In a .xtpack file, each of those is a compile error. The document is Markdown, with widget calls and control lines in it.
 
 A document is one scope. Everything declared above the `@@@` line can be used anywhere below it.
 
@@ -136,21 +136,21 @@ The worker is fine.
 
 - **The `@@@` line**: The first line that holds only `@@@` ends the definitions. It can never be valid code, because an `@` needs a name after it, so the definitions never need escaping. To show `@@@` as text in the document, write `\@@@`. A second unescaped `@@@` line is a compile error.
 - **No `@@@` line**: The whole file is the document, with only core imported.
-- **Below the line**: Everything is Markdown. A fenced code block marked `mkp` is shown as code, like any other.
-- **A widget declared in a document may leave out `markdown`**: MKP builds it from the view, with the starting values. A branch that depends on a variable, a `$state` field or the widget's own, gets a warning naming the line, and writing a `markdown` block replaces the built one. In a .mkp file the block is required.
+- **Below the line**: Everything is Markdown. A fenced code block marked `xtmd` is shown as code, like any other.
+- **A widget declared in a document may leave out `markdown`**: Extended Mark builds it from the view, with the starting values. A branch that depends on a variable, a `$state` field or the widget's own, gets a warning naming the line, and writing a `markdown` block replaces the built one. In a .xtpack file the block is required.
 - **`$state`**: One block, anywhere above the line, and a second one is a compile error. Its fields are written like a record's, each with its type and a starting value, and its `require` blocks link them (page 2).
 - **Front matter**: YAML front matter, if a document has it, stays at the very top, above the definitions, and is passed to the app untouched.
 - **Where they overlap**: A call with no block, such as `@stats(items = rows);`, and a call whose block holds only other calls are written in the document. A widget above the line is for what Markdown can't say: loops over data, `match`, buttons and variables.
 
 ### Prose
 
-Prose is view code in another notation. The Markdown MKP extends is CommonMark, with GitHub's tables, task lists, strikethrough, footnotes and bare links. Each Markdown block is drawn by the extern widget of the same kind: a paragraph by `paragraph`, a heading by `heading`, a list by `bullets` and its `item`s, and so on for `quote`, `code`, `math`, `divider`, `table` and `footnote`. Every implementer draws these natively, which is what makes MKP a superset of Markdown.
+Prose is view code in another notation. The Markdown Extended Mark extends is CommonMark, with GitHub's tables, task lists, strikethrough, footnotes and bare links. Each Markdown block is drawn by the extern widget of the same kind: a paragraph by `paragraph`, a heading by `heading`, a list by `bullets` and its `item`s, and so on for `quote`, `code`, `math`, `divider`, `table` and `footnote`. Every implementer draws these natively, which is what makes Extended Mark a superset of Markdown.
 
-- **Inline Markdown is parsed by core**, in MKP, when the page is compiled. Bold, italics, strikethrough, links, code spans, inline maths, pictures and footnote marks become `rich_text`: a list of segments, each a `part` with its `marks` (page 5). Each paragraph reaches `paragraph` with its text and its holes kept apart, so a hole's value is always a segment of its own, plain text or a view, and can never turn into formatting. No implementer parses Markdown.
+- **Inline Markdown is parsed by core**, in Extended Mark, when the page is compiled. Bold, italics, strikethrough, links, code spans, inline maths, pictures and footnote marks become `rich_text`: a list of segments, each a `part` with its `marks` (page 5). Each paragraph reaches `paragraph` with its text and its holes kept apart, so a hole's value is always a segment of its own, plain text or a view, and can never turn into formatting. No implementer parses Markdown.
 - **Markdown out** keeps the meaning in one spelling for each block and mark, listed below. The source isn't kept byte for byte.
 - **Raw HTML** is shown as text, never run. An HTML comment is raw HTML too, so it shows, with a warning that says to write `@//`, prose's own comment.
 
-MKP reads six things in prose and leaves the rest to Markdown.
+Extended Mark reads six things in prose and leaves the rest to Markdown.
 
 | What | Written | The rule |
 |---|---|---|
@@ -161,9 +161,9 @@ MKP reads six things in prose and leaves the rest to Markdown.
 | Maths | `$x^2$`, or a `$$` line | Inline maths sits between two `$` on one line, paired as Escapes below says. A line that holds only `$$` opens a maths block, drawn by `math`, and the next such line closes it. |
 | A comment | `@// for whoever edits the file` | `@//` to the end of its line. Nothing draws it and Markdown out leaves it out. It ends no paragraph: the lines around it read as if it weren't there. |
 
-- **A line that starts with `@` and a small letter is always MKP**: a call, a control line or a named slot. If the name is none of those, it is a compile error that says to write `\@`, so a typing mistake is never shown as text.
+- **A line that starts with `@` and a small letter is always Extended Mark**: a call, a control line or a named slot. If the name is none of those, it is a compile error that says to write `\@`, so a typing mistake is never shown as text.
 - **A line that starts with `@//` is a comment**, and `\@//` shows one as text. It is prose's only comment: `//` on its own is text, as in any Markdown.
-- **`\@` is a literal @** anywhere in prose outside code. Plain Markdown shows `\@` as @ too, so the file reads the same without MKP. An `@` that does not start a line is text, so email addresses and mentions in a sentence need nothing.
+- **`\@` is a literal @** anywhere in prose outside code. Plain Markdown shows `\@` as @ too, so the file reads the same without Extended Mark. An `@` that does not start a line is text, so email addresses and mentions in a sentence need nothing.
 - **Indentation**: A call, a control line or a comment may be indented by up to three spaces. Four or more make it a Markdown code block, which is literal.
 - **Quotes and list items**: A call, a control line, a comment or a closing `}` can't start inside a Markdown quote or list item. It is a compile error that says to put the call in `@quote`, or in `@bullets` and `@item`, instead. Inside a quote or a list item, an `@` at the start is written `\@`: `> \@ops is the team on call this week.`
 - **Where a block ends**: At the next line that holds only `}`, counting the blocks opened in between. A fenced code block inside it is skipped whole. To show a line that holds only a brace, write `\}`.

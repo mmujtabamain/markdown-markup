@@ -1,11 +1,11 @@
-//! `example(before = …, after = …)` in a pack's migrations (page 6): `mkp check` runs each `before`
-//! through its migration, as `mkp migrate` would move a use of it, and an `after` it doesn't come to
+//! `example(before = …, after = …)` in a pack's migrations (page 6): `xtmd check` runs each `before`
+//! through its migration, as `xtmd migrate` would move a use of it, and an `after` it doesn't come to
 //! is an error at the example.
 
-use mkp_check::Source;
-use mkp_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt};
-use mkp_syntax::printer::print_expr;
-use mkp_syntax::{format, parse, Diagnostic, Entry, Span};
+use xtmd_check::Source;
+use xtmd_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt};
+use xtmd_syntax::printer::print_expr;
+use xtmd_syntax::{format, parse, Diagnostic, Entry, Span};
 
 use crate::migrate::{packs_of, world_at};
 
@@ -13,8 +13,8 @@ use crate::migrate::{packs_of, world_at};
 pub(crate) const EXAMPLE: &str = "pack.migration-example";
 
 /// Every example in a pack file's migrations, run; an error for each that doesn't hold.
-pub(crate) fn check(base: &mkp_check::Checker, file: &str, text: &str, packs: &[Source]) -> Vec<Diagnostic> {
-    let Some(f) = parse(text, Entry::Mkp).file else { return Vec::new() };
+pub(crate) fn check(base: &xtmd_check::Checker, file: &str, text: &str, packs: &[Source]) -> Vec<Diagnostic> {
+    let Some(f) = parse(text, Entry::Xtmd).file else { return Vec::new() };
     let mut out = Vec::new();
     for n in &f.items {
         let Item::Decl(ast::Decl { kind: DeclKind::Migration(m), .. }) = &n.item else { continue };
@@ -72,7 +72,7 @@ fn held(doc: &str, view: bool) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn holds(base: &mkp_check::Checker, file: &str, text: &str, packs: &[Source], m: &ast::MigrationDecl, b: &ast::MigrationBlock, before: &Expr, after: &Expr) -> Result<(), String> {
+fn holds(base: &xtmd_check::Checker, file: &str, text: &str, packs: &[Source], m: &ast::MigrationDecl, b: &ast::MigrationBlock, before: &Expr, after: &Expr) -> Result<(), String> {
     let name = m.from.name.name.clone();
     let from: u32 = m.from.version.name.parse().map_err(|_| "the migration's version isn't a number".to_string())?;
     let to: u32 = m.to.version.name.parse().map_err(|_| "the migration's version isn't a number".to_string())?;
@@ -86,8 +86,8 @@ fn holds(base: &mkp_check::Checker, file: &str, text: &str, packs: &[Source], m:
         return Err(format!("an example of a {} block is a use of it: `before = @{}(…)`", b.kind.name, key));
     }
     let (doc, want) = (holder(&name, &key, &print_expr(before), view), holder(&name, &key, &print_expr(after), view));
-    let path = format!("{}.example.mkp.md", file);
-    let (compiled, refs) = mkp_check::compile_refs(base, &[world_at(&sources, &pack, from)], &[Source { path: path.clone(), text: doc.clone() }], "doc");
+    let path = format!("{}.example.xt.md", file);
+    let (compiled, refs) = xtmd_check::compile_refs(base, &[world_at(&sources, &pack, from)], &[Source { path: path.clone(), text: doc.clone() }], "doc");
     if compiled.module.is_none() {
         let first = compiled.errors().find(|d| d.file == path).map(|d| d.diagnostic.message.clone()).unwrap_or_else(|| "an error in a pack".into());
         return Err(format!("`before` doesn't compile against {}@{}: {}", name, from, first));

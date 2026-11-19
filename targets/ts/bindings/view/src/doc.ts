@@ -1,22 +1,22 @@
 // A document running, as a framework target holds it: made from its IR (given, or fetched from a
-// URL), its `$state` the app's to control or to start from, every write checked by mkp, what was
+// URL), its `$state` the app's to control or to start from, every write checked by xtmd, what was
 // refused told to the app, and a snapshot that takes everything the page holds out and puts it
 // back. No framework here: a target renders `render()` with its own renderer and calls `update`
 // with its props.
 
-import { Page, type Call, type Outcome, type PageOptions, type PageValues, type Value, type ir } from "@mkp/runtime";
-import { RELEASE, channelName, hash, makePage, type DocError, type Ir, type Restored, type Snapshot } from "@mkp/embed";
+import { Page, type Call, type Outcome, type PageOptions, type PageValues, type Value, type ir } from "@extended-mark/runtime";
+import { RELEASE, channelName, hash, makePage, type DocError, type Ir, type Restored, type Snapshot } from "@extended-mark/embed";
 
-export { hash, type DocError, type Restored, type Snapshot } from "@mkp/embed";
-import { Num, layout as runLayout, type Measure } from "@mkp/runtime";
-import { Tokens, webFns } from "@mkp/dom/shared";
+export { hash, type DocError, type Restored, type Snapshot } from "@extended-mark/embed";
+import { Num, layout as runLayout, type Measure } from "@extended-mark/runtime";
+import { Tokens, webFns } from "@extended-mark/dom/shared";
 import { renderPage, type ViewWidget } from "./render.js";
 import { h, type VNode } from "./vnode.js";
 import { widgets as core } from "./widgets/index.js";
 
 /** What a target gives the document: the same in every framework. */
 export interface DocProps {
-  /** The page's IR, in hand: the file `mkp build` writes. */
+  /** The page's IR, in hand: the file `xtmd build` writes. */
   ir?: Ir;
   /** Where to fetch the page's IR from, when it isn't in hand. */
   src?: string;
@@ -38,7 +38,7 @@ export interface DocProps {
   measure?: (page: Page) => Measure;
   /** `$state` after each change to it. */
   onStateChange?: (state: Record<string, ir.Expr>) => void;
-  /** A write mkp refused, a widget that failed, or an IR that couldn't be had. */
+  /** A write xtmd refused, a widget that failed, or an IR that couldn't be had. */
   onError?: (error: DocError) => void;
   /** The app's extern fns the page called, after each change that called any. */
   onCalls?: (calls: Call[]) => void;
@@ -63,7 +63,7 @@ export class Doc {
   private rendering = false;
   /** Bumped at every change the page draws: a target's store snapshot. */
   version = 0;
-  readonly uid = `mkpv${++docs}-`;
+  readonly uid = `xtmdv${++docs}-`;
   private readonly listeners = new Set<() => void>();
   /** The page reads its value fns through this, so it always calls the latest props' fns. */
   private readonly fns: NonNullable<PageOptions["fns"]>;
@@ -91,7 +91,7 @@ export class Doc {
   render(): VNode {
     if (!this.page || !this.tokens) {
       const why = this.loadFailed;
-      return h("div", undefined, { class: "mkp-root", "data-mkp-root": "", "data-mkp-loading": why ? undefined : "" }, why ? [h("div", "notice", { role: "alert" }, [why])] : []);
+      return h("div", undefined, { class: "xtmd-root", "data-xtmd-root": "", "data-xtmd-loading": why ? undefined : "" }, why ? [h("div", "notice", { role: "alert" }, [why])] : []);
     }
     this.rendering = true;
     let root: VNode;
@@ -138,7 +138,7 @@ export class Doc {
         page.setExtern(channelName(page.module, c), this.values(values));
       }
     }
-    // controlled: a new `$state` from the app wins, checked as any write of the app's is; one mkp
+    // controlled: a new `$state` from the app wins, checked as any write of the app's is; one xtmd
     // refuses is told to onError once, and the page keeps the last that fit
     if (next.state && JSON.stringify(next.state) !== JSON.stringify(prev.state) && JSON.stringify(next.state) !== JSON.stringify(page.observeState())) {
       page.set(this.values(next.state));
@@ -179,7 +179,7 @@ export class Doc {
 
   /** Everything the page holds now: `$state`, and every widget's own variables by place. */
   snapshot(): Snapshot {
-    return { mkp: RELEASE, ir: this.irHash, state: this.state(), own: this.page?.observeOwn() ?? {} };
+    return { xtmd: RELEASE, ir: this.irHash, state: this.state(), own: this.page?.observeOwn() ?? {} };
   }
 
   /** Puts a snapshot back. With the same IR, all of it; with another, `$state` only, as widgets'
@@ -187,8 +187,8 @@ export class Doc {
   restore(snap: Snapshot): Restored {
     const page = this.page;
     if (!page) return { restored: "none", dropped: [], why: "the page isn't loaded yet" };
-    if (!snap || typeof snap !== "object" || snap.mkp !== RELEASE || typeof snap.state !== "object") {
-      return { restored: "none", dropped: [], why: `a snapshot this mkp (${RELEASE}) can't read` };
+    if (!snap || typeof snap !== "object" || snap.xtmd !== RELEASE || typeof snap.state !== "object") {
+      return { restored: "none", dropped: [], why: `a snapshot this xtmd (${RELEASE}) can't read` };
     }
     page.set(this.values(snap.state ?? {}));
     const o = page.takeOutcome();
@@ -305,7 +305,7 @@ export class Doc {
     const root = this.root;
     if (!page || !root || !this.wantLayout) return;
     this.wantLayout = false;
-    const at = (path: string) => root.querySelector(`[data-mkp-site="${CSS.escape(path)}"]`) as HTMLElement | null;
+    const at = (path: string) => root.querySelector(`[data-xtmd-site="${CSS.escape(path)}"]`) as HTMLElement | null;
     const measure: Measure = this.props.measure?.(page) ?? {
       spot: (s) => {
         const el = at(s.path);

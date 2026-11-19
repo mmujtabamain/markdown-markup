@@ -1,4 +1,4 @@
-//! The `mkp` command.
+//! The `xtmd` command.
 
 use std::process::ExitCode;
 
@@ -13,24 +13,24 @@ mod migrate_step;
 mod surface;
 mod target;
 
-use mkp_syntax::{entry_for, format, parse, Diagnostic};
+use xtmd_syntax::{entry_for, format, parse, Diagnostic};
 
 include!(concat!(env!("OUT_DIR"), "/core.rs"));
 
-fn core_sources() -> Vec<mkp_check::Source> {
-    CORE.iter().map(|(p, t)| mkp_check::Source { path: p.to_string(), text: t.to_string() }).collect()
+fn core_sources() -> Vec<xtmd_check::Source> {
+    CORE.iter().map(|(p, t)| xtmd_check::Source { path: p.to_string(), text: t.to_string() }).collect()
 }
 
-/// The packs `--pack` names: a comma-separated list of folders and `.mkp` files. A folder gives
-/// every `.mkp` file under it; each file says its own pack with its `package` line.
-fn pack_sources(list: &str) -> Result<Vec<mkp_check::Source>, String> {
+/// The packs `--pack` names: a comma-separated list of folders and `.xtpack` files. A folder gives
+/// every `.xtpack` file under it; each file says its own pack with its `package` line.
+fn pack_sources(list: &str) -> Result<Vec<xtmd_check::Source>, String> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) -> Result<(), String> {
         let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(dir).map_err(|e| format!("{}: {}", dir.display(), e))?.filter_map(|e| e.ok().map(|e| e.path())).collect();
         entries.sort();
         for p in entries {
             if p.is_dir() {
                 walk(&p, out)?;
-            } else if p.extension().map_or(false, |x| x == "mkp") {
+            } else if p.extension().map_or(false, |x| x == "xtpack") {
                 out.push(p);
             }
         }
@@ -40,52 +40,52 @@ fn pack_sources(list: &str) -> Result<Vec<mkp_check::Source>, String> {
     for item in list.split(',').map(str::trim).filter(|s| !s.is_empty()) {
         let p = std::path::Path::new(item);
         if migrate_02::is_pack(p) {
-            return Err(format!("--pack {}: an MKP 0.2 pack (it has a manifest.mkp). mkp migrate takes it, beside the 0.3 packs, to move a 0.2 document; the rest of mkp needs its 0.3 release, or the stand-in mkp migrate writes", item));
+            return Err(format!("--pack {}: an MKP 0.2 pack (it has a manifest.mkp). xtmd migrate takes it, beside the 0.3 packs, to move a 0.2 document; the rest of xtmd needs its 0.3 release, or the stand-in xtmd migrate writes", item));
         }
         if p.is_dir() {
             walk(p, &mut paths)?;
-        } else if item.ends_with(".mkp") {
+        } else if item.ends_with(".xtpack") {
             paths.push(p.to_path_buf());
         } else {
-            return Err(format!("--pack {}: not a folder or a .mkp file", item));
+            return Err(format!("--pack {}: not a folder or a .xtpack file", item));
         }
     }
     paths
         .into_iter()
         .map(|p| {
             let text = std::fs::read_to_string(&p).map_err(|e| format!("{}: {}", p.display(), e))?;
-            Ok(mkp_check::Source { path: p.to_string_lossy().into_owned(), text })
+            Ok(xtmd_check::Source { path: p.to_string_lossy().into_owned(), text })
         })
         .collect()
 }
 
 /// `--pack a,b` and `--out file` taken out of the arguments, the files left.
-/// What an `mkp.toml` holds: the packs a document uses, as `--pack` takes them, relative to it.
+/// What an `xtmd.toml` holds: the packs a document uses, as `--pack` takes them, relative to it.
 #[derive(serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct Config {
     #[serde(default)]
     packs: Vec<String>,
-    /// The release of MKP the tree is written for.
+    /// The release of Extended Mark the tree is written for.
     #[serde(default)]
     #[allow(dead_code)]
-    mkp: Option<String>,
-    /// The version of each pack the tree is written for, as `mkp migrate` reads it.
+    xtmd: Option<String>,
+    /// The version of each pack the tree is written for, as `xtmd migrate` reads it.
     #[serde(default)]
     #[allow(dead_code)]
     uses: std::collections::BTreeMap<String, u32>,
 }
 
-/// The `mkp.toml` for a file or folder: the one in its folder (a folder's own, for a folder) or in a
+/// The `xtmd.toml` for a file or folder: the one in its folder (a folder's own, for a folder) or in a
 /// folder above it; for nothing named, the current folder's.
 pub(crate) fn find_config(file: Option<&str>) -> Option<std::path::PathBuf> {
     let start = std::fs::canonicalize(file.unwrap_or(".")).ok()?;
     let skip = usize::from(!start.is_dir());
-    start.ancestors().skip(skip).map(|d| d.join("mkp.toml")).find(|p| p.is_file())
+    start.ancestors().skip(skip).map(|d| d.join("xtmd.toml")).find(|p| p.is_file())
 }
 
-/// The packs of the `mkp.toml` named, or else of the one `find_config` finds.
-fn config_for(named: Option<&str>, file: Option<&String>) -> Result<Vec<mkp_check::Source>, String> {
+/// The packs of the `xtmd.toml` named, or else of the one `find_config` finds.
+fn config_for(named: Option<&str>, file: Option<&String>) -> Result<Vec<xtmd_check::Source>, String> {
     let path = match named {
         Some(p) => Some(std::path::PathBuf::from(p)),
         None => find_config(file.map(String::as_str)),
@@ -102,7 +102,7 @@ fn config_for(named: Option<&str>, file: Option<&String>) -> Result<Vec<mkp_chec
     Ok(out)
 }
 
-fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Option<String>), String> {
+fn options(args: &[String]) -> Result<(Vec<String>, Vec<xtmd_check::Source>, Option<String>), String> {
     let (mut files, mut packs, mut out) = (Vec::new(), Vec::new(), None);
     let mut config: Option<String> = None;
     let mut k = 0;
@@ -138,14 +138,14 @@ fn options(args: &[String]) -> Result<(Vec<String>, Vec<mkp_check::Source>, Opti
 }
 
 /// The packs without the file itself, however each names it: a relative path given, and the
-/// same file found through an mkp.toml's absolute one, are one file.
-fn without(packs: &[mkp_check::Source], path: &str) -> Vec<mkp_check::Source> {
+/// same file found through an xtmd.toml's absolute one, are one file.
+fn without(packs: &[xtmd_check::Source], path: &str) -> Vec<xtmd_check::Source> {
     let me = std::fs::canonicalize(path).ok();
     packs.iter().filter(|p| std::path::Path::new(&p.path) != std::path::Path::new(path) && (me.is_none() || std::fs::canonicalize(&p.path).ok() != me)).cloned().collect()
 }
 
 
-/// The MKP files a folder holds, documents and packs' files, at any depth.
+/// The Extended Mark files a folder holds, documents and packs' files, at any depth.
 fn under(dir: &std::path::Path, out: &mut Vec<String>) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     let mut entries: Vec<std::path::PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
@@ -156,13 +156,13 @@ fn under(dir: &std::path::Path, out: &mut Vec<String>) {
             if !name.starts_with('.') && !matches!(name, "node_modules" | "target" | "dist") {
                 under(&p, out);
             }
-        } else if entry_for(&p.to_string_lossy()).is_some() {
+        } else if entry_for(&p.to_string_lossy()).is_some() || name.ends_with(".mkp.md") {
             out.push(p.to_string_lossy().into_owned());
         }
     }
 }
 
-/// The files named, each folder as the MKP files under it.
+/// The files named, each folder as the Extended Mark files under it.
 fn expand(files: &[String]) -> Vec<String> {
     let mut out = Vec::new();
     for f in files {
@@ -178,7 +178,7 @@ fn expand(files: &[String]) -> Vec<String> {
 /// A command that takes one file, given more: the usage error it is.
 fn one_file(cmd: &str, files: &[String]) -> Result<(), ExitCode> {
     if files.len() > 1 {
-        eprintln!("mkp {} takes one file, and was given {}: {}", cmd, files.len(), files.join(", "));
+        eprintln!("xtmd {} takes one file, and was given {}: {}", cmd, files.len(), files.join(", "));
         return Err(ExitCode::from(2));
     }
     Ok(())
@@ -186,7 +186,7 @@ fn one_file(cmd: &str, files: &[String]) -> Result<(), ExitCode> {
 
 /// The surfaces a pack's file has released: `surfaces/` in its pack's folder (the file's, or the
 /// one above `migrations/`), so a change that breaks one is an error.
-fn released_surfaces(path: &str) -> Vec<mkp_check::Source> {
+fn released_surfaces(path: &str) -> Vec<xtmd_check::Source> {
     let file = std::path::Path::new(path);
     let Some(mut dir) = file.parent() else { return Vec::new() };
     if dir.file_name().map_or(false, |n| n == "migrations" || n == "surfaces") {
@@ -204,7 +204,7 @@ const FOLLOWS_A_MISSING_PACK: &[&str] = &["names.unknown-type", "names.unknown-w
 
 /// A pack the build doesn't have: its error says how to add it, and the errors that follow from it
 /// in the same file are left out until it is found, its message counting them.
-fn missing_packs(c: &mut mkp_check::Compiled) {
+fn missing_packs(c: &mut xtmd_check::Compiled) {
     let files: std::collections::HashSet<String> = c.diagnostics.iter().filter(|d| d.diagnostic.code == "names.unknown-pack").map(|d| d.file.clone()).collect();
     if files.is_empty() {
         return;
@@ -220,7 +220,7 @@ fn missing_packs(c: &mut mkp_check::Compiled) {
     for d in c.diagnostics.iter_mut().filter(|d| d.diagnostic.code == "names.unknown-pack") {
         let name = d.diagnostic.message.split('`').nth(1).unwrap_or("it").to_string();
         if d.diagnostic.fix.is_none() {
-            d.diagnostic.fix = Some(format!("pass its folder with --pack (--pack {} for ./{}), or list it in mkp.toml: packs = [\"{}\"]", name, name, name));
+            d.diagnostic.fix = Some(format!("pass its folder with --pack (--pack {} for ./{}), or list it in xtmd.toml: packs = [\"{}\"]", name, name, name));
         }
         if let Some(n) = left.remove(&d.file) {
             d.diagnostic.message = format!("{} ({} more error{} that follow from it are left out until it is found)", d.diagnostic.message, n, if n == 1 { "" } else { "s" });
@@ -241,13 +241,13 @@ fn written_for_02(src: &str) -> Option<Diagnostic> {
     };
     Some(Diagnostic::warning(
         "file.mkp-0.2",
-        mkp_syntax::Span { start: 0, end: 0 },
-        format!("this looks like an MKP 0.2 document ({}), which 0.3 reads as plain Markdown: mkp migrate brings it to 0.3", what),
+        xtmd_syntax::Span { start: 0, end: 0 },
+        format!("this looks like an MKP 0.2 document ({}), which 0.3 reads as plain Markdown: xtmd migrate brings it to 0.3", what),
     ))
 }
 
 /// The levels a compiled document needs, by name.
-fn levels_of(m: &mkp_ir::ir::Module) -> Vec<String> {
+fn levels_of(m: &xtmd_ir::ir::Module) -> Vec<String> {
     m.levels.iter().filter_map(|l| serde_json::to_value(l).ok()).filter_map(|v| v.as_str().map(str::to_string)).collect()
 }
 
@@ -255,7 +255,7 @@ fn plural(n: usize, one: &str) -> String {
     format!("{} {}{}", n, one, if n == 1 { "" } else { "s" })
 }
 
-/// `mkp build doc.mkp.md [--pack a,b] [--rir] [--out out.ir.json]`: one standalone IR, core and the packs
+/// `xtmd build doc.xt.md [--pack a,b] [--rir] [--out out.ir.json]`: one standalone IR, core and the packs
 /// in it; with `--rir`, the resolved IR of the document and its packs instead.
 fn build(args: &[String]) -> ExitCode {
     let (files, packs, out) = match options(args) {
@@ -279,19 +279,19 @@ fn build(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
+    let module = if migrate::is_doc(path) { "doc" } else { "main" };
     let rir = args.iter().any(|a| a == "--rir");
     let json_diags = match json_or_exit(args) {
         Ok(j) => j,
         Err(c) => return c,
     };
-    let main = [mkp_check::Source { path: path.clone(), text }];
+    let main = [xtmd_check::Source { path: path.clone(), text }];
     let packs = without(&packs, path);
     let (mut c, resolved) = if rir {
-        let base = mkp_check::compile_core(&core_sources());
-        mkp_check::compile_rir(&base, &[packs], &main, module)
+        let base = xtmd_check::compile_core(&core_sources());
+        xtmd_check::compile_rir(&base, &[packs], &main, module)
     } else {
-        (mkp_check::compile(&core_sources(), &[packs], &main, module), None)
+        (xtmd_check::compile(&core_sources(), &[packs], &main, module), None)
     };
     missing_packs(&mut c);
     for d in &c.diagnostics {
@@ -314,8 +314,8 @@ fn build(args: &[String]) -> ExitCode {
         }
         None => {
             // every prop that isn't constant becomes a binding with what it reads
-            mkp_lower::lower(&mut m);
-            serde_json::to_string_pretty(&mkp_ir::ir::File { ir: m }).unwrap()
+            xtmd_lower::lower(&mut m);
+            serde_json::to_string_pretty(&xtmd_ir::ir::File { ir: m }).unwrap()
         }
     };
     match out {
@@ -330,11 +330,18 @@ fn build(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn read(path: &str) -> Result<(String, mkp_syntax::Entry), String> {
+fn read(path: &str) -> Result<(String, xtmd_syntax::Entry), String> {
     if std::path::Path::new(path).is_dir() {
         return Err(format!("{}: a folder", path));
     }
-    let entry = entry_for(path).ok_or_else(|| format!("{}: not an MKP file (.mkp or .mkp.md)", path))?;
+    // MKP's names: check reads a name.mkp.md to say so, and the rest need the new name
+    let entry = if let Some(stem) = path.strip_suffix(".mkp.md") {
+        return Err(format!("{}: MKP's name for a document: Extended Mark's is {}.xt.md, so rename it (xtmd migrate renames a 0.2 document as it moves it)", path, stem));
+    } else if path.ends_with(".mkp") {
+        return Err(format!("{}: MKP's name for a definitions file: Extended Mark's is .xtpack, so rename it", path));
+    } else {
+        entry_for(path).ok_or_else(|| format!("{}: not an Extended Mark file (.xtpack or .xt.md)", path))?
+    };
     let src = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path, e))?;
     Ok((src, entry))
 }
@@ -446,7 +453,7 @@ fn fmt(args: &[String]) -> ExitCode {
             Ok(text) => {
                 if check {
                     if !json {
-                        say(&format!("{}: not in the canonical layout (mkp fmt {} rewrites it)", path, path));
+                        say(&format!("{}: not in the canonical layout (xtmd fmt {} rewrites it)", path, path));
                     }
                     tell(path, "would change", serde_json::json!({}));
                     failed = true;
@@ -544,15 +551,17 @@ fn check(args: &[String]) -> ExitCode {
         if named.is_empty() {
             eprintln!("{}", help::of("check").unwrap());
         } else {
-            eprintln!("{}: no MKP files (.mkp or .mkp.md) in it", named.join(", "));
+            eprintln!("{}: no Extended Mark files (.xtpack or .xt.md) in it", named.join(", "));
         }
         return ExitCode::from(2);
     }
     let (mut failed, mut unread) = (false, 0);
     let (mut errors, mut warnings, mut with_errors) = (0, 0, 0);
-    let base = mkp_check::compile_core(&core_sources());
+    let base = xtmd_check::compile_core(&core_sources());
     for path in &files {
-        let (src, _) = match read(path) {
+        // a document by MKP's name is checked as the document it is, and warned about
+        let read_it = if path.ends_with(".mkp.md") { std::fs::read_to_string(path).map(|t| (t, xtmd_syntax::Entry::Document)).map_err(|e| format!("{}: {}", path, e)) } else { read(path) };
+        let (src, _) = match read_it {
             Ok(x) => x,
             Err(e) => {
                 if json {
@@ -566,14 +575,23 @@ fn check(args: &[String]) -> ExitCode {
         };
         // each file with core and the packs: a document, or a pack's file with the rest of its pack
         // and the surfaces it has released
-        let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
+        let module = if migrate::is_doc(path) { "doc" } else { "main" };
         let mut packs = without(&packs, path);
         if module == "main" {
             let mut seen: std::collections::HashSet<std::path::PathBuf> = packs.iter().filter_map(|s| std::fs::canonicalize(&s.path).ok()).collect();
             packs.extend(released_surfaces(path).into_iter().filter(|s| std::fs::canonicalize(&s.path).map_or(true, |p| seen.insert(p))));
             packs = without(&packs, path);
         }
-        let mut c = mkp_check::compile_on(&base, &[packs.clone()], &[mkp_check::Source { path: path.to_string(), text: src.clone() }], module);
+        let as_doc = migrate::written_as(std::path::Path::new(path)).display().to_string();
+        let mut c = xtmd_check::compile_on(&base, &[packs.clone()], &[xtmd_check::Source { path: as_doc.clone(), text: src.clone() }], module);
+        if as_doc != *path {
+            for d in c.diagnostics.iter_mut().filter(|d| d.file == as_doc) {
+                d.file = path.to_string();
+            }
+            if let Some(t) = c.texts.remove(&as_doc) {
+                c.texts.insert(path.to_string(), t);
+            }
+        }
         missing_packs(&mut c);
         failed |= c.module.is_none();
         // a pack's migrations: each example run through its block, once the file compiles
@@ -581,13 +599,21 @@ fn check(args: &[String]) -> ExitCode {
             crate::migrate_step::NO_ASKING.store(true, std::sync::atomic::Ordering::Relaxed);
             for d in examples::check(&base, path, &src, &packs) {
                 failed = true;
-                c.diagnostics.push(mkp_check::Found { file: path.to_string(), diagnostic: d });
+                c.diagnostics.push(xtmd_check::Found { file: path.to_string(), diagnostic: d });
             }
         }
-        // a document 0.3 reads as plain Markdown, written for 0.2
+        // a document 0.3 reads as plain Markdown, written for 0.2; a document by MKP's name
         if module == "doc" {
             if let Some(d) = written_for_02(&src) {
-                c.diagnostics.insert(0, mkp_check::Found { file: path.to_string(), diagnostic: d });
+                c.diagnostics.insert(0, xtmd_check::Found { file: path.to_string(), diagnostic: d });
+            }
+            if let Some(stem) = path.strip_suffix(".mkp.md") {
+                let d = Diagnostic::warning(
+                    "file.mkp-name",
+                    xtmd_syntax::Span { start: 0, end: 0 },
+                    format!("MKP's name for a document: Extended Mark's is {}.xt.md, so rename it (xtmd migrate renames a 0.2 document as it moves it)", std::path::Path::new(stem).file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned())),
+                );
+                c.diagnostics.insert(0, xtmd_check::Found { file: path.to_string(), diagnostic: d });
             }
         }
         // this file's errors and warnings, and any pack's errors
@@ -633,7 +659,7 @@ fn check(args: &[String]) -> ExitCode {
     ExitCode::from(code)
 }
 
-/// `mkp md doc.mkp.md [--pack a,b] [--format json] [--out out.md]`: the page as Markdown, with its
+/// `xtmd md doc.xt.md [--pack a,b] [--format json] [--out out.md]`: the page as Markdown, with its
 /// starting values; `--format json` gives its blocks as the checks read them.
 fn md(args: &[String]) -> ExitCode {
     let json = match json_or_exit(args) {
@@ -661,8 +687,8 @@ fn md(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let module = if path.ends_with(".mkp.md") { "doc" } else { "main" };
-    let mut c = mkp_check::compile(&core_sources(), &[without(&packs, path)], &[mkp_check::Source { path: path.clone(), text }], module);
+    let module = if migrate::is_doc(path) { "doc" } else { "main" };
+    let mut c = xtmd_check::compile(&core_sources(), &[without(&packs, path)], &[xtmd_check::Source { path: path.clone(), text }], module);
     missing_packs(&mut c);
     for d in c.diagnostics.iter().filter(|d| d.diagnostic.is_error()) {
         if json {
@@ -672,15 +698,15 @@ fn md(args: &[String]) -> ExitCode {
         }
     }
     let Some(mut m) = c.module else { return ExitCode::from(1) };
-    mkp_lower::lower(&mut m);
-    let blocks = match mkp_markdown::page(&m) {
+    xtmd_lower::lower(&mut m);
+    let blocks = match xtmd_markdown::page(&m) {
         Ok(b) => b,
         Err(e) => {
             eprintln!("{}: writing its Markdown failed: {}", path, e.0);
             return ExitCode::from(1);
         }
     };
-    let written = if json { serde_json::to_string_pretty(&mkp_markdown::blocks_json(&blocks)).unwrap() + "\n" } else { mkp_markdown::write_page(m.front_matter.as_deref(), &blocks) };
+    let written = if json { serde_json::to_string_pretty(&xtmd_markdown::blocks_json(&blocks)).unwrap() + "\n" } else { xtmd_markdown::write_page(m.front_matter.as_deref(), &blocks) };
     match out {
         Some(o) => {
             if let Err(e) = out::write_file(&o, written) {
@@ -693,10 +719,10 @@ fn md(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// The commands, as `mkp help` names them.
+/// The commands, as `xtmd help` names them.
 const COMMANDS: &[&str] = &["fmt", "check", "parse", "build", "md", "surface", "migrate", "target check"];
 
-/// Flags written before the command (`mkp --format json check …`), moved to after it, where each
+/// Flags written before the command (`xtmd --format json check …`), moved to after it, where each
 /// command reads them.
 fn command_first(args: Vec<String>) -> Vec<String> {
     let mut lead = Vec::new();
@@ -734,14 +760,14 @@ fn run(args: &[String]) -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             let Some(h) = help::of(&name) else {
-                eprintln!("mkp has no command {}: the commands are {}", name, COMMANDS.join(", "));
+                eprintln!("xtmd has no command {}: the commands are {}", name, COMMANDS.join(", "));
                 return ExitCode::from(2);
             };
             out::text(h);
             return ExitCode::SUCCESS;
         }
         Some("--version") => {
-            out::text(&format!("mkp {} (MKP 0.3; resolved IR: rir 1)", migrate::RELEASE));
+            out::text(&format!("xtmd {} (Extended Mark 0.3; resolved IR: rir 1)", migrate::RELEASE));
             return ExitCode::SUCCESS;
         }
         _ => {}
@@ -753,11 +779,11 @@ fn run(args: &[String]) -> ExitCode {
     };
     if !COMMANDS.contains(&cmd) {
         if flags::is_flag(cmd) {
-            eprintln!("mkp: {} isn't a command; a flag goes with one: mkp <command> {} …", cmd, cmd);
+            eprintln!("xtmd: {} isn't a command; a flag goes with one: xtmd <command> {} …", cmd, cmd);
         } else if cmd == "target" {
-            eprintln!("mkp target has one command: mkp target check [target…]");
+            eprintln!("xtmd target has one command: xtmd target check [target…]");
         } else {
-            eprintln!("mkp has no command {}: the commands are {}", cmd, COMMANDS.join(", "));
+            eprintln!("xtmd has no command {}: the commands are {}", cmd, COMMANDS.join(", "));
         }
         eprintln!("{}", help::TOP);
         return ExitCode::from(2);
@@ -786,7 +812,7 @@ fn run(args: &[String]) -> ExitCode {
     }
     // a run that would write the person's files writes nothing with a flag it doesn't know
     if !unknown.is_empty() && flags::writes(cmd, rest) {
-        eprintln!("Nothing written: mkp {} doesn't know {}, so it stops before writing any file. Correct it and run it again.", cmd, unknown.join(", "));
+        eprintln!("Nothing written: xtmd {} doesn't know {}, so it stops before writing any file. Correct it and run it again.", cmd, unknown.join(", "));
         return ExitCode::from(2);
     }
     // --out: build, md and surface write their document there; the rest, what they print

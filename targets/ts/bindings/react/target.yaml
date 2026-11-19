@@ -1,9 +1,9 @@
-# targets/ts/bindings/react/target.yaml: the react target, run time: <MkpDoc> drawn by react itself from
-# @mkp/view's elements (core's widgets as the web target draws them), from an IR it is given
+# targets/ts/bindings/react/target.yaml: the react target, run time: <XtmdDoc> drawn by react itself from
+# @extended-mark/view's elements (core's widgets as the web target draws them), from an IR it is given
 name: react
 levels: [core.draw, core.live, core.gfx]
 supplies:
   widgets: [core/*]                     # core's externs only; a pack brings its own
   fns: [core/can_draw_tex, core/moment.local]
-tokens: core                            # @mkp/dom's stylesheet draws core's own tokens
+tokens: core                            # @extended-mark/dom's stylesheet draws core's own tokens
 check_adapter: exec node ../testing/view_adapter.mjs react check/harness.mjs

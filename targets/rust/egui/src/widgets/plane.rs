@@ -19,7 +19,7 @@ fn moved(ctx: &mut Ctx<'_>, was: ((f64, f64), f64), center: (f64, f64), zoom: f6
     if (zoom - z).abs() > 1e-9 {
         let nz = to_num(zoom, 3);
         if (crate::values::to_f64(&nz) - z).abs() > 1e-9 {
-            ctx.write("zoom", mkp_runtime::Value::Num(nz));
+            ctx.write("zoom", xtmd_runtime::Value::Num(nz));
         }
     }
     let pl = places_for(1.0 / zoom);
@@ -61,7 +61,7 @@ impl Widget for Plane {
             }
         }
         let (lo, hi) = match inner(p.get("zoom_range")) {
-            Some(mkp_runtime::Value::Range(r)) => (num(r.low.as_ref()).unwrap_or(1.0), num(r.high.as_ref()).unwrap_or(1.0)),
+            Some(xtmd_runtime::Value::Range(r)) => (num(r.low.as_ref()).unwrap_or(1.0), num(r.high.as_ref()).unwrap_or(1.0)),
             _ => (1.0, 1.0),
         };
         let low = (lo * base).max(0.1);

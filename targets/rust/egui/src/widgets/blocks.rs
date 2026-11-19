@@ -88,7 +88,7 @@ pub fn bullets(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
 
 pub fn item(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
     let done = match values::inner(p.get("done")) {
-        Some(mkp_runtime::Value::Bool(b)) => Some(*b),
+        Some(xtmd_runtime::Value::Bool(b)) => Some(*b),
         _ => None,
     };
     let ink = ctx.core_color("INK");
@@ -186,7 +186,7 @@ pub fn table(ui: &mut Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
             let grid = ui.scope_builder(UiBuilder::new().scope_id(ctx.sub_id("grid")).accessibility_role(Role::Table), |ui| {
                 ctx.part(ui, ui.unique_id(), "grid");
                 egui::Grid::new(ctx.sub_id("cells")).spacing(egui::vec2(16.0, 6.0)).show(ui, |ui| {
-                    let cell = |ui: &mut Ui, ctx: &mut Ctx<'_>, v: &mkp_runtime::Value, k: usize, id: egui::Id, role: Role, part: &str, s: crate::rich::Style| {
+                    let cell = |ui: &mut Ui, ctx: &mut Ctx<'_>, v: &xtmd_runtime::Value, k: usize, id: egui::Id, role: Role, part: &str, s: crate::rich::Style| {
                         let a = align.get(k).copied().unwrap_or(Align::Min);
                         let r = ui.scope_builder(UiBuilder::new().scope_id(id).accessibility_role(role), |ui| {
                             ctx.part(ui, ui.unique_id(), part);

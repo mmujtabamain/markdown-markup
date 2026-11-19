@@ -1,16 +1,16 @@
-//! egui's two kinds of target in one window: mkp-egui's MkpDoc drawing an IR built ahead (run
-//! time, no compiler), and MkpLiveDoc compiling its text in the app (real time). With `--demo` it
+//! egui's two kinds of target in one window: xtmd-egui's XtmdDoc drawing an IR built ahead (run
+//! time, no compiler), and XtmdLiveDoc compiling its text in the app (real time). With `--demo` it
 //! drives itself (presses, a snapshot and restore, an edit, a broken draft) with a caption under it,
 //! for a recording.
 //!
-//!   cargo run --release -p mkp-egui-live --example targets --features app -- page.mkp.md page.ir.json [--demo]
+//!   cargo run --release -p xtmd-egui-live --example targets --features app -- page.xt.md page.ir.json [--demo]
 
 use std::time::Instant;
 
-use mkp_egui::doc::{DocOptions, MkpDoc, Snapshot, State};
-use mkp_egui::runtime::Drawn;
-use mkp_egui::Act;
-use mkp_egui_live::{Followed, MkpLiveDoc};
+use xtmd_egui::doc::{DocOptions, XtmdDoc, Snapshot, State};
+use xtmd_egui::runtime::Drawn;
+use xtmd_egui::Act;
+use xtmd_egui_live::{Followed, XtmdLiveDoc};
 
 /// What the script does, at a time from the start.
 enum Step {
@@ -25,8 +25,8 @@ enum Step {
 
 const SCRIPT: &[(f32, Step)] = &[
     (0.5, Step::Say("egui's two kinds of target, in one window.")),
-    (3.5, Step::Say("Run time: MkpDoc draws an IR built ahead (mkp build). No compiler.")),
-    (6.5, Step::Say("A press: the page writes $state, checked by mkp.")),
+    (3.5, Step::Say("Run time: XtmdDoc draws an IR built ahead (xtmd build). No compiler.")),
+    (6.5, Step::Say("A press: the page writes $state, checked by xtmd.")),
     (7.5, Step::Press),
     (8.8, Step::Press),
     (10.5, Step::Say("A snapshot of everything the page holds...")),
@@ -34,7 +34,7 @@ const SCRIPT: &[(f32, Step)] = &[
     (12.3, Step::Press),
     (13.8, Step::Say("...and restore puts it back.")),
     (14.6, Step::Restore),
-    (17.0, Step::Say("Real time: MkpLiveDoc compiles this text in the app, with mkp-live.")),
+    (17.0, Step::Say("Real time: XtmdLiveDoc compiles this text in the app, with xtmd-live.")),
     (19.5, Step::Say("An edit: a counter that steps by 10.")),
     (20.0, Step::Type("\n@counter(by = 10);\n")),
     (24.5, Step::Say("Compiled as it is typed, and drawn by egui.")),
@@ -43,13 +43,13 @@ const SCRIPT: &[(f32, Step)] = &[
     (31.0, Step::Say("It doesn't compile: the error says where, and the last page stays.")),
     (35.5, Step::Say("Taking the mistake out draws it again.")),
     (36.0, Step::Erase(16)),
-    (39.5, Step::Say("egui: MkpDoc and MkpLiveDoc, each held to the 62 conformance cases.")),
+    (39.5, Step::Say("egui: XtmdDoc and XtmdLiveDoc, each held to the 62 conformance cases.")),
     (44.0, Step::Quit),
 ];
 
 struct Demo {
-    run: MkpDoc,
-    live: MkpLiveDoc,
+    run: XtmdDoc,
+    live: XtmdLiveDoc,
     text: String,
     run_state: State,
     live_state: State,
@@ -120,7 +120,7 @@ impl Demo {
     fn compile(&mut self) {
         match self.live.set_text(&self.text) {
             Followed::Compiled => self.status = (true, "Compiled in the app".into()),
-            Followed::Broken => self.status = (false, self.live.why().unwrap_or_default().replace("page.mkp.md doesn't compile", "Doesn't compile")),
+            Followed::Broken => self.status = (false, self.live.why().unwrap_or_default().replace("page.xt.md doesn't compile", "Doesn't compile")),
             Followed::Same => {}
         }
     }
@@ -139,11 +139,11 @@ impl eframe::App for Demo {
             ui.add_space(8.0);
             ui.columns(2, |cols| {
                 let ui = &mut cols[0];
-                ui.strong("Run time: mkp_egui::doc::MkpDoc");
-                ui.weak("MkpDoc::open(\"page.ir.json\"): the IR mkp build wrote. No compiler in the app.");
+                ui.strong("Run time: xtmd_egui::doc::XtmdDoc");
+                ui.weak("XtmdDoc::open(\"page.ir.json\"): the IR xtmd build wrote. No compiler in the app.");
                 ui.add_space(6.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| {
-                    // in a scroll area, as an app draws a page (mkp_egui::run_window)
+                    // in a scroll area, as an app draws a page (xtmd_egui::run_window)
                     egui::ScrollArea::vertical().id_salt("run").max_height(470.0).show(ui, |ui| {
                         let r = self.run.show(ui);
                         if let Some(s) = r.state {
@@ -157,8 +157,8 @@ impl eframe::App for Demo {
                 }
 
                 let ui = &mut cols[1];
-                ui.strong("Real time: mkp_egui_live::MkpLiveDoc");
-                ui.weak("MkpLiveDoc::new(text): compiled in the app as it changes.");
+                ui.strong("Real time: xtmd_egui_live::XtmdLiveDoc");
+                ui.weak("XtmdLiveDoc::new(text): compiled in the app as it changes.");
                 ui.add_space(6.0);
                 let edit = egui::TextEdit::multiline(&mut self.text).font(mono.clone()).desired_rows(7).desired_width(f32::INFINITY);
                 egui::ScrollArea::vertical().id_salt("source").max_height(140.0).stick_to_bottom(true).show(ui, |ui| {
@@ -194,8 +194,8 @@ impl eframe::App for Demo {
 fn main() -> eframe::Result {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let text = std::fs::read_to_string(&args[0]).expect("read the page's text");
-    let run = MkpDoc::open(&args[1], DocOptions { fixed_theme: true, ..DocOptions::default() }).expect("open the IR");
-    let live = MkpLiveDoc::new(&text, DocOptions { fixed_theme: true, ..DocOptions::default() });
+    let run = XtmdDoc::open(&args[1], DocOptions { fixed_theme: true, ..DocOptions::default() }).expect("open the IR");
+    let live = XtmdLiveDoc::new(&text, DocOptions { fixed_theme: true, ..DocOptions::default() });
     let run_state = run.state();
     let live_state = live.doc().map(|d| d.state()).unwrap_or_default();
     let demo = Demo {
@@ -215,8 +215,8 @@ fn main() -> eframe::Result {
         edited_at: None,
         script: args.iter().any(|a| a == "--demo"),
     };
-    let options = eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 800.0]).with_position([0.0, 0.0]).with_decorations(false).with_title("MKP targets"), ..Default::default() };
-    eframe::run_native("MKP targets", options, Box::new(|cc| {
+    let options = eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 800.0]).with_position([0.0, 0.0]).with_decorations(false).with_title("Extended Mark targets"), ..Default::default() };
+    eframe::run_native("Extended Mark targets", options, Box::new(|cc| {
         cc.egui_ctx.set_theme(egui::Theme::Light);
         Ok(Box::new(demo))
     }))

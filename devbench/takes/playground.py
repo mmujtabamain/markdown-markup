@@ -1,13 +1,13 @@
-"""Editing an MKP page in the playground: the page drawn live, its Markdown, its $state and its
+"""Editing an Extended Mark page in the playground: the page drawn live, its Markdown, its $state and its
 diagnostics, all following each edit.
 
 Recorded with: devbench video record playground
 
 The playground's own ids (apps/playground/index.html) anchor every selector; the drawn page's
-widgets are found by @mkp/dom's data-part names.
+widgets are found by @extended-mark/dom's data-part names.
 """
 
-TITLE = "Editing an MKP page in the playground"
+TITLE = "Editing an Extended Mark page in the playground"
 
 EDITOR = "[data-testid='editor']"
 PREVIEW = "[data-testid='preview']"
@@ -25,10 +25,10 @@ def type_at_end(t, text, delay=60):
 def take(t):
     t.goto("/?example=counter")
     t.mark_ready()
-    t.say("MKP's playground: a page's source, and the page it draws.", 3.2)
+    t.say("Extended Mark's playground: a page's source, and the page it draws.", 3.2)
 
-    t.beat(EDITOR, "On the left, the source: Markdown, with $state and a widget written in MKP.", 3.6)
-    t.beat(PREVIEW, "On the right, the page itself, drawn live by @mkp/dom.", 3.2)
+    t.beat(EDITOR, "On the left, the source: Markdown, with $state and a widget written in Extended Mark.", 3.6)
+    t.beat(PREVIEW, "On the right, the page itself, drawn live by @extended-mark/dom.", 3.2)
 
     t.hold_caption("Pressing a button runs its handler, and the page is drawn again.")
     t.click(FIRST_ADD, after=0.8)

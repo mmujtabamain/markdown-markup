@@ -1,7 +1,7 @@
 {
   "id": "read.named-and-positional-arguments-mixed",
   "about": "named and positional arguments in one call",
-  "source": "named-and-positional-arguments-mixed.mkp",
+  "source": "named-and-positional-arguments-mixed.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.mixed-arguments", "line": 5, "column": 29}

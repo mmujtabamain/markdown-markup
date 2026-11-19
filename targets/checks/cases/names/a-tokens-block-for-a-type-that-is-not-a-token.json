@@ -1,7 +1,7 @@
 {
   "id": "names.a-tokens-block-for-a-type-that-is-not-a-token",
   "about": "a tokens block for a type that isn't a token",
-  "source": "a-tokens-block-for-a-type-that-is-not-a-token.mkp",
+  "source": "a-tokens-block-for-a-type-that-is-not-a-token.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "names.not-a-token-type", "line": 8, "column": 5}

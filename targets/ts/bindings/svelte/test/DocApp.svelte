@@ -1,6 +1,6 @@
-<!-- The test app for <MkpDoc>: drawn by Svelte itself, $state controlled by the app, with the controls the shared doc steps use (testing/browser.mjs, docSteps). -->
+<!-- The test app for <XtmdDoc>: drawn by Svelte itself, $state controlled by the app, with the controls the shared doc steps use (testing/browser.mjs, docSteps). -->
 <script>
-  import { MkpDoc } from "@mkp/svelte";
+  import { XtmdDoc } from "@extended-mark/svelte";
 
   const heard = { states: [], errors: [], calls: [] };
   let which = $state("v1");
@@ -29,7 +29,7 @@
 </script>
 
 {#if shown}
-  <MkpDoc
+  <XtmdDoc
     bind:this={view}
     ir={window.__IR[which]}
     state={docState}

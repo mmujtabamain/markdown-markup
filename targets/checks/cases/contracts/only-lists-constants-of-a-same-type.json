@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-lists-constants-of-a-same-type",
   "about": "only lists constant values of a type that fits same",
-  "source": "only-lists-constants-of-a-same-type.mkp.md",
+  "source": "only-lists-constants-of-a-same-type.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "contracts.bound-not-constant", "line": 9, "column": 29}

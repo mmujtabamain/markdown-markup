@@ -1,7 +1,7 @@
 // A page running: the lowered IR mounted, redrawn after every change, with every change made
 // through a transaction that is checked and undone when it fails (page 6, plan tab 11).
 //
-// No DOM: a page is drawn by whoever reads its tree (@mkp/dom on the web, the test target in
+// No DOM: a page is drawn by whoever reads its tree (@extended-mark/dom on the web, the test target in
 // checks). Each widget is identified by its path: the sites of the template instances it belongs
 // to, each loop row as [position], then its own site.
 
@@ -384,7 +384,7 @@ export class Page {
 
   /** A layout pass's writes, as one change: a value equal to the one there is no change, and a
    * refused write undoes the pass. Whether the layout has to run again: only when a variable
-   * changed, since a widget's own values are read by no MKP code. A spot in a loop over a list
+   * changed, since a widget's own values are read by no Extended Mark code. A spot in a loop over a list
    * made anew at each redraw gets a new identity each time, so its own box never stays. */
   layoutWrite(writes: { path: string; input: string; value: V }[]): boolean {
     this.machine.resetSteps();
@@ -508,7 +508,7 @@ export class Page {
   }
 
   /** Which extern widgets the target draws: set by a target before it first draws the page,
-   * as @mkp/dom does from its registry. The page is drawn again. */
+   * as @extended-mark/dom does from its registry. The page is drawn again. */
   setSupplies(supplies: (widget: string) => boolean): void {
     this.supplies = supplies;
     this.epoch++;
@@ -534,7 +534,7 @@ export class Page {
   // ---- widgets' own variables, for a snapshot
 
   /** Every drawn widget's own variables now, by the place it is drawn at (`s0/s4[2]/s1`): a widget
-   * written in MKP, its variables; an extern widget, the `mut` inputs no caller gave a variable. */
+   * written in Extended Mark, its variables; an extern widget, the `mut` inputs no caller gave a variable. */
   observeOwn(): Record<string, Record<string, ir.Expr>> {
     const out: Record<string, Record<string, ir.Expr>> = {};
     for (const [path, inst] of this.atPath) {
@@ -1117,7 +1117,7 @@ export class Page {
     }
   }
 
-  /** A widget written in MKP: its instance, kept by its path, and its view. */
+  /** A widget written in Extended Mark: its instance, kept by its path, and its view. */
   private drawUse(name: string, path: string, args: Record<string, ir.Expr>, slots: Record<string, ir.Node[]>, events: Record<string, string>, env: Env, levels: ir.Level[] = [], key: string = path): Drawn[] {
     const t = this.templates.get(name);
     if (!t) {

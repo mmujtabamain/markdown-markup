@@ -1,7 +1,7 @@
-// The test app for <MkpDoc>: drawn by Vue itself, `$state` controlled by the app, with the controls
+// The test app for <XtmdDoc>: drawn by Vue itself, `$state` controlled by the app, with the controls
 // the shared doc steps use (testing/browser.mjs, docSteps).
 import { createApp, h, ref, shallowRef } from "vue";
-import { MkpDoc } from "@mkp/vue";
+import { XtmdDoc } from "@extended-mark/vue";
 
 const heard = { states: [], errors: [], calls: [] };
 const which = ref("v1");
@@ -15,7 +15,7 @@ const App = {
   setup() {
     return () =>
       shown.value
-        ? h(MkpDoc, {
+        ? h(XtmdDoc, {
             ref: docRef,
             ir: window.__IR[which.value],
             state: state.value,

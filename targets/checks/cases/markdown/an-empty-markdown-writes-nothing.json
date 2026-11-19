@@ -1,7 +1,7 @@
 {
   "id": "markdown.an-empty-markdown-writes-nothing",
   "about": "a widget with markdown { } writes nothing, and is warned about where it is declared",
-  "source": "an-empty-markdown-writes-nothing.mkp.md",
+  "source": "an-empty-markdown-writes-nothing.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "widget.markdown-empty", "line": 1, "column": 8}

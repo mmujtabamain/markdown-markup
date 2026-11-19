@@ -7,7 +7,7 @@
 use crate::natives;
 use crate::num::{Num, NumError};
 use crate::value::*;
-use mkp_ir::ir::{self, Cond, Expr, OpName, Stmt};
+use xtmd_ir::ir::{self, Cond, Expr, OpName, Stmt};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -959,7 +959,7 @@ impl<'p> Machine<'p> {
         self.call(&c.name, args)
     }
 
-    /// Calls a fn by its full name: a native, an extern, one written in MKP, or an interface's.
+    /// Calls a fn by its full name: a native, an extern, one written in Extended Mark, or an interface's.
     pub fn call(&mut self, name: &str, args: Vec<Binding>) -> R<Option<Value>> {
         self.step()?;
         if let Some(f) = self.prog.fns.get(name).cloned() {

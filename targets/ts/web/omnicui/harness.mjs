@@ -1,11 +1,11 @@
-// The page the omnicui adapter loads into Chromium for each mount: @mkp/runtime and @mkp/dom,
-// bundled by esbuild, with `window.omnicui` for the adapter to call. It mounts one generated MKP
-// page with @mkp/dom's `run`, as an app would, and records what the widget under test reports:
+// The page the omnicui adapter loads into Chromium for each mount: @extended-mark/runtime and @extended-mark/dom,
+// bundled by esbuild, with `window.omnicui` for the adapter to call. It mounts one generated Extended Mark
+// page with @extended-mark/dom's `run`, as an app would, and records what the widget under test reports:
 // each of its events (`page.event`) with its arguments as fields, and each write to one of its
 // `mut` inputs (`page.write`, and the layout's writes, `page.layoutWrite`) as `write<Input>`.
 
-import { Page, toIr } from "@mkp/runtime";
-import { run } from "@mkp/dom";
+import { Page, toIr } from "@extended-mark/runtime";
+import { run } from "@extended-mark/dom";
 
 /** What is recorded for the page mounted now: set by mount. */
 let current;
@@ -83,7 +83,7 @@ function recorder(page) {
 }
 
 // Every page made here is the one mounted now, so the page's own methods are wrapped once, before
-// @mkp/dom makes it: the writes its first layout makes while mounting are recorded too.
+// @extended-mark/dom makes it: the writes its first layout makes while mounting are recorded too.
 const original = { event: Page.prototype.event, write: Page.prototype.write, layoutWrite: Page.prototype.layoutWrite };
 Page.prototype.event = function (path, name, args = []) {
   const r = recorder(this);

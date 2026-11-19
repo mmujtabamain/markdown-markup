@@ -1,7 +1,7 @@
 {
   "id": "read.a-hole-that-runs-over-a-line-in-prose",
   "about": "a hole in prose that runs over a line",
-  "source": "a-hole-that-runs-over-a-line-in-prose.mkp.md",
+  "source": "a-hole-that-runs-over-a-line-in-prose.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.hole-runs-over-a-line", "line": 1, "column": 7}

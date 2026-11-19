@@ -1,7 +1,7 @@
 {
   "id": "views.unknown-input",
   "about": "unknown input",
-  "source": "unknown-input.mkp",
+  "source": "unknown-input.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "views.unknown-input", "line": 5, "column": 29}

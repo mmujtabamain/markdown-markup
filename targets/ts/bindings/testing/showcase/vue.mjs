@@ -1,6 +1,6 @@
 import { createApp, h, markRaw, onMounted, ref } from "vue";
-import { MkpDoc } from "@mkp/vue";
-import { MkpLiveDoc } from "@mkp/vue-live";
+import { XtmdDoc } from "@extended-mark/vue";
+import { XtmdLiveDoc } from "@extended-mark/vue-live";
 import { S, compiled, failed, onEdit, showState } from "./common.mjs";
 
 const id = "vue";
@@ -11,7 +11,7 @@ createApp({
     const state = ref(undefined);
     const run = ref(null);
     onMounted(() => showState(id, run.value.state()));
-    return () => h(MkpDoc, { ref: run, ir, state: state.value, onStateChange: (s) => ((state.value = s), showState(id, s)) });
+    return () => h(XtmdDoc, { ref: run, ir, state: state.value, onStateChange: (s) => ((state.value = s), showState(id, s)) });
   },
 }).mount(`#${id}-run`);
 
@@ -23,6 +23,6 @@ createApp({
       onEdit(id, (t) => (source.value = t));
       compiled(id, live.value.doc);
     });
-    return () => h(MkpLiveDoc, { ref: live, source: source.value, wasm: S.wasm, onError: failed(id) });
+    return () => h(XtmdLiveDoc, { ref: live, source: source.value, wasm: S.wasm, onError: failed(id) });
   },
 }).mount(`#${id}-live`);

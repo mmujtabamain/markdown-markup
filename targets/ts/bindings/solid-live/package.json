@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/solid-live",
+  "name": "@extended-mark/solid-live",
   "version": "0.3.0",
-  "description": "MKP documents in Solid, compiled in the browser as they are edited: <MkpLiveDoc source={…} />, @mkp/wasm's compiler and @mkp/solid's <MkpDoc>",
+  "description": "Extended Mark documents in Solid, compiled in the browser as they are edited: <XtmdLiveDoc source={…} />, @extended-mark/wasm's compiler and @extended-mark/solid's <XtmdDoc>",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,16 +21,16 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/embed": "file:../embed",
-    "@mkp/live": "file:../live",
-    "@mkp/solid": "file:../solid",
-    "@mkp/view": "file:../view"
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/solid": "file:../solid",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "solid-js": "^1.8.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "solid-js": "1.9.19",

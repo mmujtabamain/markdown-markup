@@ -1,0 +1,10 @@
+{
+  "id": "read.a-widget-in-a-xtmd-file-without-markdown",
+  "about": "a widget in a .xtpack file without markdown",
+  "source": "a-widget-in-a-xtmd-file-without-markdown.xtpack",
+  "expect": {
+    "diagnostics": [
+      {"code": "widget.markdown-required", "line": 3, "column": 8}
+    ]
+  }
+}

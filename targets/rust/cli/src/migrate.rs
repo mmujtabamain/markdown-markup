@@ -1,4 +1,4 @@
-//! `mkp migrate`: brings documents written for an earlier version of a pack up to the version
+//! `xtmd migrate`: brings documents written for an earlier version of a pack up to the version
 //! they are built with, through the pack's migrations (page 6). It edits only the references the
 //! checker finds, in place, after a summary, a warning and a y/n, and never writes a file that
 //! doesn't compile afterwards.
@@ -8,47 +8,48 @@ use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use mkp_check::Source;
-use mkp_syntax::ast::{self, DeclKind, Item};
-use mkp_syntax::{parse, Entry, Lines};
+use xtmd_check::Source;
+use xtmd_syntax::ast::{self, DeclKind, Item};
+use xtmd_syntax::{parse, Entry, Lines};
 
-pub(crate) const USAGE: &str = "usage: mkp migrate [<file|folder>…] [--pack a,b] [--config mkp.toml] [--from kit@1]
+pub(crate) const USAGE: &str = "usage: xtmd migrate [<file|folder>…] [--pack a,b] [--config xtmd.toml] [--from kit@1]
                   [--dry-run | --check | --diff | --stdout] [--yes [all | 1,2,…]] [--answers answers.toml]
                   [--allow-dirty] [--allow-todos] [--allow-errors] [--report report.md|report.json]
                   [--out file] [--format json]
   Brings each document, and each pack that uses another, up to the version of each pack it is
-  built with, in place. With no file or folder, the current folder; a folder's own mkp.toml
+  built with, in place. With no file or folder, the current folder; a folder's own xtmd.toml
   says its packs. A document that imports a pack the build doesn't have is refused.
   In a terminal it shows what it will change and asks first; elsewhere it writes only with --yes.
   A migration's questions are numbered. In a terminal they are listed, then asked one by one.
   --yes all answers every one yes; --yes 1,3 (or --yes 1 3) answers those yes and the rest no; a
   bare --yes, with questions open, lists them and writes nothing. --answers keeps answers in a
-  file: [confirm] \"Make kit@1's badges small?\" = true, and [split] \"docs/a.mkp.md:4 LATE\" = \"DONE\".
+  file: [confirm] \"Make kit@1's badges small?\" = true, and [split] \"docs/a.xt.md:4 LATE\" = \"DONE\".
   --dry-run      what would change, file by file, each change with the statement's why; writes nothing
   --check        the same, and fails (exit 1) if anything would change: for CI
-  --diff         the change as a unified diff on stdout (mkp.toml's too), the summary on stderr
+  --diff         the change as a unified diff on stdout (xtmd.toml's too), the summary on stderr
   --stdout       one document's result on stdout, written nowhere (what it says goes to stderr)
   --yes          writes, without a terminal; --allow-dirty writes files with uncommitted changes too
   --allow-todos  what a migration can't do is left as it was, with a TODO above it, and written
                  (even where that code doesn't compile); a 0.2 pack with no 0.3 release gets a stand-in
   --allow-errors writes a file that doesn't compile afterwards
   --report f     the whole run, as Markdown (f.md) or JSON (f.json)
-  --from kit@1   the version the files are written for, where nothing says (mkp.toml's [uses] does)
-  A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (MKP 0.3.0
-  only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones.
-  mkp.toml's mkp = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none),
+  --from kit@1   the version the files are written for, where nothing says (xtmd.toml's [uses] does)
+  A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (Extended Mark 0.3.0
+  only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones. Its name
+  moves too: MKP named a document name.mkp.md, and Extended Mark names it name.xt.md.
+  xtmd.toml's xtmd = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none),
   and [uses] each pack's version; a run that moves the tree writes both.
   --format json prints a JSON line for each file, note and question, then the summary, and asks
   nothing.
   exit: 0 done, or nothing to do; 1 something is left: a file refused or skipped, a question open,
         or (with --check) a file that would change; 2 a usage error, or a file that can't be read
-  e.g.  mkp migrate --dry-run
-        mkp migrate docs --yes
-        mkp migrate docs --yes all --report migration.md";
+  e.g.  xtmd migrate --dry-run
+        xtmd migrate docs --yes
+        xtmd migrate docs --yes all --report migration.md";
 
-/// This mkp's release: what a tree is written for once `mkp migrate` has moved it.
+/// This xtmd's release: what a tree is written for once `xtmd migrate` has moved it.
 pub(crate) const RELEASE: &str = env!("CARGO_PKG_VERSION");
-/// The release a tree whose mkp.toml doesn't say is taken to be written for: the first of 0.3.
+/// The release a tree whose xtmd.toml doesn't say is taken to be written for: the first of 0.3.
 pub(crate) const FIRST: &str = "0.3.0";
 
 /// `--allow-errors`: a file that doesn't compile afterwards is written all the same.
@@ -110,7 +111,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         match args[k].as_str() {
             "--from" => {
                 if let Some(r) = args.get(k + 1).filter(|v| release_of(v).is_some()) {
-                    eprintln!("error: --from {} names a release, as mkp 0.2's did; since mkp 0.3.0 it names a pack and the version the files are written for (--from kit@1), and mkp.toml's mkp = \"…\" says the release", r);
+                    eprintln!("error: --from {} names a release, as mkp 0.2's did; since xtmd 0.3.0 it names a pack and the version the files are written for (--from kit@1), and xtmd.toml's xtmd = \"…\" says the release", r);
                     return ExitCode::from(2);
                 }
                 let Some(v) = args.get(k + 1).and_then(|v| v.split_once('@')).and_then(|(p, n)| Some((p.to_string(), n.parse::<u32>().ok()?))) else {
@@ -157,7 +158,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                         return ExitCode::from(2);
                     }
                     Err(_) if !std::io::stdin().is_terminal() || flag("--format") => {
-                        eprintln!("--answers {}: no such file. It holds answers as [confirm] \"question\" = true and [split] \"file:line CASE\" = \"CASE\"; in a terminal, mkp migrate writes it with the answers given", f);
+                        eprintln!("--answers {}: no such file. It holds answers as [confirm] \"question\" = true and [split] \"file:line CASE\" = \"CASE\"; in a terminal, xtmd migrate writes it with the answers given", f);
                         return ExitCode::from(2);
                     }
                     Err(_) => {}
@@ -215,8 +216,8 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         }
     };
     let targets = if targets.is_empty() { vec![".".to_string()] } else { targets };
-    if stdout && (json || targets.len() != 1 || !targets[0].ends_with(".mkp.md")) {
-        eprintln!("--stdout prints one document's result: name one .mkp.md file{}", if json { ", and leave out --format json" } else { "" });
+    if stdout && (json || targets.len() != 1 || !is_doc(&targets[0])) {
+        eprintln!("--stdout prints one document's result: name one .xt.md file{}", if json { ", and leave out --format json" } else { "" });
         return ExitCode::from(2);
     }
     let mut docs: Vec<PathBuf> = Vec::new();
@@ -224,28 +225,28 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         let p = Path::new(t);
         if p.is_dir() {
             find_docs(p, &mut docs);
-        } else if t.ends_with(".mkp.md") {
+        } else if is_doc(t) {
             docs.push(p.to_path_buf());
         } else {
-            if t.ends_with("mkp.toml") {
-                eprintln!("{}: mkp migrate moves an mkp.toml with the tree it is in: name that folder (mkp migrate {})", t, Path::new(t).parent().filter(|d| !d.as_os_str().is_empty()).map_or(".".to_string(), |d| d.display().to_string()));
+            if t.ends_with("xtmd.toml") {
+                eprintln!("{}: xtmd migrate moves an xtmd.toml with the tree it is in: name that folder (xtmd migrate {})", t, Path::new(t).parent().filter(|d| !d.as_os_str().is_empty()).map_or(".".to_string(), |d| d.display().to_string()));
             } else {
-                eprintln!("{}: not a document (.mkp.md) or a folder", t);
+                eprintln!("{}: not a document (.xt.md) or a folder", t);
             }
             return ExitCode::from(2);
         }
     }
     let (uses, config) = uses_in_config(rest.iter().position(|a| a == "--config").and_then(|i| rest.get(i + 1)).map(String::as_str), targets.first().map(String::as_str));
-    // the release of mkp the tree is written for: mkp.toml's `mkp = "0.3.x"`
+    // the release of xtmd the tree is written for: xtmd.toml's `xtmd = "0.3.x"`
     let written_release = config.as_ref().and_then(|c| release_in_config(c));
     if let (Some(cfg), Some(r)) = (&config, &written_release) {
         match release_of(r) {
             None => {
-                eprintln!("{}: mkp = \"{}\" isn't a release of mkp, such as \"{}\"", shown(cfg), r, RELEASE);
+                eprintln!("{}: xtmd = \"{}\" isn't a release of xtmd, such as \"{}\"", shown(cfg), r, RELEASE);
                 return ExitCode::from(2);
             }
             Some(v) if v > release_of(RELEASE).unwrap_or_default() => {
-                eprintln!("{}: mkp = \"{}\" says the tree is written for mkp {}, which is newer than this mkp ({}): update mkp, or, if the line is wrong, set it to the release the tree is written for", shown(cfg), r, r, RELEASE);
+                eprintln!("{}: xtmd = \"{}\" says the tree is written for xtmd {}, which is newer than this xtmd ({}): update xtmd, or, if the line is wrong, set it to the release the tree is written for", shown(cfg), r, r, RELEASE);
                 return ExitCode::from(2);
             }
             _ => {}
@@ -255,7 +256,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     // the steps of each release after the one the tree is written for, before anything else
     let from_release = written_release.clone().unwrap_or_else(|| FIRST.to_string());
     let release_steps = crate::releases::between(&from_release, RELEASE, crate::releases::STEPS);
-    let release_label = format!("mkp {} → {}", from_release, RELEASE);
+    let release_label = format!("xtmd {} → {}", from_release, RELEASE);
     let mut stepped: BTreeMap<String, (String, Vec<String>)> = BTreeMap::new();
     let mut step_refused: BTreeMap<String, (String, String)> = BTreeMap::new();
     for s in sources.iter_mut() {
@@ -271,7 +272,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     }
     let packs = packs_of(&sources);
     let core = crate::core_sources();
-    let base = mkp_check::compile_core(&core);
+    let base = xtmd_check::compile_core(&core);
 
     // the plan: a pass over every file; when it meets questions no one has answered, they are asked
     // in a terminal and the files planned again with the answers, and elsewhere the run stops
@@ -379,11 +380,12 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         if !o.refused.is_empty() {
             need += 1;
             say!("{}  {}  not written: {}", name, o.moved.join(", "), o.refused.join("; "));
-        } else if o.text == *old {
+        } else if o.text == *old && written_as(p) == *p {
             fine += 1;
             say!("{}  up to date", name);
         } else {
-            let mut parts = vec![format!("{} change{}", o.changes, if o.changes == 1 { "" } else { "s" })];
+            // a 0.2 document whose text reads the same in 0.3 only moves to its new name
+            let mut parts = if o.text == *old { Vec::new() } else { vec![format!("{} change{}", o.changes, if o.changes == 1 { "" } else { "s" })] };
             if !o.deletions.is_empty() {
                 parts.push(format!("{} deletion{}", o.deletions.len(), if o.deletions.len() == 1 { "" } else { "s" }));
             }
@@ -399,11 +401,14 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if !o.errors.is_empty() {
                 parts.push("doesn't compile".to_string());
             }
+            if written_as(p) != *p {
+                parts.push(format!("renamed {}", written_as(p).file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned())));
+            }
             say!("{}  {}  {}{}", name, o.moved.join(", "), parts.join("; "), if o.inferred.is_empty() { String::new() } else { format!(" ({})", o.inferred.join(", ")) });
             to_write.push((p.clone(), old.clone(), o));
         }
     }
-    // what mkp.toml says once the tree moves: each pack it now uses, and this release
+    // what xtmd.toml says once the tree moves: each pack it now uses, and this release
     let uses_to: BTreeMap<String, u32> = packs.iter().filter(|p| uses.get(&p.name).map_or(false, |v| *v < p.version)).map(|p| (p.name.clone(), p.version)).collect();
     let config_after = config.as_ref().and_then(|cfg| {
         let old = std::fs::read_to_string(cfg).ok()?;
@@ -416,10 +421,10 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     if let Some(cfg) = &config {
         let uses_line = if uses_to.is_empty() { String::new() } else { format!(", and [uses] {}", uses_to.iter().map(|(p, v)| format!("{} = {}", p, v)).collect::<Vec<_>>().join(", ")) };
         match &written_release {
-            Some(r) if r == RELEASE && uses_to.is_empty() => say!("{}: written for mkp {}.", shown(cfg), r),
-            Some(r) if r == RELEASE => say!("{}: written for mkp {}; migrating writes{}.", shown(cfg), r, &uses_line[5..]),
-            Some(r) => say!("{}: written for mkp {}; migrating writes mkp = \"{}\" into it{}.", shown(cfg), r, RELEASE, uses_line),
-            None => say!("{}: has no `mkp =` line, so the tree is taken as written for mkp {}; migrating writes mkp = \"{}\" into it{}.", shown(cfg), FIRST, RELEASE, uses_line),
+            Some(r) if r == RELEASE && uses_to.is_empty() => say!("{}: written for xtmd {}.", shown(cfg), r),
+            Some(r) if r == RELEASE => say!("{}: written for xtmd {}; migrating writes{}.", shown(cfg), r, &uses_line[5..]),
+            Some(r) => say!("{}: written for xtmd {}; migrating writes xtmd = \"{}\" into it{}.", shown(cfg), r, RELEASE, uses_line),
+            None => say!("{}: has no `xtmd =` line, so the tree is taken as written for xtmd {}; migrating writes xtmd = \"{}\" into it{}.", shown(cfg), FIRST, RELEASE, uses_line),
         }
     }
     let with_todos = to_write.iter().filter(|(_, _, o)| !o.todos.is_empty() || !o.stand_ins.is_empty()).count();
@@ -490,7 +495,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
         }
     }
     if diff && human {
-        // what would change, refused files too, so a person can see what's left; mkp.toml's too
+        // what would change, refused files too, so a person can see what's left; xtmd.toml's too
         for (p, old, o) in &results {
             if o.text != *old {
                 crate::out::print(&unified(&p.display().to_string(), old, &o.text));
@@ -518,14 +523,14 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     let code = 'run: {
         // --stdout: the one document's result, written nowhere
         if stdout {
-            let Some((_, _, o)) = results.iter().find(|(p, _, _)| p.display().to_string().ends_with(".mkp.md")) else { break 'run ExitCode::from(2) };
+            let Some((_, _, o)) = results.iter().find(|(p, _, _)| is_doc(&p.display().to_string())) else { break 'run ExitCode::from(2) };
             if !o.refused.is_empty() {
                 break 'run ExitCode::from(1);
             }
             crate::out::print(&o.text);
             break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
-        // nothing to write: no file moves, and the release mkp.toml says moves only with every file
+        // nothing to write: no file moves, and the release xtmd.toml says moves only with every file
         if to_write.is_empty() && (!record_moves || need > 0) {
             break 'run if need > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS };
         }
@@ -541,17 +546,17 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             Some(d) => say!("\ngit: these files are in a git repository; {} {} uncommitted changes of {} own, which the migration's would mix with.", d.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "), if d.len() == 1 { "has" } else { "have" }, if d.len() == 1 { "its" } else { "their" }),
         }
         let toml_lines = match (record_moves, uses_to.is_empty()) {
-            (true, true) => "its `mkp =` line",
-            (true, false) => "its `mkp =` line and [uses]",
+            (true, true) => "its `xtmd =` line",
+            (true, false) => "its `xtmd =` line and [uses]",
             (false, false) => "its [uses]",
             (false, true) => "",
         };
         if to_write.is_empty() {
-            say!("warning: this rewrites mkp.toml's `mkp =` line.");
+            say!("warning: this rewrites xtmd.toml's `xtmd =` line.");
         } else if toml_lines.is_empty() {
             say!("warning: this rewrites {} file{} in place.", to_write.len(), if to_write.len() == 1 { "" } else { "s" });
         } else {
-            say!("warning: this rewrites {} file{} in place, and mkp.toml's {}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, &toml_lines[4..]);
+            say!("warning: this rewrites {} file{} in place, and xtmd.toml's {}.", to_write.len(), if to_write.len() == 1 { "" } else { "s" }, &toml_lines[4..]);
         }
         if terminal && !yes {
             print!("Continue? [y/N] ");
@@ -564,7 +569,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         } else if !yes {
             say!(
-                "Nothing written: without a terminal to ask in, mkp migrate writes only with --yes{}. --dry-run shows what it would do.",
+                "Nothing written: without a terminal to ask in, xtmd migrate writes only with --yes{}. --dry-run shows what it would do.",
                 if dirty_note.is_empty() { String::new() } else { format!(" (and --allow-dirty, as {} {} uncommitted changes)", dirty_files.join(", "), if dirty_files.len() == 1 { "has" } else { "have" }) }
             );
             break 'run ExitCode::from(1);
@@ -575,7 +580,13 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                 skipped.push(p.clone());
                 continue;
             }
-            if let Err(e) = std::fs::write(p, &o.text) {
+            let dest = written_as(p);
+            if dest != *p && dest.exists() {
+                say!("{}: skipped: {} is there already, so its 0.2 name can't move to it", p.display(), dest.display());
+                skipped.push(p.clone());
+                continue;
+            }
+            if let Err(e) = std::fs::write(&dest, &o.text).and_then(|_| if dest != *p { std::fs::remove_file(p) } else { Ok(()) }) {
                 eprintln!("{}: {}", p.display(), e);
                 return ExitCode::from(2);
             }
@@ -594,7 +605,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             }
         }
         if to_write.iter().any(|(_, _, o)| !o.stand_ins.is_empty()) {
-            say!("The documents are checked against the stand-ins with: mkp check --pack {} …", stand_in_dir.display());
+            say!("The documents are checked against the stand-ins with: xtmd check --pack {} …", stand_in_dir.display());
         }
         if !to_write.is_empty() {
             say!("Wrote {} file{}.", wrote.len(), if wrote.len() == 1 { "" } else { "s" });
@@ -615,7 +626,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
                     return ExitCode::from(2);
                 }
                 moved_record = true;
-                say!("{}: now written for mkp {}.", shown(cfg), RELEASE);
+                say!("{}: now written for xtmd {}.", shown(cfg), RELEASE);
             }
         }
         // what --allow-todos and --allow-errors let through is written, and said, not a failure
@@ -631,7 +642,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if errors_left > 0 {
                 parts.push(format!("{} file{} that {} compile", errors_left, if errors_left == 1 { "" } else { "s" }, if errors_left == 1 { "doesn't" } else { "don't" }));
             }
-            say!("Left for a person, as asked: {} (listed above); mkp check shows what still doesn't compile.", parts.join(", "));
+            say!("Left for a person, as asked: {} (listed above); xtmd check shows what still doesn't compile.", parts.join(", "));
         }
         if need > 0 || wrote.len() < to_write.len() {
             ExitCode::from(1)
@@ -665,7 +676,7 @@ struct Report<'a> {
     wrote: &'a [PathBuf],
     skipped: &'a [PathBuf],
     from: &'a str,
-    /// The mkp.toml: the release it says, whether a run that writes records this one, whether this
+    /// The xtmd.toml: the release it says, whether a run that writes records this one, whether this
     /// run did, and the packs its [uses] moves to.
     record: Option<(&'a Path, Option<&'a str>, bool, bool, &'a BTreeMap<String, u32>)>,
     diff: bool,
@@ -678,7 +689,7 @@ impl Report<'_> {
     fn result(&self, p: &PathBuf, old: &str, o: &Outcome) -> &'static str {
         if !o.refused.is_empty() {
             "not written"
-        } else if o.text == old {
+        } else if o.text == old && written_as(p) == *p {
             "up to date"
         } else if self.wrote.contains(p) {
             "migrated"
@@ -692,11 +703,15 @@ impl Report<'_> {
     fn file(&self, p: &PathBuf, old: &str, o: &Outcome, notes: bool) -> serde_json::Value {
         let mut v = serde_json::json!({
             "file": p.display().to_string(),
-            "kind": if p.display().to_string().ends_with(".mkp.md") { "document" } else { "pack" },
+            "kind": if is_doc(&p.display().to_string()) { "document" } else { "pack" },
             "result": self.result(p, old, o),
             "moved": o.moved,
             "changes": o.changes,
         });
+        // a 0.2 name, and the one it is written as
+        if written_as(p) != *p {
+            v["written_as"] = serde_json::json!(written_as(p).display().to_string());
+        }
         if notes {
             for (k, xs) in [("inferred", &o.inferred), ("changed", &o.changed), ("deletions", &o.deletions), ("to_know", &o.notices), ("todos", &o.todos), ("errors", &o.errors), ("refused", &o.refused), ("stand_ins", &o.stand_ins)] {
                 v[k] = serde_json::json!(xs);
@@ -725,7 +740,7 @@ impl Report<'_> {
             "exit": self.code,
         });
         if let Some((cfg, says, records, recorded, uses)) = self.record {
-            v["mkp_toml"] = serde_json::json!({ "file": shown(cfg), "says": says, "records": if records { Some(RELEASE) } else { None }, "recorded": recorded, "uses": uses });
+            v["xtmd_toml"] = serde_json::json!({ "file": shown(cfg), "says": says, "records": if records { Some(RELEASE) } else { None }, "recorded": recorded, "uses": uses });
         }
         v
     }
@@ -757,7 +772,7 @@ impl Report<'_> {
     /// `--report f.json`: the run as one JSON document.
     fn whole(&self) -> serde_json::Value {
         serde_json::json!({
-            "mkp": RELEASE,
+            "xtmd": RELEASE,
             "files": self.results.iter().map(|(p, old, o)| self.file(p, old, o, true)).collect::<Vec<_>>(),
             "questions": self.questions(),
             "summary": self.summary(),
@@ -768,7 +783,7 @@ impl Report<'_> {
     fn markdown(&self) -> String {
         let s = self.summary();
         let mut out = format!(
-            "# mkp migrate\n\nmkp {}, from mkp {}: {} file{}, {} migrated, {} to migrate, {} not written, {} skipped, {} up to date.\n",
+            "# xtmd migrate\n\nxtmd {}, from xtmd {}: {} file{}, {} migrated, {} to migrate, {} not written, {} skipped, {} up to date.\n",
             RELEASE, self.from, s["files"], if self.results.len() == 1 { "" } else { "s" }, s["migrated"], s["to_migrate"], s["not_written"], s["skipped"], s["up_to_date"]
         );
         for (p, old, o) in self.results {
@@ -792,6 +807,19 @@ impl Report<'_> {
     }
 }
 
+/// A document: `.xt.md`, or `.mkp.md` as 0.2 named it.
+pub(crate) fn is_doc(p: &str) -> bool {
+    p.ends_with(".xt.md") || p.ends_with(".mkp.md")
+}
+
+/// Where a document is written: a 0.2 name, `name.mkp.md`, moves to `name.xt.md`.
+pub(crate) fn written_as(p: &Path) -> PathBuf {
+    match p.to_str().and_then(|s| s.strip_suffix(".mkp.md")) {
+        Some(stem) => PathBuf::from(format!("{}.xt.md", stem)),
+        None => p.to_path_buf(),
+    }
+}
+
 fn find_docs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     let mut entries: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
@@ -802,7 +830,7 @@ fn find_docs(dir: &Path, out: &mut Vec<PathBuf>) {
             if !name.starts_with('.') && name != "node_modules" && name != "target" {
                 find_docs(&p, out);
             }
-        } else if name.ends_with(".mkp.md") {
+        } else if is_doc(name) {
             out.push(p);
         }
     }
@@ -812,7 +840,7 @@ fn find_docs(dir: &Path, out: &mut Vec<PathBuf>) {
 pub(crate) fn packs_of(sources: &[Source]) -> Vec<Pack> {
     let mut packs: BTreeMap<String, Pack> = BTreeMap::new();
     for s in sources {
-        let Some(f) = parse(&s.text, Entry::Mkp).file else { continue };
+        let Some(f) = parse(&s.text, Entry::Xtmd).file else { continue };
         let Some(name) = f.package.as_ref().map(|p| p.item.name.clone()) else { continue };
         let p = packs.entry(name.clone()).or_insert_with(|| Pack { name, version: 0, files: Vec::new(), surfaces: BTreeMap::new(), steps: BTreeMap::new(), fns: BTreeMap::new() });
         if let Some(v) = f.surface.as_ref().and_then(|v| v.name.parse().ok()) {
@@ -838,7 +866,7 @@ pub(crate) fn packs_of(sources: &[Source]) -> Vec<Pack> {
     packs.into_values().collect()
 }
 
-/// `[uses]` in the mkp.toml: the version of each pack its tree is written for.
+/// `[uses]` in the xtmd.toml: the version of each pack its tree is written for.
 fn uses_in_config(named: Option<&str>, target: Option<&str>) -> (BTreeMap<String, u32>, Option<PathBuf>) {
     let path = match named {
         Some(p) => Some(PathBuf::from(p)),
@@ -856,21 +884,21 @@ pub(crate) fn release_of(v: &str) -> Option<(u32, u32, u32)> {
     parts.next().is_none().then_some(r)
 }
 
-/// mkp.toml's `mkp = "0.3.x"`: the release of mkp the tree is written for.
+/// xtmd.toml's `xtmd = "0.3.x"`: the release of xtmd the tree is written for.
 fn release_in_config(path: &Path) -> Option<String> {
     let v: toml::Value = std::fs::read_to_string(path).ok()?.parse().ok()?;
-    v.get("mkp").and_then(|m| m.as_str()).map(str::to_string)
+    v.get("xtmd").and_then(|m| m.as_str()).map(str::to_string)
 }
 
-/// mkp.toml's `mkp = "…"` set to a release: in place, or as its first line.
+/// xtmd.toml's `xtmd = "…"` set to a release: in place, or as its first line.
 fn set_release(path: &Path, to: &str) -> std::io::Result<()> {
     let text = std::fs::read_to_string(path)?;
     std::fs::write(path, with_release(&text, to))
 }
 
-/// An mkp.toml's text with its `mkp = "…"` set to a release.
+/// An xtmd.toml's text with its `xtmd = "…"` set to a release.
 fn with_release(text: &str, to: &str) -> String {
-    let line = format!("mkp = \"{}\"\n", to);
+    let line = format!("xtmd = \"{}\"\n", to);
     let mut out = String::new();
     let mut done = false;
     let mut top = true;
@@ -879,7 +907,7 @@ fn with_release(text: &str, to: &str) -> String {
         if t.starts_with('[') {
             top = false;
         }
-        if top && !done && t.split_once('=').map_or(false, |(k, _)| k.trim() == "mkp") {
+        if top && !done && t.split_once('=').map_or(false, |(k, _)| k.trim() == "xtmd") {
             out.push_str(&line);
             done = true;
             continue;
@@ -892,13 +920,13 @@ fn with_release(text: &str, to: &str) -> String {
     out
 }
 
-/// The mkp.toml's `[uses]`, each pack at the version its files are now written for.
+/// The xtmd.toml's `[uses]`, each pack at the version its files are now written for.
 fn bump_config(path: &Path, to: &BTreeMap<String, u32>) -> std::io::Result<()> {
     let text = std::fs::read_to_string(path)?;
     std::fs::write(path, with_uses(&text, to))
 }
 
-/// An mkp.toml's text with each pack under `[uses]` at its new version.
+/// An xtmd.toml's text with each pack under `[uses]` at its new version.
 fn with_uses(text: &str, to: &BTreeMap<String, u32>) -> String {
     let mut out = String::new();
     let mut in_uses = false;
@@ -938,11 +966,11 @@ fn with_uses(text: &str, to: &BTreeMap<String, u32>) -> String {
     out
 }
 
-/// The `// mkp … kit@1` stamp above a document's definitions: the versions it is written for.
+/// The `// xtmd … kit@1` stamp above a document's definitions: the versions it is written for.
 fn stamp(text: &str) -> BTreeMap<String, u32> {
     let mut out = BTreeMap::new();
     for line in text.lines().take_while(|l| l.trim().is_empty() || l.starts_with("//") || l.starts_with("---") || !l.contains("@@@")).take(40) {
-        if let Some(rest) = line.trim().strip_prefix("// mkp ") {
+        if let Some(rest) = line.trim().strip_prefix("// xtmd ") {
             for w in rest.split_whitespace() {
                 if let Some((p, v)) = w.split_once('@') {
                     if let Ok(v) = v.parse() {
@@ -987,7 +1015,7 @@ fn split_02_packs(args: Vec<String>) -> (Vec<String>, Vec<PathBuf>) {
 /// A 0.3 document: through the steps of the releases after the one it is written for, then up to the
 /// versions of the packs it uses.
 #[allow(clippy::too_many_arguments)]
-fn doc_through_releases(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>, steps: &[&crate::releases::ReleaseStep], label: &str) -> Outcome {
+fn doc_through_releases(base: &xtmd_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>, steps: &[&crate::releases::ReleaseStep], label: &str) -> Outcome {
     match crate::releases::run(text, &path.display().to_string(), steps) {
         Err(e) => Outcome { text: text.to_string(), moved: vec![label.to_string()], refused: vec![e], ..Outcome::default() },
         Ok((stepped, said)) => {
@@ -1006,9 +1034,10 @@ fn doc_through_releases(base: &mkp_check::Checker, packs: &[Pack], sources: &[So
 /// migrations as a 0.3 document is. `None` for a document that is 0.3's: one with a `@@@` line, one
 /// that compiles, or one 0.2.10 doesn't build either.
 #[allow(clippy::too_many_arguments)]
-fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, packs02: &[PathBuf], stand_ins: &mut BTreeMap<String, (PathBuf, String)>, stand_in_dir: &Path, uses: &BTreeMap<String, u32>) -> Option<Outcome> {
-    let doc_path = path.display().to_string();
-    let compiles = |world: &[Source], text: &str| mkp_check::compile_on(base, &[world.to_vec()], &[Source { path: doc_path.clone(), text: text.to_string() }], "doc");
+fn migrate_02_doc(base: &xtmd_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, packs02: &[PathBuf], stand_ins: &mut BTreeMap<String, (PathBuf, String)>, stand_in_dir: &Path, uses: &BTreeMap<String, u32>) -> Option<Outcome> {
+    // compiled as what it becomes: a 0.2 name is checked as the document it is written as
+    let doc_path = written_as(path).display().to_string();
+    let compiles = |world: &[Source], text: &str| xtmd_check::compile_on(base, &[world.to_vec()], &[Source { path: doc_path.clone(), text: text.to_string() }], "doc");
     let stamped = crate::migrate_02::stamped(text);
     // 0.3's: a `@@@` line, or 0.3 in its prose; Markdown alone reads the same in both
     if !stamped && (text.lines().any(|l| l.trim_end() == "@@@") || crate::migrate_02::speaks_03(text)) {
@@ -1048,7 +1077,7 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
     match crate::releases::run(&m.doc, &doc_path, &crate::releases::between(FIRST, RELEASE, crate::releases::STEPS)) {
         Ok((t, said)) => {
             if !said.is_empty() {
-                o.moved.push(format!("mkp {} → {}", FIRST, RELEASE));
+                o.moved.push(format!("xtmd {} → {}", FIRST, RELEASE));
                 o.changes += said.len();
                 o.notices.extend(said);
             }
@@ -1068,14 +1097,14 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
             from.insert(name.clone(), crate::migrate_02::version_of(shim).unwrap_or(1));
             continue;
         }
-        let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.mkp", name)), String::new()));
+        let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.xtpack", name)), String::new()));
         entry.1 = if entry.1.is_empty() { crate::migrate_02::marked(shim, name) } else { crate::migrate_02::merge(&entry.1, shim) };
         o.stand_ins.push(name.clone());
         world.push(Source { path: entry.0.display().to_string(), text: entry.1.clone() });
     }
     if !o.stand_ins.is_empty() {
         let names: Vec<String> = o.stand_ins.iter().map(|n| format!("{} ({})", n, stand_ins[n].0.display())).collect();
-        o.text = o.text.replacen("// Nothing to finish by hand.\n", &format!("// TODO(mkp migrate): checked against a stand-in for {}, until the pack's own 0.3 release replaces it.\n", names.join(", ")), 1);
+        o.text = o.text.replacen("// Nothing to finish by hand.\n", &format!("// TODO(xtmd migrate): checked against a stand-in for {}, until the pack's own 0.3 release replaces it.\n", names.join(", ")), 1);
     }
     if (!o.todos.is_empty() || !o.stand_ins.is_empty()) && !crate::migrate_step::TODO.load(std::sync::atomic::Ordering::Relaxed) {
         let mut what: Vec<String> = o.todos.clone();
@@ -1116,14 +1145,15 @@ fn migrate_02_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source],
 }
 
 #[allow(clippy::too_many_arguments)]
-fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>) -> Outcome {
+fn migrate_doc(base: &xtmd_check::Checker, packs: &[Pack], sources: &[Source], now: &[Source], path: &Path, text: &str, from: &BTreeMap<String, u32>, uses: &BTreeMap<String, u32>) -> Outcome {
     let mut o = Outcome { text: text.to_string(), ..Outcome::default() };
-    let doc_path = path.display().to_string();
+    // checked as the document it is written as, for a 0.2 name too
+    let doc_path = written_as(path).display().to_string();
     // a pack it imports that isn't in the build: nothing can say which version it is written for
     let missing: Vec<String> = imported(text).into_iter().filter(|n| !packs.iter().any(|p| p.name == *n) && !core_packs().contains(n)).collect();
     if !missing.is_empty() {
         o.refused.push(format!(
-            "it imports {}, which {} in the build: pass {} folder with --pack, or list it in mkp.toml's packs",
+            "it imports {}, which {} in the build: pass {} folder with --pack, or list it in xtmd.toml's packs",
             missing.join(", "),
             if missing.len() == 1 { "isn't" } else { "aren't" },
             if missing.len() == 1 { "its" } else { "each one's" }
@@ -1132,7 +1162,7 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
     }
     let stamped = stamp(text);
     let compiles = |world: &[Source], text: &str| -> bool {
-        let c = mkp_check::compile_on(base, &[world.to_vec()], &[Source { path: doc_path.clone(), text: text.to_string() }], "doc");
+        let c = xtmd_check::compile_on(base, &[world.to_vec()], &[Source { path: doc_path.clone(), text: text.to_string() }], "doc");
         c.module.is_some()
     };
     for pack in packs.iter().filter(|p| !p.steps.is_empty() || !p.surfaces.is_empty()) {
@@ -1164,7 +1194,7 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
                 return o;
             };
             let world = world_at(sources, pack, v);
-            let (compiled, refs) = mkp_check::compile_refs(base, &[world], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
+            let (compiled, refs) = xtmd_check::compile_refs(base, &[world], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
             if compiled.module.is_none() {
                 o.refused.push(format!("it doesn't compile against {}@{}, the version it is written for", pack.name, v));
                 return o;
@@ -1195,7 +1225,7 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
     }
     // what it says it is written for, now
     o.text = restamp(&o.text, &stamped, packs);
-    let c = mkp_check::compile_on(base, &[now.to_vec()], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
+    let c = xtmd_check::compile_on(base, &[now.to_vec()], &[Source { path: doc_path.clone(), text: o.text.clone() }], "doc");
     if c.module.is_none() {
         let lines = Lines::new(&o.text);
         let at: Vec<u32> = c.errors().filter(|d| d.file == doc_path).map(|d| lines.place(d.diagnostic.span.start).line).collect();
@@ -1212,11 +1242,11 @@ fn migrate_doc(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], no
     o
 }
 
-/// Whether line `n` (from 1) is code a TODO of mkp migrate's is above: in the three lines before it.
+/// Whether line `n` (from 1) is code a TODO of xtmd migrate's is above: in the three lines before it.
 fn under_a_todo(text: &str, n: u32) -> bool {
     let lines: Vec<&str> = text.lines().collect();
     let n = n as usize;
-    (n.saturating_sub(3).max(1)..n).any(|k| lines.get(k - 1).map_or(false, |l| l.contains("TODO(mkp migrate)")))
+    (n.saturating_sub(3).max(1)..n).any(|k| lines.get(k - 1).map_or(false, |l| l.contains("TODO(xtmd migrate)")))
 }
 
 /// The packs a file imports, by name.
@@ -1229,12 +1259,12 @@ fn imported(text: &str) -> Vec<String> {
 
 /// The packs core is made of, which every build has.
 fn core_packs() -> Vec<String> {
-    crate::core_sources().iter().filter_map(|s| parse(&s.text, Entry::Mkp).file?.package.map(|p| p.item.name)).collect()
+    crate::core_sources().iter().filter_map(|s| parse(&s.text, Entry::Xtmd).file?.package.map(|p| p.item.name)).collect()
 }
 
 /// A pack written for an earlier version of a pack it uses: its files moved as documents are,
 /// and its `uses` line brought up to the version it now uses.
-fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p: &Pack) -> Vec<(PathBuf, String, Outcome)> {
+fn migrate_pack(base: &xtmd_check::Checker, packs: &[Pack], sources: &[Source], p: &Pack) -> Vec<(PathBuf, String, Outcome)> {
     let mut out: Vec<(PathBuf, String, Outcome)> = Vec::new();
     let mut texts: Vec<(String, String)> = p.files.iter().map(|f| (f.path.clone(), f.text.clone())).collect();
     let mut outcomes: BTreeMap<String, Outcome> = texts.iter().map(|(path, t)| (path.clone(), Outcome { text: t.clone(), ..Outcome::default() })).collect();
@@ -1256,7 +1286,7 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
             let own: std::collections::HashSet<&str> = p.files.iter().map(|f| f.path.as_str()).collect();
             let world: Vec<Source> = world_at(sources, used, v).into_iter().filter(|s| !own.contains(s.path.as_str())).collect();
             let main: Vec<Source> = texts.iter().map(|(path, t)| Source { path: path.clone(), text: t.clone() }).collect();
-            let (compiled, refs) = mkp_check::compile_refs(base, &[world], &main, "main");
+            let (compiled, refs) = xtmd_check::compile_refs(base, &[world], &main, "main");
             if compiled.module.is_none() {
                 for o in outcomes.values_mut() {
                     o.refused.push(format!("{} doesn't compile against {}@{}, the version it uses", p.name, used.name, v));
@@ -1270,7 +1300,7 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
             };
             let label = format!("{}@{}", used.name, v + 1);
             for (path, text) in texts.iter_mut() {
-                let mine: Vec<mkp_check::FoundRef> = refs.iter().filter(|r| r.file == *path).cloned().collect();
+                let mine: Vec<xtmd_check::FoundRef> = refs.iter().filter(|r| r.file == *path).cloned().collect();
                 let done = crate::migrate_step::Step { text, doc: path, refs: &mine, pack: &used.name, step, label: &label, fns: &used.fns, old: &old_world, new: &new_world, prose: false }.run();
                 let o = outcomes.get_mut(path).unwrap();
                 o.deletions.extend(done.deletions);
@@ -1307,7 +1337,7 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
     let own: std::collections::HashSet<&str> = p.files.iter().map(|f| f.path.as_str()).collect();
     let world: Vec<Source> = sources.iter().filter(|s| !own.contains(s.path.as_str())).cloned().collect();
     let main: Vec<Source> = texts.iter().map(|(path, t)| Source { path: path.clone(), text: t.clone() }).collect();
-    let c = mkp_check::compile_on(base, &[world], &main, "main");
+    let c = xtmd_check::compile_on(base, &[world], &main, "main");
     let errors: Vec<String> = c.errors().take(3).map(|d| format!("{}: {}", d.file, d.diagnostic.message)).collect();
     for (path, text) in texts {
         let mut o = outcomes.remove(&path).unwrap();
@@ -1340,7 +1370,7 @@ fn migrate_pack(base: &mkp_check::Checker, packs: &[Pack], sources: &[Source], p
 fn uses_line(files: &[Source]) -> BTreeMap<String, u32> {
     let mut out = BTreeMap::new();
     for f in files {
-        let Some(file) = parse(&f.text, Entry::Mkp).file else { continue };
+        let Some(file) = parse(&f.text, Entry::Xtmd).file else { continue };
         for n in &file.items {
             if let Item::Decl(ast::Decl { kind: DeclKind::Pack(b), .. }) = &n.item {
                 for l in b.lines.iter() {
@@ -1378,7 +1408,7 @@ pub(crate) fn world_at(sources: &[Source], pack: &Pack, v: u32) -> Vec<Source> {
 
 /// Every top-level name a surface declares.
 fn provided(text: &str) -> Vec<String> {
-    let Some(f) = parse(text, Entry::Mkp).file else { return Vec::new() };
+    let Some(f) = parse(text, Entry::Xtmd).file else { return Vec::new() };
     f.items
         .iter()
         .filter_map(|n| match &n.item {
@@ -1399,7 +1429,7 @@ fn restamp(text: &str, stamped: &BTreeMap<String, u32>, packs: &[Pack]) -> Strin
     }
     let mut out = String::new();
     for line in text.split_inclusive('\n') {
-        if line.trim_start().starts_with("// mkp ") {
+        if line.trim_start().starts_with("// xtmd ") {
             let mut l = line.to_string();
             for p in packs {
                 if let Some(v) = stamped.get(&p.name) {
@@ -1506,18 +1536,18 @@ mod tests {
 
     #[test]
     fn a_document_written_for_an_earlier_release_takes_its_steps_then_compiles() {
-        let base = mkp_check::compile_core(&crate::core_sources());
+        let base = xtmd_check::compile_core(&crate::core_sources());
         let steps = crate::releases::between("0.3.0", "0.3.2", crate::releases::tests::STEPS);
         let doc = "# Notes\n\n@rule();\n";
-        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.mkp.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &steps, "mkp 0.3.0 → 0.3.2");
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xt.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &steps, "xtmd 0.3.0 → 0.3.2");
         assert!(o.refused.is_empty(), "{:?}", o.refused);
         assert_eq!(o.text, "# Notes\n\n@divider();\n");
-        assert_eq!(o.moved, ["mkp 0.3.0 → 0.3.2"]);
-        assert_eq!(o.notices, ["mkp 0.3.2: `rule` is `divider` now"]);
+        assert_eq!(o.moved, ["xtmd 0.3.0 → 0.3.2"]);
+        assert_eq!(o.notices, ["xtmd 0.3.2: `rule` is `divider` now"]);
         // a release whose step can't move it refuses it, as it was
         let later = crate::releases::between("0.3.2", "0.4.0", crate::releases::tests::STEPS);
-        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.mkp.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "mkp 0.3.2 → 0.4.0");
-        assert_eq!((o.text.as_str(), o.refused), (doc, vec!["mkp 0.4.0: a form only a person can rewrite".to_string()]));
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xt.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "xtmd 0.3.2 → 0.4.0");
+        assert_eq!((o.text.as_str(), o.refused), (doc, vec!["xtmd 0.4.0: a form only a person can rewrite".to_string()]));
     }
 }
 

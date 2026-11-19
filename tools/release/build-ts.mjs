@@ -1,4 +1,4 @@
-// Installs and builds MKP's npm packages (targets/ts, then the playground) in order, each after
+// Installs and builds Extended Mark's npm packages (targets/ts, then the playground) in order, each after
 // what it uses: npm links a neighbour named by `file:`, so it is built first. A framework a
 // neighbour expects of its user (its peerDependencies: React, Vue, Solid, Svelte, Angular) is then
 // one copy for both, the neighbour's, so a binding and its live twin run one React. --test then

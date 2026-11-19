@@ -3,14 +3,14 @@ import "@angular/compiler";
 import { Component, provideZonelessChangeDetection } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
 import { provideServerRendering, renderApplication } from "@angular/platform-server";
-import { MkpLiveDoc, type Builds } from "@mkp/angular-live";
+import { XtmdLiveDoc, type Builds } from "@extended-mark/angular-live";
 
 export async function render(source: string, compiler: Builds): Promise<string> {
   @Component({
     selector: "test-app",
     standalone: true,
-    imports: [MkpLiveDoc],
-    template: `<mkp-live-doc [source]="source" [compiler]="compiler" [defaultState]="start" [externs]="externs" />`,
+    imports: [XtmdLiveDoc],
+    template: `<xtmd-live-doc [source]="source" [compiler]="compiler" [defaultState]="start" [externs]="externs" />`,
   })
   class ServerApp {
     source = source;

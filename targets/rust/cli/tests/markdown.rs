@@ -1,8 +1,8 @@
 //! Markdown out: every case that expects Markdown gets it, with the page's starting values, as
-//! blocks. The Markdown written is then read back by MKP's own reader, and has to give the same
+//! blocks. The Markdown written is then read back by Extended Mark's own reader, and has to give the same
 //! blocks, so the one spelling (page 1) never loses a mark or a block.
 
-use mkp_check::{compile_core, compile_on, Checker, Source};
+use xtmd_check::{compile_core, compile_on, Checker, Source};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -12,7 +12,7 @@ fn repo() -> PathBuf {
 
 fn core() -> Vec<Source> {
     let dir = repo().join("core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -28,7 +28,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// The `.mkp` files of a pack: a folder or a file beside the case.
+/// The `.xtpack` files of a pack: a folder or a file beside the case.
 fn pack(path: &Path, out: &mut Vec<Source>) {
     if path.is_dir() {
         let mut files: Vec<PathBuf> = std::fs::read_dir(path).unwrap().map(|e| e.unwrap().path()).collect();
@@ -36,7 +36,7 @@ fn pack(path: &Path, out: &mut Vec<Source>) {
         for f in files {
             pack(&f, out);
         }
-    } else if path.extension().map_or(false, |x| x == "mkp") {
+    } else if path.extension().map_or(false, |x| x == "xtpack") {
         out.push(Source { path: path.to_string_lossy().into_owned(), text: std::fs::read_to_string(path).unwrap() });
     }
 }
@@ -44,20 +44,20 @@ fn pack(path: &Path, out: &mut Vec<Source>) {
 /// A page's blocks with its starting values.
 fn blocks(base: &Checker, packs: &[Source], src: Source) -> Result<Value, String> {
     let name = src.path.clone();
-    let module = if name.ends_with(".mkp.md") { "doc" } else { "t" };
+    let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
     let c = compile_on(base, &[packs.to_vec()], &[src], module);
     let Some(mut m) = c.module else {
         let errs: Vec<String> = c.errors().take(3).map(|d| format!("{}: [{}] {}", d.file, d.diagnostic.code, d.diagnostic.message)).collect();
         return Err(format!("{} doesn't compile: {:?}", name, errs));
     };
-    mkp_lower::lower(&mut m);
-    let b = mkp_markdown::page(&m).map_err(|e| format!("{}: {}", name, e.0))?;
-    Ok(mkp_markdown::blocks_json(&b))
+    xtmd_lower::lower(&mut m);
+    let b = xtmd_markdown::page(&m).map_err(|e| format!("{}: {}", name, e.0))?;
+    Ok(xtmd_markdown::blocks_json(&b))
 }
 
-/// Markdown text read as blocks, by MKP's own reader: a document of that text.
+/// Markdown text read as blocks, by Extended Mark's own reader: a document of that text.
 fn read(base: &Checker, text: &str) -> Result<Value, String> {
-    blocks(base, &[], Source { path: "read-back.mkp.md".into(), text: text.into() })
+    blocks(base, &[], Source { path: "read-back.xt.md".into(), text: text.into() })
 }
 
 #[test]
@@ -119,15 +119,15 @@ fn every_case_writes_its_expected_markdown() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-/// The Markdown text `mkp md` writes for a case.
+/// The Markdown text `xtmd md` writes for a case.
 fn written(base: &Checker, packs: &[Source], case: &Value, dir: &Path) -> String {
     let src_path = dir.join(case["source"].as_str().unwrap());
     let src = Source { path: src_path.to_string_lossy().into_owned(), text: std::fs::read_to_string(&src_path).unwrap() };
-    let module = if src.path.ends_with(".mkp.md") { "doc" } else { "t" };
+    let module = if src.path.ends_with(".xt.md") { "doc" } else { "t" };
     let c = compile_on(base, &[packs.to_vec()], &[src], module);
     let mut m = c.module.unwrap();
-    mkp_lower::lower(&mut m);
-    mkp_markdown::write(&mkp_markdown::page(&m).unwrap())
+    xtmd_lower::lower(&mut m);
+    xtmd_markdown::write(&xtmd_markdown::page(&m).unwrap())
 }
 
 /// The spec's packs, from its whole files grouped by their `package` line, and its documents,
@@ -156,8 +156,8 @@ fn spec() -> (Vec<Source>, Vec<(String, Source)>) {
                 let text = lines[start..end].join("\n") + "\n";
                 let at = format!("{}-{}", page, start + 1);
                 match tags[n].as_str().unwrap() {
-                    "java file" => packs.push(Source { path: format!("docs/specs/{}.mkp", at), text }),
-                    "markdown doc" => docs.push((at.clone(), Source { path: format!("docs/specs/{}.mkp.md", at), text })),
+                    "java file" => packs.push(Source { path: format!("docs/specs/{}.xtpack", at), text }),
+                    "markdown doc" => docs.push((at.clone(), Source { path: format!("docs/specs/{}.xt.md", at), text })),
                     _ => {}
                 }
                 n += 1;
@@ -196,8 +196,8 @@ fn the_spec_documents_write_their_markdown() {
         // and the text written reads back as the same blocks
         let c = compile_on(&base, &[packs.clone()], &[doc.clone()], "doc");
         let mut m = c.module.unwrap();
-        mkp_lower::lower(&mut m);
-        let written = mkp_markdown::write(&mkp_markdown::page(&m).unwrap());
+        xtmd_lower::lower(&mut m);
+        let written = xtmd_markdown::write(&xtmd_markdown::page(&m).unwrap());
         if read(&base, &written).ok().as_ref() != Some(&found) {
             problems.push(format!("{}: its Markdown doesn't read back as written: {:?}", at, written));
         }

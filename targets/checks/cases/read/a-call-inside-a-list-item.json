@@ -1,7 +1,7 @@
 {
   "id": "read.a-call-inside-a-list-item",
   "about": "a call inside a list item",
-  "source": "a-call-inside-a-list-item.mkp.md",
+  "source": "a-call-inside-a-list-item.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.call-in-quote-or-item", "line": 1, "column": 1}

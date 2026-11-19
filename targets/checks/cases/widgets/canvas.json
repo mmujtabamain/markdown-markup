@@ -1,7 +1,7 @@
 {
   "id": "widgets.canvas",
   "about": "claims are checked: a canvas with layers, a circle, a path, a handle and a place",
-  "source": "canvas.mkp.md",
+  "source": "canvas.xt.md",
   "target": {
     "levels": [
       "core.draw",

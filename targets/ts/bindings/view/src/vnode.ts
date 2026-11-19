@@ -13,7 +13,7 @@ export interface VNode {
   attrs: Record<string, string>;
   /** DOM properties that aren't attributes once the element is live: `value`, `checked`, `disabled`, `hidden`. */
   props?: Record<string, unknown>;
-  /** CSS properties, in their CSS spelling (`text-align`, `--mkp-tone`). */
+  /** CSS properties, in their CSS spelling (`text-align`, `--xtmd-tone`). */
   style?: Record<string, string>;
   /** DOM events by their DOM name (`click`, `input`, `keydown`). */
   on?: Record<string, (e: Event) => void>;
@@ -31,13 +31,13 @@ export interface Hook {
   unmount?(el: Element): void;
 }
 
-/** An element with its part: `data-part="press.label"` and the class `mkp-press-label`, as
- * @mkp/dom's widgets mark theirs, so @mkp/dom's stylesheet styles both. */
+/** An element with its part: `data-part="press.label"` and the class `xtmd-press-label`, as
+ * @extended-mark/dom's widgets mark theirs, so @extended-mark/dom's stylesheet styles both. */
 export function h(tag: string, part?: string, attrs: Record<string, string | undefined | false | null> = {}, children: Child[] = []): VNode {
   const a: Record<string, string> = {};
   if (part) {
     a["data-part"] = part;
-    a.class = `mkp-${part.replace(/\./g, "-")}`;
+    a.class = `xtmd-${part.replace(/\./g, "-")}`;
   }
   for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null && v !== false) a[k] = v;
   return { tag, attrs: a, children };

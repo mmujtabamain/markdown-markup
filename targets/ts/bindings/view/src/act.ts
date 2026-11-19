@@ -1,9 +1,9 @@
 // The reader acting on a drawn widget through its own element, as a person would: what the target
-// checks drive a framework target with (as @mkp/dom's `Mounted.act` does), so a target is held to
+// checks drive a framework target with (as @extended-mark/dom's `Mounted.act` does), so a target is held to
 // the runtime through its real DOM. A widget that can't do an action that way goes through the
 // page instead.
 
-import type { Page, Value } from "@mkp/runtime";
+import type { Page, Value } from "@extended-mark/runtime";
 import { acts as controls } from "./widgets/controls.js";
 import { acts as blocks } from "./widgets/blocks.js";
 import { acts as layout } from "./widgets/layout.js";
@@ -21,8 +21,8 @@ const ACTS: Record<string, Act> = { ...blocks, ...controls, ...layout, ...plane,
 /** The reader acting on the widget drawn at a path under a root: through its element when it
  * can, else through the page. */
 export function act(root: Element, page: Page, path: string, a: Action): void {
-  const el = root.querySelector<HTMLElement>(`[data-mkp-site="${CSS.escape(path)}"]`);
-  const widget = el?.getAttribute("data-mkp-widget") ?? "";
+  const el = root.querySelector<HTMLElement>(`[data-xtmd-site="${CSS.escape(path)}"]`);
+  const widget = el?.getAttribute("data-xtmd-widget") ?? "";
   const f = ACTS[widget];
   if (el && f) {
     try {

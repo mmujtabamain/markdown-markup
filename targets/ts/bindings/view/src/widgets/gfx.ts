@@ -1,12 +1,12 @@
 // core.gfx in SVG, as elements: a canvas or a plane gives its shapes a space (its units, y up, onto
-// SVG's coordinates), layers are groups, and shapes are SVG elements in it, as @mkp/dom draws them
+// SVG's coordinates), layers are groups, and shapes are SVG elements in it, as @extended-mark/dom draws them
 // (the same parts and classes, so the same stylesheet). `place` puts ordinary widgets at a point;
 // `handle` is dragged; `shade` paints a 2D canvas from a shader, per sampled pixel, in its hook.
 // A surface draws its slots inside its space, so the shapes read it as they are drawn; where the
 // space needs the surface on the screen (a pointer in units) it is measured in the listener.
 
-import { MAX_STEPS, Num, ptValue, toIr, type Drawn, type Page, type Value } from "@mkp/runtime";
-import { exact, field, flag, inner, kase, list, num, placesFor, point, region, str, toNum, type XY } from "@mkp/dom/shared";
+import { MAX_STEPS, Num, ptValue, toIr, type Drawn, type Page, type Value } from "@extended-mark/runtime";
+import { exact, field, flag, inner, kase, list, num, placesFor, point, region, str, toNum, type XY } from "@extended-mark/dom/shared";
 import type { ViewContext, ViewWidget } from "../render.js";
 import type { Act } from "../act.js";
 import { attr, cls, css, h, on, s, type VNode } from "../vnode.js";
@@ -47,7 +47,7 @@ function currentSpace(): Space {
   return spaces[spaces.length - 1] ?? loose;
 }
 
-/** A value's identity for "did it change": its IR form, with fns by their code (as @mkp/dom's). */
+/** A value's identity for "did it change": its IR form, with fns by their code (as @extended-mark/dom's). */
 function sig(v: Value | undefined): string {
   if (!v) return "";
   if (v.kind === "fn") return `fn:${fnId(v)}`;
@@ -108,7 +108,7 @@ function shapeEvents(el: VNode, d: Drawn, ctx: ViewContext, name: string): VNode
   attr(el, "tabindex", live ? "0" : undefined);
   attr(el, "aria-label", name || undefined);
   attr(el, "aria-hidden", name || live ? undefined : "true");
-  return cls(el, "mkp-live", live);
+  return cls(el, "xtmd-live", live);
 }
 
 /** A stroke's width in pixels: a stroke token, or stroke.PX's number. */
@@ -168,7 +168,7 @@ export const canvas: ViewWidget = (d, ctx) => {
   const el = h("figure", "canvas", { role: "group", "aria-label": str(d.props.get("label")) || undefined }, [svg]);
   css(el, "width", `${w}px`);
   css(el, "aspect-ratio", `${w} / ${ht}`);
-  return cls(el, "mkp-clickable", listens);
+  return cls(el, "xtmd-clickable", listens);
 };
 
 // ---- layer
@@ -286,7 +286,7 @@ export const handle: ViewWidget = (d, ctx) => {
     ctx.write("at", ptValue({ x: toNum(k.x, places), y: toNum(k.y, places) }));
   };
   const dot = s("circle", "handle.dot", { r: "7", cx: String(space.x(at.x)), cy: String(space.y(at.y)) });
-  css(dot, "fill", ctx.tokens.color(d.props.get("tone")) ?? "var(--mkp-color-accent)");
+  css(dot, "fill", ctx.tokens.color(d.props.get("tone")) ?? "var(--xtmd-color-accent)");
   const shown = `(${exact(field(d.props.get("at"), "x"))?.show() ?? 0}, ${exact(field(d.props.get("at"), "y"))?.show() ?? 0})`;
   const el = s("g", "handle", { tabindex: "0", role: "slider", "aria-roledescription": "handle" }, [
     s("circle", "handle.hit", { r: "14", cx: String(space.x(at.x)), cy: String(space.y(at.y)) }),
@@ -385,7 +385,7 @@ export const shade: ViewWidget = (d, ctx) => {
 /**
  * Paints a shade: a coarse pass now, so something shows at once, then every sampled pixel in
  * slices of a few milliseconds, so the page stays responsive. At most MAX_SHADE_PIXELS are worked
- * out, and fewer when the shader is MKP code: the whole shade keeps within the step limit.
+ * out, and fewer when the shader is Extended Mark code: the whole shade keeps within the step limit.
  */
 function paint(cv: HTMLCanvasElement, el: Element, d: Drawn, wPx: number, hPx: number, page: Page, id: number, current: () => number): void {
   const machine = page.machine;

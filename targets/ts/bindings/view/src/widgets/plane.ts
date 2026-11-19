@@ -1,17 +1,17 @@
 // The plane (plan tab 15), as elements: a clipped view holding one inner element that a CSS
-// transform moves and scales for panning and zooming, as @mkp/dom draws it (the same parts and
+// transform moves and scales for panning and zooming, as @extended-mark/dom draws it (the same parts and
 // classes, so the same stylesheet). Spots are positioned absolutely inside it at their points, and
 // the background is drawn under the same transform. Boxes come from the runtime's placement maths
 // on each spot's own size, which the transform never changes. Dragging pans; the wheel, a pinch or
 // + and - zoom; each writes `center` or `zoom` through a checked write.
 //
-// A render has no elements, so what @mkp/dom keeps in its closures lives elsewhere here: a gesture
+// A render has no elements, so what @extended-mark/dom keeps in its closures lives elsewhere here: a gesture
 // in progress and the ResizeObserver are kept by the view's element (its hook makes them), and the
 // zoom and centre a gesture moves from are read from the page as the event comes, so a framework
 // that renders later than the page changes still pans and zooms from where the page is now.
 
-import { around, ptValue, regionOf, type Drawn, type Page, type Region } from "@mkp/runtime";
-import { flag, inner, kase, num, placesFor, point, region, str, toNum, type XY } from "@mkp/dom/shared";
+import { around, ptValue, regionOf, type Drawn, type Page, type Region } from "@extended-mark/runtime";
+import { flag, inner, kase, num, placesFor, point, region, str, toNum, type XY } from "@extended-mark/dom/shared";
 import type { ViewContext, ViewWidget } from "../render.js";
 import type { Act } from "../act.js";
 import { cls, css, h, on, s, type Hook } from "../vnode.js";
@@ -62,7 +62,7 @@ function limitsOf(d: Drawn, ctx: ViewContext, measured: number): { low: number; 
 }
 
 /** The width the plane drew at its last layout, from the region it wrote it draws: what
- * @mkp/dom reads from its view's clientWidth while it updates, without an element to read. */
+ * @extended-mark/dom reads from its view's clientWidth while it updates, without an element to read. */
 function drawnWidth(d: Drawn, z: number): number {
   const r = region(d.props.get("drawn"));
   return r ? Math.max(0, Math.round((r.to.x - r.from.x) * z)) : 0;
@@ -103,14 +103,14 @@ const sizeOf = (x: Element) => `${(x as HTMLElement).offsetWidth}x${(x as HTMLEl
 
 function setPanning(view: Element, st: Live, panning: boolean): void {
   st.panning = panning;
-  view.classList.toggle("mkp-panning", panning);
+  view.classList.toggle("xtmd-panning", panning);
 }
 
 /** The outside change each plane last asked for the layout after, by page and place. */
 const asked = new WeakMap<Page, Map<string, number>>();
 
 /** Asks for the plane's layout once this render is in the document, after every change but the
- * layout's own, as @mkp/dom's mount settles it: `page.changes` counts every change from outside
+ * layout's own, as @extended-mark/dom's mount settles it: `page.changes` counts every change from outside
  * the layout. A render that follows the layout's own writes doesn't ask again, or a spot in a list
  * made anew at each redraw, whose own box never stays, would lay the page out for ever. A plane
  * the page didn't have before asks on its first render. */
@@ -323,7 +323,7 @@ export const plane: ViewWidget = (d, ctx) => {
         st.ro.observe(el);
       }
       watchItems(el, st);
-      el.classList.toggle("mkp-panning", st.panning);
+      el.classList.toggle("xtmd-panning", st.panning);
     },
     update(el) {
       const st = liveOf(el);
@@ -331,7 +331,7 @@ export const plane: ViewWidget = (d, ctx) => {
       st.wheel = wheel;
       watchItems(el, st);
       // a renderer that sets the class again drops the drag's
-      el.classList.toggle("mkp-panning", st.panning);
+      el.classList.toggle("xtmd-panning", st.panning);
     },
     unmount(el) {
       const st = lives.get(el);
@@ -353,7 +353,7 @@ export const plane: ViewWidget = (d, ctx) => {
 
   const el = h("div", "plane", { role: "group", "aria-roledescription": "plane", "aria-label": label || undefined }, [view]);
   css(el, "width", t.length(p("width")));
-  return cls(el, "mkp-zoomable", high > low);
+  return cls(el, "xtmd-zoomable", high > low);
 };
 
 // ---- spot
@@ -371,6 +371,6 @@ export const spot: ViewWidget = (d, ctx) => {
 
 // ---- acting through the element, for the checks
 
-/** None: @mkp/dom's plane and spot have no act, so a check's click, pan or zoom on a plane goes
+/** None: @extended-mark/dom's plane and spot have no act, so a check's click, pan or zoom on a plane goes
  * through the page. */
 export const acts: Record<string, Act> = {};

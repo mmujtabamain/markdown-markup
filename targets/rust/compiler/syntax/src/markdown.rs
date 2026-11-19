@@ -14,7 +14,7 @@ pub enum MdBlock {
     Bullets { ordered: bool, start: u64, tight: bool, items: Vec<MdItem> },
     Quote(Vec<MdBlock>),
     Code { lang: String, src: String },
-    /// A raw HTML block, which MKP shows as text.
+    /// A raw HTML block, which Extended Mark shows as text.
     Html(String),
     Table { align: Vec<Align>, head: Vec<String>, rows: Vec<Vec<String>> },
     Footnote { mark: String, blocks: Vec<MdBlock> },
@@ -866,7 +866,7 @@ fn entities() -> &'static std::collections::HashMap<String, String> {
     static TABLE: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
         let mut m = std::collections::HashMap::new();
-        for line in include_str!(env!("MKP_ENTITIES")).lines() {
+        for line in include_str!(env!("XTMD_ENTITIES")).lines() {
             let line = line.trim();
             let Some(rest) = line.strip_prefix("{ key = \"") else { continue };
             let Some((key, rest)) = rest.split_once("\", value = \"") else { continue };

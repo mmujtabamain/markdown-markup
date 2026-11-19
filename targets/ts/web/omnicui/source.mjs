@@ -1,10 +1,10 @@
-// The MKP page the omnicui adapter mounts for one widget contract: the extern widget called on its
-// own, its props turned into MKP literals by each input's type, every `mut` input bound to a
+// The Extended Mark page the omnicui adapter mounts for one widget contract: the extern widget called on its
+// own, its props turned into Extended Mark literals by each input's type, every `mut` input bound to a
 // `$state` field (so a write persists), every event bound to a handler (so it reaches the page),
 // and its slots filled with simple labelled content. Inputs, slots and events come from the IR's
 // declarations (`declarations[].declare.extern.widget`), not from a hand-written list.
 //
-// Names: omnicui's are camelCase (props, events, fields), MKP's are small with underscores. A
+// Names: omnicui's are camelCase (props, events, fields), Extended Mark's are small with underscores. A
 // prop `zoomRange` is the input `zoom_range`; an event `openChanged` is `open_changed`; a write
 // to the `mut` input `open` is reported as the event `writeOpen`, with the field `value`.
 
@@ -75,7 +75,7 @@ function parsed(v) {
 }
 
 /**
- * A prop's value, in the type of the input it is given to, as MKP source.
+ * A prop's value, in the type of the input it is given to, as Extended Mark source.
  * - text, rich_text, latex: an escaped text literal; bool and numbers as they are;
  * - an enum or a token: its case's name (`"TOGGLE"` → `press_kind.TOGGLE`), or for a case with
  *   values an object (`{"EQUAL": {"count": 2}}` → `cols.EQUAL(count = 2)`); a token that is a

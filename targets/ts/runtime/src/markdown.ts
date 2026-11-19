@@ -151,7 +151,7 @@ class Writer {
       return held ? this.nodes(held.nodes, held.env) : [];
     }
     const made: Env = { owner: v.owner, bindings: [...v.captured] as [string, Binding][], path: env.path };
-    // its arguments as drawing gives them, so a widget written in MKP gets its inputs
+    // its arguments as drawing gives them, so a widget written in Extended Mark gets its inputs
     const args = Object.fromEntries([...v.args].map(([k, x]) => [k, toIr(x)]));
     return this.widget(v.widget, path, new Map(v.args), args, v.slots as Record<string, ir.Node[]>, made, path, v.events as Record<string, string>);
   }
@@ -228,7 +228,7 @@ class Writer {
     }
     const t = this.page.templateOf(name);
     if (t) {
-      // a widget written in MKP: its markdown, in its instance
+      // a widget written in Extended Mark: its markdown, in its instance
       const own = this.page.enterUse(t, path, args, slots, events, env, key);
       return this.nodes(t.markdown, own);
     }

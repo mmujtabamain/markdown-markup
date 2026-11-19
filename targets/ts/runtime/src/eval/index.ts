@@ -1,4 +1,4 @@
-// MKP's evaluator: exact numbers, values, the native fns and the limits, as
+// Extended Mark's evaluator: exact numbers, values, the native fns and the limits, as
 // targets/rust/eval does them, so a page runs the same on the web as natively.
 
 export { Num, NumError, type NumErrorKind } from "./num.js";

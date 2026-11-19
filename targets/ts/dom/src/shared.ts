@@ -1,5 +1,5 @@
-// What @mkp/dom's widgets read values with, shared with the targets that draw core's widgets
-// another way (@mkp/view and the framework targets on it), so every web target reads a value,
+// What @extended-mark/dom's widgets read values with, shared with the targets that draw core's widgets
+// another way (@extended-mark/view and the framework targets on it), so every web target reads a value,
 // a token, an icon and a link the same: no DOM is needed to import these.
 
 export { field, flag, inner, kase, list, num, point, region, str, exact, placesFor, toNum, type XY } from "./values.js";

@@ -1,8 +1,8 @@
-// What <MkpNode> needs to render one of @mkp/view's elements as Svelte's own: its attributes,
+// What <XtmdNode> needs to render one of @extended-mark/view's elements as Svelte's own: its attributes,
 // live properties and listeners in Svelte 5's spelling, its children's keys, and its hook as an
 // action on the real element.
 
-import type { Child, VNode } from "@mkp/view";
+import type { Child, VNode } from "@extended-mark/view";
 
 /** The attributes Svelte spreads on the element: attributes, style, DOM properties and listeners
  * (`onclick`, `oncompositionstart`: the DOM's own events, with their currentTarget). */

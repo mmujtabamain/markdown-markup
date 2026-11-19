@@ -1,7 +1,7 @@
 // Reading the runtime's values for drawing. Every input arrives with its default filled in, so
 // these only unwrap: an opt to its value, a case to its name, a record to its fields.
 
-import { Num, toIr, type Value } from "@mkp/runtime";
+import { Num, toIr, type Value } from "@extended-mark/runtime";
 
 /** The value inside an opt (and inside that one), or the value itself; undefined for none. */
 export function inner(v: Value | undefined): Value | undefined {

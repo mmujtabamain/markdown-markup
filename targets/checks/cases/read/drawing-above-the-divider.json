@@ -1,7 +1,7 @@
 {
   "id": "read.drawing-above-the-divider",
   "about": "drawing above the divider",
-  "source": "drawing-above-the-divider.mkp.md",
+  "source": "drawing-above-the-divider.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "file.drawing-in-definitions", "line": 1, "column": 1}

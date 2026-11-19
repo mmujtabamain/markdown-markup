@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-compares-what-a-list-or-record-holds",
   "about": "only compares its values with same: a list, an opt or an inline record of a widget, which can't be compared, can't have one",
-  "source": "only-compares-what-a-list-or-record-holds.mkp",
+  "source": "only-compares-what-a-list-or-record-holds.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.only-needs-same", "line": 6, "column": 12},

@@ -1,7 +1,7 @@
-// The shop page from plain TypeScript: no framework, just @mkp/dom's run.
-import { run } from "@mkp/dom";
-import type { Call } from "@mkp/runtime";
-import shop from "../../pages/shop.mkp.md";
+// The shop page from plain TypeScript: no framework, just @extended-mark/dom's run.
+import { run } from "@extended-mark/dom";
+import type { Call } from "@extended-mark/runtime";
+import shop from "../../pages/shop.xt.md";
 
 const orders = document.getElementById("orders")!;
 window.__calls = [];
@@ -20,4 +20,4 @@ function heard(calls: Call[]): void {
 
 const mounted = run(shop, document.getElementById("shop")!);
 mounted.page.onChange(() => heard(mounted.page.takeCalls()));
-window.__mkp = mounted;
+window.__xtmd = mounted;

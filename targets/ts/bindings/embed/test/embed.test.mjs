@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
 import { chromium } from "playwright-core";
-import * as cli from "@mkp/cli";
-import { blocksHtml, pageHtml } from "@mkp/embed/html";
+import * as cli from "xtmd";
+import { blocksHtml, pageHtml } from "@extended-mark/embed/html";
 import { makePage } from "../dist/page.js";
 import { bundle, compilePages, launch, open, steps } from "../../testing/browser.mjs";
 
@@ -36,7 +36,7 @@ test("pageHtml writes the page's Markdown as HTML, escaped", () => {
     ]),
     '<p><strong>&lt;b&gt;&amp;</strong>x<a href="https://e.org/?a=1&amp;b">y</a></p>\n' +
       '<ol start="3"><li><input type="checkbox" disabled checked> <code>a&lt;b</code></li></ol>\n' +
-      '<table><thead><tr><th style="text-align:right">A</th></tr></thead><tbody><tr><td style="text-align:right"><span class="mkp-math">x^2</span></td></tr></tbody></table>\n' +
+      '<table><thead><tr><th style="text-align:right">A</th></tr></thead><tbody><tr><td style="text-align:right"><span class="xtmd-math">x^2</span></td></tr></tbody></table>\n' +
       "<hr>",
   );
 });

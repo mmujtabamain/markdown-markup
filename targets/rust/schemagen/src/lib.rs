@@ -267,7 +267,7 @@ impl<'a> Gen<'a> {
     fn rust(&self) -> String {
         let mut o = String::new();
         o.push_str(&format!(
-            "// Written by mkp-schemagen from schemas/{}.schema.json. Don't edit: change the schema, then run\n// `cargo run -p mkp-schemagen`.\n\n#![allow(clippy::all)]\n\nuse serde::{{Deserialize, Serialize}};\nuse std::collections::BTreeMap;\n",
+            "// Written by xtmd-schemagen from schemas/{}.schema.json. Don't edit: change the schema, then run\n// `cargo run -p xtmd-schemagen`.\n\n#![allow(clippy::all)]\n\nuse serde::{{Deserialize, Serialize}};\nuse std::collections::BTreeMap;\n",
             self.s.module
         ));
         if self.s.module == "ir" {
@@ -360,7 +360,7 @@ impl<'a> Gen<'a> {
 
     fn ts(&self) -> String {
         let mut o = format!(
-            "// Written by mkp-schemagen from schemas/{}.schema.json. Don't edit: change the schema, then run\n// `cargo run -p mkp-schemagen`.\n",
+            "// Written by xtmd-schemagen from schemas/{}.schema.json. Don't edit: change the schema, then run\n// `cargo run -p xtmd-schemagen`.\n",
             self.s.module
         );
         if !self.foreign.is_empty() && self.s.module == "check" {

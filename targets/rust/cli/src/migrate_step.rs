@@ -6,10 +6,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{IsTerminal, Write};
 
-use mkp_check::{FoundRef, Source};
-use mkp_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt, WidgetMember};
-use mkp_syntax::printer::print_expr;
-use mkp_syntax::{parse, Entry, Lines, Span};
+use xtmd_check::{FoundRef, Source};
+use xtmd_syntax::ast::{self, DeclKind, Expr, ExprKind, Item, MigrationItem, MigrationStmt, Stmt, WidgetMember};
+use xtmd_syntax::printer::print_expr;
+use xtmd_syntax::{parse, Entry, Lines, Span};
 
 /// A text edit: what's between `start` and `end` becomes `text`.
 #[derive(Debug, Clone)]
@@ -87,7 +87,7 @@ enum Op {
     Event(String, Vec<Op>),
 }
 
-/// One argument of a use, as MKP's parser read it: its name, its value (with the edits inside it
+/// One argument of a use, as Extended Mark's parser read it: its name, its value (with the edits inside it
 /// made), and the comments around it.
 #[derive(Clone, Debug)]
 struct UseArg(String, String, Notes);
@@ -138,7 +138,7 @@ struct DeclInfo {
 
 fn decl_info(srcs: &[Source], name: &str) -> Option<DeclInfo> {
     for s in srcs {
-        let Some(f) = parse(&s.text, Entry::Mkp).file else { continue };
+        let Some(f) = parse(&s.text, Entry::Xtmd).file else { continue };
         for n in &f.items {
             let Item::Decl(d) = &n.item else { continue };
             let ty_name = |t: &ast::Type| match &t.base {
@@ -377,7 +377,7 @@ impl<'a> Step<'a> {
                         }
                         None => {
                             let why_said = why.clone();
-                            let why = format!("{} splits {} into {}, and only a person knows which this one is: run mkp migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default());
+                            let why = format!("{} splits {} into {}, and only a person knows which this one is: run xtmd migrate in a terminal, or answer it in --answers as [split] \"{}\" = \"{}\"", self.label, case, options.join(", "), key, options.first().cloned().unwrap_or_default());
                             let todo = format!("{} splits {} into {}: write the one this is{}", self.label, case, options.join(" or "), if why_said.is_empty() { String::new() } else { format!(" ({})", why_said) });
                             self.cannot_with(done, at, why, todo, line_of);
                             return None;
@@ -564,7 +564,7 @@ impl<'a> Step<'a> {
                         u.wrappers.push((parent, Vec::new()));
                     }
                     "split" | "example" => {}
-                    other => return Err(format!("{} uses `{}`, which mkp migrate can't apply", self.label, other)),
+                    other => return Err(format!("{} uses `{}`, which xtmd migrate can't apply", self.label, other)),
                 }
             }
         }
@@ -914,7 +914,7 @@ fn is_use(whole: &str, key: &str) -> bool {
     (whole.starts_with('@') && whole[1..].starts_with(key)) || (whole.starts_with(key) && whole[key.len()..].trim_start().starts_with('{'))
 }
 
-/// A use read from the text by MKP's own parser: its head (`@name(…)` or `name { … }`) as a
+/// A use read from the text by Extended Mark's own parser: its head (`@name(…)` or `name { … }`) as a
 /// call or a record, each argument with its value's span, its comments and its line, and a call's
 /// block after it as it stands. Values come with the edits inside them made.
 fn read_use(text: &str, ws: usize, we: usize, edits: &[Edit]) -> Option<Use> {
@@ -942,7 +942,7 @@ fn read_use(text: &str, ws: usize, we: usize, edits: &[Edit]) -> Option<Use> {
         let file = parsed.file?;
         let at = |pos: u32| ws + pos as usize - prefix.len();
         let item = &file.items.first()?.item;
-        let group: Vec<(Option<ast::Ident>, Expr, &[ast::Leading], &[mkp_syntax::lexer::Comment], bool)>;
+        let group: Vec<(Option<ast::Ident>, Expr, &[ast::Leading], &[xtmd_syntax::lexer::Comment], bool)>;
         let multiline;
         match item {
             Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::View(v), .. })) if !record => {
@@ -1082,7 +1082,7 @@ fn render(u: &Use, prose: bool) -> String {
     out
 }
 
-/// `T { a = 1, b = 2 }` read by MKP's parser, as its type and its fields as written.
+/// `T { a = 1, b = 2 }` read by Extended Mark's parser, as its type and its fields as written.
 fn read_record(v: &str) -> Option<(String, Vec<(String, String)>)> {
     let v = v.trim();
     let prefix = "let x: x = ";
@@ -1227,7 +1227,7 @@ fn place_todo(text: &str, edits: &mut Vec<Edit>, at: usize, prose_from: usize, w
         ls = line_start(text, e.start);
     }
     let indent: String = text[ls..].chars().take_while(|c| *c == ' ' || *c == '\t').collect();
-    let line = format!("{}{} TODO(mkp migrate): {}\n", indent, mark, why);
+    let line = format!("{}{} TODO(xtmd migrate): {}\n", indent, mark, why);
     // an edit starting on the TODO's own spot takes the line in front of its text
     if let Some(e) = edits.iter_mut().find(|e| e.start == ls && e.end > ls) {
         e.text = format!("{}{}", line, e.text);
@@ -1354,7 +1354,7 @@ pub(crate) fn answers_text() -> Option<String> {
     let guard = ANSWERS.lock().unwrap();
     let a = guard.as_ref().filter(|a| a.changed)?;
     let q = |k: &str| format!("\"{}\"", k.replace('\\', "\\\\").replace('"', "\\\""));
-    let mut out = String::from("# mkp migrate's answers: kept so a run without a terminal answers the same\n\n[confirm]\n");
+    let mut out = String::from("# xtmd migrate's answers: kept so a run without a terminal answers the same\n\n[confirm]\n");
     for (k, v) in &a.confirm {
         out.push_str(&format!("{} = {}\n", q(k), v));
     }

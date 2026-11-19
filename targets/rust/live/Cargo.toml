@@ -1,15 +1,15 @@
 [package]
-name = "mkp-live"
-description = "What a real-time MKP target embeds: the compiler, with core compiled once, building a document's text into the IR mkp build writes; and a text followed as it is edited, the last IR that compiled kept while a draft has errors"
+name = "xtmd-live"
+description = "What a real-time Extended Mark target embeds: the compiler, with core compiled once, building a document's text into the IR xtmd build writes; and a text followed as it is edited, the last IR that compiled kept while a draft has errors"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
-mkp-syntax = { path = "../compiler/syntax", version = "0.3.0" }
-mkp-check = { path = "../compiler/check", version = "0.3.0" }
-mkp-ir = { path = "../compiler/ir", version = "0.3.0" }
-mkp-lower = { path = "../compiler/lower", version = "0.3.0" }
+xtmd-syntax = { path = "../compiler/syntax", version = "0.3.0" }
+xtmd-check = { path = "../compiler/check", version = "0.3.0" }
+xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
+xtmd-lower = { path = "../compiler/lower", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true

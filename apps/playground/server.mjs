@@ -1,12 +1,12 @@
-// The MKP playground's server: the UI and the examples. The page compiles in the browser, with
-// mkp.wasm in a worker, so there is no compiler here.
+// The Extended Mark playground's server: the UI and the examples. The page compiles in the browser, with
+// xtmd.wasm in a worker, so there is no compiler here.
 //
-//   GET  /                 the playground (index.html, and dist/: app.js, app.css, the workers, mkp.wasm)
+//   GET  /                 the playground (index.html, and dist/: app.js, app.css, the workers, xtmd.wasm)
 //   GET  /targets          one page drawn by the plain web's two kinds of target (targets.html, dist/targets.js)
 //   GET  /api/examples     the example pages, and the packs a page may import with their files' text
 //   POST /api/report       {kind, message, bytes?, agent?}: a failure in the browser (the compiler
 //                          couldn't load, or stopped on a page), logged and told to the team
-//   GET  /healthz          whether the bundle and mkp.wasm are there
+//   GET  /healthz          whether the bundle and xtmd.wasm are there
 //
 // Node's own modules only: no framework, and nothing to install to run it once the bundle is built.
 // Every failure is logged to stderr; a failure of the server itself (an unexpected exception) or
@@ -30,7 +30,7 @@ const repo = resolve(here, "../..");
 
 /** The largest report the browser may send. */
 const MAX_REPORT_BYTES = 16 * 1024;
-const SERVICE = "mkp-playground";
+const SERVICE = "xtmd-playground";
 
 /** The packs a page may import, by the name it imports them by. */
 export const PACKS = { graphs: join(repo, "examples/graphs") };
@@ -120,13 +120,13 @@ export function makeAlerter({ url, token, log, intervalMs = 5 * 60 * 1000, fetch
 
 // ---- the packs
 
-/** A pack's files, each as the compiler is given it: its path (`graphs/graphs.mkp`) and its text. */
+/** A pack's files, each as the compiler is given it: its path (`graphs/graphs.xtpack`) and its text. */
 async function packFiles(name, dir) {
   const out = [];
   async function walk(d, rel) {
     for (const e of (await readdir(d, { withFileTypes: true })).sort((x, y) => x.name.localeCompare(y.name))) {
       if (e.isDirectory()) await walk(join(d, e.name), `${rel}/${e.name}`);
-      else if (e.name.endsWith(".mkp")) out.push({ path: `${rel}/${e.name}`, text: await readFile(join(d, e.name), "utf8") });
+      else if (e.name.endsWith(".xtpack")) out.push({ path: `${rel}/${e.name}`, text: await readFile(join(d, e.name), "utf8") });
     }
   }
   await walk(dir, name);
@@ -270,7 +270,7 @@ export async function startServer(options = {}) {
   const where = hostname();
 
   if (options.buildBundle !== false) await ensureBundle(log, distDir);
-  if (!existsSync(join(distDir, "mkp.wasm"))) log.error("no mkp.wasm in dist/: run targets/rust/wasm/build.sh, then npm run build; no page will compile");
+  if (!existsSync(join(distDir, "xtmd.wasm"))) log.error("no xtmd.wasm in dist/: run targets/rust/wasm/build.sh, then npm run build; no page will compile");
   log.info("alerts", { enabled: alerter.enabled ? "yes" : "no (DEVBENCH_NOTIFY_URL and DEVBENCH_NOTIFY_TOKEN not both set)" });
 
   async function failed(kind, text, fields) {
@@ -292,7 +292,7 @@ export async function startServer(options = {}) {
     const message = body.message.replace(/\s*\n\s*/g, " | ").slice(0, 600);
     const agent = typeof body.agent === "string" ? body.agent.slice(0, 160) : undefined;
     const bytes = Number.isInteger(body.bytes) ? body.bytes : undefined;
-    const text = [`**MKP playground: ${kind}** in a reader's browser`, `- ${message.replace(/`/g, "'")}`, `- report ${id} on ${where}${bytes === undefined ? "" : `, page ${bytes} B`}${agent ? `, ${agent}` : ""}`].join("\n");
+    const text = [`**Extended Mark playground: ${kind}** in a reader's browser`, `- ${message.replace(/`/g, "'")}`, `- report ${id} on ${where}${bytes === undefined ? "" : `, page ${bytes} B`}${agent ? `, ${agent}` : ""}`].join("\n");
     await failed(`browser:${kind}`, text, { id, kind, error: message, bytes, agent });
     await send(req, res, 202, { ok: true });
   }
@@ -310,7 +310,7 @@ export async function startServer(options = {}) {
       }
       if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "only GET here");
       if (path === "/healthz") {
-        const missing = ["app.js", "compiler.worker.js", "mkp.wasm"].filter((f) => !existsSync(join(distDir, f)));
+        const missing = ["app.js", "compiler.worker.js", "xtmd.wasm"].filter((f) => !existsSync(join(distDir, f)));
         const ok = !missing.length;
         await send(req, res, ok ? 200 : 503, ok ? { ok: true, service: SERVICE } : { ok: false, service: SERVICE, error: `dist/ has no ${missing.join(", ")}: run npm run build` });
         return;
@@ -327,7 +327,7 @@ export async function startServer(options = {}) {
         const file = page ? join(here, page) : join(distDir, name);
         const found = await files.get(file);
         if (!found) {
-          const bundle = ["/app.js", "/app.css", "/editor.worker.js", "/compiler.worker.js", "/mkp.wasm"].includes(path);
+          const bundle = ["/app.js", "/app.css", "/editor.worker.js", "/compiler.worker.js", "/xtmd.wasm"].includes(path);
           throw new HttpError(bundle ? 503 : 404, bundle ? "the bundle is not built: run npm run build" : "not found");
         }
         sendFile(req, res, found, name && HASHED.test(name) ? "public, max-age=31536000, immutable" : "no-cache");
@@ -341,7 +341,7 @@ export async function startServer(options = {}) {
         if (!res.headersSent) await send(req, res, e.status, { error: e.message });
         return;
       }
-      await failed("exception", `**MKP playground: unexpected exception** on ${req.method} ${path}\n- ${e?.message ?? e}\n- request ${id} on ${where}`, {
+      await failed("exception", `**Extended Mark playground: unexpected exception** on ${req.method} ${path}\n- ${e?.message ?? e}\n- request ${id} on ${where}`, {
         id,
         path,
         error: e?.stack ?? String(e),
@@ -383,7 +383,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   // a crash the handlers didn't catch: tell the team, then let the platform restart us
   const fatal = (what) => async (e) => {
     log.error(what, { error: e?.stack ?? String(e) });
-    await alerter.send("fatal", `**MKP playground: ${what}**, the server is exiting\n- ${e?.message ?? e}\n- on ${hostname()}`);
+    await alerter.send("fatal", `**Extended Mark playground: ${what}**, the server is exiting\n- ${e?.message ?? e}\n- on ${hostname()}`);
     process.exit(1);
   };
   process.on("uncaughtException", fatal("uncaught exception"));

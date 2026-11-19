@@ -191,7 +191,7 @@ describe("failures", () => {
 });
 
 describe("parse", () => {
-  test("MKP's number literal and nothing else", () => {
+  test("Extended Mark's number literal and nothing else", () => {
     for (const bad of ["", "-", ".5", "5.", "1e3", "+1", " 5", "5 ", "1.2.3", "--1", "0x10", "1,5", "Infinity", "NaN"]) {
       assert.equal(Num.parse(bad), null, `${JSON.stringify(bad)} isn't a number`);
     }

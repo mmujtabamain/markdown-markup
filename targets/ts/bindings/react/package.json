@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/react",
+  "name": "@extended-mark/react",
   "version": "0.3.0",
-  "description": "MKP documents in React 19, run time: <MkpDoc src={…} /> or ir={…}, drawn by React itself with core's widgets, on a server and in the browser. No compiler; @mkp/react-live compiles in the browser",
+  "description": "Extended Mark documents in React 19, run time: <XtmdDoc src={…} /> or ir={…}, drawn by React itself with core's widgets, on a server and in the browser. No compiler; @extended-mark/react-live compiles in the browser",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,16 +21,16 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/embed": "file:../embed",
-    "@mkp/runtime": "file:../../runtime",
-    "@mkp/view": "file:../view"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/runtime": "file:../../runtime",
+    "@extended-mark/view": "file:../view"
   },
   "peerDependencies": {
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "@types/react": "19.3.0",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",

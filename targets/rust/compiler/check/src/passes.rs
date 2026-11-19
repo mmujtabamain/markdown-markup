@@ -3,11 +3,11 @@
 use crate::body::{Cx, Local, LocalKind, LITERAL_MARK};
 use crate::ty::Ty;
 use crate::*;
-use mkp_eval::{interp::Constants, FailKind, Machine, Program};
+use xtmd_eval::{interp::Constants, FailKind, Machine, Program};
 
 impl Checker {
     pub(crate) fn bodies(&mut self) {
-        // fns, written in MKP or extern with a default
+        // fns, written in Extended Mark or extern with a default
         let fns_end = self.fns.len();
         for f in self.from.fns..fns_end {
             let s = self.fns[f].clone();
@@ -247,7 +247,7 @@ impl Checker {
                 let inner = c.args[0].clone();
                 let mut m = Machine::new(&prog, Box::new(Constants));
                 match m.eval(&inner) {
-                    Ok(mkp_eval::Value::Opt(Some(v))) => *e = v.to_ir(),
+                    Ok(xtmd_eval::Value::Opt(Some(v))) => *e = v.to_ir(),
                     Ok(_) => {
                         let p = &pending[id];
                         let why = m.last_rule.clone().map(|r| format!(": {}", r)).unwrap_or_default();
@@ -290,7 +290,7 @@ impl Checker {
                 let Some(id) = c.name.strip_prefix(crate::view::PROSE_MARK).and_then(|s| s.strip_prefix('#')).and_then(|s| s.parse::<usize>().ok()) else { return };
                 let ir::Expr::Template(t) = c.args[0].clone() else { return };
                 let holes = t.holes.clone();
-                let placeholders: Vec<mkp_eval::Value> = (0..holes.len()).map(|k| placeholder_hole(k)).collect();
+                let placeholders: Vec<xtmd_eval::Value> = (0..holes.len()).map(|k| placeholder_hole(k)).collect();
                 let mut m = Machine::new(&prog, Box::new(Constants));
                 let tpl = match template_value(&mut m, &t.pieces, placeholders) {
                     Ok(v) => v,
@@ -300,12 +300,12 @@ impl Checker {
                 // in code, a literal is its type's `from`; a document's prose also sees its link definitions
                 let literal = p.ty.strip_prefix("literal:");
                 let out = if t.ty.name == "core/rich_text" && literal.is_none() {
-                    m.call("core/rich_text.read", vec![mkp_eval::Binding::Value(tpl), mkp_eval::Binding::Value(links.clone())])
+                    m.call("core/rich_text.read", vec![xtmd_eval::Binding::Value(tpl), xtmd_eval::Binding::Value(links.clone())])
                 } else {
-                    m.call(&format!("{}.from", t.ty.name), vec![mkp_eval::Binding::Value(tpl)])
+                    m.call(&format!("{}.from", t.ty.name), vec![xtmd_eval::Binding::Value(tpl)])
                 };
                 match out {
-                    Ok(Some(mkp_eval::Value::Opt(Some(v)))) => {
+                    Ok(Some(xtmd_eval::Value::Opt(Some(v)))) => {
                         *e = if t.ty.name == "core/rich_text" { rich_ir(&v, &holes) } else { put_holes(v.to_ir(), &holes) };
                     }
                     Ok(_) => {
@@ -382,7 +382,7 @@ impl Checker {
             let x = self.out.defaults[&k].clone();
             let mut m = Machine::new(&prog, Box::new(Constants));
             match m.eval(&x) {
-                Ok(v) if !matches!(v, mkp_eval::Value::Fn(_) | mkp_eval::Value::View(_)) => {
+                Ok(v) if !matches!(v, xtmd_eval::Value::Fn(_) | xtmd_eval::Value::View(_)) => {
                     self.out.defaults.insert(k, v.to_ir());
                 }
                 Err(f) if !matches!(f.kind, FailKind::NotConstant | FailKind::Ir) => {
@@ -419,32 +419,32 @@ impl Checker {
 }
 
 /// The document's link definitions as core's `map<text>`.
-fn links_value(links: &[(String, String)]) -> mkp_eval::Value {
-    use mkp_eval::Value;
+fn links_value(links: &[(String, String)]) -> xtmd_eval::Value {
+    use xtmd_eval::Value;
     use std::rc::Rc;
     let entries: Vec<Value> = links
         .iter()
-        .map(|(k, v)| Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("record"), fields: vec![(Rc::from("key"), Value::text(k)), (Rc::from("value"), Value::text(v))] })))
+        .map(|(k, v)| Value::Record(Rc::new(xtmd_eval::value::Record { ty: Rc::from("record"), fields: vec![(Rc::from("key"), Value::text(k)), (Rc::from("value"), Value::text(v))] })))
         .collect();
     let mut ids = 0;
     let list = Value::list(entries, &mut ids);
-    Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("core/map"), fields: vec![(Rc::from("entries"), list)] }))
+    Value::Record(Rc::new(xtmd_eval::value::Record { ty: Rc::from("core/map"), fields: vec![(Rc::from("entries"), list)] }))
 }
 
 fn placeholder(k: usize) -> String {
     char::from_u32(0xE000 + k as u32).unwrap_or('\u{E000}').to_string()
 }
 
-fn placeholder_hole(k: usize) -> mkp_eval::Value {
+fn placeholder_hole(k: usize) -> xtmd_eval::Value {
     use std::rc::Rc;
-    mkp_eval::Value::Case(Rc::new(mkp_eval::value::Case { ty: Rc::from("core/hole"), name: Rc::from("TEXT"), values: vec![(Rc::from("value"), mkp_eval::Value::text(&placeholder(k)))] }))
+    xtmd_eval::Value::Case(Rc::new(xtmd_eval::value::Case { ty: Rc::from("core/hole"), name: Rc::from("TEXT"), values: vec![(Rc::from("value"), xtmd_eval::Value::text(&placeholder(k)))] }))
 }
 
-fn template_value(m: &mut Machine, pieces: &[String], holes: Vec<mkp_eval::Value>) -> Result<mkp_eval::Value, mkp_eval::Failure> {
+fn template_value(m: &mut Machine, pieces: &[String], holes: Vec<xtmd_eval::Value>) -> Result<xtmd_eval::Value, xtmd_eval::Failure> {
     use std::rc::Rc;
-    let pieces = m.make_list(pieces.iter().map(|p| mkp_eval::Value::text(p)).collect())?;
+    let pieces = m.make_list(pieces.iter().map(|p| xtmd_eval::Value::text(p)).collect())?;
     let holes = m.make_list(holes)?;
-    Ok(mkp_eval::Value::Record(Rc::new(mkp_eval::value::Record { ty: Rc::from("core/template"), fields: vec![(Rc::from("pieces"), pieces), (Rc::from("holes"), holes)] })))
+    Ok(xtmd_eval::Value::Record(Rc::new(xtmd_eval::value::Record { ty: Rc::from("core/template"), fields: vec![(Rc::from("pieces"), pieces), (Rc::from("holes"), holes)] })))
 }
 
 /// Which hole a placeholder text stands for.
@@ -473,8 +473,8 @@ fn put_holes(mut x: ir::Expr, holes: &[ir::Expr]) -> ir::Expr {
 }
 
 /// A rich_text value as the IR's `rich` form, its holes put back as expressions.
-fn rich_ir(v: &mkp_eval::Value, holes: &[ir::Expr]) -> ir::Expr {
-    use mkp_eval::Value;
+fn rich_ir(v: &xtmd_eval::Value, holes: &[ir::Expr]) -> ir::Expr {
+    use xtmd_eval::Value;
     use ir::SegmentSegmentPart as P;
     let mut segments = Vec::new();
     let Value::Record(r) = v else { return v.to_ir() };
@@ -516,7 +516,7 @@ fn rich_ir(v: &mkp_eval::Value, holes: &[ir::Expr]) -> ir::Expr {
 }
 
 pub(crate) fn text_of(t: &ast::TextLit) -> String {
-    t.parts.iter().map(|p| if let ast::TextPart::Piece { raw, .. } = p { mkp_syntax::lexer::decode_piece(raw) } else { String::new() }).collect()
+    t.parts.iter().map(|p| if let ast::TextPart::Piece { raw, .. } = p { xtmd_syntax::lexer::decode_piece(raw) } else { String::new() }).collect()
 }
 
 fn walk_out(out: &mut decl::Out, f: &mut dyn FnMut(&mut ir::Expr)) {

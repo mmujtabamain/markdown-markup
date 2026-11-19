@@ -1,7 +1,7 @@
 {
   "id": "read.a-closing-brace-inside-a-list-item",
   "about": "a closing brace inside a list item",
-  "source": "a-closing-brace-inside-a-list-item.mkp.md",
+  "source": "a-closing-brace-inside-a-list-item.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.call-in-quote-or-item", "line": 3, "column": 1}

@@ -2,13 +2,13 @@
 // the document, and the plane's layout. mount gives each context one; a binding that calls our
 // widgets with a context of its own gets one made from the page, so they still draw.
 
-import type { Page } from "@mkp/runtime";
+import type { Page } from "@extended-mark/runtime";
 import type { WidgetContext, WidgetView } from "./api.js";
 import { Tokens } from "./tokens.js";
 
 export interface Kit {
   readonly tokens: Tokens;
-  /** A prefix unique to this mounted page, for element ids (`mkp3-`). */
+  /** A prefix unique to this mounted page, for element ids (`xtmd3-`). */
   readonly uid: string;
   /** Runs the plane's layout now: after a ResizeObserver says a spot changed size. */
   layout(): void;
@@ -23,7 +23,7 @@ const pageTokens = new WeakMap<Page, Tokens>();
 let mounts = 0;
 
 export function newUid(): string {
-  return `mkp${++mounts}-`;
+  return `xtmd${++mounts}-`;
 }
 
 export function tokensOf(page: Page): Tokens {
@@ -50,7 +50,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, part?: string, 
   const el = document.createElement(tag);
   if (part) {
     el.setAttribute("data-part", part);
-    el.className = `mkp-${part.replace(/\./g, "-")}`;
+    el.className = `xtmd-${part.replace(/\./g, "-")}`;
   }
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
@@ -62,7 +62,7 @@ export function s<K extends keyof SVGElementTagNameMap>(tag: K, part?: string, a
   const el = document.createElementNS(SVG, tag);
   if (part) {
     el.setAttribute("data-part", part);
-    el.setAttribute("class", `mkp-${part.replace(/\./g, "-")}`);
+    el.setAttribute("class", `xtmd-${part.replace(/\./g, "-")}`);
   }
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;

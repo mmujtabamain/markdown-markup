@@ -1,7 +1,7 @@
 {
   "id": "effects.a-value-fn-writes-an-opened-item",
   "about": "a fn that returns a value can't assign an if (mut …) variable, even of its own list",
-  "source": "a-value-fn-writes-an-opened-item.mkp",
+  "source": "a-value-fn-writes-an-opened-item.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "effects.write-where-nothing-changes", "line": 13, "column": 9}

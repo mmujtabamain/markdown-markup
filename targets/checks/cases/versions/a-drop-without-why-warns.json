@@ -1,7 +1,7 @@
 {
   "id": "versions.a-drop-without-why-warns",
   "about": "a drop that doesn't say why",
-  "source": "a-drop-without-why-warns.mkp",
+  "source": "a-drop-without-why-warns.xtpack",
   "packs": ["kit2"],
   "expect": {
     "diagnostics": [

@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/view",
+  "name": "@extended-mark/view",
   "version": "0.3.0",
-  "description": "What every framework target draws an MKP page from: the page as a tree of plain elements (core's widgets as the web target draws them), and the document it runs, with its $state, refusals and snapshots",
+  "description": "What every framework target draws an Extended Mark page from: the page as a tree of plain elements (core's widgets as the web target draws them), and the document it runs, with its $state, refusals and snapshots",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,12 +21,12 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/embed": "file:../embed",
-    "@mkp/runtime": "file:../../runtime"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/runtime": "file:../../runtime"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../cli",
+    "xtmd": "file:../../cli",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.1",
     "typescript": "5.9.3"

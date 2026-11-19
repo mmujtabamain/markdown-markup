@@ -1,7 +1,7 @@
 {
   "id": "markdown.an-md-value-is-placed-by-blocks",
   "about": "an md value's blocks are placed with @blocks",
-  "source": "an-md-value-is-placed-by-blocks.mkp.md",
+  "source": "an-md-value-is-placed-by-blocks.xt.md",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "an-md-value-is-placed-by-blocks.expected.md"}

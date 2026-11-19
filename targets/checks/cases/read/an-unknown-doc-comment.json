@@ -1,7 +1,7 @@
 {
   "id": "read.an-unknown-doc-comment",
   "about": "a doc comment other than about, param and deprecated",
-  "source": "an-unknown-doc-comment.mkp",
+  "source": "an-unknown-doc-comment.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.unknown-doc-comment", "line": 3, "column": 1}

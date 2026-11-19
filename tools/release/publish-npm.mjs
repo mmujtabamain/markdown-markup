@@ -1,12 +1,13 @@
-// Publishes MKP's npm packages (targets/ts), each after the ones it depends on: @mkp/runtime
+// Publishes Extended Mark's npm packages (targets/ts), each after the ones it depends on: @extended-mark/runtime
 // first, the framework bindings last. A package's `file:` dependencies on its neighbours become
 // the release's version for the publish, and its package.json is put back after.
 //
 //   node tools/release/publish-npm.mjs --version 0.3.0 [--dry-run]
 //
-// Every package is built first (npm run build), and each @mkp/cli-<os>-<cpu> holds its binary in
+// Every package is built first (npm run build), and each @extended-mark/cli-<os>-<cpu> holds its binary in
 // bin/ (the release workflow puts them there); one without a binary isn't published. Publishing
-// needs NPM_TOKEN in ~/.npmrc, as the workflow writes it; --dry-run needs nothing.
+// needs npm trusted publishing (the workflow's OIDC token) or NPM_TOKEN in ~/.npmrc, as the workflow
+// writes it; --dry-run needs nothing.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";

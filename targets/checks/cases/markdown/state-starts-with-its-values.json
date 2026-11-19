@@ -1,7 +1,7 @@
 {
   "id": "markdown.state-starts-with-its-values",
   "about": "$state is written with its starting values",
-  "source": "state-starts-with-its-values.mkp.md",
+  "source": "state-starts-with-its-values.xt.md",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "state-starts-with-its-values.expected.md"}

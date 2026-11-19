@@ -2,7 +2,7 @@
 // them, so what is drawn and what is written as Markdown say the same words. Links and pictures
 // are checked before use, and nothing in a value is ever read as HTML.
 
-import { inlineSlot, type Drawn, type Value } from "@mkp/runtime";
+import { inlineSlot, type Drawn, type Value } from "@extended-mark/runtime";
 import type { WidgetContext } from "./api.js";
 import { kit } from "./kit.js";
 import { drawTex } from "./tex.js";
@@ -76,7 +76,7 @@ export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext
       }
       case "MATH": {
         const m = document.createElement("span");
-        m.className = "mkp-math";
+        m.className = "xtmd-math";
         drawTex(m, texOf(field(part, "tex")), false);
         node = m;
         break;
@@ -92,7 +92,7 @@ export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext
       case "NOTE": {
         const mark = str(field(part, "mark"));
         const sup = document.createElement("sup");
-        sup.className = "mkp-note-ref";
+        sup.className = "xtmd-note-ref";
         const a = document.createElement("a");
         a.href = `#${noteId(uid, mark)}`;
         a.id = `${uid}fnref-${encodeURIComponent(mark)}`;
@@ -108,7 +108,7 @@ export function drawRich(into: Element, v: Value | undefined, ctx: WidgetContext
       case "VIEW": {
         // the runtime drew the view as this widget's slot, which is drawn here
         const span = document.createElement("span");
-        span.className = "mkp-inline";
+        span.className = "xtmd-inline";
         const slot = inlineSlot(field(part, "child"));
         views.push({ span, nodes: (slot && d.slots.get(slot)) || [] });
         node = span;

@@ -1,7 +1,7 @@
 {
   "id": "types.a-literal-with-an-opt-hole-where-a-plain-value-is-wanted",
   "about": "a literal with a hole that holds an opt is an opt, so where a plain text or rich_text is wanted it is an error on the hole that names the fix",
-  "source": "a-literal-with-an-opt-hole-where-a-plain-value-is-wanted.mkp",
+  "source": "a-literal-with-an-opt-hole-where-a-plain-value-is-wanted.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 5, "column": 33},

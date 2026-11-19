@@ -3,15 +3,15 @@
 // per check and sends JSON-RPC 2.0 requests, one per line, on standard input; every reply is one
 // line on standard output, and logs go to standard error (omnicui's SPEC §4.4).
 //
-// For `mount {component: "core.slider", props, viewport, colorScheme}` it writes a small MKP page
-// that calls that one extern widget (omnicui/source.mjs), builds it with the mkp binary (the IR is
-// cached per source), and loads it into a real Chromium with @mkp/runtime and @mkp/dom
+// For `mount {component: "core.slider", props, viewport, colorScheme}` it writes a small Extended Mark page
+// that calls that one extern widget (omnicui/source.mjs), builds it with the xtmd binary (the IR is
+// cached per source), and loads it into a real Chromium with @extended-mark/runtime and @extended-mark/dom
 // (omnicui/harness.mjs), at the viewport and colour scheme asked for. Steps are real Playwright
 // input on the part's element; reads come from Chromium's accessibility tree, as omnicui's
 // reference web adapter reads them. Each reply waits for the page to settle.
 //
 // Part ids are `<component id>.<part>`; how a part finds its element is in mark() below and in
-// README.md. Chromium is MKP_CHROMIUM, or /usr/bin/chromium; none is downloaded.
+// README.md. Chromium is XTMD_CHROMIUM, or /usr/bin/chromium; none is downloaded.
 //
 //   node omnicui_adapter.mjs [--contracts <file>]
 //
@@ -65,21 +65,21 @@ if (contractsFile && existsSync(contractsFile)) {
   log(`no contracts file${contractsFile ? ` at ${contractsFile}` : ""} (omnicui writes it with the target's stubs:); props left out take the widget's own defaults`);
 }
 
-// ---- building pages with the mkp binary, cached per source
+// ---- building pages with the xtmd binary, cached per source
 
-function mkpBinary() {
-  if (process.env.MKP_BINARY) return process.env.MKP_BINARY;
+function xtmdBinary() {
+  if (process.env.XTMD_BINARY) return process.env.XTMD_BINARY;
   for (const kind of ["release", "debug"]) {
-    const p = join(repo, "targets/rust/target", kind, "mkp");
+    const p = join(repo, "targets/rust/target", kind, "xtmd");
     if (existsSync(p)) return p;
   }
-  throw new Error("no mkp binary: run `cargo build --release` in targets/rust, or set MKP_BINARY");
+  throw new Error("no xtmd binary: run `cargo build --release` in targets/rust, or set XTMD_BINARY");
 }
-const mkp = mkpBinary();
+const xtmd = xtmdBinary();
 
 // The cache key holds the binary and core's sources, so a new compiler or a changed core builds again.
 const stamp = createHash("sha256");
-for (const f of [mkp, ...readdirSync(join(repo, "core")).map((f) => join(repo, "core", f))]) {
+for (const f of [xtmd, ...readdirSync(join(repo, "core")).map((f) => join(repo, "core", f))]) {
   const s = statSync(f);
   stamp.update(`${f}:${s.size}:${s.mtimeMs}\n`);
 }
@@ -87,14 +87,14 @@ const salt = stamp.digest("hex").slice(0, 16);
 // One folder per compiler and core, in the system's temporary folder; the others are stale and go.
 // Each page's IR is kept gzipped (most of it is core's declarations: about 160 kB, not 4 MB) and
 // served as it is, with Content-Encoding: gzip.
-const caches = process.env.MKP_OMNICUI_CACHE ?? join(tmpdir(), "mkp-omnicui-ir");
+const caches = process.env.XTMD_OMNICUI_CACHE ?? join(tmpdir(), "xtmd-omnicui-ir");
 const cache = join(caches, salt);
 mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
 /** Builds a page's source into IR (or finds it built): its hash, which names its file in the cache.
- * A pack's source (`.mkp`) builds an IR with all of core; a page's, only what the page uses. */
-function buildPage(source, ext = ".mkp.md") {
+ * A pack's source (`.xtpack`) builds an IR with all of core; a page's, only what the page uses. */
+function buildPage(source, ext = ".xt.md") {
   const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json.gz`);
   if (!existsSync(out)) {
@@ -102,7 +102,7 @@ function buildPage(source, ext = ".mkp.md") {
     const ir = join(cache, `${hash}.ir.json`);
     writeFileSync(src, source);
     try {
-      execFileSync(mkp, ["build", src, "--out", ir], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+      execFileSync(xtmd, ["build", src, "--out", ir], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
     } catch (e) {
       throw new RpcError(STEP_FAILED, `the page didn't build: ${String(e.stdout ?? "") + String(e.stderr ?? "")}`.replace(/\s+/g, " ").trim());
     }
@@ -114,13 +114,13 @@ function buildPage(source, ext = ".mkp.md") {
 }
 
 // every core declaration: a pack's IR keeps all of core it builds on
-const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("package omnicui_core;\n", ".mkp")}.ir.json.gz`))).toString("utf8")));
+const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("package omnicui_core;\n", ".xtpack")}.ir.json.gz`))).toString("utf8")));
 
 // ---- the harness, served with each page's IR
 
 const bundle = await build({ entryPoints: [join(here, "omnicui/harness.mjs")], bundle: true, write: false, format: "iife", platform: "browser", target: "es2022", logLevel: "silent" });
 const harness = bundle.outputFiles[0].text;
-const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MKP widget</title>
+const HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Extended Mark widget</title>
 <style>html, body { margin: 0; } body { padding: 8px; } #page { min-height: 1px; }</style></head><body><main id="page"></main><script src="/harness.js"></script></body></html>`;
 const server = createServer((req, res) => {
   const path = new URL(req.url ?? "/", "http://x").pathname;
@@ -138,7 +138,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 // ---- Chromium
 
-const browser = await chromium.launch({ executablePath: process.env.MKP_CHROMIUM || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
+const browser = await chromium.launch({ executablePath: process.env.XTMD_CHROMIUM || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-gpu"] });
 // If Chromium dies, every later request would fail one by one as if the widgets were wrong. Exit
 // instead: omnicui then reports this target broken, once, with these lines from standard error.
 browser.on("disconnected", () => {
@@ -206,7 +206,7 @@ async function mark(partId) {
       for (const el of document.querySelectorAll("[data-omnicui-part]")) el.removeAttribute("data-omnicui-part");
       const site = window.omnicui.site();
       const scope = document.getElementById("page");
-      const root = site ? scope.querySelector(`[data-mkp-site="${CSS.escape(site)}"]`) : null;
+      const root = site ? scope.querySelector(`[data-xtmd-site="${CSS.escape(site)}"]`) : null;
       const aliases = {
         heading: Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`level${n}`, () => (root?.tagName === `H${n}` ? [root] : [])])),
         bullets: { ordered: () => (root?.tagName === "OL" ? [root] : []), unordered: () => (root?.tagName === "UL" ? [root] : []) },
@@ -310,7 +310,7 @@ const ROLES = { StaticText: "text", none: "generic", LabelText: "label", image: 
 const methods = {
   // protocol: the first request; what this target can do on this run.
   advertise() {
-    const why = "MKP's widget contracts have one target (web), so there is nothing to compare it with; not implemented";
+    const why = "Extended Mark's widget contracts have one target (web), so there is nothing to compare it with; not implemented";
     return {
       protocol: "1",
       can: ["mount", "press", "focus", "key", "type", "drag", "hover", "read", "events", "bounds", "role", "focused", "selected"],
@@ -464,4 +464,4 @@ createInterface({ input: process.stdin })
     server.close();
     process.exit(0);
   });
-log("ready:", base, "· mkp:", mkp, "· contract defaults from:", contractsFile ?? "(none)");
+log("ready:", base, "· xtmd:", xtmd, "· contract defaults from:", contractsFile ?? "(none)");

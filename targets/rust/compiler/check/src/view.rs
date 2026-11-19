@@ -1,11 +1,11 @@
 //! Views: widget calls, slots, events and placed values, as the IR's nodes; widgets written in
-//! MKP as templates; and markdown blocks, lowered onto core's Markdown blocks.
+//! Extended Mark as templates; and markdown blocks, lowered onto core's Markdown blocks.
 
 use crate::body::{Cx, LocalKind, WidgetCx};
 pub const PROSE_MARK: &str = "@prose";
 use crate::ty::Ty;
 use crate::*;
-use mkp_syntax::ast::{ExprKind as E, ProseNode};
+use xtmd_syntax::ast::{ExprKind as E, ProseNode};
 
 impl Checker {
     /// A node's site, counted within its template, so a widget's path doesn't move when
@@ -303,15 +303,15 @@ impl Checker {
                 } else {
                     let (x, _) = self.expr(cx, value, Some(&it));
                     self.want(cx, value, &x, &input.ir, format!("`{}`'s `{}`", wname, n.name));
-                    // a shader written in MKP runs for every pixel within the step limit (page 5)
+                    // a shader written in Extended Mark runs for every pixel within the step limit (page 5)
                     if self.defs[d].full == "core/shade" && n.name == "shader" {
-                        let mkp_fn = match &value.kind {
+                        let xtmd_fn = match &value.kind {
                             E::Lambda(_) => true,
                             E::Name(fname) => matches!(self.lookup_value(file, &fname.name), Some(crate::ValueSym::Fn(f)) if !self.fns[f].external),
                             _ => false,
                         };
-                        if mkp_fn {
-                            self.warning(file, codes::SHADE_MKP_FN, value.span, "this shader is an MKP fn: the runtime calls it for each pixel within the step limit, so only a small area fits. An extern fn runs natively");
+                        if xtmd_fn {
+                            self.warning(file, codes::SHADE_XTMD_FN, value.span, "this shader is an Extended Mark fn: the runtime calls it for each pixel within the step limit, so only a small area fits. An extern fn runs natively");
                         }
                     }
                     parts.props.insert(n.name.clone(), x);
@@ -384,7 +384,7 @@ impl Checker {
         id
     }
 
-    /// A widget written in MKP, as a template; an extern widget's markdown block, as nodes.
+    /// A widget written in Extended Mark, as a template; an extern widget's markdown block, as nodes.
     pub(crate) fn widget(&mut self, d: DefId) {
         // each template counts its own sites
         self.next_site = 0;
@@ -482,7 +482,7 @@ impl Checker {
                     let mut c = cx.clone();
                     c.ret = Some(Some(Ty::Bool));
                     let b = self.block(&mut c, &r.body);
-                    let message = r.message.parts.iter().map(|p| if let ast::TextPart::Piece { raw, .. } = p { mkp_syntax::lexer::decode_piece(raw) } else { String::new() }).collect();
+                    let message = r.message.parts.iter().map(|p| if let ast::TextPart::Piece { raw, .. } = p { xtmd_syntax::lexer::decode_piece(raw) } else { String::new() }).collect();
                     requires.push(ir::Require { message, reads: Vec::new(), body: b });
                 }
                 ast::WidgetMember::Fn(f) => {
@@ -558,7 +558,7 @@ impl Checker {
         self.out.templates.push((d, t));
     }
 
-    /// Prose as nodes. Each run of Markdown between MKP's own lines is split into blocks, and
+    /// Prose as nodes. Each run of Markdown between Extended Mark's own lines is split into blocks, and
     /// each block becomes the extern widget of its kind. A paragraph's text is read by core's
     /// `rich_text.read` when the constants are worked out (passes.rs).
     pub(crate) fn prose_nodes(&mut self, cx: &mut Cx, prose: &ast::Prose) -> Vec<ir::Node> {
@@ -723,9 +723,9 @@ impl Checker {
             holes.clear();
             return;
         }
-        let doc = mkp_syntax::markdown::parse(run);
+        let doc = xtmd_syntax::markdown::parse(run);
         for l in &doc.links {
-            let key = mkp_syntax::markdown::normalize_label(&l.label);
+            let key = xtmd_syntax::markdown::normalize_label(&l.label);
             if !self.prose_links.iter().any(|(k, _)| *k == key) {
                 self.prose_links.push((key, l.dest.clone()));
             }
@@ -738,7 +738,7 @@ impl Checker {
         run.clear();
     }
 
-    fn md_blocks(&mut self, cx: &mut Cx, blocks: &[mkp_syntax::markdown::MdBlock], holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
+    fn md_blocks(&mut self, cx: &mut Cx, blocks: &[xtmd_syntax::markdown::MdBlock], holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
         let mut out = Vec::new();
         for b in blocks {
             out.extend(self.md_block(cx, b, holes));
@@ -746,8 +746,8 @@ impl Checker {
         out
     }
 
-    fn md_block(&mut self, cx: &mut Cx, b: &mkp_syntax::markdown::MdBlock, holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
-        use mkp_syntax::markdown::{Align, MdBlock};
+    fn md_block(&mut self, cx: &mut Cx, b: &xtmd_syntax::markdown::MdBlock, holes: &[(ir::Expr, Ty, Span)]) -> Vec<ir::Node> {
+        use xtmd_syntax::markdown::{Align, MdBlock};
         let site = self.site("m");
         let node = match b {
             MdBlock::Paragraph(text) => {

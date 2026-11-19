@@ -1,4 +1,4 @@
-// The badge pack's externs for the targets drawn from @mkp/view (React, Vue, Svelte, Solid,
+// The badge pack's externs for the targets drawn from @extended-mark/view (React, Vue, Svelte, Solid,
 // Angular): a widget as an element, as a pack ships one per target it supports.
 
 function text(v) {

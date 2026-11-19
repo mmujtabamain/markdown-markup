@@ -1,7 +1,7 @@
 {
   "id": "read.mut-without-a-type-in-a-fn",
   "about": "mut without a type in a fn",
-  "source": "mut-without-a-type-in-a-fn.mkp",
+  "source": "mut-without-a-type-in-a-fn.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.missing-type", "line": 4, "column": 10}

@@ -2,7 +2,7 @@
 // blockquote, pre>code, table, footnotes and hr. Props are read as markdown.ts reads them, so the
 // page's words and its Markdown agree.
 
-import type { Drawn } from "@mkp/runtime";
+import type { Drawn } from "@extended-mark/runtime";
 import type { Widget, WidgetContext, WidgetView } from "../api.js";
 import { attr, css, h, kit, text } from "../kit.js";
 import { drawRich, noteId, texOf } from "../rich.js";
@@ -84,7 +84,7 @@ export const bullets: Widget = (d, ctx) => {
       const start = num(d.props.get("start")) ?? 1;
       attr(el, "start", isOl && start !== 1 ? String(start) : undefined);
       const items = d.slots.get("items") ?? [];
-      el.classList.toggle("mkp-tasks", items.some((i) => i.widget === "core/item" && inner(i.props.get("done")) !== undefined));
+      el.classList.toggle("xtmd-tasks", items.some((i) => i.widget === "core/item" && inner(i.props.get("done")) !== undefined));
       ctx.children(el, items);
     },
   };
@@ -110,11 +110,11 @@ export const item: Widget = (d, ctx) => {
         }
         box.checked = done.b;
         attr(box, "aria-label", done.b ? "Done" : "Not done");
-        el.classList.add("mkp-task");
+        el.classList.add("xtmd-task");
       } else if (box) {
         box.remove();
         box = undefined;
-        el.classList.remove("mkp-task");
+        el.classList.remove("xtmd-task");
       }
       ctx.children(body, d.slots.get("body") ?? []);
     },
@@ -143,7 +143,7 @@ export const code: Widget = (d) => {
     el,
     update(d) {
       const lang = str(d.props.get("lang")).trim().split(/\s+/)[0] ?? "";
-      const cls = lang ? `mkp-code-text language-${lang.replace(/[^\w+#.-]/g, "")}` : "mkp-code-text";
+      const cls = lang ? `xtmd-code-text language-${lang.replace(/[^\w+#.-]/g, "")}` : "xtmd-code-text";
       if (c.className !== cls) c.className = cls;
       attr(el, "data-lang", lang || undefined);
       text(c, str(d.props.get("src")));
@@ -155,7 +155,7 @@ export const code: Widget = (d) => {
 
 export const math: Widget = (d) => {
   const el = h("div", "math");
-  el.classList.add("mkp-math");
+  el.classList.add("xtmd-math");
   const view: WidgetView = {
     el,
     update(d) {

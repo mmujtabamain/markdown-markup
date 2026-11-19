@@ -1,13 +1,13 @@
 // The Targets page's React row: the same page drawn by a framework's two targets. Run time is
-// @mkp/react's <MkpDoc>, from the IR built ahead, `$state` controlled by React's own state. Real
-// time is @mkp/react-live's <MkpLiveDoc>, from the text in a box, compiled by mkp.wasm. Both draw
-// core's widgets with React itself (@mkp/view's elements, through createElement).
+// @extended-mark/react's <XtmdDoc>, from the IR built ahead, `$state` controlled by React's own state. Real
+// time is @extended-mark/react-live's <XtmdLiveDoc>, from the text in a box, compiled by xtmd.wasm. Both draw
+// core's widgets with React itself (@extended-mark/view's elements, through createElement).
 
 import { createElement as h, useEffect, useRef, useState, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { MkpDoc, type DocError, type MkpDocHandle, type Snapshot } from "@mkp/react";
-import { MkpLiveDoc } from "@mkp/react-live";
-import type { ir } from "@mkp/runtime";
+import { XtmdDoc, type DocError, type XtmdDocHandle, type Snapshot } from "@extended-mark/react";
+import { XtmdLiveDoc } from "@extended-mark/react-live";
+import type { ir } from "@extended-mark/runtime";
 
 type State = Record<string, ir.Expr>;
 
@@ -21,19 +21,19 @@ export function stateLine(s: State | undefined): string {
 function RunTime({ ir: irFile }: { ir: unknown }): ReactElement {
   const [state, setState] = useState<State | undefined>(undefined);
   const [saved, setSaved] = useState<Snapshot | undefined>(undefined);
-  const doc = useRef<MkpDocHandle>(null);
+  const doc = useRef<XtmdDocHandle>(null);
   // React's state starts as the page's, once it has drawn
   useEffect(() => setState(doc.current?.state()), []);
   return h(
     "section",
     { "data-testid": "react-run-time", "aria-labelledby": "react-run-title" },
-    h("h2", { id: "react-run-title" }, "Run time", h("span", { className: "kind" }, "@mkp/react")),
-    h("p", { className: "sub" }, h("code", null, "<MkpDoc ir={…} state={state} onStateChange={setState}>"), ": drawn by React itself, $state held in React's own state."),
+    h("h2", { id: "react-run-title" }, "Run time", h("span", { className: "kind" }, "@extended-mark/react")),
+    h("p", { className: "sub" }, h("code", null, "<XtmdDoc ir={…} state={state} onStateChange={setState}>"), ": drawn by React itself, $state held in React's own state."),
     h(
       "div",
       { className: "page", "data-testid": "react-run-page" },
-      // controlled: React holds $state, and every write the page makes is checked by mkp first
-      h(MkpDoc, { ref: doc, ir: irFile as never, state, onStateChange: setState }),
+      // controlled: React holds $state, and every write the page makes is checked by xtmd first
+      h(XtmdDoc, { ref: doc, ir: irFile as never, state, onStateChange: setState }),
     ),
     h(
       "div",
@@ -51,7 +51,7 @@ function RealTime({ source: first }: { source: string }): ReactElement {
   const [status, setStatus] = useState<{ state: string; text: string }>({ state: "loading", text: "Loading the compiler…" });
   const [state, setState] = useState<State | undefined>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const live = useRef<MkpDocHandle>(null);
+  const live = useRef<XtmdDocHandle>(null);
   // a text that compiled is a new page: the status says so when the document has one
   useEffect(() => {
     const d = live.current?.doc;
@@ -68,8 +68,8 @@ function RealTime({ source: first }: { source: string }): ReactElement {
   return h(
     "section",
     { "data-testid": "react-real-time", "aria-labelledby": "react-live-title" },
-    h("h2", { id: "react-live-title" }, "Real time", h("span", { className: "kind" }, "@mkp/react-live")),
-    h("p", { className: "sub" }, h("code", null, "<MkpLiveDoc source={text}>"), ": this text, compiled by mkp.wasm as you type, drawn by React."),
+    h("h2", { id: "react-live-title" }, "Real time", h("span", { className: "kind" }, "@extended-mark/react-live")),
+    h("p", { className: "sub" }, h("code", null, "<XtmdLiveDoc source={text}>"), ": this text, compiled by xtmd.wasm as you type, drawn by React."),
     h("textarea", {
       "data-testid": "react-live-source",
       spellCheck: false,
@@ -89,13 +89,13 @@ function RealTime({ source: first }: { source: string }): ReactElement {
     h(
       "div",
       { className: "page", "data-testid": "react-live-page" },
-      h(MkpLiveDoc, {
+      h(XtmdLiveDoc, {
         ref: live,
         source,
-        wasm: "/mkp.wasm",
+        wasm: "/xtmd.wasm",
         onStateChange: setState,
         onError: (e: DocError) => {
-          if (e.kind === "compile") setStatus({ state: "errors", text: e.message.replace(/^page\.mkp\.md doesn't compile/, "Doesn't compile") });
+          if (e.kind === "compile") setStatus({ state: "errors", text: e.message.replace(/^page\.xt\.md doesn't compile/, "Doesn't compile") });
           else if (e.kind === "load") setStatus({ state: "errors", text: e.message });
         },
       }),

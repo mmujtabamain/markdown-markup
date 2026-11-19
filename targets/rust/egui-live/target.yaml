@@ -1,7 +1,7 @@
-# targets/rust/egui-live/target.yaml: mkp-egui-live, the real-time desktop target: each case's own
-# text compiled in the app by mkp-live's compiler, then drawn by mkp-egui's widgets, headless
+# targets/rust/egui-live/target.yaml: xtmd-egui-live, the real-time desktop target: each case's own
+# text compiled in the app by xtmd-live's compiler, then drawn by xtmd-egui's widgets, headless
 # through egui_kittest and read through AccessKit. It runs the prebuilt release binary; build it first:
-#   cd targets/rust && cargo build --release -p mkp-egui-live
+#   cd targets/rust && cargo build --release -p xtmd-egui-live
 name: egui-live
 levels: [core.draw, core.live, core.gfx]
 supplies:
@@ -9,5 +9,5 @@ supplies:
   fns: [core/moment.local]
 cannot:
   core/math: "egui has no maths renderer; the formula shows as its TeX"
-tokens: core                            # mkp-egui draws core's own tokens
-check_adapter: exec ../target/release/mkp_egui_live_check_adapter
+tokens: core                            # xtmd-egui draws core's own tokens
+check_adapter: exec ../target/release/xtmd_egui_live_check_adapter

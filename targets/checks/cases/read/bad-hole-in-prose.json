@@ -1,7 +1,7 @@
 {
   "id": "read.bad-hole-in-prose",
   "about": "bad hole in prose",
-  "source": "bad-hole-in-prose.mkp.md",
+  "source": "bad-hole-in-prose.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "syntax.expected", "line": 1, "column": 12}

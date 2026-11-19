@@ -1,10 +1,10 @@
-// The page a view target's check adapter loads into Chromium: the framework's <MkpDoc> (its
-// harness gives `mountDoc`), with `window.mkpCheck` for the adapter to call. Every step goes
-// through the drawn widgets' own DOM where it can (@mkp/view's `act`), then waits for the page to
+// The page a view target's check adapter loads into Chromium: the framework's <XtmdDoc> (its
+// harness gives `mountDoc`), with `window.xtmdCheck` for the adapter to call. Every step goes
+// through the drawn widgets' own DOM where it can (@extended-mark/view's `act`), then waits for the page to
 // settle: the framework's render committed, ResizeObserver's callbacks run, the plane laid out.
 
-import { act } from "@mkp/view";
-import { regionOf, toIr } from "@mkp/runtime";
+import { act } from "@extended-mark/view";
+import { regionOf, toIr } from "@extended-mark/runtime";
 // the checks' fixed sizes, so boxes agree with every other target (README: "Boxes")
 import { measure, targetFns } from "../../test/sizes.mjs";
 // the check packs' externs for the view targets, registered as an app registers a pack's
@@ -28,8 +28,8 @@ function boxes(nodes, out = {}) {
   return out;
 }
 
-/** `mountDoc(root, props)` renders the framework's <MkpDoc> into root and returns, or resolves to,
- * `{ doc(), unmount() }`, where `doc()` is the running @mkp/view Doc. A real-time target's props
+/** `mountDoc(root, props)` renders the framework's <XtmdDoc> into root and returns, or resolves to,
+ * `{ doc(), unmount() }`, where `doc()` is the running @extended-mark/view Doc. A real-time target's props
  * also have `source`: the case's `{ path, text, packs }`, which it compiles instead of `ir`. */
 export function install(mountDoc) {
   let current;
@@ -39,9 +39,9 @@ export function install(mountDoc) {
   const page = () => current.doc().running;
   const values = (xs = []) => xs.map((x) => page().value(x));
   const record = (o = {}) => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, page().value(x)]));
-  const drawn = (path) => root.querySelector(`[data-mkp-site="${CSS.escape(path)}"]`) !== null;
+  const drawn = (path) => root.querySelector(`[data-xtmd-site="${CSS.escape(path)}"]`) !== null;
 
-  window.mkpCheck = {
+  window.xtmdCheck = {
     async load(irText, pageValues, state, externs, source) {
       current?.unmount();
       document.body.innerHTML = "";

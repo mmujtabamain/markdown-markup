@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/ir.schema.json",
-  "title": "MKP IR 3",
-  "description": "The one IR the mkp compiler writes and every target runs: MKP 0.3, checked and lowered. No Markdown is left in it. This schema is the source of the Rust and TypeScript types.",
+  "title": "Extended Mark IR 3",
+  "description": "The one IR the xtmd compiler writes and every target runs: Extended Mark 0.3, checked and lowered. No Markdown is left in it. This schema is the source of the Rust and TypeScript types.",
   "$ref": "#/$defs/file",
   "$defs": {
     "file": {
@@ -26,7 +26,7 @@
           "const": 3,
           "description": "The IR's version. 0.3 writes 3."
         },
-        "mkp": {
+        "xtmd": {
           "type": "string",
           "description": "The version of the compiler that wrote it."
         },
@@ -76,7 +76,7 @@
       },
       "required": [
         "version",
-        "mkp",
+        "xtmd",
         "module",
         "levels",
         "needs",
@@ -476,7 +476,7 @@
     },
     "fn_decl": {
       "type": "object",
-      "description": "A fn written in MKP. One with no return type is an action.",
+      "description": "A fn written in Extended Mark. One with no return type is an action.",
       "properties": {
         "name": {
           "type": "string",
@@ -512,7 +512,7 @@
       "additionalProperties": false
     },
     "extern": {
-      "description": "Something supplied from outside MKP.",
+      "description": "Something supplied from outside Extended Mark.",
       "oneOf": [
         {
           "type": "object",
@@ -628,7 +628,7 @@
             "channel"
           ],
           "additionalProperties": false,
-          "description": "An extern block: values the app gives and fns MKP calls."
+          "description": "An extern block: values the app gives and fns Extended Mark calls."
         },
         {
           "type": "object",
@@ -1563,7 +1563,7 @@
     },
     "call": {
       "type": "object",
-      "description": "A call of a fn by its full name: one written in MKP, an extern, or an interface's, which goes to the fn of the value's own type.",
+      "description": "A call of a fn by its full name: one written in Extended Mark, an extern, or an interface's, which goes to the fn of the value's own type.",
       "properties": {
         "name": {
           "type": "string"
@@ -2389,7 +2389,7 @@
     },
     "template": {
       "type": "object",
-      "description": "A widget written in MKP, lowered: its view as nodes. The document's own view is the template `doc`.",
+      "description": "A widget written in Extended Mark, lowered: its view as nodes. The document's own view is the template `doc`.",
       "properties": {
         "name": {
           "type": "string",
@@ -2545,7 +2545,7 @@
           "properties": {
             "use": {
               "type": "object",
-              "description": "A widget written in MKP.",
+              "description": "A widget written in Extended Mark.",
               "properties": {
                 "name": {
                   "type": "string"

@@ -1,7 +1,7 @@
 {
   "id": "markdown.list-items-across-a-loop",
   "about": "list items that follow one another make one list, across a loop's turns; a loop over nothing writes nothing",
-  "source": "list-items-across-a-loop.mkp.md",
+  "source": "list-items-across-a-loop.xt.md",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "list-items-across-a-loop.expected.md"}

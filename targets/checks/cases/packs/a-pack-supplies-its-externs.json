@@ -1,7 +1,7 @@
 {
   "id": "packs.a-pack-supplies-its-externs",
   "about": "a pack supplies its own externs on each target it supports; an extern nobody supplies shows its Markdown instead, drawn with core's blocks; both write their Markdown",
-  "source": "a-pack-supplies-its-externs.mkp.md",
+  "source": "a-pack-supplies-its-externs.xt.md",
   "packs": [
     "../../packs/badge"
   ],

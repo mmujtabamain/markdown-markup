@@ -1,6 +1,6 @@
-// The test app for the plain web's MkpLiveDoc: its text compiled in the tab, with the controls the
+// The test app for the plain web's XtmdLiveDoc: its text compiled in the tab, with the controls the
 // shared live steps use (testing/browser.mjs, liveSteps).
-import { MkpLiveDoc } from "@mkp/embed-live";
+import { XtmdLiveDoc } from "@extended-mark/embed-live";
 
 const heard = { states: [], errors: [], calls: [] };
 let props = {
@@ -11,7 +11,7 @@ let props = {
   onError: (e) => heard.errors.push(e),
   onCalls: (c) => heard.calls.push(c),
 };
-const doc = new MkpLiveDoc(document.getElementById("app"), props);
+const doc = new XtmdLiveDoc(document.getElementById("app"), props);
 
 window.__test = {
   heard,

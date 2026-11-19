@@ -1,7 +1,7 @@
 {
   "id": "read.let-without-a-type",
   "about": "let without a type",
-  "source": "let-without-a-type.mkp",
+  "source": "let-without-a-type.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.missing-type", "line": 3, "column": 10}

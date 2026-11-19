@@ -1,7 +1,7 @@
 {
   "id": "contracts.round-floor-and-ceil-are-whole",
   "about": "round, floor and ceil give an int",
-  "source": "round-floor-and-ceil-are-whole.mkp",
+  "source": "round-floor-and-ceil-are-whole.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 12}

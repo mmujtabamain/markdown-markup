@@ -1,7 +1,7 @@
 {
   "id": "widgets.shade",
   "about": "claims are checked: a shader painting a region of a canvas, observed by its fn and arguments, and on the test target by its colour at the corners and the middle",
-  "source": "shade.mkp.md",
+  "source": "shade.xt.md",
   "target": {
     "levels": [
       "core.draw",
@@ -11,7 +11,7 @@
   "expect": {
     "diagnostics": [
       {
-        "code": "views.shade-given-an-mkp-fn",
+        "code": "views.shade-given-an-xtmd-fn",
         "line": 9,
         "column": 111
       }

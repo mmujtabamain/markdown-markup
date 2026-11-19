@@ -1,7 +1,7 @@
 // Layout: flex and grid as CSS flexbox and grid, cell as a grid item, and sizing as the flex item
 // whose grow, shrink, basis and limits it says. Lengths are core's tokens, as custom properties.
 
-import type { Drawn } from "@mkp/runtime";
+import type { Drawn } from "@extended-mark/runtime";
 import type { Widget, WidgetContext, WidgetView } from "../api.js";
 import { attr, claim, css, h, isClaimed, kit } from "../kit.js";
 import { field, flag, inner, kase, list, num, str } from "../values.js";
@@ -52,7 +52,7 @@ function clickable(el: HTMLElement, ctx: WidgetContext) {
   });
   return (d: Drawn) => {
     on = ctx.page.listens ? ctx.page.listens(d, "click") : d.events.has("click");
-    el.classList.toggle("mkp-clickable", on);
+    el.classList.toggle("xtmd-clickable", on);
     attr(el, "tabindex", on ? "0" : undefined);
   };
 }

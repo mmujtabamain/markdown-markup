@@ -1,4 +1,4 @@
-// mkp.wasm held to the binary: every conformance case built both ways gives the same IR and the
+// xtmd.wasm held to the binary: every conformance case built both ways gives the same IR and the
 // same diagnostics, and what a real-time target leans on (a broken document, packs given as text,
 // a compiler that goes on after a bad one) works.
 
@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as cli from "@mkp/cli";
+import * as cli from "xtmd";
 import { Compiler } from "../dist/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ const cases = walk(casesDir, (p) => p.endsWith(".json")).flatMap((f) => {
   if (!c.id || !c.source) return [];
   const dir = dirname(f);
   const packs = (c.packs ?? []).map((p) => join(dir, p));
-  const files = packs.flatMap((p) => (statSync(p).isDirectory() ? walk(p, (x) => x.endsWith(".mkp")) : [p]));
+  const files = packs.flatMap((p) => (statSync(p).isDirectory() ? walk(p, (x) => x.endsWith(".xtpack")) : [p]));
   return [{ id: c.id, source: join(dir, c.source), packs, files: files.map((path) => ({ path, text: readFileSync(path, "utf8") })) }];
 });
 
@@ -36,10 +36,10 @@ const started = Date.now();
 const compiler = await Compiler.load();
 const loadMs = Date.now() - started;
 
-test("mkp.wasm loads, compiling core once", () => {
+test("xtmd.wasm loads, compiling core once", () => {
   assert.ok(cases.length >= 50, `${cases.length} cases`);
   // core is compiled as it loads: say how long, so a slow one shows
-  console.log(`mkp.wasm loaded in ${loadMs} ms`);
+  console.log(`xtmd.wasm loaded in ${loadMs} ms`);
 });
 
 test("every conformance case gives the binary's IR, or the binary's errors", async () => {
@@ -57,7 +57,7 @@ test("every conformance case gives the binary's IR, or the binary's errors", asy
       assert.deepEqual(got.ir, want, c.id);
       built++;
     } else {
-      assert.ok(got.errors > 0 && got.ir === null, `${c.id}: the binary refuses it, mkp.wasm doesn't`);
+      assert.ok(got.errors > 0 && got.ir === null, `${c.id}: the binary refuses it, xtmd.wasm doesn't`);
     }
     // the file's own diagnostics, where and what
     const said = await cli.check(c.source, { packs: c.packs });
@@ -69,21 +69,21 @@ test("every conformance case gives the binary's IR, or the binary's errors", asy
 });
 
 test("a document with errors gives them, with no IR, and the compiler goes on", () => {
-  const bad = compiler.build("page.mkp.md", "$state {\n    n: int 0..3 = 9;\n}\n@@@\n\\{$state.nope}\n");
+  const bad = compiler.build("page.xt.md", "$state {\n    n: int 0..3 = 9;\n}\n@@@\n\\{$state.nope}\n");
   assert.equal(bad.ir, null);
   assert.ok(bad.errors >= 1);
-  assert.ok(bad.diagnostics.every((d) => d.file === "page.mkp.md" && d.line >= 1 && typeof d.message === "string"), JSON.stringify(bad.diagnostics));
-  const good = compiler.build("page.mkp.md", "# Hello\n");
+  assert.ok(bad.diagnostics.every((d) => d.file === "page.xt.md" && d.line >= 1 && typeof d.message === "string"), JSON.stringify(bad.diagnostics));
+  const good = compiler.build("page.xt.md", "# Hello\n");
   assert.equal(good.errors, 0);
   assert.equal(good.ir.ir.module, "doc");
 });
 
 test("a pack given as text is used, and one the document names but isn't given is an error", () => {
-  const pack = { path: "shapes/shapes.mkp", text: "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n" };
+  const pack = { path: "shapes/shapes.xtpack", text: "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n" };
   const doc = "import shapes;\n@@@\nTwice: \\{double(4)}\n";
-  const ok = compiler.build("page.mkp.md", doc, [pack]);
+  const ok = compiler.build("page.xt.md", doc, [pack]);
   assert.equal(ok.errors, 0, JSON.stringify(ok.diagnostics));
   assert.ok(JSON.stringify(ok.ir).includes("shapes/double"));
-  const missing = compiler.build("page.mkp.md", doc);
+  const missing = compiler.build("page.xt.md", doc);
   assert.ok(missing.errors > 0 && missing.diagnostics.some((d) => d.code === "names.unknown-pack"), JSON.stringify(missing.diagnostics));
 });

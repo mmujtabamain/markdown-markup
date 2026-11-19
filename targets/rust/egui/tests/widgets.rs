@@ -4,9 +4,9 @@
 mod common;
 
 use egui::accesskit::Role;
-use mkp_egui::check::{self, Headless};
-use mkp_egui::runtime::{Page, PageOptions, Value};
-use mkp_egui::{Act, Ctx, MkpPage, Props};
+use xtmd_egui::check::{self, Headless};
+use xtmd_egui::runtime::{Page, PageOptions, Value};
+use xtmd_egui::{Act, Ctx, XtmdPage, Props};
 
 fn num(h: &mut Headless, name: &str) -> String {
     match h.page().page().state_value(name) {
@@ -153,11 +153,11 @@ fn a_slider_moves_by_its_variables_step_and_stops_at_its_ends() {
 #[test]
 fn a_slider_takes_only_what_it_can_reach_and_the_rest_goes_through_the_page() {
     let mut h = common::mount(SLIDER);
-    h.page().act("s0/s0", Act::Write { input: "value".into(), value: Value::Num(mkp_egui::runtime::Num::int(7)) });
+    h.page().act("s0/s0", Act::Write { input: "value".into(), value: Value::Num(xtmd_egui::runtime::Num::int(7)) });
     h.settle().unwrap();
     assert_eq!(num(&mut h, "level"), "7");
     // past its end: the page refuses it, as the web's does
-    h.page().act("s0/s0", Act::Write { input: "value".into(), value: Value::Num(mkp_egui::runtime::Num::int(11)) });
+    h.page().act("s0/s0", Act::Write { input: "value".into(), value: Value::Num(xtmd_egui::runtime::Num::int(11)) });
     h.settle().unwrap();
     assert_eq!(num(&mut h, "level"), "7");
     let refused = h.page().page_mut().take_outcome().refused;
@@ -254,9 +254,9 @@ fn a_press_in_a_sentence_is_drawn_among_its_words_and_clicked() {
 
 #[test]
 fn an_extern_nobody_supplies_shows_its_markdown_and_is_reported() {
-    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/packs/a-pack-supplies-its-externs.mkp.md")).unwrap();
+    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/packs/a-pack-supplies-its-externs.xt.md")).unwrap();
     let page = Page::new(common::ir(&doc, &["targets/checks/packs/badge"]), PageOptions::default()).unwrap();
-    let mut h = Headless::new(MkpPage::new(page).follow_theme(false), egui::vec2(640.0, 480.0), false);
+    let mut h = Headless::new(XtmdPage::new(page).follow_theme(false), egui::vec2(640.0, 480.0), false);
     h.settle().unwrap();
     // neither of the pack's externs is ours: both show their Markdown
     assert_eq!(h.page().page().missing(), vec!["badge/badge".to_string(), "badge/seal".to_string()]);
@@ -270,7 +270,7 @@ fn an_extern_nobody_supplies_shows_its_markdown_and_is_reported() {
         });
     }
     let page = Page::new(common::ir(&doc, &["targets/checks/packs/badge"]), PageOptions::default()).unwrap();
-    let mut h = Headless::new(MkpPage::new(page).follow_theme(false).widget("badge/badge", || badge as fn(&mut egui::Ui, &Props<'_>, &mut Ctx<'_>)), egui::vec2(640.0, 480.0), false);
+    let mut h = Headless::new(XtmdPage::new(page).follow_theme(false).widget("badge/badge", || badge as fn(&mut egui::Ui, &Props<'_>, &mut Ctx<'_>)), egui::vec2(640.0, 480.0), false);
     h.settle().unwrap();
     assert_eq!(h.page().page().missing(), vec!["badge/seal".to_string()]);
     assert_eq!(node(&h, "badge@s1/s0").label().as_deref(), Some("Votes: 2"));
@@ -283,7 +283,7 @@ fn an_extern_nobody_supplies_shows_its_markdown_and_is_reported() {
 #[test]
 fn an_apps_widget_replaces_ours() {
     struct Shout;
-    impl mkp_egui::Widget for Shout {
+    impl xtmd_egui::Widget for Shout {
         fn show(&mut self, ui: &mut egui::Ui, p: &Props<'_>, ctx: &mut Ctx<'_>) {
             let loud = p.text("value").to_uppercase();
             ctx.root(ui, egui::UiBuilder::new(), |ui, _| {
@@ -292,7 +292,7 @@ fn an_apps_widget_replaces_ours() {
         }
     }
     let page = Page::new(common::ir("widget sample() {\n    view {\n        @label(value = \"quiet\");\n    }\n}\n@@@\n@sample;\n", &[]), PageOptions::default()).unwrap();
-    let mut h = Headless::new(MkpPage::new(page).widget("core/label", || Shout), egui::vec2(320.0, 240.0), false);
+    let mut h = Headless::new(XtmdPage::new(page).widget("core/label", || Shout), egui::vec2(320.0, 240.0), false);
     h.settle().unwrap();
     assert_eq!(check::text(&node(&h, "label@s0/s0")), "QUIET");
     assert!(h.page().page().missing().is_empty());
@@ -314,7 +314,7 @@ const PLANE: &str = r#"widget sample() {
 "#;
 
 fn region(v: Option<&Value>) -> Option<((f64, f64), (f64, f64))> {
-    mkp_egui::values::region(v)
+    xtmd_egui::values::region(v)
 }
 
 #[test]
@@ -341,7 +341,7 @@ fn a_spot_reports_its_box_from_what_egui_drew() {
     h.drag(view, egui::vec2(-100.0, 0.0));
     h.settle().unwrap();
     let plane = h.page().page().find("s0/s0").cloned().unwrap();
-    assert_eq!(mkp_egui::values::point(plane.props.get("center")), Some((100.0, 0.0)));
+    assert_eq!(xtmd_egui::values::point(plane.props.get("center")), Some((100.0, 0.0)));
     let again = h.page().page().find("s0/s1").cloned().unwrap();
     assert_eq!(region(again.props.get("box")), Some(((fx, fy), (tx, ty))));
 }
@@ -358,15 +358,15 @@ fn the_plane_pans_with_the_arrow_keys_and_zooms_only_within_its_range() {
     h.key("Equal").unwrap();
     h.settle().unwrap();
     let plane = h.page().page().find("s0/s0").cloned().unwrap();
-    assert_eq!(mkp_egui::values::point(plane.props.get("center")), Some((40.0, 40.0)));
-    assert_eq!(mkp_egui::values::num(plane.props.get("zoom")), Some(1.0));
+    assert_eq!(xtmd_egui::values::point(plane.props.get("center")), Some((40.0, 40.0)));
+    assert_eq!(xtmd_egui::values::num(plane.props.get("zoom")), Some(1.0));
 }
 
 #[test]
 fn a_layout_that_never_settles_is_held() {
     // the graphs example's edge labels get new keys at every redraw, so their own boxes are never
     // kept: egui, which lays out every frame, stops after a few frames instead of running on
-    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/graphs/release-flow.mkp.md")).unwrap();
+    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/graphs/release-flow.xt.md")).unwrap();
     let mut h = common::mount_with(&doc, &["examples/graphs"]);
     assert!(h.harness.try_run().is_ok());
     let nodes: Vec<_> = (0..3).map(|k| h.page().page().find(&format!("s1/s5[{}]/s7", k)).and_then(|d| region(d.props.get("box")))).collect();
@@ -395,16 +395,16 @@ widget share() {
 
 #[test]
 fn the_page_follows_egui_s_theme() {
-    let page = Page::new(common::ir("Hello\n", &[]), MkpPage::options()).unwrap();
-    let mut h = Headless::new(MkpPage::new(page), egui::vec2(320.0, 240.0), true);
+    let page = Page::new(common::ir("Hello\n", &[]), XtmdPage::options()).unwrap();
+    let mut h = Headless::new(XtmdPage::new(page), egui::vec2(320.0, 240.0), true);
     h.settle().unwrap();
-    let md = h.page().page().eval(&mkp_egui::runtime::ir::Expr::Get(mkp_egui::runtime::ir::Get::Extern("core/page.theme".into()))).unwrap();
-    assert_eq!(mkp_egui::values::case(Some(&md)), Some("DARK"));
+    let md = h.page().page().eval(&xtmd_egui::runtime::ir::Expr::Get(xtmd_egui::runtime::ir::Get::Extern("core/page.theme".into()))).unwrap();
+    assert_eq!(xtmd_egui::values::case(Some(&md)), Some("DARK"));
 }
 
 #[test]
 fn the_example_s_page_draws_every_widget_it_uses() {
-    let h = common::mount_measured(include_str!("../examples/demo.mkp.md"), &[]);
+    let h = common::mount_measured(include_str!("../examples/demo.xt.md"), &[]);
     let mut h = h;
     assert!(h.page().page().missing().is_empty());
     let all = check::all(h.root());
@@ -417,9 +417,9 @@ fn the_example_s_page_draws_every_widget_it_uses() {
 
 #[test]
 fn two_pages_share_a_window() {
-    let page = |text: &str| Page::new(common::ir(text, &[]), MkpPage::options()).unwrap();
-    let mut a = MkpPage::new(page(PRESS)).id(egui::Id::unique("a"));
-    let mut b = MkpPage::new(page(PRESS)).id(egui::Id::unique("b"));
+    let page = |text: &str| Page::new(common::ir(text, &[]), XtmdPage::options()).unwrap();
+    let mut a = XtmdPage::new(page(PRESS)).id(egui::Id::unique("a"));
+    let mut b = XtmdPage::new(page(PRESS)).id(egui::Id::unique("b"));
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(640.0, 480.0)).with_accessibility_check(false).build_ui(move |ui| {
         a.show(ui);
         b.show(ui);

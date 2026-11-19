@@ -1,8 +1,8 @@
 {
   "id": "names.only-provided-names-are-imported",
   "about": "anything a pack doesn't list in provides can only be used inside it",
-  "source": "only-provided-names-are-imported.mkp.md",
-  "packs": ["only-provided-names-are-imported.packs/a.mkp"],
+  "source": "only-provided-names-are-imported.xt.md",
+  "packs": ["only-provided-names-are-imported.packs/a.xtpack"],
   "expect": {
     "diagnostics": [
       {"code": "names.not-provided", "line": 1, "column": 10}

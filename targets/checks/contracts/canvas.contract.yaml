@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/canvas (core/gfx.mkp): a drawing surface with coordinates of its own, x from left to right,
+# core/canvas (core/gfx.xtpack): a drawing surface with coordinates of its own, x from left to right,
 # y from bottom to top. Its layers slot holds one layer with a labelled dot up and to the right of
-# its middle (the adapter's filler), so its middle is empty space. @mkp/dom draws a
+# its middle (the adapter's filler), so its middle is empty space. @extended-mark/dom draws a
 # figure[role=group] named by its label around an <svg>.
 id: core.canvas
 
 props:
   label:  { type: string, default: "A drawing" }
-  x:      { type: string, default: "-1..1" }       # ranges, as MKP writes them
+  x:      { type: string, default: "-1..1" }       # ranges, as Extended Mark writes them
   y:      { type: string, default: "-1..1" }
   width:  { type: string, enum: [XS, S, M, L], default: M }
   aspect: { type: number }

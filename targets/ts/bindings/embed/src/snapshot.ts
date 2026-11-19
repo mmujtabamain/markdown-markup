@@ -1,7 +1,7 @@
 // What every document target shares of a snapshot, and of what it tells the app went wrong: the
-// plain web's MkpDoc here, and @mkp/view's for the frameworks.
+// plain web's XtmdDoc here, and @extended-mark/view's for the frameworks.
 
-import type { ir } from "@mkp/runtime";
+import type { ir } from "@extended-mark/runtime";
 
 /** What went wrong, for `onError`. */
 export type DocError =
@@ -12,7 +12,7 @@ export type DocError =
 
 /** Everything the page holds, as JSON: opaque to the app, which keeps it and gives it back. */
 export interface Snapshot {
-  mkp: string;
+  xtmd: string;
   /** A hash of the IR it was taken from: its places mean the same widgets only in the same IR. */
   ir: string;
   state: Record<string, ir.Expr>;

@@ -1,0 +1,37 @@
+[package]
+name = "xtmd-android"
+description = "Extended Mark's native runtime for Android: xtmd-runtime behind a UniFFI interface, from which uniffi-bindgen writes the Kotlin bindings that xtmd-android (targets/android/compose) draws with Compose."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# shipped another way (a tool here; xtmd.wasm; the Android libraries), not as a crate
+publish = false
+# a member of the Rust workspace in targets/rust, which isn't above this folder
+workspace = "../../rust"
+
+[lib]
+name = "xtmd_android"
+# cdylib: libxtmd_android.so, for Android's processors and for the host's JVM (Robolectric, through JNA)
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+# the bindings' generator, built only with --features bindgen (README: "The Kotlin bindings")
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+xtmd-runtime = { path = "../../rust/runtime", version = "0.3.0" }
+xtmd-eval = { path = "../../rust/eval", version = "0.3.0" }
+xtmd-ir = { path = "../../rust/compiler/ir", version = "0.3.0" }
+serde.workspace = true
+serde_json.workspace = true
+uniffi = "=0.29.5"
+
+[dev-dependencies]
+xtmd-check = { path = "../../rust/compiler/check" }
+xtmd-lower = { path = "../../rust/compiler/lower" }

@@ -1,7 +1,7 @@
 {
   "id": "read.an-id-attribute",
   "about": "an id attribute",
-  "source": "an-id-attribute.mkp",
+  "source": "an-id-attribute.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-attributes", "line": 5, "column": 29}

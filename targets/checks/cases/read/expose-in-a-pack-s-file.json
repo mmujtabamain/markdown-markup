@@ -1,7 +1,7 @@
 {
   "id": "read.expose-in-a-pack-s-file",
   "about": "expose in a pack's file",
-  "source": "expose-in-a-pack-s-file.mkp",
+  "source": "expose-in-a-pack-s-file.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "file.expose-in-pack", "line": 3, "column": 1}

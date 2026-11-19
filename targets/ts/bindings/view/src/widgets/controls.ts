@@ -1,10 +1,10 @@
 // Drawing and input: label, image, icon, press, field, slider and overlay, as the native controls
-// they are, with their roles and states, as @mkp/dom draws them (the same parts and classes, so
+// they are, with their roles and states, as @extended-mark/dom draws them (the same parts and classes, so
 // the same stylesheet). What only the live element can do (moving focus along a group of tabs,
 // showing a popover) is done in its listeners and hooks.
 
-import { Num, Value as V, type Drawn, type Page, type ir } from "@mkp/runtime";
-import { exact, FILLED, flag, GLYPHS, inner, kase, safeSrc, str } from "@mkp/dom/shared";
+import { Num, Value as V, type Drawn, type Page, type ir } from "@extended-mark/runtime";
+import { exact, FILLED, flag, GLYPHS, inner, kase, safeSrc, str } from "@extended-mark/dom/shared";
 import type { ViewWidget } from "../render.js";
 import type { Act } from "../act.js";
 import { attr, cls, css, h, on, prop, s, type Child, type VNode } from "../vnode.js";
@@ -17,7 +17,7 @@ export function idOf(uid: string, what: string, d: Drawn): string {
   return `${uid}${what}-${d.path.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 }
 
-/** A DOM event a control handled, so a clickable flex around it lets it be (as @mkp/dom's claim). */
+/** A DOM event a control handled, so a clickable flex around it lets it be (as @extended-mark/dom's claim). */
 const claimed = new WeakSet<Event>();
 export const claim = (e: Event): void => {
   claimed.add(e);
@@ -40,9 +40,9 @@ export const label: ViewWidget = (d, ctx) => {
   }, [value]);
   css(el, "color", ctx.tokens.color(p("tone")));
   css(el, "text-align", a === "START" ? undefined : ALIGN[a]);
-  cls(el, "mkp-nowrap", !flag(p("wrap"), true));
-  cls(el, "mkp-clip", flag(p("clip")));
-  cls(el, "mkp-halo", flag(p("halo")));
+  cls(el, "xtmd-nowrap", !flag(p("wrap"), true));
+  cls(el, "xtmd-clip", flag(p("clip")));
+  cls(el, "xtmd-halo", flag(p("halo")));
   return el;
 };
 
@@ -56,7 +56,7 @@ export const image: ViewWidget = (d, ctx) => {
 /** An icon's SVG for a glyph: drawn in the current colour, sized to the text. */
 export function glyph(name: string | undefined, part = "icon"): VNode {
   const el = s("svg", part, { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", "data-glyph": name ?? "" }, [s("path", undefined, { d: GLYPHS[name ?? ""] ?? "M12 12v.01" })]);
-  return cls(el, "mkp-filled", FILLED.has(name ?? ""));
+  return cls(el, "xtmd-filled", FILLED.has(name ?? ""));
 }
 
 export const icon: ViewWidget = (d, ctx) => {
@@ -105,9 +105,9 @@ export const press: ViewWidget = (d, ctx) => {
     content,
   ]);
   for (const a of ["aria-pressed", "aria-selected", "aria-checked"]) attr(el, a, a === k.state ? String(selected) : undefined);
-  cls(el, "mkp-selected", selected);
-  cls(el, "mkp-toned", !!tone);
-  css(el, "--mkp-tone", tone);
+  cls(el, "xtmd-selected", selected);
+  cls(el, "xtmd-toned", !!tone);
+  css(el, "--xtmd-tone", tone);
   prop(el, "disabled", disabled);
   on(el, "click", (e) => {
     claim(e);

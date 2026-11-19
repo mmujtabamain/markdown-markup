@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/mmujtabamain/markdown-markup/main/schemas/rir.schema.json",
-  "title": "MKP resolved IR 1",
-  "description": "The resolved IR (rir): what the mkp compiler's checker understood of a build, written out. Every name is resolved to what it names, every value has its type, and nothing is lowered: prose is still Markdown, a call still has its arguments by name, and there are no bindings, sites or handlers. Every node keeps its span in its file's source and the comments that sit with it, so a tool can edit the source exactly or print it back. Targets never read it: they run the IR (ir.schema.json). Types are the IR's. `mkp build --rir` writes it.",
+  "title": "Extended Mark resolved IR 1",
+  "description": "The resolved IR (rir): what the xtmd compiler's checker understood of a build, written out. Every name is resolved to what it names, every value has its type, and nothing is lowered: prose is still Markdown, a call still has its arguments by name, and there are no bindings, sites or handlers. Every node keeps its span in its file's source and the comments that sit with it, so a tool can edit the source exactly or print it back. Targets never read it: they run the IR (ir.schema.json). Types are the IR's. `xtmd build --rir` writes it.",
   "$ref": "#/$defs/root",
   "$defs": {
     "span": {
@@ -46,9 +46,9 @@
           "const": 1,
           "description": "This format's version. A release may add parts; one that changes or removes a part, or what it means, raises it."
         },
-        "mkp": {
+        "xtmd": {
           "type": "string",
-          "description": "The MKP release that wrote it: `0.3.1`."
+          "description": "The Extended Mark release that wrote it: `0.3.1`."
         },
         "packs": {
           "type": "array",
@@ -77,7 +77,7 @@
       },
       "required": [
         "rir",
-        "mkp",
+        "xtmd",
         "packs",
         "files"
       ],
@@ -683,7 +683,7 @@
           "properties": {
             "widget": {
               "type": "object",
-              "description": "A widget written in MKP.",
+              "description": "A widget written in Extended Mark.",
               "properties": {
                 "id": {
                   "$ref": "#/$defs/id"
@@ -2980,7 +2980,7 @@
       ]
     },
     "block": {
-      "description": "A piece of prose, as the source has it: Markdown kept as written, between the calls and control lines that MKP reads. A tool that wants paragraphs and headings reads the Markdown with any CommonMark reader.",
+      "description": "A piece of prose, as the source has it: Markdown kept as written, between the calls and control lines that Extended Mark reads. A tool that wants paragraphs and headings reads the Markdown with any CommonMark reader.",
       "oneOf": [
         {
           "type": "object",

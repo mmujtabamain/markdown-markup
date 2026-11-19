@@ -1,15 +1,15 @@
 "use client";
-// <MkpDoc>: an MKP page drawn by React itself. @mkp/view runs the document and gives the page as
+// <XtmdDoc>: an Extended Mark page drawn by React itself. @extended-mark/view runs the document and gives the page as
 // plain elements; this renders them with React's own elements, so the page is part of the app's
 // React tree: rendered on a server as it is on the client, and kept by key across redraws, so
 // focus and what is being typed survive a change. Listeners, live DOM properties and the hooks of
 // widgets that draw on their element (a canvas, a plane) are attached to the real elements.
 
 import { createElement, useLayoutEffect, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type Ref } from "react";
-import { Doc, type Child, type DocProps, type Restored, type Snapshot, type VNode, type Value, type ir } from "@mkp/view";
+import { Doc, type Child, type DocProps, type Restored, type Snapshot, type VNode, type Value, type ir } from "@extended-mark/view";
 
-/** What the app holds to reach the page: `ref` on <MkpDoc>. */
-export interface MkpDocHandle {
+/** What the app holds to reach the page: `ref` on <XtmdDoc>. */
+export interface XtmdDocHandle {
   /** The running document. */
   readonly doc: Doc;
   /** Writes `$state` fields as one change, checked: refused whole (and told to `onError`), or done. */
@@ -26,8 +26,8 @@ export interface MkpDocHandle {
   restore(snap: Snapshot): Restored;
 }
 
-export interface MkpDocProps extends DocProps {
-  ref?: Ref<MkpDocHandle | null>;
+export interface XtmdDocProps extends DocProps {
+  ref?: Ref<XtmdDocHandle | null>;
   id?: string;
   className?: string;
   style?: CSSProperties;
@@ -145,7 +145,7 @@ function Live({ v }: { v: VNode }): ReactElement {
   return createElement(v.tag, reactProps(v, ref), ...kids(v));
 }
 
-/** One of @mkp/view's elements as React's. */
+/** One of @extended-mark/view's elements as React's. */
 export function toReact(c: Child): ReactNode {
   if (typeof c === "string") return c;
   if (live(c)) return createElement(Live, { v: c, key: c.key });
@@ -155,12 +155,12 @@ export function toReact(c: Child): ReactNode {
 // ---- the component
 
 /**
- * An MKP page. `src` is where its IR is fetched from, or `ir` the IR in hand. `state` with
- * `onStateChange` controls `$state`, or `defaultState` starts it; every write is checked by mkp,
+ * An Extended Mark page. `src` is where its IR is fetched from, or `ir` the IR in hand. `state` with
+ * `onStateChange` controls `$state`, or `defaultState` starts it; every write is checked by xtmd,
  * and what it refuses reaches `onError`. Its `ref` is the handle: `snapshot`, `restore`, `set`,
  * `state`, `markdown` and `expose`.
  */
-export function MkpDoc({ ref, id, className, style, ...props }: MkpDocProps): ReactElement {
+export function XtmdDoc({ ref, id, className, style, ...props }: XtmdDocProps): ReactElement {
   const [doc] = useState(() => new Doc(props));
   useSyncExternalStore(
     (f) => doc.subscribe(f),
@@ -171,7 +171,7 @@ export function MkpDoc({ ref, id, className, style, ...props }: MkpDocProps): Re
   useEffect(() => {
     doc.update(props);
   });
-  useImperativeHandle<MkpDocHandle | null, MkpDocHandle | null>(
+  useImperativeHandle<XtmdDocHandle | null, XtmdDocHandle | null>(
     ref,
     () => ({
       doc,

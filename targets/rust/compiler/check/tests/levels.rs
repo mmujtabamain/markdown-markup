@@ -1,12 +1,12 @@
 //! Levels (page 6): every call carries the levels it needs, and so do widgets and the page.
 
-use mkp_check::{compile_core, compile_on, Source};
-use mkp_ir::ir::{self, Level, Node};
+use xtmd_check::{compile_core, compile_on, Source};
+use xtmd_ir::ir::{self, Level, Node};
 use std::path::PathBuf;
 
 fn core_sources() -> Vec<Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "mkp")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -73,7 +73,7 @@ fn calls(nodes: &[Node], out: &mut Vec<(String, Vec<Level>)>) {
 #[test]
 fn each_call_widget_and_page_carries_its_levels() {
     let base = compile_core(&core_sources());
-    let c = compile_on(&base, &[], &[Source { path: "levels.mkp.md".into(), text: DOC.into() }], "doc");
+    let c = compile_on(&base, &[], &[Source { path: "levels.xt.md".into(), text: DOC.into() }], "doc");
     let errors: Vec<String> = c.errors().map(|d| format!("{}: {}", d.file, d.diagnostic.message)).collect();
     assert!(errors.is_empty(), "{:?}", errors);
     let m = c.module.unwrap();

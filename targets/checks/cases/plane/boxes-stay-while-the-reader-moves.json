@@ -1,7 +1,7 @@
 {
   "id": "plane.boxes-stay-while-the-reader-moves",
   "about": "a spot's box is in the plane's units: panning and zooming change the plane's centre, zoom and drawn region, never the box; the centre is kept inside the bounds and the zoom inside zoom_range, and both are written back",
-  "source": "boxes-stay-while-the-reader-moves.mkp.md",
+  "source": "boxes-stay-while-the-reader-moves.xt.md",
   "target": {
     "levels": [
       "core.draw",

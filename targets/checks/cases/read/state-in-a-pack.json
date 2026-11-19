@@ -1,7 +1,7 @@
 {
   "id": "read.state-in-a-pack",
   "about": "$state in a pack",
-  "source": "state-in-a-pack.mkp",
+  "source": "state-in-a-pack.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "file.state-in-pack", "line": 3, "column": 1}

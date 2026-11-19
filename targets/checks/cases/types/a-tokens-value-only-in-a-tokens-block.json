@@ -1,7 +1,7 @@
 {
   "id": "types.a-tokens-value-only-in-a-tokens-block",
   "about": "a colour or a spacing written out anywhere else than a tokens block is a compile error",
-  "source": "a-tokens-value-only-in-a-tokens-block.mkp",
+  "source": "a-tokens-value-only-in-a-tokens-block.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 6, "column": 36}

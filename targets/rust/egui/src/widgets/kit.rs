@@ -98,7 +98,7 @@ pub fn style(ctx: &Ctx<'_>, f: &Font, color: Color32) -> Style {
 }
 
 /// A rich text: one leaf, or, when its sentence holds views, flowed with them ([`rich_flow`]).
-pub fn rich(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&mkp_runtime::Value>, s: Style, lay: Lay) {
+pub fn rich(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&xtmd_runtime::Value>, s: Style, lay: Lay) {
     if rich::has_views(v) {
         rich_flow(ui, ctx, id, v, s);
     } else {
@@ -107,7 +107,7 @@ pub fn rich(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&mkp_runtime::Valu
 }
 
 /// A rich text leaf; a click on a link in it opens the link.
-pub fn rich_leaf(ui: &mut Ui, id: Id, v: Option<&mkp_runtime::Value>, s: Style, lay: Lay) -> Leaf {
+pub fn rich_leaf(ui: &mut Ui, id: Id, v: Option<&xtmd_runtime::Value>, s: Style, lay: Lay) -> Leaf {
     let laid = rich::layout(v, s);
     let words = rich::words(v);
     let text = laid.job.text.clone();
@@ -119,7 +119,7 @@ pub fn rich_leaf(ui: &mut Ui, id: Id, v: Option<&mkp_runtime::Value>, s: Style, 
 /// A rich text whose sentence holds views: its runs of text in one wrapped line, each starting
 /// where the last thing on the line ended, and each view drawn from the widget's slot where its
 /// part is, as a widget of the page. A click on a link opens it.
-pub fn rich_flow(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&mkp_runtime::Value>, s: Style) {
+pub fn rich_flow(ui: &mut Ui, ctx: &mut Ctx<'_>, id: Id, v: Option<&xtmd_runtime::Value>, s: Style) {
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         for (k, piece) in rich::pieces(v).into_iter().enumerate() {

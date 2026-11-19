@@ -1,7 +1,7 @@
 {
   "id": "widgets.icon",
   "about": "claims are checked: an icon with its label",
-  "source": "icon.mkp.md",
+  "source": "icon.xt.md",
   "target": {
     "levels": [
       "core.draw"

@@ -1,7 +1,7 @@
 {
   "id": "read.a-code-fence-that-swallows-the-closing-brace",
   "about": "a code fence left open inside a block swallows the block's }",
-  "source": "a-code-fence-that-swallows-the-closing-brace.mkp.md",
+  "source": "a-code-fence-that-swallows-the-closing-brace.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "prose.block-not-closed", "line": 1, "column": 1}

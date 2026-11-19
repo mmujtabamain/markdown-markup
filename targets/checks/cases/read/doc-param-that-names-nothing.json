@@ -1,7 +1,7 @@
 {
   "id": "read.doc-param-that-names-nothing",
   "about": "//@param that names nothing",
-  "source": "doc-param-that-names-nothing.mkp",
+  "source": "doc-param-that-names-nothing.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "doc.param-names-nothing", "line": 3, "column": 1}

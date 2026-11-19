@@ -1,7 +1,7 @@
 {
   "id": "widgets.overlay",
   "about": "claims are checked: an overlay's anchor and its closed body",
-  "source": "overlay.mkp.md",
+  "source": "overlay.xt.md",
   "target": {
     "levels": [
       "core.draw",

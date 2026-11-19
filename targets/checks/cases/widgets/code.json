@@ -1,7 +1,7 @@
 {
   "id": "widgets.code",
   "about": "claims are checked: a fenced code block keeps its language",
-  "source": "code.mkp.md",
+  "source": "code.xt.md",
   "target": {
     "levels": [
       "core.draw"

@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-range-only-on-an-ordered-type",
   "about": "a range is for numbers, durations, dates and other ordered types",
-  "source": "a-range-only-on-an-ordered-type.mkp",
+  "source": "a-range-only-on-an-ordered-type.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.range-on-unordered", "line": 4, "column": 14}

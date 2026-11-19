@@ -1,7 +1,7 @@
 {
-  "name": "@mkp/embed-live",
+  "name": "@extended-mark/embed-live",
   "version": "0.3.0",
-  "description": "MKP documents on the plain web, compiled in the browser as they are edited: new MkpLiveDoc(element, { source }), @mkp/wasm's compiler and @mkp/embed's MkpDoc, drawn by @mkp/dom",
+  "description": "Extended Mark documents on the plain web, compiled in the browser as they are edited: new XtmdLiveDoc(element, { source }), @extended-mark/wasm's compiler and @extended-mark/embed's XtmdDoc, drawn by @extended-mark/dom",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,11 +21,11 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@mkp/dom": "file:../../dom",
-    "@mkp/embed": "file:../embed",
-    "@mkp/live": "file:../live",
-    "@mkp/runtime": "file:../../runtime",
-    "@mkp/wasm": "file:../../wasm"
+    "@extended-mark/dom": "file:../../dom",
+    "@extended-mark/embed": "file:../embed",
+    "@extended-mark/live": "file:../live",
+    "@extended-mark/runtime": "file:../../runtime",
+    "@extended-mark/wasm": "file:../../wasm"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

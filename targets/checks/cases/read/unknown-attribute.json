@@ -1,7 +1,7 @@
 {
   "id": "read.unknown-attribute",
   "about": "unknown attribute",
-  "source": "unknown-attribute.mkp",
+  "source": "unknown-attribute.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-attributes", "line": 4, "column": 13}

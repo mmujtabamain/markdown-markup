@@ -1,7 +1,7 @@
 {
   "id": "read.chained-comparison",
   "about": "chained comparison",
-  "source": "chained-comparison.mkp",
+  "source": "chained-comparison.xtpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.chained-comparison", "line": 4, "column": 18}

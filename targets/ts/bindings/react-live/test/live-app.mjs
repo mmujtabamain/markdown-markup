@@ -1,8 +1,8 @@
-// The test app for <MkpLiveDoc>: its text compiled in the tab, with the controls the shared live
+// The test app for <XtmdLiveDoc>: its text compiled in the tab, with the controls the shared live
 // steps use (testing/browser.mjs, liveSteps).
 import { createElement as h, useState, useRef, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MkpLiveDoc } from "@mkp/react-live";
+import { XtmdLiveDoc } from "@extended-mark/react-live";
 
 const heard = { states: [], errors: [], calls: [] };
 let controls;
@@ -12,7 +12,7 @@ function App() {
   const [source, setSource] = useState(window.__SRC.v1);
   const ref = useRef(null);
   controls = { setSource, ref };
-  return h(MkpLiveDoc, {
+  return h(XtmdLiveDoc, {
     ref,
     source,
     wasm: window.__WASM_URL,

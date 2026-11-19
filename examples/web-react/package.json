@@ -1,8 +1,8 @@
 {
-  "name": "@mkp/example-web-react",
+  "name": "@extended-mark/example-web-react",
   "version": "0.3.0",
   "private": true,
-  "description": "The shop page in React with Vite: <MkpPage> from @mkp/react, the page compiled by @mkp/cli/vite",
+  "description": "The shop page in React with Vite: <XtmdPage> from @extended-mark/react, the page compiled by xtmd/vite",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,12 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mkp/react": "file:../../targets/ts/bindings/react",
+    "@extended-mark/react": "file:../../targets/ts/bindings/react",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@mkp/cli": "file:../../targets/ts/cli",
+    "xtmd": "file:../../targets/ts/cli",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "5.9.3",

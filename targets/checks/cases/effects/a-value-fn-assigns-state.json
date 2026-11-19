@@ -1,7 +1,7 @@
 {
   "id": "effects.a-value-fn-assigns-state",
   "about": "a fn that returns a value can't assign a $state field (page 2's counted)",
-  "source": "a-value-fn-assigns-state.mkp.md",
+  "source": "a-value-fn-assigns-state.xt.md",
   "expect": {
     "diagnostics": [
       {"code": "effects.write-where-nothing-changes", "line": 6, "column": 5}

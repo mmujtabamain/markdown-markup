@@ -3,7 +3,7 @@
 
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { ir, launch, mkp, open, pack } from "./browser.mjs";
+import { ir, launch, xtmd, open, pack } from "./browser.mjs";
 
 let browser;
 before(async () => {
@@ -154,20 +154,20 @@ function describe(page, selector) {
 
 test("every core widget is drawn, and every node of the tree has its element with its site", async () => {
   const page = await open(browser, ALL);
-  const paths = await mkp(page, "paths");
+  const paths = await xtmd(page, "paths");
   const drawn = new Set(paths.map((p) => p.widget));
   for (const w of CORE) assert.ok(drawn.has(`core/${w}`), `the sample draws core/${w}`);
   for (const { path, widget } of paths) {
     const el = await page.evaluate(([p]) => {
-      const el = document.querySelector(`[data-mkp-site="${CSS.escape(p)}"]`);
-      return el && { widget: el.getAttribute("data-mkp-widget"), part: el.getAttribute("data-part") };
+      const el = document.querySelector(`[data-xtmd-site="${CSS.escape(p)}"]`);
+      return el && { widget: el.getAttribute("data-xtmd-widget"), part: el.getAttribute("data-part") };
     }, [path]);
     assert.ok(el, `${path} (${widget}) is on the page`);
     assert.equal(el.widget, widget);
     assert.ok(el.part, `${path} has its data-part`);
   }
   // our registry has every core extern, and the runtime's notice
-  assert.deepEqual((await mkp(page, "widgets")).sort(), [...CORE.map((w) => `core/${w}`), "#notice"].sort());
+  assert.deepEqual((await xtmd(page, "widgets")).sort(), [...CORE.map((w) => `core/${w}`), "#notice"].sort());
   assert.deepEqual(page.errors, []);
   await page.close();
 });
@@ -178,7 +178,7 @@ test("Markdown's blocks are their own elements: headings, lists with task boxes,
   assert.equal(await h1.count(), 1);
   assert.equal((await h1.textContent()).replace(/\s+/g, " ").includes("Title with bold and"), true);
   assert.equal(await page.locator("h1 strong").textContent(), "bold");
-  const p = page.locator("p.mkp-paragraph").first();
+  const p = page.locator("p.xtmd-paragraph").first();
   assert.equal(await p.locator("em").textContent(), "italic");
   assert.equal(await p.locator("s").textContent(), "strike");
   assert.equal(await p.locator("code").textContent(), "code");
@@ -188,7 +188,7 @@ test("Markdown's blocks are their own elements: headings, lists with task boxes,
   assert.equal(await page.locator("[data-unsafe-link]").textContent(), "bad one");
   assert.equal(await page.getByRole("img", { name: "a dot" }).count(), 1);
   // task boxes show the item's state
-  const boxes = page.locator("li.mkp-task input[type=checkbox]");
+  const boxes = page.locator("li.xtmd-task input[type=checkbox]");
   assert.equal(await boxes.count(), 2);
   assert.equal(await boxes.nth(0).isChecked(), true);
   assert.equal(await boxes.nth(1).isChecked(), false);
@@ -196,14 +196,14 @@ test("Markdown's blocks are their own elements: headings, lists with task boxes,
   assert.equal(await page.locator("ol > li").count(), 2);
   assert.equal(await page.locator("blockquote").textContent(), "quoted");
   // a view in a sentence is drawn where it stands
-  assert.equal(await page.locator("p .mkp-inline").getByRole("img", { name: "a star" }).count(), 1);
+  assert.equal(await page.locator("p .xtmd-inline").getByRole("img", { name: "a star" }).count(), 1);
   assert.equal(await page.locator("pre > code.language-js").textContent(), "let x = 1;\n");
   // maths: TeX is its accessible text, MathML is what is seen
-  const math = await describe(page, "div.mkp-math");
+  const math = await describe(page, "div.xtmd-math");
   assert.equal(math.role, "math");
   assert.equal(math.label, "\\frac{a}{b} + \\sqrt{x^2 + y^2}");
-  assert.equal(await page.locator("div.mkp-math math mfrac").count(), 1);
-  assert.equal(await page.locator("div.mkp-math math msqrt").count(), 1);
+  assert.equal(await page.locator("div.xtmd-math math mfrac").count(), 1);
+  assert.equal(await page.locator("div.xtmd-math math msqrt").count(), 1);
   assert.equal(await page.locator("h1 [role=math]").getAttribute("aria-label"), "x^2");
   const a = page.getByRole("columnheader", { name: "A" });
   assert.equal(await a.evaluate((el) => getComputedStyle(el).textAlign), "center");
@@ -211,7 +211,7 @@ test("Markdown's blocks are their own elements: headings, lists with task boxes,
   // the footnote is a note, and its mark in the text leads to it
   const note = page.getByRole("note");
   assert.equal(await note.count(), 1);
-  const href = await page.locator("sup.mkp-note-ref a").getAttribute("href");
+  const href = await page.locator("sup.xtmd-note-ref a").getAttribute("href");
   assert.equal(await note.getAttribute("id"), href.slice(1));
   assert.equal(await page.getByRole("separator").count(), 1);
   await page.close();
@@ -219,7 +219,7 @@ test("Markdown's blocks are their own elements: headings, lists with task boxes,
 
 test("controls have their roles, names and states", async () => {
   const page = await open(browser, ALL);
-  assert.equal(await page.locator(".mkp-label", { hasText: "A label" }).evaluate((el) => getComputedStyle(el).fontWeight), "650");
+  assert.equal(await page.locator(".xtmd-label", { hasText: "A label" }).evaluate((el) => getComputedStyle(el).fontWeight), "650");
   assert.equal(await page.getByRole("img", { name: "A picture" }).count(), 1);
   assert.equal(await page.getByRole("img", { name: "Star", exact: true }).count(), 1);
   // an icon with no label is decoration
@@ -252,9 +252,9 @@ test("controls have their roles, names and states", async () => {
   assert.equal(await body.count(), 1);
   assert.equal(await body.isVisible(), false);
   assert.equal(await body.textContent(), "Inside");
-  assert.equal(await page.locator(".mkp-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length), 2);
-  assert.equal(await page.locator(".mkp-cell").evaluate((el) => getComputedStyle(el).gridColumnStart), "span 2");
-  assert.equal(await page.locator(".mkp-sizing").evaluate((el) => getComputedStyle(el).flexGrow), "1");
+  assert.equal(await page.locator(".xtmd-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length), 2);
+  assert.equal(await page.locator(".xtmd-cell").evaluate((el) => getComputedStyle(el).gridColumnStart), "span 2");
+  assert.equal(await page.locator(".xtmd-sizing").evaluate((el) => getComputedStyle(el).flexGrow), "1");
   await page.close();
 });
 
@@ -270,7 +270,7 @@ test("gfx: the canvas, its shapes and the plane are named, and the canvas draws 
   assert.deepEqual(await handle.evaluate((el) => [el.querySelector("circle").getAttribute("cx"), el.querySelector("circle").getAttribute("cy")]), ["240", "80"]);
   assert.equal(await page.locator("[data-part='path.head']").evaluate((el) => !!el.getAttribute("d")), true);
   assert.equal(await page.getByRole("img", { name: "A gradient" }).count(), 1);
-  assert.equal(await page.locator(".mkp-place-box").textContent(), "Top");
+  assert.equal(await page.locator(".xtmd-place-box").textContent(), "Top");
   assert.equal(await page.getByRole("group", { name: "Map" }).count(), 1);
   await page.close();
 });
@@ -289,8 +289,8 @@ test("a widget nobody supplies shows its Markdown and is reported, and an app's 
 
   const mine = await open(browser, '$state {\n    who: text = "Ada";\n}\n\nwidget hi() {\n    view {\n        @label(value = "Hi \\{$state.who}");\n    }\n}\n@@@\n@hi;\n', { labels: true });
   assert.equal(await mine.locator("mark.app-label").textContent(), "[Hi Ada]");
-  assert.equal(await mine.locator("mark.app-label").getAttribute("data-mkp-site"), "s0/s0");
-  await mkp(mine, "set", { who: { text: "Grace" } });
+  assert.equal(await mine.locator("mark.app-label").getAttribute("data-xtmd-site"), "s0/s0");
+  await xtmd(mine, "set", { who: { text: "Grace" } });
   assert.equal(await mine.locator("mark.app-label").textContent(), "[Hi Grace]");
   await mine.close();
 });

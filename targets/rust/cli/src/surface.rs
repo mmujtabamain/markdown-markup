@@ -1,18 +1,18 @@
-//! `mkp surface <pack>`: what a pack's version provides, written as that version's surface
+//! `xtmd surface <pack>`: what a pack's version provides, written as that version's surface
 //! (`package kit@1;`, page 6), so later versions are held to it and migrate from it.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use mkp_syntax::ast::{self, DeclKind, Item, Node, WidgetMember};
-use mkp_syntax::{parse, Entry};
+use xtmd_syntax::ast::{self, DeclKind, Item, Node, WidgetMember};
+use xtmd_syntax::{parse, Entry};
 
 /// The surface of the pack whose files these are: its name, its version and the file's text.
-pub fn surface_of(files: &[mkp_check::Source]) -> Result<(String, String, String), String> {
+pub fn surface_of(files: &[xtmd_check::Source]) -> Result<(String, String, String), String> {
     let mut parsed = Vec::new();
     for s in files {
-        let p = parse(&s.text, Entry::Mkp);
-        let Some(f) = p.file else { return Err(format!("{}: doesn't read; mkp check says why", s.path)) };
+        let p = parse(&s.text, Entry::Xtmd);
+        let Some(f) = p.file else { return Err(format!("{}: doesn't read; xtmd check says why", s.path)) };
         // the earlier versions' surfaces are not part of this one
         if f.surface.is_none() {
             parsed.push((s, f));
@@ -73,8 +73,8 @@ pub fn surface_of(files: &[mkp_check::Source]) -> Result<(String, String, String
         if !items.iter().any(|n| matches!(n.item, Item::Decl(_))) {
             continue;
         }
-        let file = ast::File { kind: ast::FileKind::Mkp, front_matter: None, package: None, surface: None, items, dangling: Vec::new(), divider: None, prose: None };
-        let printed = mkp_syntax::printer::print(&s.text, &file);
+        let file = ast::File { kind: ast::FileKind::Xtmd, front_matter: None, package: None, surface: None, items, dangling: Vec::new(), divider: None, prose: None };
+        let printed = xtmd_syntax::printer::print(&s.text, &file);
         for line in printed.lines() {
             if line.starts_with("import ") {
                 if !imports.contains(&line.to_string()) {
@@ -94,7 +94,7 @@ pub fn surface_of(files: &[mkp_check::Source]) -> Result<(String, String, String
     }
     text.push_str(body.trim_matches('\n'));
     text.push('\n');
-    let text = mkp_syntax::format(&text, Entry::Mkp).map_err(|d| format!("the surface doesn't read back: {}", d.first().map(|d| d.message.clone()).unwrap_or_default()))?;
+    let text = xtmd_syntax::format(&text, Entry::Xtmd).map_err(|d| format!("the surface doesn't read back: {}", d.first().map(|d| d.message.clone()).unwrap_or_default()))?;
     Ok((pack.name.name.clone(), pack.version.name.clone(), text))
 }
 
@@ -159,13 +159,13 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     };
     if dirs.len() > 1 {
-        eprintln!("mkp surface takes one pack, and was given {}: {}", dirs.len(), dirs.join(", "));
+        eprintln!("xtmd surface takes one pack, and was given {}: {}", dirs.len(), dirs.join(", "));
         return ExitCode::from(2);
     }
-    // the pack named is the one mkp surface reads, not one of --pack's
+    // the pack named is the one xtmd surface reads, not one of --pack's
     let p = Path::new(dir);
-    if !p.is_dir() && !dir.ends_with(".mkp") {
-        eprintln!("{}: not a pack's folder or a .mkp file{}", dir, if p.exists() { "" } else { ", and there is nothing by that name" });
+    if !p.is_dir() && !dir.ends_with(".xtpack") {
+        eprintln!("{}: not a pack's folder or a .xtpack file{}", dir, if p.exists() { "" } else { ", and there is nothing by that name" });
         return ExitCode::from(2);
     }
     let files = match crate::pack_sources(dir) {
@@ -176,16 +176,16 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         }
     };
     if files.is_empty() {
-        eprintln!("{}: no .mkp files in it, so no pack", dir);
+        eprintln!("{}: no .xtpack files in it, so no pack", dir);
         return ExitCode::from(2);
     }
     let dir_path = Path::new(dir);
-    // the pack's own files aren't its dependencies, however an mkp.toml names them
+    // the pack's own files aren't its dependencies, however an xtmd.toml names them
     let mine = std::fs::canonicalize(dir_path).ok();
-    let deps: Vec<mkp_check::Source> = deps.into_iter().filter(|s| !Path::new(&s.path).starts_with(dir_path) && mine.as_ref().map_or(true, |m| !std::fs::canonicalize(&s.path).map_or(false, |p| p.starts_with(m)))).collect();
+    let deps: Vec<xtmd_check::Source> = deps.into_iter().filter(|s| !Path::new(&s.path).starts_with(dir_path) && mine.as_ref().map_or(true, |m| !std::fs::canonicalize(&s.path).map_or(false, |p| p.starts_with(m)))).collect();
     // the pack has to compile: a surface of a broken pack would promise what nothing provides
-    let own: Vec<mkp_check::Source> = files.iter().filter(|s| parse(&s.text, Entry::Mkp).file.map_or(true, |f| f.surface.is_none())).cloned().collect();
-    let c = mkp_check::compile(&crate::core_sources(), &[deps, files.iter().filter(|s| !own.iter().any(|o| o.path == s.path)).cloned().collect()], &own, "main");
+    let own: Vec<xtmd_check::Source> = files.iter().filter(|s| parse(&s.text, Entry::Xtmd).file.map_or(true, |f| f.surface.is_none())).cloned().collect();
+    let c = xtmd_check::compile(&crate::core_sources(), &[deps, files.iter().filter(|s| !own.iter().any(|o| o.path == s.path)).cloned().collect()], &own, "main");
     let errors: Vec<_> = c.errors().collect();
     if !errors.is_empty() {
         for d in errors {
@@ -202,7 +202,7 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         Ok(x) => x,
         Err(e) => return say(json, None, "has no surface", &e, 1, serde_json::json!({})),
     };
-    let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.mkp", name, version)));
+    let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.xtpack", name, version)));
     let old = std::fs::read_to_string(&path).ok();
     let this = Some((name.as_str(), version.as_str(), path.as_path()));
     // --stdout: the surface, written nowhere; --diff: how it differs from the one written

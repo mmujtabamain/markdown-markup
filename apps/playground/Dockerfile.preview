@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 #
 # The playground for a DevBench preview, whose build context is this folder only
-# (apps/playground). The rest of the repository it needs (core, the compiler's crates, @mkp/runtime,
-# @mkp/dom, @mkp/wasm and the graphs pack) is cloned from GitHub at the same branch; the playground's own
+# (apps/playground). The rest of the repository it needs (core, the compiler's crates, @extended-mark/runtime,
+# @extended-mark/dom, @extended-mark/wasm and the graphs pack) is cloned from GitHub at the same branch; the playground's own
 # files come from the context. Dockerfile beside it does the same from the repository root.
 #
 #   devbench deploy config set markdown-markup/apps/playground --dockerfile Dockerfile.preview --port 8080
@@ -19,23 +19,23 @@ ARG REF
 ADD https://api.github.com/repos/mmujtabamain/markdown-markup/git/refs/heads/devbench/dsl-format /tmp/ref.json
 RUN git clone --depth 1 --branch "$REF" "$REPO.git" /src
 
-# ---- 1. the compiler: mkp.wasm, for wasm32-wasip1, with core embedded in it at build time;
+# ---- 1. the compiler: xtmd.wasm, for wasm32-wasip1, with core embedded in it at build time;
 #         decNumber's C is compiled by zig's clang (targets/rust/wasm/zig/cc)
 
 FROM rust:1-bookworm AS compiler
 RUN apt-get update && apt-get install -y --no-install-recommends python3-venv && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/zig && /opt/zig/bin/pip install --no-cache-dir ziglang==0.17.1 \
  && rustup target add wasm32-wasip1
-ENV MKP_ZIG="/opt/zig/bin/python -m ziglang"
+ENV XTMD_ZIG="/opt/zig/bin/python -m ziglang"
 COPY --from=source /src/core /src/core
 COPY --from=source /src/targets/rust /src/targets/rust
 # members of targets/rust's workspace, so cargo can load it
-COPY --from=source /src/targets/android/mkp /src/targets/android/mkp
-COPY --from=source /src/targets/android/mkp-live /src/targets/android/mkp-live
-RUN /src/targets/rust/wasm/build.sh /src/mkp.wasm && test -s /src/mkp.wasm
+COPY --from=source /src/targets/android/xtmd /src/targets/android/xtmd
+COPY --from=source /src/targets/android/xtmd-live /src/targets/android/xtmd-live
+RUN /src/targets/rust/wasm/build.sh /src/xtmd.wasm && test -s /src/xtmd.wasm
 
-# ---- 2. the UI: @mkp/runtime, @mkp/dom, @mkp/wasm and the Targets page's targets (@mkp/embed,
-#         @mkp/live, @mkp/embed-live, @mkp/view, @mkp/react, @mkp/react-live) built, then bundled
+# ---- 2. the UI: @extended-mark/runtime, @extended-mark/dom, @extended-mark/wasm and the Targets page's targets (@extended-mark/embed,
+#         @extended-mark/live, @extended-mark/embed-live, @extended-mark/view, @extended-mark/react, @extended-mark/react-live) built, then bundled
 #         with the playground's own code
 
 FROM node:22-bookworm-slim AS ui
@@ -44,7 +44,7 @@ WORKDIR /src
 COPY --from=source /src/targets/ts/runtime ./targets/ts/runtime
 COPY --from=source /src/targets/ts/dom ./targets/ts/dom
 COPY --from=source /src/targets/ts/wasm ./targets/ts/wasm
-COPY --from=compiler /src/mkp.wasm ./targets/ts/wasm/mkp.wasm
+COPY --from=compiler /src/xtmd.wasm ./targets/ts/wasm/xtmd.wasm
 COPY --from=source /src/targets/ts/bindings/embed ./targets/ts/bindings/embed
 COPY --from=source /src/targets/ts/bindings/live ./targets/ts/bindings/live
 COPY --from=source /src/targets/ts/bindings/embed-live ./targets/ts/bindings/embed-live
@@ -54,22 +54,22 @@ COPY --from=source /src/targets/ts/bindings/react-live ./targets/ts/bindings/rea
 COPY . ./apps/playground
 # each package installed, then built, in the order they need each other: npm copies a file:
 # package (or links it) as it is then, so what it needs is built first. The packages' tests
-# compare them with the binary (@mkp/cli) and @mkp/view, which aren't built here
+# compare them with the binary (xtmd) and @extended-mark/view, which aren't built here
 RUN set -e; \
-    cd /src/targets/ts/wasm && npm pkg delete devDependencies.@mkp/cli; \
-    cd /src/targets/ts/bindings/embed && npm pkg delete devDependencies.@mkp/cli && rm -f package-lock.json; \
-    cd /src/targets/ts/bindings/live && npm pkg delete devDependencies.@mkp/view; \
-    for d in view react react-live; do (cd /src/targets/ts/bindings/$d && npm pkg delete devDependencies.@mkp/cli && rm -f package-lock.json); done; \
+    cd /src/targets/ts/wasm && npm pkg delete devDependencies.xtmd; \
+    cd /src/targets/ts/bindings/embed && npm pkg delete devDependencies.xtmd && rm -f package-lock.json; \
+    cd /src/targets/ts/bindings/live && npm pkg delete devDependencies.@extended-mark/view; \
+    for d in view react react-live; do (cd /src/targets/ts/bindings/$d && npm pkg delete devDependencies.xtmd && rm -f package-lock.json); done; \
     for d in targets/ts/runtime targets/ts/dom targets/ts/wasm targets/ts/bindings/embed targets/ts/bindings/view targets/ts/bindings/live targets/ts/bindings/embed-live targets/ts/bindings/react targets/ts/bindings/react-live; do \
       cd "/src/$d"; \
       rm -rf node_modules dist; \
       if [ -f package-lock.json ]; then npm ci; else npm install; fi; \
       npm run build; \
     done; \
-    # a page compiled with mkp.wasm: a broken one stops the build here
-    cd /src/targets/ts/wasm && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.mkp.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"; \
+    # a page compiled with xtmd.wasm: a broken one stops the build here
+    cd /src/targets/ts/wasm && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.xt.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"; \
     cd /src/apps/playground && rm -rf node_modules dist && npm ci && npm run build \
- && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/mkp.wasm \
+ && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/xtmd.wasm \
  && test -s dist/targets.js && test -s dist/targets-counter.ir.json && ls dist/codicon-*.ttf
 
 # ---- 3. what runs

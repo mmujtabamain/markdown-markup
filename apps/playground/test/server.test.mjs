@@ -1,5 +1,5 @@
-// The playground's server: the UI's files and mkp.wasm, the examples with the packs' files, the
-// reports the browser sends and the alerts they make; and every example compiled by the mkp.wasm
+// The playground's server: the UI's files and xtmd.wasm, the examples with the packs' files, the
+// reports the browser sends and the alerts they make; and every example compiled by the xtmd.wasm
 // the page runs.
 
 import { test, before, after, describe } from "node:test";
@@ -10,8 +10,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Compiler } from "@mkp/wasm";
-import { Page } from "@mkp/runtime";
+import { Compiler } from "@extended-mark/wasm";
+import { Page } from "@extended-mark/runtime";
 import { startServer } from "../server.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +57,7 @@ async function fakeDist(files = {}) {
     "app.js": "export const monaco = 1;\n".repeat(400),
     "editor.worker.js": "self.onmessage = () => {};\n",
     "compiler.worker.js": "self.onmessage = () => {};\n",
-    "mkp.wasm": Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]),
+    "xtmd.wasm": Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]),
     "codicon-ABCD1234.ttf": Buffer.from([0, 1, 0, 0, 0, 10, 0, 128]),
     ...files,
   };
@@ -88,10 +88,10 @@ describe("the server", () => {
     await rm(dist, { recursive: true, force: true });
   });
 
-  test("healthz answers ok when the bundle and mkp.wasm are there", async () => {
+  test("healthz answers ok when the bundle and xtmd.wasm are there", async () => {
     const res = await fetch(`${s.url}/healthz`);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { ok: true, service: "mkp-playground" });
+    assert.deepEqual(await res.json(), { ok: true, service: "xtmd-playground" });
   });
 
   test("lists the examples, and the packs with their files' text", async () => {
@@ -105,8 +105,8 @@ describe("the server", () => {
     );
     for (const e of body.examples) assert.ok(e.title && e.source.includes("@@@"), `${e.id} has a title and a source`);
     assert.deepEqual(body.examples.find((e) => e.id === "release-flow").packs, ["graphs"]);
-    assert.deepEqual(body.packFiles.graphs.map((f) => f.path), ["graphs/graphs.mkp"]);
-    assert.equal(body.packFiles.graphs[0].text, await readFile(join(app, "../../examples/graphs/graphs.mkp"), "utf8"));
+    assert.deepEqual(body.packFiles.graphs.map((f) => f.path), ["graphs/graphs.xtpack"]);
+    assert.equal(body.packFiles.graphs[0].text, await readFile(join(app, "../../examples/graphs/graphs.xtpack"), "utf8"));
   });
 
   test("serves the UI's page", async () => {
@@ -119,7 +119,7 @@ describe("the server", () => {
     }
   });
 
-  test("serves the bundle's files from dist/: mkp.wasm and the workers, types, gzip, ETags, and nothing outside it", async () => {
+  test("serves the bundle's files from dist/: xtmd.wasm and the workers, types, gzip, ETags, and nothing outside it", async () => {
     const js = await fetch(`${s.url}/app.js`, { headers: { "accept-encoding": "gzip" } });
     assert.equal(js.status, 200);
     assert.match(js.headers.get("content-type"), /^text\/javascript/);
@@ -134,7 +134,7 @@ describe("the server", () => {
       assert.equal(w.status, 200);
       assert.match(w.headers.get("content-type"), /^text\/javascript/);
     }
-    const wasm = await fetch(`${s.url}/mkp.wasm`);
+    const wasm = await fetch(`${s.url}/xtmd.wasm`);
     assert.equal(wasm.status, 200);
     assert.equal(wasm.headers.get("content-type"), "application/wasm", "WebAssembly.compileStreaming needs its type");
     assert.deepEqual([...new Uint8Array(await wasm.arrayBuffer())], [0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]);
@@ -156,7 +156,7 @@ describe("the server", () => {
   });
 
   test("a report from the browser is logged and alerts the team once per kind, without logging the token", async () => {
-    const res = await report(s.url, { kind: "compiler-crash", message: "the compiler stopped on page.mkp.md: panicked at lower.rs:12\nindex out of bounds", bytes: 120, agent: "Chromium" });
+    const res = await report(s.url, { kind: "compiler-crash", message: "the compiler stopped on page.xt.md: panicked at lower.rs:12\nindex out of bounds", bytes: 120, agent: "Chromium" });
     assert.equal(res.status, 202);
     assert.ok(await waitFor(() => notify.received.length === 1), "the alert arrived");
     const [alert] = notify.received;
@@ -164,7 +164,7 @@ describe("the server", () => {
     assert.equal(alert.url, "/api/notify/");
     assert.equal(alert.headers.authorization, "Bearer secret-token-123");
     assert.equal(alert.body.level, "error");
-    assert.equal(alert.body.source, "mkp-playground");
+    assert.equal(alert.body.source, "xtmd-playground");
     assert.match(alert.body.text, /compiler-crash\*\* in a reader's browser/);
     assert.match(alert.body.text, /panicked at lower\.rs:12 \| index out of bounds/);
     assert.match(alert.body.text, /page 120 B, Chromium/);
@@ -174,7 +174,7 @@ describe("the server", () => {
     assert.equal(notify.received.length, 1);
     assert.equal(log.lines.filter((l) => l.startsWith("error ") && l.includes("compiler-crash")).length, 2);
     // another kind is told
-    await report(s.url, { kind: "compiler-load", message: "mkp.wasm couldn't be loaded: 404" });
+    await report(s.url, { kind: "compiler-load", message: "xtmd.wasm couldn't be loaded: 404" });
     assert.ok(await waitFor(() => notify.received.length === 2));
     assert.ok(!log.lines.join("\n").includes("secret-token-123"), "the token is never logged");
   });
@@ -188,22 +188,22 @@ describe("the server", () => {
   });
 });
 
-test("healthz fails when mkp.wasm is missing", async () => {
-  const dist = await fakeDist({ "mkp.wasm": null });
+test("healthz fails when xtmd.wasm is missing", async () => {
+  const dist = await fakeDist({ "xtmd.wasm": null });
   const log = memoryLog();
   const s = await startServer({ port: 0, host: "127.0.0.1", buildBundle: false, log, distDir: dist, notifyUrl: "", notifyToken: "" });
   try {
     const res = await fetch(`${s.url}/healthz`);
     assert.equal(res.status, 503);
-    assert.match((await res.json()).error, /mkp\.wasm/);
-    assert.ok(log.lines.some((l) => l.startsWith("error no mkp.wasm")), "said at startup");
+    assert.match((await res.json()).error, /xtmd\.wasm/);
+    assert.ok(log.lines.some((l) => l.startsWith("error no xtmd.wasm")), "said at startup");
   } finally {
     await s.close();
     await rm(dist, { recursive: true, force: true });
   }
 });
 
-describe("the examples, compiled by the mkp.wasm the page runs", () => {
+describe("the examples, compiled by the xtmd.wasm the page runs", () => {
   let compiler;
   let packFiles;
   let examples;
@@ -217,7 +217,7 @@ describe("the examples, compiled by the mkp.wasm the page runs", () => {
     await rm(dist, { recursive: true, force: true });
   });
 
-  const build = (source, packs = []) => compiler.build("page.mkp.md", source, packs.flatMap((p) => packFiles[p]));
+  const build = (source, packs = []) => compiler.build("page.xt.md", source, packs.flatMap((p) => packFiles[p]));
 
   test("every example compiles, and runs", () => {
     for (const e of examples) {
@@ -234,7 +234,7 @@ describe("the examples, compiled by the mkp.wasm the page runs", () => {
     assert.equal(b.ir, null);
     assert.equal(b.diagnostics.length, 1);
     const [d] = b.diagnostics;
-    assert.deepEqual([d.severity, d.code, d.line, d.column, d.file], ["error", "syntax.missing-semicolon", 2, 19, "page.mkp.md"]);
+    assert.deepEqual([d.severity, d.code, d.line, d.column, d.file], ["error", "syntax.missing-semicolon", 2, 19, "page.xt.md"]);
     const types = build(["$state {", "    count: int = 0;", "}", "@@@", "", "Count \\{$state.cuont}", "", "@press(label = 3);"].join("\n"));
     const lines = types.diagnostics.map((x) => x.line).sort();
     assert.ok(lines.includes(6) && lines.includes(8), `errors on lines 6 and 8: ${lines}`);
@@ -242,7 +242,7 @@ describe("the examples, compiled by the mkp.wasm the page runs", () => {
   });
 
   test("a page that imports a pack needs its files", async () => {
-    const source = await example("release-flow.mkp.md");
+    const source = await example("release-flow.xt.md");
     assert.ok(build(source).diagnostics.some((d) => d.code === "names.unknown-pack" && d.line === 1));
     const b = build(source, ["graphs"]);
     assert.deepEqual(b.diagnostics, []);
@@ -261,7 +261,7 @@ test("server.mjs as a program reads PORT and the DEVBENCH_NOTIFY_* variables", a
   try {
     assert.ok(await waitFor(() => /listening url=http:\/\/127\.0\.0\.1:\d+/.test(stderr), 15000), `it started: ${stderr}`);
     const port = /listening url=http:\/\/127\.0\.0\.1:(\d+)/.exec(stderr)[1];
-    assert.equal((await report(`http://127.0.0.1:${port}`, { kind: "compiler-load", message: "no mkp.wasm" })).status, 202);
+    assert.equal((await report(`http://127.0.0.1:${port}`, { kind: "compiler-load", message: "no xtmd.wasm" })).status, 202);
     assert.ok(await waitFor(() => notify.received.length === 1), "the alert arrived");
     assert.equal(notify.received[0].headers.authorization, "Bearer env-token-456");
     assert.match(stderr, /compiler-load/);
