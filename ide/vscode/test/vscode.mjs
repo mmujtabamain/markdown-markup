@@ -141,6 +141,23 @@ try {
   await palette("File: Revert File");
   await pause(1500);
 
+  // 5b. a slip, and the quick fix that writes the name meant
+  await word("@press(", "press").click();
+  await win.keyboard.press("End");
+  await win.keyboard.press("Home");
+  await win.keyboard.press("Shift+End");
+  await win.keyboard.type('@prss(label = "I have read the rules", kind = press_kind.CHECK, selected = $state.agree, click = fn() {', { delay: 10 });
+  await pause(2500);
+  await word("@prss(", "prss").click();
+  await win.keyboard.press("Control+.");
+  await win.locator(".action-widget", { hasText: "Change to" }).first().waitFor({ timeout: 15000 });
+  await shot("06b-quick-fix", "@prss: the error says did you mean press?, and Ctrl+. offers the fix");
+  await win.keyboard.press("Enter");
+  await pause(2000);
+  await shot("06c-fixed", "The fix applied: @press, and no error left");
+  await palette("File: Revert File");
+  await pause(1500);
+
   // 6. go to definition: into the pack
   await word('@tally(name = "No"', "tally").click();
   await win.keyboard.press("F12");

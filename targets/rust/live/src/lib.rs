@@ -38,6 +38,18 @@ pub struct Diagnostic {
     pub end: Place,
     pub message: String,
     pub fix: Option<String>,
+    /// The fix as edits, where there is exactly one right one: a place and what to write there.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub edits: Vec<Edit>,
+}
+
+/// One edit of a diagnostic's fix: `text` in place of what is between `at` and `end`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Edit {
+    pub line: u32,
+    pub column: u32,
+    pub end: Place,
+    pub text: String,
 }
 
 impl Diagnostic {
@@ -195,6 +207,14 @@ fn diagnostic(file: &str, text: &str, d: &xtmd_syntax::Diagnostic) -> Diagnostic
         end: Place { line: end.line, column: end.column },
         message: d.message.clone(),
         fix: d.fix.clone(),
+        edits: d
+            .edits
+            .iter()
+            .map(|e| {
+                let (a, b) = (lines.place(e.span.start), lines.place(e.span.end));
+                Edit { line: a.line, column: a.column, end: Place { line: b.line, column: b.column }, text: e.text.clone() }
+            })
+            .collect(),
     }
 }
 

@@ -252,6 +252,7 @@ impl<'a> Parser<'a> {
                     name.span.to(next),
                     format!("a name has `_` between its words, and `-` is always minus: write `{}`", joined),
                 )
+                .with_edit(name.span.to(next), joined.clone())
                 .with_fix(joined));
             }
         }

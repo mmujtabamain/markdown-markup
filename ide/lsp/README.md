@@ -15,6 +15,7 @@ server in a browser or a worker (`LanguageServer`), which is how the VS Code ext
 | Outline | a file's declarations, a widget's inputs and events, `$state`'s fields |
 | Completion | widgets after `@`, with the inputs they need as snippet stops; inside a call, the inputs and events not given yet; `$state.` fields; an enum's or a token's cases |
 | Formatting | the canonical layout, `xtmd fmt`'s |
+| Quick fixes | a diagnostic's fix where there is exactly one right one: the name a slip most likely meant ("did you mean `press`?") for an unknown widget, input, slot, name, field, case, type or fn, a name written in capitals or with `-`; and the canonical layout for a layout warning |
 
 A document's packs are the ones its `xtmd.toml` names, read from disk. A client that reads them
 itself (a browser has no disk) gives them with the `xtmd/packs` notification:

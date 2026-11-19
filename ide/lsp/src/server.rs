@@ -189,6 +189,32 @@ impl Server {
                     None => Value::Null,
                 })
             }
+            // a quick fix for each diagnostic that has one, and the canonical layout for one about it
+            "textDocument/codeAction" => {
+                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
+                let mut actions = Vec::new();
+                for d in params["context"]["diagnostics"].as_array().into_iter().flatten() {
+                    if d["source"] != "xtmd" {
+                        continue;
+                    }
+                    if let Some(edits) = d["data"]["edits"].as_array().filter(|e| !e.is_empty()) {
+                        let title = match d["data"]["fix"].as_str() {
+                            Some(f) if edits.len() == 1 && edits[0]["newText"] == f => format!("Change to `{}`", f),
+                            Some(f) => format!("Fix: {}", f),
+                            None => "Fix it".to_string(),
+                        };
+                        actions.push(json!({ "title": title, "kind": "quickfix", "diagnostics": [d], "isPreferred": true, "edit": { "changes": { uri.clone(): edits } } }));
+                    } else if d["code"] == "layout.brace" {
+                        if let Some(doc) = self.docs.get(&uri) {
+                            if let Some(t) = self.compiler.format(&doc.path, &doc.text).text.filter(|t| *t != doc.text) {
+                                let whole = Text::new(&doc.text).range(0, doc.text.len());
+                                actions.push(json!({ "title": "Format the document (xtmd fmt)", "kind": "quickfix", "diagnostics": [d], "edit": { "changes": { uri.clone(): [{ "range": whole, "newText": t }] } } }));
+                            }
+                        }
+                    }
+                }
+                Ok(Value::Array(actions))
+            }
             // core's own source, for a definition in core: `xtmd-core:/core/controls.xtpack`
             "xtmd/core" => {
                 let path = params["path"].as_str().unwrap_or("");
@@ -305,6 +331,11 @@ impl Server {
             if let Some(href) = rules::link(&d.code) {
                 v["codeDescription"] = json!({ "href": href });
             }
+            // its fix as edits, for a quick fix: given back in codeAction's context
+            if !d.edits.is_empty() {
+                let edits: Vec<Value> = d.edits.iter().map(|e| json!({ "range": { "start": t.from_xtmd(e.line, e.column), "end": t.from_xtmd(e.end.line, e.end.column) }, "newText": e.text })).collect();
+                v["data"] = json!({ "fix": d.fix, "edits": edits });
+            }
             list.push(v);
         }
         // a pack's errors stop the document too: said at its first line, with where they are
@@ -333,7 +364,8 @@ fn capabilities() -> Value {
             "referencesProvider": true,
             "documentSymbolProvider": true,
             "completionProvider": { "triggerCharacters": ["@", ".", "(", ",", " "] },
-            "documentFormattingProvider": true
+            "documentFormattingProvider": true,
+            "codeActionProvider": { "codeActionKinds": ["quickfix"] }
         },
         "serverInfo": { "name": "xtmd lsp", "version": env!("CARGO_PKG_VERSION") }
     })

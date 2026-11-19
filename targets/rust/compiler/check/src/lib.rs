@@ -465,6 +465,25 @@ impl Checker {
         self.report(Found { file: path, diagnostic: Diagnostic::error(code, span, message) });
     }
 
+    /// An error for a name that names nothing, with the name it most likely meant among `known`: in
+    /// the message, as the fix, and as the edit that writes it, so an editor fixes it in a click.
+    pub(crate) fn unknown<'a>(&mut self, file: usize, code: &'static str, span: Span, message: String, want: &str, known: impl IntoIterator<Item = &'a str>) {
+        let path = self.files[file].path.clone();
+        let d = match closest(want, known) {
+            Some(m) => {
+                let m = m.to_string();
+                Diagnostic::error(code, span, format!("{}: did you mean `{}`?", message, m)).with_fix(m.clone()).with_edit(span, m)
+            }
+            None => Diagnostic::error(code, span, message),
+        };
+        self.report(Found { file: path, diagnostic: d });
+    }
+
+    /// The widgets a file can call, by name.
+    pub(crate) fn widget_names(&self, file: usize) -> Vec<String> {
+        self.files[file].scope.types.iter().filter(|(_, s)| matches!(s, TypeSym::Def(d) if matches!(self.defs[*d].kind, DefKind::Widget { .. }))).map(|(n, _)| n.clone()).collect()
+    }
+
     /// A diagnostic, once: a name read in several passes is reported where it is, not once a pass.
     fn report(&mut self, f: Found) {
         let d = &f.diagnostic;
@@ -855,7 +874,10 @@ impl Checker {
                         Ty::Def(d, args)
                     }
                     None => {
-                        self.error(file, codes::UNKNOWN_TYPE, name.span, format!("there is no type `{}`", name.name));
+                        // a slip of a type the file can name, or of a type parameter in sight
+                        let mut known: Vec<String> = self.files[file].scope.types.keys().cloned().collect();
+                        known.extend(generics.iter().cloned());
+                        self.unknown(file, codes::UNKNOWN_TYPE, name.span, format!("there is no type `{}`", name.name), &name.name, known.iter().map(String::as_str));
                         Ty::Err
                     }
                 }
@@ -1265,4 +1287,70 @@ pub fn compile_refs(base: &Checker, packs: &[Vec<Source>], main: &[Source], modu
 pub fn compile(core: &[Source], packs: &[Vec<Source>], main: &[Source], module: &str) -> Compiled {
     let base = compile_core(core);
     compile_on(&base, packs, main, module)
+}
+
+/// The name nearest `want` among `names`, when it is near enough to be a slip (a letter off in a
+/// short name, two in a longer one, a third of a long one) and nearer than every other.
+pub(crate) fn closest<'a>(want: &str, names: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
+    let limit = (want.chars().count() / 3).clamp(1, 3);
+    let mut best: Option<(&str, usize)> = None;
+    let mut tie = false;
+    for n in names {
+        if n == want {
+            continue;
+        }
+        let d = distance(want, n);
+        if d > limit {
+            continue;
+        }
+        match best {
+            Some((b, bd)) if d == bd && b != n => tie = true,
+            Some((_, bd)) if d >= bd => {}
+            _ => {
+                best = Some((n, d));
+                tie = false;
+            }
+        }
+    }
+    if tie {
+        None
+    } else {
+        best.map(|(n, _)| n)
+    }
+}
+
+/// How many letters inserted, removed, changed or swapped with a neighbour turn `a` into `b`.
+fn distance(a: &str, b: &str) -> usize {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for j in 0..=b.len() {
+        d[0][j] = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            d[i][j] = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                d[i][j] = d[i][j].min(d[i - 2][j - 2] + 1);
+            }
+        }
+    }
+    d[a.len()][b.len()]
+}
+
+#[cfg(test)]
+mod closest_tests {
+    #[test]
+    fn a_slip_finds_its_name_and_a_tie_or_a_stranger_finds_none() {
+        assert_eq!(super::closest("prss", ["press", "pressed", "label"]), Some("press"));
+        assert_eq!(super::closest("lable", ["label", "press"]), Some("label"));
+        // as near two names as each other: no guess
+        assert_eq!(super::closest("lable", ["label", "table"]), None);
+        assert_eq!(super::closest("x", ["y", "z"]), None);
+        assert_eq!(super::closest("count", ["mount", "court"]), None);
+        assert_eq!(super::closest("zebra", ["press", "label"]), None);
+    }
 }

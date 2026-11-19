@@ -67,8 +67,10 @@ const CHECK: &str = "usage: xtmd check <file|folder>… [--pack a,b] [--config x
   --pack a,b     the packs the files use (or packs = [...] in xtmd.toml)
   --out f        the report goes to f instead of stderr
   --format json  JSON lines on stdout: one for each diagnostic ({\"type\":\"diagnostic\",\"code\",
-                 \"severity\",\"line\",\"column\",\"message\",\"fix\"}), one for each file ({\"type\":\"file\",
-                 \"result\":\"clean\"|\"warnings\"|\"errors\"|\"not read\",\"levels\"}), and a summary last
+                 \"severity\",\"line\",\"column\",\"message\",\"fix\"}, and \"edits\" where the fix is
+                 exactly one: [{\"line\",\"column\",\"end\",\"text\"}], what an editor writes), one for each
+                 file ({\"type\":\"file\",\"result\":\"clean\"|\"warnings\"|\"errors\"|\"not read\",\"levels\"}),
+                 and a summary last
   exit: 0 no errors (warnings are fine); 1 errors; 2 a usage error, or a file that can't be read
   e.g.  xtmd check docs/
         xtmd check --pack graphs flow.xt.md --format json --out problems.jsonl";

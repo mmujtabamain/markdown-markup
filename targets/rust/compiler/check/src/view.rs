@@ -86,7 +86,8 @@ impl Checker {
             return out;
         }
         let Some(d) = self.widget_of(cx, &call.name.name) else {
-            self.error(cx.file, codes::UNKNOWN_WIDGET, call.name.span, format!("there is no widget `{}`", call.name.name));
+            let known = self.widget_names(cx.file);
+            self.unknown(cx.file, codes::UNKNOWN_WIDGET, call.name.span, format!("there is no widget `{}`", call.name.name), &call.name.name, known.iter().map(String::as_str));
             return (ir::Expr::Num("0".into()), Ty::Err);
         };
         let parts = self.call_parts(cx, d, call);
@@ -210,7 +211,8 @@ impl Checker {
             return vec![ir::Node::Place(ir::NodePlace { site, view: x })];
         }
         let Some(d) = self.widget_of(cx, &call.name.name) else {
-            self.error(cx.file, codes::UNKNOWN_WIDGET, call.name.span, format!("there is no widget `{}`", call.name.name));
+            let known = self.widget_names(cx.file);
+            self.unknown(cx.file, codes::UNKNOWN_WIDGET, call.name.span, format!("there is no widget `{}`", call.name.name), &call.name.name, known.iter().map(String::as_str));
             return Vec::new();
         };
         self.warn_deprecated(cx.file, self.defs[d].file, self.defs[d].span, call.name.span);
@@ -267,7 +269,7 @@ impl Checker {
                                 self.note_ref(file, name.span, name.span.to(block.span), crate::RefTarget::Member(d, name.name.clone()));
                                 slot_blocks.push((name.name.clone(), block.clone(), name.span));
                             } else {
-                                self.error(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name));
+                                self.unknown(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name), &name.name, slots.iter().map(|s| s.name.as_str()));
                             }
                         }
                     }
@@ -322,7 +324,8 @@ impl Checker {
             } else if slots.iter().any(|s| s.name == n.name) {
                 self.error(file, codes::SLOT_EQUALS, n.span, format!("`{}` is a slot: fill it with a block, `{} {{ … }}`, never with `=`", n.name, n.name));
             } else {
-                self.error(file, codes::UNKNOWN_INPUT, n.span, format!("`{}` has no input or event `{}`", wname, n.name));
+                let given: Vec<&str> = inputs.iter().map(|i| i.name.as_str()).chain(events.iter().map(|e| e.name.as_str())).collect();
+                self.unknown(file, codes::UNKNOWN_INPUT, n.span, format!("`{}` has no input or event `{}`", wname, n.name), &n.name, given);
             }
         }
         let positional = call.args.as_ref().map_or(false, |a| a.iter().any(|x| x.name.is_none()));
@@ -883,7 +886,8 @@ impl Checker {
             match node {
                 ProseNode::Slot { name, body, .. } => {
                     if !names.iter().any(|n| *n == name.name) {
-                        self.error(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name));
+                        let known: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+                        self.unknown(file, codes::UNKNOWN_SLOT, name.span, format!("`{}` has no slot `{}`", wname, name.name), &name.name, known.iter().map(String::as_str));
                         continue;
                     }
                     let nodes = self.prose_nodes(cx, body);

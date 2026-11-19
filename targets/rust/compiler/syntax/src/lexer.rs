@@ -423,7 +423,8 @@ impl<'a> Lexer<'a> {
             Span::new(p, e),
             format!("`{}` mixes small letters and capitals: a name is small letters, digits and `_`, and only a case or a type parameter is written in capitals", w),
         )
-        .with_fix(w.to_lowercase()))
+        .with_fix(w.to_lowercase())
+        .with_edit(Span::new(p, e), w.to_lowercase()))
     }
 }
 

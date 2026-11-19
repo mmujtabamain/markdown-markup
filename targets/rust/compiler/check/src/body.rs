@@ -384,7 +384,10 @@ impl Checker {
                 (ir::Expr::Num("0".into()), Ty::Err)
             }
             None => {
-                self.error(cx.file, codes::UNKNOWN_NAME, n.span, format!("there is no `{}` here", n.name));
+                // a slip of a local's name, or of a value in the file's scope
+                let mut known: Vec<String> = cx.scopes.iter().flatten().map(|l| l.name.clone()).collect();
+                known.extend(self.files[cx.file].scope.values.keys().cloned());
+                self.unknown(cx.file, codes::UNKNOWN_NAME, n.span, format!("there is no `{}` here", n.name), &n.name, known.iter().map(String::as_str));
                 (ir::Expr::Num("0".into()), Ty::Err)
             }
         }
@@ -646,7 +649,7 @@ impl Checker {
                     }
                     out.insert(i.name.name.clone(), x);
                 }
-                None => self.error(file, codes::UNKNOWN_FIELD, i.name.span, format!("record `{}` has no field `{}`", name.name, i.name.name)),
+                None => self.unknown(file, codes::UNKNOWN_FIELD, i.name.span, format!("record `{}` has no field `{}`", name.name, i.name.name), &i.name.name, fields.iter().map(|f| f.name.as_str())),
             }
         }
         for f in &fields {
@@ -669,7 +672,8 @@ impl Checker {
                     (ir::Expr::Get(ir::Get::State(name.name.clone())), t)
                 }
                 None => {
-                    self.error(file, codes::UNKNOWN_FIELD, name.span, format!("`$state` has no field `{}`", name.name));
+                    let known: Vec<String> = cx.state.as_ref().map(|s| s.iter().map(|f| f.0.clone()).collect()).unwrap_or_default();
+                    self.unknown(file, codes::UNKNOWN_FIELD, name.span, format!("`$state` has no field `{}`", name.name), &name.name, known.iter().map(String::as_str));
                     (ir::Expr::Num("0".into()), Ty::Err)
                 }
             };
@@ -758,7 +762,7 @@ impl Checker {
                     }
                 };
                 let Some(c) = cases.iter().find(|c| c.name == name.name).cloned() else {
-                    self.error(file, codes::UNKNOWN_CASE, name.span, format!("`{}` has no case `{}`", tn.name, name.name));
+                    self.unknown(file, codes::UNKNOWN_CASE, name.span, format!("`{}` has no case `{}`", tn.name, name.name), &name.name, cases.iter().map(|c| c.name.as_str()));
                     return (ir::Expr::Num("0".into()), Ty::Err);
                 };
                 let targs: Vec<Ty> = match expect.map(|t| self.vars.resolve(t)) {
@@ -792,7 +796,8 @@ impl Checker {
                 (ir::Expr::Case(ir::ExprCase { enum_: full, name: name.name.clone(), values }), ty)
             }
             _ => {
-                self.error(file, codes::UNKNOWN_TYPE, tn.span, format!("there is no type `{}`", tn.name));
+                let known: Vec<String> = self.files[file].scope.types.keys().cloned().collect();
+                self.unknown(file, codes::UNKNOWN_TYPE, tn.span, format!("there is no type `{}`", tn.name), &tn.name, known.iter().map(String::as_str));
                 (ir::Expr::Num("0".into()), Ty::Err)
             }
         }
@@ -993,7 +998,8 @@ impl Checker {
                     }
                     _ if self.visible_in_widget(cx, &n.name) => self.apply(cx, callee, args, span),
                     _ => {
-                        self.error(file, codes::UNKNOWN_FN, n.span, format!("there is no fn `{}`", n.name));
+                        let known: Vec<String> = self.files[file].scope.values.iter().filter(|(_, v)| matches!(v, ValueSym::Fn(_))).map(|(k, _)| k.clone()).collect();
+                        self.unknown(file, codes::UNKNOWN_FN, n.span, format!("there is no fn `{}`", n.name), &n.name, known.iter().map(String::as_str));
                         (ir::Expr::Num("0".into()), Ty::Err)
                     }
                 }

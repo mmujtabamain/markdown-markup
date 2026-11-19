@@ -16,7 +16,7 @@ pub mod printer;
 mod prose;
 pub mod span;
 
-pub use diag::{Diagnostic, Severity};
+pub use diag::{Diagnostic, Edit, Severity};
 pub use parser::Entry;
 pub use span::{Lines, Place, Span};
 

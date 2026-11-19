@@ -22,19 +22,36 @@ pub struct Diagnostic {
     /// What to write instead, where the spec gives one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fix: Option<String>,
+    /// The fix as edits to the source, where there is exactly one right one: an editor applies
+    /// them in one click, and the file then reads without this diagnostic.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub edits: Vec<Edit>,
+}
+
+/// One edit of a fix: the text to write in place of a span (an empty span inserts it).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Edit {
+    pub span: Span,
+    pub text: String,
 }
 
 impl Diagnostic {
     pub fn error(code: &'static str, span: Span, message: impl Into<String>) -> Diagnostic {
-        Diagnostic { code, severity: Severity::Error, span, message: message.into(), fix: None }
+        Diagnostic { code, severity: Severity::Error, span, message: message.into(), fix: None, edits: Vec::new() }
     }
 
     pub fn warning(code: &'static str, span: Span, message: impl Into<String>) -> Diagnostic {
-        Diagnostic { code, severity: Severity::Warning, span, message: message.into(), fix: None }
+        Diagnostic { code, severity: Severity::Warning, span, message: message.into(), fix: None, edits: Vec::new() }
     }
 
     pub fn with_fix(mut self, fix: impl Into<String>) -> Diagnostic {
         self.fix = Some(fix.into());
+        self
+    }
+
+    /// An edit of the fix: `text` in place of `span`.
+    pub fn with_edit(mut self, span: Span, text: impl Into<String>) -> Diagnostic {
+        self.edits.push(Edit { span, text: text.into() });
         self
     }
 

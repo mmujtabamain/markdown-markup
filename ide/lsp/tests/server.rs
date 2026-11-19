@@ -190,3 +190,22 @@ fn cores_own_source_opened_is_read_not_built_again() {
     let syms = ask(&mut s, 3, "textDocument/documentSymbol", json!({ "textDocument": { "uri": uri } }));
     assert!(syms.as_array().unwrap().iter().any(|s| s["name"] == "press"), "{}", syms);
 }
+
+#[test]
+fn a_slip_has_a_quick_fix_that_writes_the_name_meant() {
+    let mut s = opened();
+    let slip = DOC.replace("@press(label", "@prss(label");
+    let out = s.handle(&note("textDocument/didChange", json!({ "textDocument": { "uri": URI, "version": 2 }, "contentChanges": [{ "text": slip }] })));
+    let d = out[0]["params"]["diagnostics"].as_array().unwrap().iter().find(|d| d["code"] == "names.unknown-widget").cloned().expect("the slip's error");
+    assert_eq!(d["data"]["edits"][0]["newText"], "press", "{}", d);
+    let actions = ask(&mut s, 2, "textDocument/codeAction", json!({ "textDocument": { "uri": URI }, "range": d["range"], "context": { "diagnostics": [d] } }));
+    let a = &actions[0];
+    assert_eq!(a["title"], "Change to `press`");
+    assert_eq!(a["kind"], "quickfix");
+    let edit = &a["edit"]["changes"][URI][0];
+    assert_eq!(edit["newText"], "press");
+    assert_eq!(edit["range"]["start"], at(&slip, "prss", 0));
+    // a diagnostic with no fix has no action
+    let none = ask(&mut s, 3, "textDocument/codeAction", json!({ "textDocument": { "uri": URI }, "range": d["range"], "context": { "diagnostics": [{ "range": d["range"], "message": "x", "source": "xtmd", "code": "types.mismatch" }] } }));
+    assert_eq!(none, json!([]));
+}

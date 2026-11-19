@@ -1053,3 +1053,59 @@ fn lsp_serves_the_protocol_over_stdio() {
     assert_eq!(xtmd_stdin(&["lsp"], "").0, 1);
     assert!(xtmd(&["lsp", "--help"]).1.contains("usage: xtmd lsp"));
 }
+
+/// A diagnostic's edits applied to a text: each is a line and a column from 1 (in characters) to an
+/// end, and the text to write there; the last first, so the earlier places stay where they were.
+fn apply_edits(text: &str, edits: &[serde_json::Value]) -> String {
+    let offset = |line: u64, column: u64| -> usize {
+        let start: usize = text.split_inclusive('\n').take((line - 1) as usize).map(str::len).sum();
+        start + text[start..].chars().take((column - 1) as usize).map(char::len_utf8).sum::<usize>()
+    };
+    let mut spans: Vec<(usize, usize, String)> = edits
+        .iter()
+        .map(|e| (offset(e["line"].as_u64().unwrap(), e["column"].as_u64().unwrap()), offset(e["end"]["line"].as_u64().unwrap(), e["end"]["column"].as_u64().unwrap()), e["text"].as_str().unwrap().to_string()))
+        .collect();
+    spans.sort_by_key(|s| std::cmp::Reverse(s.0));
+    let mut out = text.to_string();
+    for (a, b, t) in spans {
+        out.replace_range(a..b, &t);
+    }
+    out
+}
+
+#[test]
+fn a_fix_with_edits_applies_and_the_file_then_compiles() {
+    // each a slip, the code it is reported with, and the name the fix writes
+    let slips = [
+        ("@@@\n@prss(label = \"Go\");\n", "names.unknown-widget", "press"),
+        ("@@@\n@press(lable = \"Go\");\n", "views.unknown-input", "label"),
+        ("let n: numbr = 1;\n@@@\n\\{n}\n", "names.unknown-type", "number"),
+        ("fn share(a: number): number {\n    return a;\n}\n\nlet n: number = shar(1);\n@@@\n\\{n}\n", "names.unknown-fn", "share"),
+        ("let k: press_kind = press_kind.CHEK;\n@@@\n", "names.unknown-case", "CHECK"),
+        ("$state {\n    count: int = 0;\n}\n@@@\n\\{$state.cuont}\n", "names.unknown-field", "count"),
+        ("let total: int = 1;\n@@@\n\\{totl}\n", "names.unknown-name", "total"),
+        ("record pair {\n    left: number;\n}\n\nlet p: pair = pair { lefft = 1 };\n@@@\n", "names.unknown-field", "left"),
+        ("let Total: int = 1;\n@@@\n", "syntax.mixed-case-name", "total"),
+    ];
+    let dir = scratch("fixes", &[]);
+    std::fs::create_dir_all(&dir).unwrap();
+    for (k, (text, code, meant)) in slips.iter().enumerate() {
+        let file = dir.join(format!("slip{}.xt.md", k));
+        std::fs::write(&file, text).unwrap();
+        let (code_was, out, _) = xtmd(&["check", "--format", "json", file.to_str().unwrap()]);
+        assert_eq!(code_was, 1, "{}: {}", code, out);
+        let d: serde_json::Value = out.lines().filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok()).find(|v| v["type"] == "diagnostic" && v["code"] == *code).unwrap_or_else(|| panic!("no {} in {}", code, out));
+        let edits = d["edits"].as_array().unwrap_or_else(|| panic!("{} has no edits: {}", code, d));
+        assert_eq!(edits[0]["text"], *meant, "{}", d);
+        assert!(d["message"].as_str().unwrap().ends_with(&format!("did you mean `{}`?", meant)) || *code == "syntax.mixed-case-name", "{}", d);
+        // applied, the file reads clean
+        std::fs::write(&file, apply_edits(text, edits)).unwrap();
+        let (after, out, err) = xtmd(&["check", file.to_str().unwrap()]);
+        assert_eq!(after, 0, "{} fixed is still wrong:\n{}{}", code, out, err);
+    }
+    // a name nowhere near anything, or as near two names as each other, gets no guess
+    let file = dir.join("far.xt.md");
+    std::fs::write(&file, "record pair {\n    x: number;\n    y: number;\n}\n\nlet p: pair = pair { x = 1, y = 2, z = 3 };\n@@@\n@zebra();\n").unwrap();
+    let (_, out, _) = xtmd(&["check", "--format", "json", file.to_str().unwrap()]);
+    assert!(!out.contains("\"edits\"") && !out.contains("did you mean"), "{}", out);
+}

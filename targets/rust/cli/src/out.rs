@@ -35,10 +35,23 @@ pub(crate) fn wants_json(args: &[String]) -> Result<bool, String> {
 pub(crate) fn diagnostic(file: &str, text: &str, d: &Diagnostic) -> Value {
     let lines = xtmd_syntax::Lines::new(text);
     let (at, end) = (lines.place(d.span.start), lines.place(d.span.end));
-    json!({
+    let mut v = json!({
         "type": "diagnostic", "file": file, "code": d.code, "severity": d.severity, "line": at.line, "column": at.column,
         "end": { "line": end.line, "column": end.column }, "message": d.message, "fix": d.fix,
-    })
+    });
+    // the fix as edits, where there is exactly one right one: each a place and what to write there
+    if !d.edits.is_empty() {
+        v["edits"] = Value::Array(
+            d.edits
+                .iter()
+                .map(|e| {
+                    let (a, b) = (lines.place(e.span.start), lines.place(e.span.end));
+                    json!({ "line": a.line, "column": a.column, "end": { "line": b.line, "column": b.column }, "text": e.text })
+                })
+                .collect(),
+        );
+    }
+    v
 }
 
 /// One line of a report.

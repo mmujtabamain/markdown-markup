@@ -24,6 +24,8 @@ export interface Diagnostic {
   end: { line: number; column: number };
   message: string;
   fix?: string | null;
+  /** The fix as edits, where there is exactly one right one: each a place and what to write there. */
+  edits?: Array<{ line: number; column: number; end: { line: number; column: number }; text: string }>;
 }
 
 /** Where a call is written: its first line and column, and where it ends. */
