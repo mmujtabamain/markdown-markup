@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 
 export const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-/** Every package of Extended Mark's under targets/ts and apps (`xtmd`, the command, and the
- * @extended-mark ones), not a test's or a showcase's;
+/** Every package of Extended Mark's under targets/ts and apps (`xtmd`, the command, `extended-mark`,
+ * the same by the language's name, and the @extended-mark ones), not a test's or a showcase's;
  * `published` leaves out the private ones (the web target's check adapter, the playground). */
 export function packages({ published = true } = {}) {
   const out = [];
@@ -23,7 +23,7 @@ export function packages({ published = true } = {}) {
       if (existsSync(file)) {
         const text = readFileSync(file, "utf8");
         const pkg = JSON.parse(text);
-        if ((pkg.name === "xtmd" || pkg.name?.startsWith("@extended-mark/")) && !(published && pkg.private)) out.push({ dir: path, file, pkg, text });
+        if ((["xtmd", "extended-mark"].includes(pkg.name) || pkg.name?.startsWith("@extended-mark/")) && !(published && pkg.private)) out.push({ dir: path, file, pkg, text });
       }
       walk(path);
     }

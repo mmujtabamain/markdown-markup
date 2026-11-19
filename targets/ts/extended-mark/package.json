@@ -1,0 +1,38 @@
+{
+  "name": "extended-mark",
+  "version": "0.3.0",
+  "description": "Extended Mark's compiler under the language's own name: the xtmd command, its JS API and its Vite plugin, from the xtmd package",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "xtmd": "bin/xtmd.js"
+  },
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./vite": {
+      "types": "./vite.d.ts",
+      "default": "./vite.js"
+    }
+  },
+  "files": [
+    "bin",
+    "index.js",
+    "index.d.ts",
+    "vite.js",
+    "vite.d.ts"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "xtmd": "file:../cli"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

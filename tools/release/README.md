@@ -22,7 +22,9 @@ What it does, in order:
 
 ## What it needs
 
-The npm packages are `xtmd` (the command) and `@extended-mark/*`; the crates are `xtmd-*`. Each
+The npm packages are `xtmd` (the command), `extended-mark` (the same, by the language's name: it
+depends on `xtmd` and gives its command, API and Vite plugin) and `@extended-mark/*`; the crates are
+`xtmd-*`. Each
 registry is published to by trusted publishing, with the run's own OIDC token, once it is set up;
 until then, and for a package's first release (a registry sets up trusted publishing only for a
 package it already has), with a token. npm stops taking direct publishes with a token in January
@@ -31,7 +33,7 @@ package it already has), with a token. npm stops taking direct publishes with a 
 | Repository variable or secret | For | Without it |
 |---|---|---|
 | `NPM_TRUSTED_PUBLISHING` = `true` (variable) | npm: each package's Trusted Publisher on npmjs.com names this repository and `release.yml` | the token below is used |
-| `NPM_TOKEN` (secret) | an npm token that can publish `xtmd` and the `@extended-mark` scope | with no trusted publishing either, the npm packages aren't published; the step says so |
+| `NPM_TOKEN` (secret) | an npm token that can publish `xtmd`, `extended-mark` and the `@extended-mark` scope | with no trusted publishing either, the npm packages aren't published; the step says so |
 | `CRATES_TRUSTED_PUBLISHING` = `true` (variable) | crates.io: each crate's Trusted Publishing names this repository and `release.yml` | the token below is used |
 | `CARGO_REGISTRY_TOKEN` (secret) | a crates.io token with publish-new and publish-update for `xtmd*` | with no trusted publishing either, the crates aren't published; the step says so |
 

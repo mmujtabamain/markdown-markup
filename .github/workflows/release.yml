@@ -11,7 +11,7 @@
 #   - android: the AARs of xtmd-android and xtmd-android-live, with the runner's NDK.
 # Then test runs the checks every pull request runs (ci.yml), and publish makes the GitHub release
 # v<VERSION>, its notes the note's, with the binaries, xtmd.wasm and the AARs, and publishes the npm
-# packages (xtmd and @extended-mark/*) and the crates (xtmd-*). Each registry is published to by
+# packages (xtmd, extended-mark and @extended-mark/*) and the crates (xtmd-*). Each registry is published to by
 # trusted publishing once the repository variable says it is set up (NPM_TRUSTED_PUBLISHING,
 # CRATES_TRUSTED_PUBLISHING = true), and otherwise with a token: NPM_TOKEN, CARGO_REGISTRY_TOKEN.
 # A package's first release needs the token, since a registry sets up trusted publishing only for a
