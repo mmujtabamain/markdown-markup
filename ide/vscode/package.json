@@ -4,6 +4,11 @@
   "description": "Extended Mark for VS Code: highlighting, errors as you type, hover, go to definition, outline, completion and formatting from xtmd's own language server, and a live preview drawn by VS Code's own widgets",
   "version": "0.3.0",
   "publisher": "extended-mark",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#151B26",
+    "theme": "dark"
+  },
   "license": "MIT",
   "private": true,
   "repository": {
@@ -50,8 +55,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./media/file.svg",
-          "dark": "./media/file.svg"
+          "light": "./media/xtmd-light.svg",
+          "dark": "./media/xtmd-dark.svg"
         }
       },
       {
@@ -61,8 +66,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./media/file.svg",
-          "dark": "./media/file.svg"
+          "light": "./media/xtmd-light.svg",
+          "dark": "./media/xtmd-dark.svg"
         }
       }
     ],

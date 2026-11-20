@@ -87,7 +87,10 @@ class Preview {
       retainContextWhenHidden: true,
       localResourceRoots: [dist],
     });
-    this.panel.iconPath = vscode.Uri.joinPath(context.extensionUri, "media", "file.svg");
+    this.panel.iconPath = {
+      light: vscode.Uri.joinPath(context.extensionUri, "media", "xtmd-light.svg"),
+      dark: vscode.Uri.joinPath(context.extensionUri, "media", "xtmd-dark.svg"),
+    };
     const w = this.panel.webview;
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
     const uri = (p: string) => w.asWebviewUri(vscode.Uri.joinPath(dist, p)).toString();

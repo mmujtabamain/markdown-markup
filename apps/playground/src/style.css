@@ -10,6 +10,7 @@
   --muted: #646d80;
   --faint: #9aa1af;
   --accent: #4257d6;
+  --brand: #f2542d;
   --accent-ink: #ffffff;
   --accent-soft: #e9ecfd;
   --sel: rgba(66, 87, 214, 0.22);
@@ -42,6 +43,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --brand: #ff7a59;
     --bg: #0d1015;
     --panel: #151920;
     --panel-2: #1a1f28;
@@ -155,20 +157,22 @@ kbd {
 }
 
 .logo {
-  width: 28px;
-  height: 28px;
+  height: 22px;
+  width: auto;
 }
 
-.logo rect {
-  fill: var(--accent);
-}
-
-.logo path {
+.logo-frame {
   fill: none;
-  stroke: var(--accent-ink);
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke: var(--text);
+  stroke-width: 10;
+}
+
+.logo-md {
+  fill: var(--text);
+}
+
+.logo-at {
+  fill: var(--brand);
 }
 
 .brand-name {
