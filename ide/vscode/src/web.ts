@@ -1,5 +1,5 @@
 // The extension in a browser (vscode.dev, github.dev): the language server built in, in a web
-// worker. There is no xtmd binary here, so the commands that run it aren't offered.
+// worker. Every command works here too, but for moving an MKP 0.2 document, which needs Node.
 
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/browser";

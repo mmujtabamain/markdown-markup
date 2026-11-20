@@ -4438,6 +4438,7 @@ dependencies = [
  "xtmd-lower",
  "xtmd-lsp",
  "xtmd-markdown",
+ "xtmd-migrate",
  "xtmd-syntax",
 ]
 
@@ -4529,6 +4530,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xtmd-migrate"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+ "toml 0.8.23",
+ "xtmd-check",
+ "xtmd-syntax",
+]
+
+[[package]]
 name = "xtmd-runtime"
 version = "0.3.0"
 dependencies = [
@@ -4562,6 +4573,8 @@ dependencies = [
  "serde_json",
  "xtmd-live",
  "xtmd-lsp",
+ "xtmd-markdown",
+ "xtmd-migrate",
 ]
 
 [[package]]

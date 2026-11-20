@@ -1,0 +1,13 @@
+[package]
+name = "xtmd-migrate"
+description = "What xtmd migrate does, on texts: documents and packs brought up to the packs they are built with, through each pack's migrations and each release's steps; for the xtmd command and for an editor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+xtmd-syntax = { path = "../syntax", version = "0.3.0" }
+xtmd-check = { path = "../check", version = "0.3.0" }
+serde_json.workspace = true
+toml = "0.8"

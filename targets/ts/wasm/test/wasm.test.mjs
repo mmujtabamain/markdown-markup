@@ -159,3 +159,62 @@ test("the language server answers as xtmd lsp does: diagnostics, hover, completi
   const broken = s.message({ jsonrpc: "2.0", method: "textDocument/didChange", params: { textDocument: { uri, version: 2 }, contentChanges: [{ text: "import shelf;\n@@@\n@row_of_books(title = 3);\n" }] } });
   assert.ok(broken[0].params.diagnostics.length > 0 && broken[0].params.diagnostics[0].source === "xtmd");
 });
+
+test("every case's Markdown is xtmd md's, and a document that doesn't compile has none", async () => {
+  let written = 0;
+  for (const c of cases) {
+    const got = compiler.markdown(c.source, readFileSync(c.source, "utf8"), c.files);
+    const run = await cli.run(["md", c.source, ...c.packs.flatMap((p) => ["--pack", p])]);
+    if (run.code === 0) {
+      assert.equal(got.markdown, run.stdout, c.id);
+      written++;
+    } else {
+      assert.equal(got.markdown, null, `${c.id}: the binary writes no Markdown, xtmd.wasm did`);
+    }
+  }
+  assert.ok(written >= 50, `${written} written`);
+  const bad = compiler.markdown("page.xt.md", "@@@\n@nope();\n");
+  assert.ok(bad.markdown === null && bad.errors > 0, JSON.stringify(bad));
+});
+
+test("a migration plans what xtmd migrate writes, asks what it asks, and keeps nothing between runs", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  // the CLI's own fixture: kit@2 renames and drops what kit@1 had
+  const surface = "package kit@1;\n\nrecord stat {\n    label: text;\n    value: text;\n}\n\nenum state { DONE, LATE }\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\nextern widget badge(label: text, shadow: bool = false);\nextern widget sparkline(values: list<number>);\nextern widget stats(items: list<stat>);\n";
+  const kit = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides plot, badge, stat, state, stats;\n}\n\nrecord stat {\n    title: text;\n    value: text;\n    unit: text;\n}\n\nenum state { DONE, OVERDUE }\n\nextern widget plot(values: list<number>, tone: color = color.ACCENT);\nextern widget badge(label: text, size: size = size.M);\nextern widget stats(items: list<stat>);\n";
+  const migration = "package kit;\n\nmigration kit@1 to kit@2 {\n    widget chart {\n        rename(to = plot);\n        rename(input = color, to = tone);\n    }\n\n    widget badge {\n        drop(input = shadow, why = \"badges have no shadow\");\n        set(input = size, value = size.S, when = !given(size), why = \"kit@1's badges were small\");\n    }\n\n    widget sparkline {\n        drop(why = \"use plot\");\n    }\n\n    record stat {\n        rename(field = label, to = title);\n        add(field = unit, value = \"\", why = \"a stat names its unit\");\n    }\n\n    enum state {\n        split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");\n    }\n}\n";
+  const doc = "import kit;\n\n$state {\n    s: state = state.LATE;\n}\n@@@\n# Report\n\n@chart(values = [1, 2], color = color.OK);\n\n@badge(label = \"Beta\", shadow = true);\n\n@sparkline(values = [3]);\n\n@stats(items = [stat { label = \"Deploys\", value = \"42\" }]);\n";
+  const dir = mkdtempSync(join(tmpdir(), "xtmd-wasm-migrate-"));
+  const files = { "kit/kit.xtpack": kit, "kit/surfaces/kit@1.xtpack": surface, "kit/migrations/kit@2.xtpack": migration, "xtmd.toml": "packs = [\"kit\"]\n\n[uses]\nkit = 1\n", "docs/report.xt.md": doc };
+  for (const [f, t] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, f)), { recursive: true });
+    writeFileSync(join(dir, f), t);
+  }
+  const docPath = join(dir, "docs/report.xt.md");
+  const request = {
+    sources: ["kit/kit.xtpack", "kit/surfaces/kit@1.xtpack", "kit/migrations/kit@2.xtpack"].map((f) => ({ path: join(dir, f), text: files[f] })),
+    docs: [{ path: docPath, text: doc }],
+    config: { path: join(dir, "xtmd.toml"), text: files["xtmd.toml"] },
+  };
+  // the question first, as the binary asks it
+  const asked = compiler.migrate(request);
+  const key = `${docPath}:4 LATE`;
+  assert.deepEqual(asked.questions.map((q) => [q.number, q.key, q.options]), [[1, key, ["OVERDUE", "DONE"]]]);
+  assert.equal(asked.config, null);
+  const binaryAsks = await cli.run(["migrate", join(dir, "docs"), "--format", "json"]);
+  const said = binaryAsks.stdout.split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((l) => l.type === "question");
+  assert.deepEqual(said.map((q) => [q.question, q.options]), [[1, ["OVERDUE", "DONE"]]]);
+  // answered, it plans the binary's text, and xtmd.toml's [uses] moves with it
+  writeFileSync(join(dir, "answers.toml"), `[split]\n"${key}" = "DONE"\n`);
+  const want = await cli.run(["migrate", docPath, "--stdout", "--answers", join(dir, "answers.toml")]);
+  assert.equal(want.code, 0, want.stderr);
+  const planned = compiler.migrate({ ...request, answers: { split: { [key]: "DONE" } } });
+  assert.deepEqual(planned.questions, []);
+  assert.equal(planned.files[0].result, "migrate");
+  assert.equal(planned.files[0].text, want.stdout);
+  assert.match(planned.config.text, /\[uses\]\nkit = 2\n/);
+  // the same request plans the same again: nothing is kept from one run to the next
+  assert.deepEqual(compiler.migrate({ ...request, answers: { split: { [key]: "DONE" } } }), planned);
+  assert.equal(compiler.migrate(request).questions.length, 1);
+});

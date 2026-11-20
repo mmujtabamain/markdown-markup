@@ -135,6 +135,11 @@ impl Compiler {
         core()
     }
 
+    /// Core, compiled: what a tool built on the checker compiles on, as xtmd-migrate does.
+    pub fn checker(&self) -> &xtmd_check::Checker {
+        &self.base
+    }
+
     /// Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its text;
     /// and the files of the packs it may use. The IR is the one `xtmd build` writes: every prop
     /// that isn't constant a binding, and a page's only what it uses.

@@ -13,14 +13,14 @@ use xtmd_syntax::{parse, Entry, Lines, Span};
 
 /// A text edit: what's between `start` and `end` becomes `text`.
 #[derive(Debug, Clone)]
-pub(crate) struct Edit {
+pub struct Edit {
     pub start: usize,
     pub end: usize,
     pub text: String,
 }
 
 /// The edits, with an edit inside a larger one left to that one.
-pub(crate) fn apply(text: &str, edits: &[Edit]) -> String {
+pub fn apply(text: &str, edits: &[Edit]) -> String {
     let mut sorted: Vec<&Edit> = edits.iter().collect();
     sorted.sort_by(|a, b| a.start.cmp(&b.start).then(b.end.cmp(&a.end)));
     let mut out = String::new();
@@ -43,7 +43,7 @@ fn within(text: &str, span: (usize, usize), edits: &[Edit]) -> String {
     apply(&text[span.0..span.1], &inner)
 }
 
-pub(crate) struct Step<'a> {
+pub struct Step<'a> {
     pub text: &'a str,
     pub doc: &'a str,
     pub refs: &'a [FoundRef],
@@ -60,7 +60,7 @@ pub(crate) struct Step<'a> {
 }
 
 #[derive(Default)]
-pub(crate) struct Done {
+pub struct Done {
     pub edits: Vec<Edit>,
     pub changes: usize,
     pub deletions: Vec<String>,
@@ -169,7 +169,7 @@ fn decl_info(srcs: &[Source], name: &str) -> Option<DeclInfo> {
 }
 
 impl<'a> Step<'a> {
-    pub(crate) fn run(&self) -> Done {
+    pub fn run(&self) -> Done {
         let mut done = Done::default();
         let lines = Lines::new(self.text);
         let line_of = |at: usize| lines.place(at as u32).line as usize;
@@ -1236,7 +1236,7 @@ fn place_todo(text: &str, edits: &mut Vec<Edit>, at: usize, prose_from: usize, w
     }
 }
 
-pub(crate) fn matching(s: &str, open: usize) -> Option<usize> {
+pub fn matching(s: &str, open: usize) -> Option<usize> {
     let bytes = s.as_bytes();
     let (o, c) = match bytes.get(open)? {
         b'(' => (b'(', b')'),
@@ -1328,15 +1328,15 @@ fn first_line(s: &str) -> &str {
 /// The answers to the questions a migration asks: read from `--answers`, and kept there when
 /// someone answers one in a terminal.
 #[derive(Default)]
-pub(crate) struct Answers {
+pub struct Answers {
     pub confirm: BTreeMap<String, bool>,
     pub split: BTreeMap<String, String>,
     pub changed: bool,
 }
 
-pub(crate) static ANSWERS: std::sync::Mutex<Option<Answers>> = std::sync::Mutex::new(None);
+pub static ANSWERS: std::sync::Mutex<Option<Answers>> = std::sync::Mutex::new(None);
 
-pub(crate) fn load_answers(text: &str) -> Result<(), String> {
+pub fn load_answers(text: &str) -> Result<(), String> {
     let v: toml::Value = text.parse().map_err(|e: toml::de::Error| e.message().to_string())?;
     let mut a = Answers::default();
     for (k, x) in v.get("confirm").and_then(|t| t.as_table()).into_iter().flatten() {
@@ -1350,7 +1350,7 @@ pub(crate) fn load_answers(text: &str) -> Result<(), String> {
 }
 
 /// The answers as a file, when someone answered something new in a terminal.
-pub(crate) fn answers_text() -> Option<String> {
+pub fn answers_text() -> Option<String> {
     let guard = ANSWERS.lock().unwrap();
     let a = guard.as_ref().filter(|a| a.changed)?;
     let q = |k: &str| format!("\"{}\"", k.replace('\\', "\\\\").replace('"', "\\\""));
@@ -1367,30 +1367,30 @@ pub(crate) fn answers_text() -> Option<String> {
 
 /// `--allow-todos`: what a migration can't do is left as it was, with a TODO above it, instead of the
 /// file being refused.
-pub(crate) static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static TODO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// `--format json`: no question is asked in a terminal, as where there is none.
-pub(crate) static NO_ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static NO_ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-pub(crate) fn can_ask() -> bool {
+pub fn can_ask() -> bool {
     std::io::stdin().is_terminal() && !NO_ASKING.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// `--yes`: every question answered yes, or only the ones numbered (`--yes 1,3`).
-pub(crate) enum Yes {
+pub enum Yes {
     All,
     Numbers(BTreeSet<usize>),
 }
 
-pub(crate) static YES: std::sync::Mutex<Option<Yes>> = std::sync::Mutex::new(None);
+pub static YES: std::sync::Mutex<Option<Yes>> = std::sync::Mutex::new(None);
 
 /// Every yes or no answered in this pass: its number, the question, its answer, and who gave it.
-pub(crate) static ASKED: std::sync::Mutex<Vec<(usize, String, bool, &'static str)>> = std::sync::Mutex::new(Vec::new());
+pub static ASKED: std::sync::Mutex<Vec<(usize, String, bool, &'static str)>> = std::sync::Mutex::new(Vec::new());
 
 /// A question a migration asks: one yes or no for the whole run (`confirm`), or a choice about
 /// one use (`ask`, and `split`), with its options.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Question {
+pub struct Question {
     /// What identifies it in `--answers`: the `why` of a yes or no, `file:line CASE` of a choice.
     pub key: String,
     pub asks: String,
@@ -1424,14 +1424,27 @@ fn wait_for(n: usize) {
     }
 }
 
+/// A run from the start: no question met, waiting or answered, no answers or `--yes`, and nothing
+/// allowed. The xtmd command runs once; an editor migrates again and again.
+pub fn reset() {
+    *ANSWERS.lock().unwrap() = None;
+    TODO.store(false, std::sync::atomic::Ordering::Relaxed);
+    NO_ASKING.store(false, std::sync::atomic::Ordering::Relaxed);
+    *YES.lock().unwrap() = None;
+    ASKED.lock().unwrap().clear();
+    QUESTIONS.lock().unwrap().clear();
+    PENDING.lock().unwrap().clear();
+    ANSWERED_HERE.lock().unwrap().clear();
+}
+
 /// A new pass over the files: what was answered stays, what was waiting is met again.
-pub(crate) fn new_pass() {
+pub fn new_pass() {
     ASKED.lock().unwrap().clear();
     PENDING.lock().unwrap().clear();
 }
 
 /// The questions this pass met that no one has answered, with their numbers, in order.
-pub(crate) fn pending() -> Vec<(usize, Question)> {
+pub fn pending() -> Vec<(usize, Question)> {
     let all = QUESTIONS.lock().unwrap();
     let mut p = PENDING.lock().unwrap().clone();
     p.sort();
@@ -1440,7 +1453,7 @@ pub(crate) fn pending() -> Vec<(usize, Question)> {
 
 /// In a terminal: every question waiting, listed, then each asked in turn until it gets y or n
 /// (a choice, its number). `false` when the terminal closes before every one is answered.
-pub(crate) fn ask_in_terminal(questions: &[(usize, Question)]) -> bool {
+pub fn ask_in_terminal(questions: &[(usize, Question)]) -> bool {
     println!("\n{} question{} to answer before anything is written:", questions.len(), if questions.len() == 1 { "" } else { "s" });
     for (n, q) in questions {
         println!("  {}. {}{}", n, q.asks, if q.options.is_empty() { String::new() } else { format!(" ({})", q.options.join(" or ")) });
@@ -1492,7 +1505,7 @@ pub(crate) fn ask_in_terminal(questions: &[(usize, Question)]) -> bool {
 }
 
 /// How a question no one answered can be: by number, or in the answers file.
-pub(crate) fn how_to_answer(n: usize, q: &Question) -> String {
+pub fn how_to_answer(n: usize, q: &Question) -> String {
     let quoted = |s: &str| format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
     if q.options.is_empty() {
         format!("--yes {}, or in --answers: [confirm] {} = true", n, quoted(&q.key))

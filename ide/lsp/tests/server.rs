@@ -209,3 +209,22 @@ fn a_slip_has_a_quick_fix_that_writes_the_name_meant() {
     let none = ask(&mut s, 3, "textDocument/codeAction", json!({ "textDocument": { "uri": URI }, "range": d["range"], "context": { "diagnostics": [{ "range": d["range"], "message": "x", "source": "xtmd", "code": "types.mismatch" }] } }));
     assert_eq!(none, json!([]));
 }
+
+#[test]
+fn a_file_that_isn_t_open_is_checked_with_its_packs_and_an_open_one_keeps_its_own() {
+    let mut s = opened();
+    // another document, not open: checked with the packs the client gives, its diagnostics published
+    let other = "file:///work/docs/other.xt.md";
+    s.handle(&note("xtmd/packs", json!({ "uri": other, "packs": [{ "path": "file:///work/shelf/shelf.xtpack", "text": PACK }] })));
+    let text = "import shelf;\n@@@\n@row_of_books(titel = \"x\");\n";
+    let out = s.handle(&req(7, "xtmd/check", json!({ "uri": other, "text": text })));
+    let published = out.iter().find(|m| m["method"] == "textDocument/publishDiagnostics").unwrap();
+    assert_eq!(published["params"]["uri"], other);
+    assert_eq!(published["params"]["diagnostics"][0]["code"], "views.unknown-input", "{}", published);
+    assert_eq!(out.iter().find(|m| m["id"] == 7).unwrap()["result"], json!({ "errors": 2, "warnings": 0 }));
+    // it isn't kept open: hover on it has nothing to say
+    assert_eq!(ask(&mut s, 8, "textDocument/hover", json!({ "textDocument": { "uri": other }, "position": { "line": 2, "character": 2 } })), Value::Null);
+    // an open document is answered from what the editor has, not the text given
+    let r = ask(&mut s, 9, "xtmd/check", json!({ "uri": URI, "text": "@@@\n@nope();\n" }));
+    assert_eq!(r, json!({ "errors": 0, "warnings": 0 }));
+}

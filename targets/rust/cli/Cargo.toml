@@ -17,6 +17,7 @@ xtmd-ir = { path = "../compiler/ir", version = "0.3.0" }
 xtmd-lower = { path = "../compiler/lower", version = "0.3.0" }
 xtmd-markdown = { path = "../compiler/markdown", version = "0.3.0" }
 xtmd-lsp = { path = "../../../ide/lsp", version = "0.3.0" }
+xtmd-migrate = { path = "../compiler/migrate", version = "0.3.0" }
 serde_json.workspace = true
 serde.workspace = true
 toml = "0.8"

@@ -10,16 +10,24 @@ theme.
   Markdown below it with widget calls, holes, control lines and `@//` comments. A document with no
   `@@@` line is read as prose all through.
 - **The language server** answers in a Node process (or a web worker in a browser), built from
-  ide/lsp into xtmd.wasm. `xtmd.server: "xtmd"` uses `xtmd lsp` from the binary instead.
+  ide/lsp into xtmd.wasm. The extension is self-contained: it needs no xtmd binary.
 - **Packs**: a document is built with the packs its `xtmd.toml` names, read through VS Code (so in
   vscode.dev too) and given to the server.
 - **The preview** (Extended Mark: Open Preview to the Side) compiles the text as it is edited and
   draws it beside the editor. A draft that doesn't compile keeps the last page that did, and says
   why at its top; a widget that fails while drawn is marked on its call in the editor. Reset the
   Preview's $state starts it again.
-- **Commands**: Show the IR; on the desktop, with the xtmd binary, Show as Markdown, Check a
-  Folder (into Problems) and Migrate (the diff first, then written). A document still named
-  `name.mkp.md` offers to migrate.
+- **Commands**, from xtmd.wasm, in a browser too:
+  - **Show the IR** and **Show as Markdown** open what `xtmd build` and `xtmd md` write on a page
+    of its own beside the document; nothing is saved.
+  - **Check a Folder** checks every `.xt.md` and `.xtpack` file under it as the language server
+    checks an open one, into Problems.
+  - **Migrate** plans what `xtmd migrate` would do (xtmd-migrate, in xtmd.wasm), asks its questions
+    one at a time, shows every change side by side with the file as it is, and on Write Them writes
+    it as one edit: Undo in any file it wrote takes the whole migration back. A document written for MKP 0.2 is moved by 0.2's frozen step (`dist/migrate-0.2.cjs`),
+    run with VS Code's own Node, with the 0.2 packs (folders with a `manifest.mkp`) in the
+    workspace; a browser has no Node, so there it is left as it is, and says why. A document still
+    named `name.mkp.md` offers to migrate.
 - `*.ir.json` and `*.rir.json` are checked against the IR schemas.
 
 What it does is logged in its output channel (Extended Mark: Show the Log); nothing is sent

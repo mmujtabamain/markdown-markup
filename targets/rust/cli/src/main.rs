@@ -8,8 +8,7 @@ mod flags;
 mod help;
 mod out;
 mod migrate_02;
-mod releases;
-mod migrate_step;
+pub(crate) use xtmd_migrate::step as migrate_step;
 mod surface;
 mod target;
 

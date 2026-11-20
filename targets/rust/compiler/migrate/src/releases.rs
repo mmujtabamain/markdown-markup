@@ -7,11 +7,11 @@
 
 use xtmd_syntax::Entry;
 
-use crate::migrate::release_of;
-use crate::migrate_step::{apply, Edit};
+use crate::release_of;
+use crate::step::{apply, Edit};
 
 /// One release's change to a file.
-pub(crate) struct ReleaseStep {
+pub struct ReleaseStep {
     /// The release that makes the change: the step runs on files written for an earlier one.
     pub release: &'static str,
     /// What changes and why, as whoever migrates is told.
@@ -22,10 +22,10 @@ pub(crate) struct ReleaseStep {
 }
 
 /// Every release's steps, oldest first. 0.3.0 is the first release of 0.3, so there are none yet.
-pub(crate) static STEPS: &[ReleaseStep] = &[];
+pub static STEPS: &[ReleaseStep] = &[];
 
 /// The steps of the releases after `from`, up to `to` and including it, oldest first.
-pub(crate) fn between<'s>(from: &str, to: &str, steps: &'s [ReleaseStep]) -> Vec<&'s ReleaseStep> {
+pub fn between<'s>(from: &str, to: &str, steps: &'s [ReleaseStep]) -> Vec<&'s ReleaseStep> {
     let (Some(from), Some(to)) = (release_of(from), release_of(to)) else { return Vec::new() };
     let mut out: Vec<&ReleaseStep> = steps.iter().filter(|s| release_of(s.release).map_or(false, |r| r > from && r <= to)).collect();
     out.sort_by_key(|s| release_of(s.release));
@@ -33,7 +33,7 @@ pub(crate) fn between<'s>(from: &str, to: &str, steps: &'s [ReleaseStep]) -> Vec
 }
 
 /// A file moved through the steps: its text after them, and what each step that changed it says.
-pub(crate) fn run(text: &str, path: &str, steps: &[&ReleaseStep]) -> Result<(String, Vec<String>), String> {
+pub fn run(text: &str, path: &str, steps: &[&ReleaseStep]) -> Result<(String, Vec<String>), String> {
     let Some(entry) = xtmd_syntax::entry_for(path) else { return Ok((text.to_string(), Vec::new())) };
     let mut now = text.to_string();
     let mut said = Vec::new();
@@ -49,7 +49,7 @@ pub(crate) fn run(text: &str, path: &str, steps: &[&ReleaseStep]) -> Result<(Str
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+pub mod tests {
     use super::*;
     use xtmd_syntax::ast::ProseNode;
 
@@ -72,7 +72,7 @@ pub(crate) mod tests {
         Err("a form only a person can rewrite".into())
     }
 
-    pub(crate) const STEPS: &[ReleaseStep] = &[
+    pub const STEPS: &[ReleaseStep] = &[
         ReleaseStep { release: "0.3.2", why: "`rule` is `divider` now", edits: rule },
         ReleaseStep { release: "0.3.1", why: "nothing in these files", edits: |_, _| Ok(Vec::new()) },
         ReleaseStep { release: "0.4.0", why: "later", edits: broken },

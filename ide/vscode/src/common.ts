@@ -1,7 +1,7 @@
-// The extension, on the desktop and in a browser: the language client (its server is ide/lsp,
-// built into xtmd.wasm or `xtmd lsp`), the packs each document is built with, core's own source,
-// the language a document is read in, the preview, the status bar and the commands. What only the
-// desktop can do (run the xtmd binary) comes in as `Host`.
+// The extension, on the desktop and in a browser: the language client (its server is ide/lsp, built
+// into xtmd.wasm), the packs each document is built with, core's own source, the language a document
+// is read in, the preview, the status bar and the commands. It needs no xtmd binary. What only the
+// desktop can do (run MKP 0.2's frozen step, with Node) comes in as `Host`.
 
 import * as vscode from "vscode";
 import type { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
@@ -13,10 +13,10 @@ import { Previews } from "./preview.js";
 
 /** What the desktop gives the extension that a browser can't. */
 export interface Host {
-  /** Runs the xtmd binary; none in a browser, or when it can't be found. */
-  runXtmd?(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string } | undefined>;
-  /** Where the binary is, for the status bar; undefined when there is none. */
-  xtmdPath?(): Promise<string | undefined>;
+  /** Runs the frozen 0.2 → 0.3 step (tools/migrate-0.2/frozen) on an MKP 0.2 document, with the 0.2
+   * packs it is built with: what it prints, or `{ notRun: why }`. None in a browser, which has no
+   * Node, or in a build that doesn't carry the step. */
+  run02?(doc: string, packs: string[]): Promise<unknown>;
 }
 
 export type ClientMaker = (options: LanguageClientOptions, log: Log) => Promise<{ client: BaseLanguageClient; server: string }>;
@@ -45,6 +45,8 @@ export async function activate(context: vscode.ExtensionContext, makeClient: Cli
     outputChannel: log.channel,
     middleware: {
       didOpen: async (doc, next) => {
+        // what a migration would write, shown to look over, isn't a document to check
+        if (doc.uri.scheme === "xtmd-migrate") return;
         await sendPacks(doc).catch((e) => log.error(`packs of ${doc.uri.toString(true)}: ${e}`));
         return next(doc);
       },
@@ -108,5 +110,5 @@ export async function activate(context: vscode.ExtensionContext, makeClient: Cli
   showStatus();
 
   const previews = new Previews(context, log);
-  commands(context, { log, host, previews });
+  commands(context, { log, host, previews, client: () => client });
 }

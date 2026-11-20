@@ -116,6 +116,26 @@ impl Server {
                 }
                 return out;
             }
+            // a file that isn't open, checked as it is once opened (an editor's "check a folder"): its
+            // diagnostics are published, with the packs the client gave for it, or its xtmd.toml's;
+            // an open document keeps its own. Gives how many errors and warnings it has.
+            "xtmd/check" => {
+                let uri = params["uri"].as_str().unwrap_or("").to_string();
+                let opened = !self.docs.contains_key(&uri);
+                if opened {
+                    self.open(&uri, params["text"].as_str().unwrap_or(""));
+                }
+                let published = self.publish(&uri);
+                if opened {
+                    self.docs.remove(&uri);
+                    self.given.remove(&uri);
+                }
+                let list = published["params"]["diagnostics"].as_array().cloned().unwrap_or_default();
+                let count = |s: i64| list.iter().filter(|d| d["severity"] == s).count();
+                let result = json!({ "errors": count(1), "warnings": count(2) });
+                out.push(published);
+                Ok(result)
+            }
             "textDocument/hover" => Ok(self.at(params, |s, doc, offset| {
                 let ix = doc.index.as_ref()?;
                 let h = ix.hover(&doc.path, offset)?;

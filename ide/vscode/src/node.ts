@@ -1,52 +1,39 @@
-// The extension on the desktop: the language server built in (xtmd.wasm in a Node process), or
-// `xtmd lsp` when the xtmd.server setting says so; and the xtmd binary for the commands that run it.
+// The extension on the desktop: the language server built in, xtmd.wasm in a Node process; and MKP
+// 0.2's frozen step (dist/migrate-0.2.cjs), run with the Node VS Code itself runs on, for a 0.2
+// document that is migrated. Nothing needs to be installed.
 
-import { execFile } from "node:child_process";
+import { fork } from "node:child_process";
 import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
 import * as vscode from "vscode";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
 import { activate as start, type Host } from "./common.js";
 
-/** The xtmd binary: xtmd.path, the workspace's node_modules/.bin/xtmd, or xtmd on the PATH. */
-async function xtmdPath(): Promise<string | undefined> {
-  const exe = process.platform === "win32" ? "xtmd.exe" : "xtmd";
-  const set = vscode.workspace.getConfiguration("xtmd").get<string>("path", "").trim();
-  if (set) return existsSync(set) ? set : undefined;
-  for (const f of vscode.workspace.workspaceFolders ?? []) {
-    const p = join(f.uri.fsPath, "node_modules", ".bin", process.platform === "win32" ? "xtmd.cmd" : "xtmd");
-    if (existsSync(p)) return p;
-  }
-  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
-    const p = join(dir, exe);
-    if (dir && existsSync(p)) return p;
-  }
-  return undefined;
-}
-
-const host: Host = {
-  xtmdPath,
-  async runXtmd(args, cwd) {
-    const bin = await xtmdPath();
-    if (!bin) return undefined;
-    return new Promise((done) => {
-      execFile(bin, args, { cwd: cwd ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath, maxBuffer: 256 * 1024 * 1024 }, (error, stdout, stderr) => {
-        const code = (error as { code?: unknown } | null)?.code;
-        done({ code: typeof code === "number" ? code : error ? 1 : 0, stdout, stderr });
-      });
-    });
-  },
-};
-
 export function activate(context: vscode.ExtensionContext): Promise<void> {
+  const step02 = vscode.Uri.joinPath(context.extensionUri, "dist", "migrate-0.2.cjs").fsPath;
+  const host: Host = {
+    // as `xtmd migrate` runs it: the document and its 0.2 packs in, one JSON object out
+    run02: existsSync(step02)
+      ? (doc, packs) =>
+          new Promise((done) => {
+            const child = fork(step02, [doc, ...packs.flatMap((p) => ["--pack", p])], { silent: true, execArgv: [] });
+            let out = "";
+            let err = "";
+            child.stdout?.on("data", (b: Buffer) => (out += b.toString()));
+            child.stderr?.on("data", (b: Buffer) => (err += b.toString()));
+            child.on("error", (e) => done({ notRun: `the 0.2 → 0.3 step can't be run: ${e.message}` }));
+            child.on("close", () => {
+              try {
+                done(JSON.parse(out));
+              } catch {
+                done({ notRun: `the 0.2 → 0.3 step failed: ${err.split("\n")[0] || "no output"}` });
+              }
+            });
+          })
+      : undefined,
+  };
   return start(
     context,
-    async (options, log) => {
-      if (vscode.workspace.getConfiguration("xtmd").get<string>("server", "built-in") === "xtmd") {
-        const bin = await xtmdPath();
-        if (bin) return { client: new LanguageClient("xtmd", "Extended Mark", { command: bin, args: ["lsp"] }, options), server: `xtmd lsp (${bin})` };
-        log.warn("xtmd.server is xtmd, but no xtmd binary was found: the built-in server answers");
-      }
+    async (options) => {
       const module = vscode.Uri.joinPath(context.extensionUri, "dist", "node", "server.js").fsPath;
       const run = { module, transport: TransportKind.ipc };
       return { client: new LanguageClient("xtmd", "Extended Mark", { run, debug: run }, options), server: "built in (xtmd.wasm)" };

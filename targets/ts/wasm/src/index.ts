@@ -1,7 +1,8 @@
 // The Extended Mark compiler in the browser: xtmd-wasm, built for wasm32-wasip1 (targets/rust/wasm), and the
 // little it asks of its host. A real-time target compiles a document's text as it is edited with
 // `Compiler.build`, and draws the IR it gives as a run-time target draws one it was given: the
-// same IR `xtmd build` writes.
+// same IR `xtmd build` writes. An editor gets what `xtmd md` and `xtmd migrate` do from it too
+// (`Compiler.markdown`, `Compiler.migrate`), on the texts it has, with no xtmd binary.
 //
 // The module asks for six WASI functions only (randomness, the clock, its environment, writing to
 // standard error, and exiting); they are answered here, so nothing else is needed, in a browser,
@@ -75,6 +76,76 @@ export interface Formatted {
   diagnostics: Diagnostic[];
 }
 
+/** A document's Markdown, as `xtmd md` writes it (the page as it reads when it first loads), or
+ * null when it doesn't compile: its diagnostics say why. */
+export interface Markdown {
+  markdown: string | null;
+  diagnostics: Diagnostic[];
+  errors: number;
+  /** Why it has no Markdown though it compiles: writing it failed. */
+  why?: string | null;
+}
+
+/** What a migration is asked to do: `xtmd migrate`'s plan, on texts, with nothing read or written. */
+export interface MigrateRequest {
+  /** The 0.3 packs' files, as xtmd.toml's `packs` gives them. */
+  sources?: PackFile[];
+  /** The documents (`.xt.md`, and `.mkp.md` as MKP 0.2 named them), as the editor has them. */
+  docs?: PackFile[];
+  /** The tree's xtmd.toml: its `xtmd` release and `[uses]` say what the files are written for. */
+  config?: PackFile | null;
+  /** The version each pack's files are written for where nothing says, as `--from kit@1`. */
+  from?: Record<string, number>;
+  /** The questions' answers, by their keys: a yes or no, or the case picked. */
+  answers?: { confirm?: Record<string, boolean>; split?: Record<string, string> };
+  /** As `--allow-todos` and `--allow-errors`. */
+  allowTodos?: boolean;
+  allowErrors?: boolean;
+  /** Where the stand-ins for 0.2 packs with no 0.3 release go: a folder beside the documents. */
+  standIns?: string;
+  /** What the frozen 0.2 step (tools/migrate-0.2/frozen, run with Node) printed for each document
+   * `needs02` named, or `{ notRun: why }` where it can't run. */
+  step02?: Record<string, unknown>;
+  /** Whether 0.2 packs were given to the 0.2 step. */
+  packs02?: boolean;
+}
+
+/** One file's part of a migration. `result`: `migrate` (it changes, or moves to `to`), `up to date`,
+ * or `refused` (`refused` says why, and nothing of it is written). */
+export interface MigratedFile {
+  path: string;
+  /** Where it is written: a 0.2 name, `name.mkp.md`, moves to `name.xt.md`. */
+  to: string;
+  old: string;
+  text: string;
+  result: "migrate" | "up to date" | "refused";
+  /** `kit@1 → kit@2`, for each pack (or release) it moves through. */
+  moved: string[];
+  changes: number;
+  deletions: string[];
+  notices: string[];
+  refused: string[];
+  inferred: string[];
+  todos: string[];
+  changed: string[];
+  errors: string[];
+  standIns: string[];
+}
+
+/** A migration's plan: each file, the stand-ins to write, the questions no one has answered (asked,
+ * the plan is made again with their answers), the documents the 0.2 step must run on first, and
+ * xtmd.toml once the tree moves (only when every file can). `error`: what stops it before a plan. */
+export interface Migration {
+  files: MigratedFile[];
+  standIns: Array<{ name: string; path: string; text: string }>;
+  questions: Array<{ number: number; key: string; asks: string; options: string[] }>;
+  asked: Array<{ number: number; asks: string; answer: boolean; by: string }>;
+  needs02: string[];
+  config: { path: string; old: string; text: string } | null;
+  release: { from: string; to: string };
+  error?: string;
+}
+
 /** Where the module comes from: its URL, its bytes, a response for it, or the module compiled. */
 export type WasmSource = string | URL | ArrayBuffer | ArrayBufferView | Response | WebAssembly.Module;
 
@@ -86,6 +157,8 @@ interface Exports {
   xtmd_new(): number;
   xtmd_build(compiler: number, ptr: number, len: number): number;
   xtmd_format(compiler: number, ptr: number, len: number): number;
+  xtmd_markdown(compiler: number, ptr: number, len: number): number;
+  xtmd_migrate(compiler: number, ptr: number, len: number): number;
   xtmd_lsp_new(): number;
   xtmd_lsp(server: number, ptr: number, len: number): number;
 }
@@ -268,8 +341,26 @@ export class Compiler {
     return this.call("xtmd_format", path, { path, text }) as Formatted;
   }
 
+  /**
+   * A document's Markdown, as `xtmd md` writes it: the page as it reads when it first loads, each
+   * value at its start. Null when it doesn't compile, and its diagnostics say why.
+   */
+  markdown(path: string, text: string, packs: PackFile[] = []): Markdown {
+    return this.call("xtmd_markdown", path, { path, text, packs }) as Markdown;
+  }
+
+  /**
+   * What `xtmd migrate` would do to these files, as a plan: nothing is read or written. Give the
+   * documents and packs as the editor has them; ask a person the plan's `questions` and plan again
+   * with the answers; run the 0.2 step on each of `needs02` (it needs Node) and plan again with what
+   * it printed; then write each file's `text` (at `to`), the stand-ins and `config`.
+   */
+  migrate(request: MigrateRequest): Migration {
+    return this.call("xtmd_migrate", "the migration", request as Record<string, unknown>) as Migration;
+  }
+
   /** One request to the module, its JSON written into memory the module gives and its reply read back. */
-  private call(fn: "xtmd_build" | "xtmd_format", path: string, request: Record<string, unknown>): unknown {
+  private call(fn: "xtmd_build" | "xtmd_format" | "xtmd_markdown" | "xtmd_migrate", path: string, request: Record<string, unknown>): unknown {
     const req = this.encoder.encode(JSON.stringify(request));
     const ex = this.ex;
     this.said = [];

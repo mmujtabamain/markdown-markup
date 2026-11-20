@@ -133,12 +133,12 @@
       "explorer/context": [
         {
           "command": "xtmd.checkFolder",
-          "when": "explorerResourceIsFolder && !isWeb",
+          "when": "explorerResourceIsFolder",
           "group": "7_modification"
         },
         {
           "command": "xtmd.migrate",
-          "when": "!isWeb && (explorerResourceIsFolder || resourceFilename =~ /\\.(xt|mkp)\\.md$/)",
+          "when": "explorerResourceIsFolder || resourceFilename =~ /\\.(xt|mkp)\\.md$/",
           "group": "7_modification"
         }
       ],
@@ -157,40 +157,19 @@
         },
         {
           "command": "xtmd.showMarkdown",
-          "when": "editorLangId =~ /^xtmd/ && !isWeb"
+          "when": "editorLangId =~ /^xtmd/"
         },
         {
-          "command": "xtmd.checkFolder",
-          "when": "!isWeb"
+          "command": "xtmd.checkFolder"
         },
         {
-          "command": "xtmd.migrate",
-          "when": "!isWeb"
+          "command": "xtmd.migrate"
         }
       ]
     },
     "configuration": {
       "title": "Extended Mark",
       "properties": {
-        "xtmd.server": {
-          "type": "string",
-          "enum": [
-            "built-in",
-            "xtmd"
-          ],
-          "enumDescriptions": [
-            "The language server built into this extension (ide/lsp as WebAssembly): nothing to install",
-            "`xtmd lsp`, from the xtmd binary (xtmd.path, or xtmd on the PATH)"
-          ],
-          "default": "built-in",
-          "description": "Which language server answers: the one built in, or the xtmd binary's."
-        },
-        "xtmd.path": {
-          "type": "string",
-          "default": "",
-          "description": "The xtmd binary, for `xtmd lsp` and the commands that run it (Show as Markdown, Check a Folder, Migrate). Left empty, xtmd on the PATH, or the workspace's node_modules/.bin/xtmd.",
-          "scope": "machine-overridable"
-        },
         "xtmd.preview.theme": {
           "type": "string",
           "enum": [

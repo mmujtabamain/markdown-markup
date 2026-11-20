@@ -61,8 +61,14 @@ async function walk(dir: vscode.Uri, out: vscode.Uri[]): Promise<void> {
 
 /** The xtmd.toml for a document: in its folder, or a folder above, inside the workspace's folder. */
 export async function findConfig(doc: vscode.Uri): Promise<vscode.Uri | undefined> {
-  const top = vscode.workspace.getWorkspaceFolder(doc)?.uri;
-  for (let dir = parent(doc); dir; dir = parent(dir)) {
+  const dir = parent(doc);
+  return dir && configFrom(dir);
+}
+
+/** The xtmd.toml of a folder: its own, or a folder above's, inside the workspace's folder. */
+export async function configFrom(folder: vscode.Uri): Promise<vscode.Uri | undefined> {
+  const top = vscode.workspace.getWorkspaceFolder(folder)?.uri;
+  for (let dir: vscode.Uri | undefined = folder; dir; dir = parent(dir)) {
     const c = vscode.Uri.joinPath(dir, "xtmd.toml");
     if ((await kind(c)) === vscode.FileType.File) return c;
     if (top && dir.path === top.path) break;
@@ -71,7 +77,11 @@ export async function findConfig(doc: vscode.Uri): Promise<vscode.Uri | undefine
 }
 
 export async function packsFor(doc: vscode.Uri): Promise<Packs> {
-  const config = await findConfig(doc);
+  return packsOf(await findConfig(doc));
+}
+
+/** The packs an xtmd.toml names; none without one. */
+export async function packsOf(config: vscode.Uri | undefined): Promise<Packs> {
   if (!config) return { packs: [], problems: [] };
   const text = await read(config);
   const problems: string[] = [];

@@ -6,6 +6,7 @@ members = [
     "compiler/check",
     "compiler/lower",
     "compiler/markdown",
+    "compiler/migrate",
     "eval",
     "runtime",
     "egui",
