@@ -41,7 +41,7 @@ anywhere.
 ## The vscode target
 
 The preview is a target like any other (`checks/target.yaml`): core's 30 extern widgets, drawn by
-`src/target/widgets.ts` as VS Code draws its own UI. press is VS Code's button, checkbox, radio,
+`src/webview/widgets.ts` as VS Code draws its own UI. press is VS Code's button, checkbox, radio,
 toggle, tab or list option; field its input box; slider, overlay and label in its colours; icon a
 codicon. Markdown's blocks look as VS Code's Markdown preview draws them. The widgets keep the web
 target's behaviour (events, keyboard, roles), which core's contracts hold every target to, and the

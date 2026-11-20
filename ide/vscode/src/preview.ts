@@ -1,4 +1,4 @@
-// The preview: the document's page, drawn beside it by the vscode target (src/target) in a webview,
+// The preview: the document's page, drawn beside it by the vscode target (src/webview) in a webview,
 // as it is edited. A widget that fails while drawn is marked in the editor on the call that placed
 // it, as an error "when the page was drawn", until it draws again.
 

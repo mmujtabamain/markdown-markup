@@ -28,7 +28,7 @@ cpSync(wasm, join(dist, "xtmd.wasm"));
 for (const s of ["ir", "rir"]) cpSync(join(repo, "schemas", `${s}.schema.json`), join(dist, "schemas", `${s}.schema.json`));
 mkdirSync(join(dist, "codicons"), { recursive: true });
 for (const f of ["codicon.css", "codicon.ttf"]) cpSync(join(here, "node_modules", "@vscode", "codicons", "dist", f), join(dist, "codicons", f));
-cpSync(join(here, "src", "target", "style.css"), join(dist, "preview.css"));
+cpSync(join(here, "src", "webview", "style.css"), join(dist, "preview.css"));
 // the 0.2 → 0.3 step: only Extended Mark 0.3.0 carries it, so a later tree has no lock and no step
 const frozen = join(repo, "tools", "migrate-0.2", "frozen");
 const lock = join(frozen, "migrate-0.2.lock");
@@ -47,7 +47,7 @@ const builds = [
   { ...common, entryPoints: [join(here, "src", "server", "node.ts")], outfile: join(dist, "node", "server.js"), platform: "node", format: "cjs" },
   { ...common, entryPoints: [join(here, "src", "web.ts")], outfile: join(dist, "web", "extension.js"), platform: "browser", format: "cjs", external: ["vscode"], mainFields: ["browser", "module", "main"] },
   { ...common, entryPoints: [join(here, "src", "server", "worker.ts")], outfile: join(dist, "web", "worker.js"), platform: "browser", format: "iife", mainFields: ["browser", "module", "main"] },
-  { ...common, entryPoints: [join(here, "src", "target", "main.ts")], outfile: join(dist, "preview.js"), platform: "browser", format: "iife" },
+  { ...common, entryPoints: [join(here, "src", "webview", "main.ts")], outfile: join(dist, "preview.js"), platform: "browser", format: "iife" },
 ];
 
 if (watch) {

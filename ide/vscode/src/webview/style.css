@@ -1,0 +1,382 @@
+/* The vscode target's look: core's tokens as the editor's theme colours and fonts, and core's
+   controls as VS Code's own components. VS Code gives a webview its theme as --vscode-* properties
+   and the body's vscode-light, vscode-dark or vscode-high-contrast class. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+#status {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 12px;
+  padding: 0 16px;
+  line-height: 22px;
+  min-height: 0;
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-widget-border, transparent);
+}
+#status:empty {
+  display: none;
+}
+#status[data-kind="errors"] {
+  color: var(--vscode-errorForeground);
+}
+
+#page {
+  padding: 12px 24px 48px;
+  max-width: 880px;
+}
+
+/* core's tokens, as the editor's theme: they win over the page's own values */
+[data-xtmd-root] {
+  --xtmd-color-ink: var(--vscode-editor-foreground) !important;
+  --xtmd-color-muted: var(--vscode-descriptionForeground) !important;
+  --xtmd-color-accent: var(--vscode-textLink-foreground) !important;
+  --xtmd-color-line: var(--vscode-widget-border, var(--vscode-editorGroup-border)) !important;
+  --xtmd-color-surface: var(--vscode-editor-background) !important;
+  --xtmd-color-ok: var(--vscode-testing-iconPassed, #3fb950) !important;
+  --xtmd-color-warn: var(--vscode-editorWarning-foreground) !important;
+  --xtmd-color-bad: var(--vscode-errorForeground) !important;
+  --xtmd-color-info: var(--vscode-editorInfo-foreground) !important;
+  --xtmd-font-body-family: var(--vscode-font-family) !important;
+  --xtmd-font-heading-family: var(--vscode-font-family) !important;
+  --xtmd-font-mono-family: var(--vscode-editor-font-family) !important;
+  --xtmd-radius-card: 4px !important;
+  --xtmd-radius-pill: 2px !important;
+  --xtmd-shadow-raised: 0 0 8px 2px var(--vscode-widget-shadow) !important;
+  background: transparent !important;
+}
+
+/* VS Code's own sizes: its design tokens (VS Code 1.147), with their values for an older VS Code
+   that has none. Text reads at the size VS Code's Markdown preview gives it; controls at the size
+   VS Code gives its own. */
+[data-xtmd-root] {
+  --vsc-radius: var(--vscode-cornerRadius-small, 4px);
+  --vsc-stroke: var(--vscode-strokeThickness, 1px);
+  --xtmd-font-body-size: 14px !important;
+}
+.vsc-press,
+.vsc-field,
+.vsc-slider {
+  font-size: var(--vscode-fontSize-body1, 13px);
+}
+
+.vsc:focus-visible,
+.vsc :focus-visible {
+  outline: 1px solid var(--vscode-focusBorder) !important;
+  outline-offset: 2px;
+}
+
+/* ---- press: VS Code's button, and its checkbox, radio, toggle, tab and list option */
+
+.vsc-press.vsc-button {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: var(--vsc-stroke) solid var(--vscode-button-border, transparent);
+  border-radius: var(--vsc-radius);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: var(--vscode-fontSize-label1, 12px);
+  line-height: 16px;
+  cursor: pointer;
+}
+.vsc-press.vsc-button:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+.vsc-press.vsc-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: var(--vsc-stroke) solid var(--vscode-button-secondaryBorder, var(--vscode-button-border, transparent));
+  border-radius: var(--vsc-radius);
+  padding: 4px 8px;
+  font-size: var(--vscode-fontSize-label1, 12px);
+  line-height: 16px;
+}
+.vsc-press.vsc-secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+.vsc-press.vsc-button[aria-pressed="true"] {
+  background: var(--vscode-inputOption-activeBackground);
+  color: var(--vscode-inputOption-activeForeground);
+  border-color: var(--vscode-inputOption-activeBorder);
+}
+.vsc-press:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* a checkbox and a radio, as VS Code's checkbox: its background and border whether ticked or not,
+   and the tick (or the dot) in its foreground colour */
+.vsc-press:is(.vsc-check, .vsc-radio) .xtmd-press-indicator {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: var(--vsc-stroke) solid var(--vscode-checkbox-border) !important;
+  background: var(--vscode-checkbox-background) !important;
+}
+.vsc-press.vsc-check .xtmd-press-indicator {
+  border-radius: 3px;
+}
+.vsc-press.vsc-check.xtmd-selected .xtmd-press-indicator::after {
+  left: 5.5px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border-color: var(--vscode-checkbox-foreground);
+  border-width: 0 1.5px 1.5px 0;
+}
+.vsc-press.vsc-radio .xtmd-press-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.vsc-press.vsc-radio.xtmd-selected .xtmd-press-indicator::after {
+  inset: 3.5px;
+  background: var(--vscode-checkbox-foreground);
+}
+/* the switch, as VS Code's own (.monaco-switch): a 28 by 16 pill, grey off, the button's colour on,
+   and a thumb the button's text colour */
+.vsc-press.vsc-switch .xtmd-press-indicator {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 16px;
+  border: var(--vsc-stroke) solid transparent;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 36%, transparent);
+}
+.vsc-press.vsc-switch .xtmd-press-indicator::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 14px;
+  border: var(--vsc-stroke) solid transparent;
+  border-radius: 9999px;
+  height: auto;
+  background-color: var(--vscode-button-foreground);
+  background-clip: padding-box;
+  transition: left 0.12s ease;
+}
+.vsc-press.vsc-switch.xtmd-selected .xtmd-press-indicator {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+.vsc-press.vsc-switch.xtmd-selected .xtmd-press-indicator::after {
+  left: 12px;
+  translate: none;
+  background-color: var(--vscode-button-foreground);
+}
+.vsc-press.vsc-tab {
+  background: transparent;
+  color: var(--vscode-panelTitle-inactiveForeground);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 0 10px;
+  line-height: 22px;
+  font-size: var(--vscode-fontSize-body1, 13px);
+  font-weight: var(--vscode-fontWeight-regular, 400);
+}
+.vsc-press.vsc-tab:hover {
+  color: var(--vscode-panelTitle-activeForeground);
+}
+.vsc-press.vsc-tab[aria-selected="true"] {
+  color: var(--vscode-panelTitle-activeForeground);
+  border-bottom-color: var(--vscode-panelTitle-activeBorder);
+}
+.vsc-press.vsc-option {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 2px 8px;
+  color: var(--vscode-foreground);
+}
+.vsc-press.vsc-option:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.vsc-press.vsc-option[aria-selected="true"] {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* ---- field: VS Code's input box */
+
+.vsc-field input,
+.vsc-field textarea {
+  background: var(--vscode-input-background) !important;
+  color: var(--vscode-input-foreground) !important;
+  border: 1px solid var(--vscode-input-border, transparent) !important;
+  border-radius: var(--vsc-radius) !important;
+  padding: 4px 6px !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: 18px;
+}
+.vsc-field textarea {
+  resize: none;
+}
+.vsc-field input::placeholder,
+.vsc-field textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+.vsc-field input:focus,
+.vsc-field textarea:focus {
+  outline: 1px solid var(--vscode-focusBorder) !important;
+  outline-offset: -1px;
+}
+.vsc-field > span,
+.vsc-slider .xtmd-slider-label {
+  color: var(--vscode-foreground);
+  font-size: var(--vscode-fontSize-label1, 12px);
+  font-weight: var(--vscode-fontWeight-regular, 400);
+}
+
+/* ---- slider */
+
+/* VS Code has no slider of its own; this one is drawn from its switch: the switch's grey track,
+   the button's colour up to the value, and a thumb that is the button's colour ringed by the
+   editor's, so it sits on the track as the switch's does. Nothing of the browser's own slider
+   shows. */
+.vsc-slider input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.vsc-slider input[type="range"]:focus-visible {
+  outline: none !important;
+}
+.vsc-slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--vscode-button-background) var(--vsc-fill, 0%),
+    color-mix(in srgb, var(--vscode-descriptionForeground) 36%, transparent) var(--vsc-fill, 0%)
+  );
+}
+.vsc-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 9999px;
+  border: 3px solid var(--vscode-editor-background);
+  background: var(--vscode-button-background);
+  box-shadow: 0 0 0 var(--vsc-stroke) var(--vscode-button-background);
+  transition: background-color 0.1s;
+}
+.vsc-slider input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--vscode-button-hoverBackground);
+}
+.vsc-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 var(--vsc-stroke) var(--vscode-button-background), 0 0 0 calc(var(--vsc-stroke) + 2px) var(--vscode-focusBorder);
+}
+.vsc-slider input[type="range"]:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.vsc-slider output {
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ---- icon: a codicon, sized as core's sizes say; the web's drawing inside it only shows where
+   VS Code has no codicon for the glyph */
+
+.vsc-icon.codicon > svg {
+  display: none;
+}
+.vsc-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.vsc-icon[data-size="small"] {
+  font-size: 12px;
+}
+.vsc-icon[data-size="normal"] {
+  font-size: 16px;
+}
+.vsc-icon[data-size="large"] {
+  font-size: 24px;
+}
+
+/* ---- overlay: VS Code's hover and dialog widgets */
+
+.vsc-overlay [popover],
+.vsc-overlay dialog {
+  background: var(--vscode-editorHoverWidget-background) !important;
+  color: var(--vscode-editorHoverWidget-foreground) !important;
+  border: 1px solid var(--vscode-editorHoverWidget-border) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow) !important;
+}
+.vsc-overlay dialog::backdrop {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ---- Markdown's blocks, as VS Code's Markdown preview draws them */
+
+.vsc-md:is(h1, h2) {
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  padding-bottom: 0.3em;
+}
+.vsc-md :is(code, kbd),
+.vsc-md:is(code) {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 3px;
+  padding: 0 0.25em;
+}
+.vsc-code {
+  background: var(--vscode-textCodeBlock-background) !important;
+  font-family: var(--vscode-editor-font-family) !important;
+  border-radius: 3px;
+  padding: 12px 16px !important;
+}
+.vsc-md:is(blockquote),
+.vsc-md blockquote {
+  border-left: 4px solid var(--vscode-textBlockQuote-border);
+  background: var(--vscode-textBlockQuote-background);
+  margin: 0 0 16px;
+  padding: 0 16px;
+}
+.vsc-md a {
+  color: var(--vscode-textLink-foreground);
+}
+.vsc-md a:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+.vsc-table :is(th, td) {
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  padding: 5px 10px;
+}
+.vsc-table th {
+  background: var(--vscode-keybindingTable-headerBackground, transparent);
+}
+
+/* ---- a widget that failed: VS Code's inline error */
+
+.vsc-notice {
+  color: var(--vscode-errorForeground) !important;
+  background: var(--vscode-inputValidation-errorBackground) !important;
+  border: 1px solid var(--vscode-inputValidation-errorBorder) !important;
+  border-radius: 2px;
+}

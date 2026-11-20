@@ -1,5 +1,5 @@
 # ide/vscode/checks/target.yaml: the vscode target, the VS Code extension's preview: @extended-mark/runtime
-# with @extended-mark/dom's mount and the extension's own widgets (src/target/widgets.ts), in a real
+# with @extended-mark/dom's mount and the extension's own widgets (src/webview/widgets.ts), in a real
 # Chromium, as VS Code's webview is. Its check adapter is the web target's, given this target's harness.
 name: vscode
 levels: [core.draw, core.live, core.gfx]

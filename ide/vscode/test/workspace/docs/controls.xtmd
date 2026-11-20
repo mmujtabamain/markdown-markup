@@ -1,0 +1,84 @@
+$state {
+    volume: int 0..100 = 40;
+    name: text = "Ada";
+    notes: text = "";
+    agree: bool = true;
+    alerts: bool = false;
+    size: int = 1;
+    tab: int = 0;
+    open: bool = false;
+}
+@@@
+# Controls
+
+## Buttons
+
+@row(gap = space.S) {
+    @press(label = "Save");
+    @press(label = "Cancel", kind = press_kind.PLAIN);
+    @press(label = "Bold", kind = press_kind.TOGGLE, selected = true);
+    @press(label = "Disabled", disabled = true);
+}
+
+## Choices
+
+@press(label = "I agree", kind = press_kind.CHECK, selected = $state.agree, click = fn() {
+    $state.agree = !$state.agree;
+});
+
+@press(label = "Alerts", kind = press_kind.SWITCH, selected = $state.alerts, click = fn() {
+    $state.alerts = !$state.alerts;
+});
+
+@row(gap = space.M) {
+    @press(label = "Small", kind = press_kind.RADIO, selected = $state.size == 0, click = fn() { $state.size = 0; });
+    @press(label = "Medium", kind = press_kind.RADIO, selected = $state.size == 1, click = fn() { $state.size = 1; });
+    @press(label = "Large", kind = press_kind.RADIO, selected = $state.size == 2, click = fn() { $state.size = 2; });
+}
+
+@row {
+    @press(label = "Overview", kind = press_kind.TAB, selected = $state.tab == 0, click = fn() { $state.tab = 0; });
+    @press(label = "Details", kind = press_kind.TAB, selected = $state.tab == 1, click = fn() { $state.tab = 1; });
+}
+
+@press(label = "First option", kind = press_kind.OPTION, selected = true);
+
+@press(label = "Second option", kind = press_kind.OPTION);
+
+## Input
+
+@field(value = $state.name, label = "Name", placeholder = "Your name");
+
+@field(value = $state.notes, label = "Notes", placeholder = "Anything else", lines = 3);
+
+@slider(value = $state.volume, label = "Volume", range = 0..100);
+
+@slider(value = $state.volume, label = "Disabled", range = 0..100, disabled = true);
+
+## Overlay
+
+@overlay(label = "More", mode = overlay_mode.POPOVER, open = $state.open) {
+    @slot anchor {
+        @press(label = "Show more", click = fn() { $state.open = !$state.open; });
+    }
+    @slot body {
+        A popover, over the page.
+    }
+}
+
+## Text
+
+A paragraph with **bold**, *italic*, `code` and a [link](https://example.com).
+
+> A quote.
+
+- One
+- Two
+
+| Name | Price |
+|---|---|
+| Tea | 12 |
+
+```js
+let x = 1;
+```
