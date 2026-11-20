@@ -4,7 +4,8 @@
 //! author chose where the spec leaves a choice: a list written over several lines stays over
 //! several lines, a lambda or a case body written on one line stays on one, blank lines stay
 //! (one at most), and a comment at the end of a line keeps its distance from the code. Prose is
-//! printed as written, with its holes printed as code.
+//! printed as written, with its holes printed as code, except that each block's lines are indented
+//! four spaces past its opening line, and its closing `}` sits under that line's `@`.
 
 use crate::ast::*;
 use crate::lexer::Comment;
@@ -1150,26 +1151,27 @@ impl<'a> Printer<'a> {
                             self.w(";");
                             self.nl();
                         }
-                        Some((body, close)) => {
+                        Some((body, _)) => {
                             self.w(" {");
                             self.nl();
-                            self.prose(body, base);
-                            self.close_line(base, close, "}");
+                            self.prose(body, base + c.indent.len() + STEP);
+                            self.close_line(base, &c.indent, "}");
                         }
                     }
                 }
                 ProseNode::If { indent, branches, otherwise, .. } => {
                     self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
-                    for (k, (cond, body, close)) in branches.iter().enumerate() {
+                    let inner = base + indent.len() + STEP;
+                    for (k, (cond, body, _)) in branches.iter().enumerate() {
                         if k == 0 {
                             self.w("@if (");
                         }
                         self.cond(cond);
                         self.w(") {");
                         self.nl();
-                        self.prose(body, base);
-                        self.xtmd_line_start(base, close);
+                        self.prose(body, inner);
+                        self.xtmd_line_start(base, indent);
                         if k + 1 < branches.len() {
                             self.w("} else if (");
                         } else if otherwise.is_some() {
@@ -1180,47 +1182,49 @@ impl<'a> Printer<'a> {
                             self.nl();
                         }
                     }
-                    if let Some((body, close)) = otherwise {
-                        self.prose(body, base);
-                        self.close_line(base, close, "}");
+                    if let Some((body, _)) = otherwise {
+                        self.prose(body, inner);
+                        self.close_line(base, indent, "}");
                     }
                 }
-                ProseNode::For { indent, mutable, key, name, over, body, close, .. } => {
+                ProseNode::For { indent, mutable, key, name, over, body, .. } => {
                     self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
                     self.w(if *mutable { "@mut for (" } else { "@for (" });
                     self.loop_head(key, name, over);
                     self.w(") {");
                     self.nl();
-                    self.prose(body, base);
-                    self.close_line(base, close, "}");
+                    self.prose(body, base + indent.len() + STEP);
+                    self.close_line(base, indent, "}");
                 }
-                ProseNode::Match { indent, subject, cases, close, .. } => {
+                ProseNode::Match { indent, subject, cases, .. } => {
                     self.xtmd_line_start(base, indent);
                     self.indent = base + indent.len();
                     self.w("@match (");
                     self.expr(subject);
                     self.w(") {");
                     self.nl();
+                    let inner = base + indent.len() + STEP;
                     for c in cases {
-                        self.xtmd_line_start(base, &c.indent);
+                        self.xtmd_line_start(inner, &c.indent);
+                        self.indent = inner + c.indent.len();
                         self.w("case ");
                         self.patterns(&c.patterns);
                         self.w(" {");
                         self.nl();
-                        self.prose(&c.body, base);
-                        self.close_line(base, &c.close, "}");
+                        self.prose(&c.body, inner + c.indent.len() + STEP);
+                        self.close_line(inner, &c.indent, "}");
                     }
-                    self.close_line(base, close, "}");
+                    self.close_line(base, indent, "}");
                 }
-                ProseNode::Slot { indent, name, body, close, .. } => {
+                ProseNode::Slot { indent, name, body, .. } => {
                     self.xtmd_line_start(base, indent);
                     self.w("@slot ");
                     self.w(&name.name);
                     self.w(" {");
                     self.nl();
-                    self.prose(body, base);
-                    self.close_line(base, close, "}");
+                    self.prose(body, base + indent.len() + STEP);
+                    self.close_line(base, indent, "}");
                 }
             }
             self.indent = saved;

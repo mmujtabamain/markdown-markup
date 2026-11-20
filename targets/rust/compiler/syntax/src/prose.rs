@@ -14,7 +14,8 @@ use crate::span::Span;
 /// Where prose may run, and how much indent its lines share.
 #[derive(Clone, Copy)]
 pub(crate) struct Region {
-    /// Spaces taken off the front of every line: the common indent of a `markdown` block.
+    /// Spaces taken off the front of every line: the common indent of a `markdown` block, or of a
+    /// block in prose.
     pub base: usize,
     pub end: usize,
 }
@@ -279,6 +280,60 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Spaces in front of the line that `pos` is on.
+    fn indent_of(&self, pos: usize) -> usize {
+        let start = self.src[..pos].rfind('\n').map(|k| k + 1).unwrap_or(0);
+        spaces(&self.src[start..])
+    }
+
+    /// The indent of the first line from `pos` that isn't blank.
+    fn first_indent(&self, mut pos: usize, end: usize) -> usize {
+        let src = self.src;
+        while pos < end {
+            let e = src[pos..end].find('\n').map(|k| pos + k).unwrap_or(end);
+            if !src[pos..e].trim().is_empty() {
+                return spaces(&src[pos..e]);
+            }
+            pos = e + 1;
+        }
+        0
+    }
+
+    /// Where a node's first line starts, or none for a blank line.
+    fn node_start(&self, node: &ProseNode) -> Option<usize> {
+        let at = match node {
+            ProseNode::Text(l) if self.src[l.span.range()].trim().is_empty() => return None,
+            ProseNode::Text(l) => l.span.start,
+            ProseNode::Fence(lines) | ProseNode::Maths(lines) => lines.first()?.span.start,
+            ProseNode::Call(c) => c.span.start,
+            ProseNode::Comment { span, .. }
+            | ProseNode::If { span, .. }
+            | ProseNode::For { span, .. }
+            | ProseNode::Match { span, .. }
+            | ProseNode::Slot { span, .. } => span.start,
+        };
+        Some(at as usize)
+    }
+
+    /// A block's prose, read with its common indent taken off: the least indent of the block's own
+    /// lines, those that aren't blank, counting only the first line of a fence, a maths block and a
+    /// block nested in it (whose lines have an indent of their own). The first line's indent is
+    /// tried first; when one of the block's own lines sits less deep, the block is read again.
+    fn prose_block(&mut self, first: usize, region: Region, mode: Mode) -> R<(Prose, Stop)> {
+        let base = self.first_indent(first, region.end);
+        let (diags, orphans) = (self.diags.len(), self.orphans.len());
+        let read = self.prose(first, Region { base, end: region.end }, mode)?;
+        let least = read.0.nodes.iter().filter_map(|n| self.node_start(n)).map(|at| self.indent_of(at)).min();
+        match least {
+            Some(least) if least < base => {
+                self.diags.truncate(diags);
+                self.orphans.truncate(orphans);
+                self.prose(first, Region { base: least, end: region.end }, mode)
+            }
+            _ => Ok(read),
+        }
+    }
+
     fn prose(&mut self, mut pos: usize, region: Region, mode: Mode) -> R<(Prose, Stop)> {
         let mut nodes = Vec::new();
         let mut para_open = false;
@@ -451,7 +506,7 @@ impl<'a> Parser<'a> {
             let name = self.ident("a slot's name")?;
             let open = self.expect(P::LBrace)?;
             let first = self.brace_line(open.end as usize)?;
-            let (body, stop) = self.prose(first, region, Mode { nested: true, slots: false, in_match: false })?;
+            let (body, stop) = self.prose_block(first, region, Mode { nested: true, slots: false, in_match: false })?;
             let Stop::Close { indent: close, next } = stop else {
                 return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, Span::new(at, line.end), "this slot is not closed by a line that holds only `}`"));
             };
@@ -481,7 +536,7 @@ impl<'a> Parser<'a> {
         if next_kind == Tok::P(P::LBrace) {
             let open = self.bump()?.span;
             let first = self.brace_line(open.end as usize)?;
-            let (body, stop) = self.prose(first, region, Mode { nested: true, slots: true, in_match: false })?;
+            let (body, stop) = self.prose_block(first, region, Mode { nested: true, slots: true, in_match: false })?;
             let Stop::Close { indent: close, next } = stop else {
                 return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, Span::new(at, line.end), "this block is not closed by a line that holds only `}`"));
             };
@@ -513,7 +568,7 @@ impl<'a> Parser<'a> {
                     self.expect(P::RParen)?;
                     let open = self.expect(P::LBrace)?;
                     let first = self.brace_line(open.end as usize)?;
-                    let (body, stop) = self.prose(first, region, inner)?;
+                    let (body, stop) = self.prose_block(first, region, inner)?;
                     match stop {
                         Stop::Close { indent: close, next } => {
                             branches.push((cond, body, close));
@@ -529,7 +584,7 @@ impl<'a> Parser<'a> {
                             }
                             let open = self.expect(P::LBrace)?;
                             let first = self.brace_line(open.end as usize)?;
-                            let (body, stop) = self.prose(first, region, inner)?;
+                            let (body, stop) = self.prose_block(first, region, inner)?;
                             let Stop::Close { indent: close, next } = stop else {
                                 return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, start, "`else` is not closed by a line that holds only `}`"));
                             };
@@ -549,7 +604,7 @@ impl<'a> Parser<'a> {
                 let (key, name, over) = self.loop_head(loop_start)?;
                 let open = self.expect(P::LBrace)?;
                 let first = self.brace_line(open.end as usize)?;
-                let (body, stop) = self.prose(first, region, inner)?;
+                let (body, stop) = self.prose_block(first, region, inner)?;
                 let Stop::Close { indent: close, next } = stop else {
                     return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, start, "`@for` is not closed by a line that holds only `}`"));
                 };
@@ -562,9 +617,11 @@ impl<'a> Parser<'a> {
                 self.expect(P::RParen)?;
                 let open = self.expect(P::LBrace)?;
                 let mut pos = self.brace_line(open.end as usize)?;
+                // the `case` lines' own indent, taken off each of them
+                let inside = Region { base: self.first_indent(pos, region.end), end: region.end };
                 let mut cases = Vec::new();
                 loop {
-                    let (_, stop) = self.prose(pos, region, Mode { nested: true, slots: false, in_match: true })?;
+                    let (_, stop) = self.prose(pos, inside, Mode { nested: true, slots: false, in_match: true })?;
                     match stop {
                         Stop::Close { indent: close, next } => {
                             return Ok((ProseNode::Match { indent, subject, cases, close, span: start.to(Span::at(next)) }, next));
@@ -575,7 +632,7 @@ impl<'a> Parser<'a> {
                             let patterns = self.patterns()?;
                             let open = self.expect(P::LBrace)?;
                             let first = self.brace_line(open.end as usize)?;
-                            let (body, stop) = self.prose(first, region, inner)?;
+                            let (body, stop) = self.prose_block(first, region, inner)?;
                             let Stop::Close { indent: close, next } = stop else {
                                 return Err(Diagnostic::error(codes::BLOCK_UNCLOSED, Span::at(case_at), "this case is not closed by a line that holds only `}`"));
                             };

@@ -69,3 +69,17 @@ test("a document with no @@@ is prose all through, with its calls and comments",
   assert.equal(scopeOf(ts, "@// a note"), "comment.line.prose.xtmd");
   assert.equal(scopeOf(ts, "press"), "entity.name.tag.widget.xtmd");
 });
+
+test("a block's lines are coloured at any indent: its calls, control lines, comments and closing braces", async () => {
+  const doc = "@@@\n@mut for (i in $state.items) {\n    @// one row each\n    @if (let x: item = i) {\n        ## A heading\n        @basket_row(name = x.name);\n    }\n}\n\nAfter.\n";
+  for (const scope of ["source.xtmd", "text.xtmd.prose"]) {
+    const ts = await tokens(scope, scope === "source.xtmd" ? doc : doc.slice(4));
+    assert.equal(scopeOf(ts, "for"), "keyword.control.xtmd");
+    assert.equal(scopeOf(ts, "if"), "keyword.control.xtmd");
+    assert.equal(ts.find(([t]) => t.includes("@// one row each"))[1], "comment.line.prose.xtmd");
+    assert.ok(ts.find(([t]) => t.includes("A heading"))[2].includes("markup.heading.markdown"));
+    assert.equal(scopeOf(ts, "basket_row"), "entity.name.tag.widget.xtmd");
+    // each closing line ends on its line, so what follows is prose again
+    assert.ok(!ts.find(([t]) => t.includes("After."))[2].some((s) => s === "meta.call.xtmd" || s === "meta.control.xtmd"));
+  }
+});

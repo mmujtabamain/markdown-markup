@@ -105,13 +105,13 @@ widget graph(label: text, mut nodes: list<node>[1...], edges: list<link>, bounds
         \{label}
 
         @for (n in nodes) {
-        - \{n.label}
+            - \{n.label}
         }
 
         Links:
 
         @for (e in edges) {
-        - \{e.from} to \{e.to}: \{e.label}
+            - \{e.from} to \{e.to}: \{e.label}
         }
     }
 }

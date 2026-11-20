@@ -122,13 +122,13 @@ Three fixes shipped.
 It has been retried \{$state.tries} times.
 
 @card(title = "Deploys", tone = color.INFO) {
-We shipped **42** times, up from 37.
+    We shipped **42** times, up from 37.
 }
 
 @if ($state.tries > 2) {
-Something is wrong with the worker.
+    Something is wrong with the worker.
 } else {
-The worker is fine.
+    The worker is fine.
 }
 
 \@ops is the team that gets the alert.
@@ -164,9 +164,9 @@ Extended Mark reads six things in prose and leaves the rest to Markdown.
 - **A line that starts with `@` and a small letter is always Extended Mark**: a call, a control line or a named slot. If the name is none of those, it is a compile error that says to write `\@`, so a typing mistake is never shown as text.
 - **A line that starts with `@//` is a comment**, and `\@//` shows one as text. It is prose's only comment: `//` on its own is text, as in any Markdown.
 - **`\@` is a literal @** anywhere in prose outside code. Plain Markdown shows `\@` as @ too, so the file reads the same without Extended Mark. An `@` that does not start a line is text, so email addresses and mentions in a sentence need nothing.
-- **Indentation**: A call, a control line or a comment may be indented by up to three spaces. Four or more make it a Markdown code block, which is literal.
+- **Indentation**: A block's lines are read with their common indent taken off, as a `markdown` block's are: the least indent of the block's own lines, leaving out blank lines, the lines inside a fence or a maths block, and the lines of a block nested in it, which have their own. So a block may be indented at any depth, and `xtmd fmt` indents each one four spaces past its opening line. Then, as at the top of the prose, a call, a control line or a comment may be indented by up to three spaces, and four or more make a Markdown code block, which is literal. A line that holds only `}`, or starts `} else`, may sit at any indent.
 - **Quotes and list items**: A call, a control line, a comment or a closing `}` can't start inside a Markdown quote or list item. It is a compile error that says to put the call in `@quote`, or in `@bullets` and `@item`, instead. Inside a quote or a list item, an `@` at the start is written `\@`: `> \@ops is the team on call this week.`
-- **Where a block ends**: At the next line that holds only `}`, counting the blocks opened in between. A fenced code block inside it is skipped whole. To show a line that holds only a brace, write `\}`.
+- **Where a block ends**: At the next line that holds only `}`, whatever its indent, counting the blocks opened in between. A fenced code block inside it is skipped whole. To show a line that holds only a brace, write `\}`.
 - **What a block holds**: A call's block is prose, and it fills the widget's only slot. A widget with several slots gets one `@slot name {` block per slot. Inputs go in the parentheses only.
 - **Within a sentence**: A call is always a block of its own. To put a view inside a sentence, put it in a hole: `Status: \{@icon(name = glyph.CHECK)} done`.
 - **Loops in prose**: `@for (x in xs) {` and `@mut for (t in todos) {` repeat their lines once per item. In `@mut for`, `t` is an `opt` for the real item (page 2), and `@if (mut x: todo = t) {` opens it to hand the item to a `mut` input. The control lines add nothing themselves. List items that follow one another make one list, across iterations too, and any other block ends it. A list that ends up with no items writes nothing. Neither loop can change anything while the page is drawn.
@@ -174,13 +174,13 @@ Extended Mark reads six things in prose and leaves the rest to Markdown.
 
 ````markdown
 @box(title = "Build") {
-@// the build's own buttons go first
-@slot actions {
-@press(label = "Retry", click = retry);
-}
-@slot body {
-It passed in **4 minutes**.
-}
+    @// the build's own buttons go first
+    @slot actions {
+        @press(label = "Retry", click = retry);
+    }
+    @slot body {
+        It passed in **4 minutes**.
+    }
 }
 ````
 

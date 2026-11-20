@@ -97,7 +97,7 @@ extern widget plane(
         \{label}
 
         @for (p in items) {
-        \{p}
+            \{p}
         }
     }
 }

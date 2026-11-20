@@ -177,9 +177,9 @@ widget todo_row(mut t: todo) {
 
     markdown {
         @if (t.done) {
-        - [x] \{t.title}
+            - [x] \{t.title}
         } else {
-        - [ ] \{t.title}
+            - [ ] \{t.title}
         }
     }
 }
@@ -211,11 +211,11 @@ widget todo_list(mut todos: list<todo>) {
 
     markdown {
         @for (t in todos) {
-        @if (t.done) {
-        - [x] \{t.title}
-        } else {
-        - [ ] \{t.title}
-        }
+            @if (t.done) {
+                - [x] \{t.title}
+            } else {
+                - [ ] \{t.title}
+            }
         }
     }
 }
@@ -287,7 +287,7 @@ widget notes(mut items: list<note>) {
 
     markdown {
         @for (n in items) {
-        - \{n.words}
+            - \{n.words}
         }
     }
 }
@@ -367,7 +367,7 @@ widget leaders<T: scored>(items: list<T>, name: fn(item: T): text) {
 
     markdown {
         @for (it in items) {
-        - \{name(it)}: \{it.score.fmt(1)}
+            - \{name(it)}: \{it.score.fmt(1)}
         }
     }
 }

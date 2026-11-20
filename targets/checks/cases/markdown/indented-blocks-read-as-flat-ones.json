@@ -1,0 +1,9 @@
+{
+  "id": "markdown.indented-blocks-read-as-flat-ones",
+  "about": "a block's lines lose their common indent: indented text is a paragraph, four more spaces are code, and a fence keeps its own indent inside",
+  "source": "indented-blocks-read-as-flat-ones.xt.md",
+  "expect": {
+    "diagnostics": [],
+    "markdown": {"file": "indented-blocks-read-as-flat-ones.expected.md"}
+  }
+}

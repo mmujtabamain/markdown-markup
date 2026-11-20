@@ -821,7 +821,7 @@ pub struct ProseHole {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ProseCall {
-    /// Up to three spaces in front of the `@`.
+    /// Up to three spaces in front of the `@`, past the indent of the block it is in.
     pub indent: String,
     pub call: ViewCall,
     /// The block after ` {`, and the indent of its closing `}`.

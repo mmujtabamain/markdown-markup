@@ -82,15 +82,15 @@ Hello, \{$state.name.len() > 0 ? $state.name : "stranger"}.
 @slider(value = $state.level, label = "Level");
 
 @row(gap = space.S, align = align.CENTER) {
-@press(label = "Dark", kind = press_kind.SWITCH, selected = $state.dark, click = fn() { $state.dark = !$state.dark; });
-@icon(name = glyph.STAR, tone = color.WARN, label = "a star");
-@press(label = "Done one more", click = fn() { $state.done = ($state.done + 1).clamp(0, 2); });
+    @press(label = "Dark", kind = press_kind.SWITCH, selected = $state.dark, click = fn() { $state.dark = !$state.dark; });
+    @icon(name = glyph.STAR, tone = color.WARN, label = "a star");
+    @press(label = "Done one more", click = fn() { $state.done = ($state.done + 1).clamp(0, 2); });
 }
 
 @row(gap = space.S) {
-@press(label = "S", kind = press_kind.RADIO, selected = $state.size == "S", click = fn() { $state.size = "S"; });
-@press(label = "M", kind = press_kind.RADIO, selected = $state.size == "M", click = fn() { $state.size = "M"; });
-@press(label = "L", kind = press_kind.RADIO, selected = $state.size == "L", click = fn() { $state.size = "L"; });
+    @press(label = "S", kind = press_kind.RADIO, selected = $state.size == "S", click = fn() { $state.size = "S"; });
+    @press(label = "M", kind = press_kind.RADIO, selected = $state.size == "M", click = fn() { $state.size = "M"; });
+    @press(label = "L", kind = press_kind.RADIO, selected = $state.size == "L", click = fn() { $state.size = "L"; });
 }
 
 @details;
@@ -98,28 +98,28 @@ Hello, \{$state.name.len() > 0 ? $state.name : "stranger"}.
 ## Layout
 
 @grid(cols = cols.EQUAL(count = 3), gap = space.S) {
-@cell(span = 3) {
-@label(value = "A grid of three columns", weight = weight.BOLD);
-}
-@label(value = "one");
-@label(value = "two");
-@label(value = "three");
+    @cell(span = 3) {
+        @label(value = "A grid of three columns", weight = weight.BOLD);
+    }
+    @label(value = "one");
+    @label(value = "two");
+    @label(value = "three");
 }
 
 ## A canvas
 
 @canvas(label = "A dot, a line and a point to drag", x = -1..1, y = -1..1, aspect = 1.5) {
-@layer {
-@shade(area = region { from = point { x = -1, y = -1 }, to = point { x = 1, y = 1 } }, shader = glow, args = 1, opacity = 0.25, label = "a glow");
-@path(points = [point { x = -1, y = 0 }, point { x = 1, y = 0 }], stroke = color.LINE, head = head.ARROW, label = "the axis");
-@circle(at = point { x = 0, y = 0 }, r = 0.15, fill = color.ACCENT, label = "the centre");
-}
-@layer {
-@handle(at = $state.p, label = "the point");
-@place(at = $state.p, anchor = anchor.SW, nudge = point { x = 8, y = 8 }) {
-@label(value = "drag me");
-}
-}
+    @layer {
+        @shade(area = region { from = point { x = -1, y = -1 }, to = point { x = 1, y = 1 } }, shader = glow, args = 1, opacity = 0.25, label = "a glow");
+        @path(points = [point { x = -1, y = 0 }, point { x = 1, y = 0 }], stroke = color.LINE, head = head.ARROW, label = "the axis");
+        @circle(at = point { x = 0, y = 0 }, r = 0.15, fill = color.ACCENT, label = "the centre");
+    }
+    @layer {
+        @handle(at = $state.p, label = "the point");
+        @place(at = $state.p, anchor = anchor.SW, nudge = point { x = 8, y = 8 }) {
+            @label(value = "drag me");
+        }
+    }
 }
 
 ## A plane

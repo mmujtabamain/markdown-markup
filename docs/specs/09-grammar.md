@@ -183,7 +183,7 @@ In an expression a range's bounds are a number, a name or a bracketed expression
 
 ### Prose
 
-Prose is read a line at a time. This grammar is for a document below its `@@@` line and for a `markdown` block.
+Prose is read a line at a time. This grammar is for a document below its `@@@` line and for a `markdown` block. A block's lines, between its ` {` and its `}`, are read with their common indent taken off, as a `markdown` block's are; then the grammar reads them as it reads the top of the prose.
 
 ```txt
 prose       = { line }
@@ -201,7 +201,7 @@ text-line   = any other line: Markdown, with holes outside code spans, and $math
 prose-block = "{" end-of-line prose "}"
 ```
 
-A line that starts with `@` and a small letter, after up to three spaces, is a `call`, a `control` or a `slot-line`, and anything else there is a compile error. A line that starts with `@//`, after up to three spaces, is a `comment-line`: nothing draws it, Markdown out leaves it out, and it ends no paragraph. `\@` is a literal @, so `\@//` is text. A call's arguments may run over several lines. A call, a control line, a comment line or a closing `}` never starts inside a Markdown quote or list item: `> @card(…) {` and `- @label(…);` are compile errors, and a quote or a list that holds widgets is written with `@quote`, or with `@bullets` and `@item`. An @ at the start of a quote or a list item is written `\@`.
+A line that starts with `@` and a small letter, after up to three spaces past its block's indent, is a `call`, a `control` or a `slot-line`, and anything else there is a compile error. A line that starts with `@//`, after up to three spaces, is a `comment-line`: nothing draws it, Markdown out leaves it out, and it ends no paragraph. `\@` is a literal @, so `\@//` is text. A call's arguments may run over several lines. A call, a control line, a comment line or a closing `}` never starts inside a Markdown quote or list item: `> @card(…) {` and `- @label(…);` are compile errors, and a quote or a list that holds widgets is written with `@quote`, or with `@bullets` and `@item`. An @ at the start of a quote or a list item is written `\@`.
 
 A line that holds only `$$` opens a maths block, and the next such line closes it. The lines between are TeX, never calls or control lines, and the block lowers to `math`. Inline maths pairs an opening `$` with the next `$` on its line, skipping `\$`, and when that one can't close, the opening `$` is text. Maths never spans lines, and an inline `$` never pairs across a `$$` line.
 

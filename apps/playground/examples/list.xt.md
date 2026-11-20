@@ -25,9 +25,9 @@ widget task_row(mut t: task) {
 
     markdown {
         @if (t.done) {
-        - [x] \{t.title}
+            - [x] \{t.title}
         } else {
-        - [ ] \{t.title}
+            - [ ] \{t.title}
         }
     }
 }
@@ -89,11 +89,11 @@ widget board() {
 
     markdown {
         @for (t in $state.tasks) {
-        @if (t.done) {
-        - [x] \{t.title}
-        } else {
-        - [ ] \{t.title}
-        }
+            @if (t.done) {
+                - [x] \{t.title}
+            } else {
+                - [ ] \{t.title}
+            }
         }
     }
 }

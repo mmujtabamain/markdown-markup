@@ -42,7 +42,7 @@ fn a_lambda_on_one_line_stays_on_one_line_and_a_fn_body_does_not() {
 #[test]
 fn prose_is_kept_as_written_and_its_holes_are_printed_as_code() {
     let src = "# Title  \n\nIt is \\{$state.tries+1} today, *really*.\n\n@card(title=\"x\") {\nText.\n}\n";
-    let want = "# Title  \n\nIt is \\{$state.tries + 1} today, *really*.\n\n@card(title = \"x\") {\nText.\n}\n";
+    let want = "# Title  \n\nIt is \\{$state.tries + 1} today, *really*.\n\n@card(title = \"x\") {\n    Text.\n}\n";
     assert_eq!(format(src, Entry::Document).unwrap(), want);
 }
 

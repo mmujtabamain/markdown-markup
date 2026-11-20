@@ -250,7 +250,7 @@ widget picker<T: labelled>(items: list<T>, mut chosen: number = 0) {
 
     markdown {
         @for (it in items) {
-        - \{it.label}
+            - \{it.label}
         }
     }
 }
@@ -305,7 +305,7 @@ widget bar_chart(title: text, items: list<bar>[1...]) implements chart {
         **\{title}**
 
         @for (b in items) {
-        - \{b.label}: \{b.value}
+            - \{b.label}: \{b.value}
         }
     }
 }
@@ -324,7 +324,7 @@ widget dashboard() {
 
     markdown {
         @for (c in charts) {
-        \{c}
+            \{c}
         }
     }
 }
@@ -345,7 +345,7 @@ widget compare<T: chart>() {
 
     markdown {
         @for (c in charts) {
-        \{c}
+            \{c}
         }
     }
 }

@@ -334,7 +334,7 @@
     },
     "heading": {
       "name": "markup.heading.markdown",
-      "begin": "^(#{1,6})(?=\\s|$)",
+      "begin": "^\\s*(#{1,6})(?=\\s|$)",
       "beginCaptures": {
         "1": {
           "name": "punctuation.definition.heading.markdown"
@@ -353,7 +353,7 @@
     },
     "prose-comment": {
       "name": "comment.line.prose.xtmd",
-      "match": "^ {0,3}@//.*$"
+      "match": "^\\s*@//.*$"
     },
     "args": {
       "begin": "\\(",
@@ -379,7 +379,7 @@
     },
     "control-line": {
       "name": "meta.control.xtmd",
-      "begin": "^ {0,3}(@)(?:(mut)\\s+)?(if|for|match|slot)\\b",
+      "begin": "^\\s*(@)(?:(mut)\\s+)?(if|for|match|slot)\\b",
       "beginCaptures": {
         "1": {
           "name": "punctuation.definition.call.xtmd"
@@ -403,7 +403,7 @@
     },
     "call-line": {
       "name": "meta.call.xtmd",
-      "begin": "^ {0,3}(@)([a-z_][a-z0-9_]*)",
+      "begin": "^\\s*(@)([a-z_][a-z0-9_]*)",
       "beginCaptures": {
         "1": {
           "name": "punctuation.definition.call.xtmd"

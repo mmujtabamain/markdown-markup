@@ -757,6 +757,22 @@ fn fmt_says_what_it_did_and_out_writes_a_copy() {
 }
 
 #[test]
+fn fmt_indents_each_block_in_prose_and_the_page_reads_the_same() {
+    let flat = "let names: list<text> = [\"api\", \"worker\"];\n@@@\n@for (n in names) {\n@if (n == \"api\") {\n- **\\{n}**\n} else {\n- \\{n}\n}\n}\n";
+    let indented = "let names: list<text> = [\"api\", \"worker\"];\n@@@\n@for (n in names) {\n    @if (n == \"api\") {\n        - **\\{n}**\n    } else {\n        - \\{n}\n    }\n}\n";
+    let dir = scratch("fmt-prose-indent", &[("flat.xt.md", flat), ("indented.xt.md", indented)]);
+    let (file, done) = (dir.join("flat.xt.md"), dir.join("indented.xt.md"));
+    assert_eq!(xtmd(&["fmt", "--check", file.to_str().unwrap()]).0, 1);
+    assert_eq!(xtmd(&["fmt", "--check", done.to_str().unwrap()]).0, 0, "an indented page is canonical");
+    let md = xtmd(&["md", file.to_str().unwrap()]).1;
+    assert_eq!(md, "- **api**\n- worker\n");
+    let (code, _, err) = xtmd(&["fmt", file.to_str().unwrap()]);
+    assert_eq!(code, 0, "{}", err);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), indented);
+    assert_eq!(xtmd(&["md", file.to_str().unwrap()]).1, md, "the indented page writes the same Markdown");
+}
+
+#[test]
 fn out_is_written_at_the_end_in_a_folder_it_makes_and_a_closed_pipe_is_quiet() {
     let dir = scratch("out-end", &[("packs/shelf/shelf.xtpack", SHELF), ("doc.xt.md", DOC)]);
     let doc = dir.join("doc.xt.md");

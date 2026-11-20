@@ -26,10 +26,10 @@ widget tally(label: text) {
 @tally(label = "Apples");
 
 @overlay(label = "More") {
-@slot anchor {
-@label(value = "More");
-}
-@slot body {
-@label(value = "Hidden until opened");
-}
+    @slot anchor {
+        @label(value = "More");
+    }
+    @slot body {
+        @label(value = "Hidden until opened");
+    }
 }

@@ -47,9 +47,9 @@ widget basket_row(name: text, price: number) {
 The basket holds \{$state.items.len()} items for \{total} € of a \{$state.budget} € budget.
 
 @mut for (i in $state.items) {
-@if (let x: item = i) {
-@basket_row(name = x.name, price = x.price, remove = fn() { $state.items.remove(x); });
-}
+    @if (let x: item = i) {
+        @basket_row(name = x.name, price = x.price, remove = fn() { $state.items.remove(x); });
+    }
 }
 
 @slider(value = $state.budget, label = "Budget", range = 0..100);

@@ -91,7 +91,7 @@ widget stats(items: list<stat>[1...]) {
 
     markdown {
         @for (s in items) {
-        - **\{s.label}**: \{s.value}
+            - **\{s.label}**: \{s.value}
         }
     }
 }
@@ -152,11 +152,11 @@ widget checklist(items: list<task>[1...]) {
 
     markdown {
         @for (k, t in items) {
-        @if (ticked.has(k)) {
-        - [x] \{t.title}
-        } else {
-        - [ ] \{t.title}
-        }
+            @if (ticked.has(k)) {
+                - [x] \{t.title}
+            } else {
+                - [ ] \{t.title}
+            }
         }
     }
 }
@@ -205,7 +205,7 @@ widget tabs() {
 
     markdown {
         @for (t in panels) {
-        \{t}
+            \{t}
         }
     }
 }
@@ -215,12 +215,12 @@ In a document:
 
 ```markdown
 @tabs {
-@tab(title = "Web") {
-React on Vite.
-}
-@tab(title = "Mobile") {
-Expo and React Native.
-}
+    @tab(title = "Web") {
+        React on Vite.
+    }
+    @tab(title = "Mobile") {
+        Expo and React Native.
+    }
 }
 ```
 
@@ -345,13 +345,13 @@ widget er(tables: list<table_info>[1...], links: list<link>) {
 
     markdown {
         @for (t in tables) {
-        - **\{t.name}**: \{t.fields.join(", ")}
+            - **\{t.name}**: \{t.fields.join(", ")}
         }
 
         Links:
 
         @for (l in links) {
-        - \{l.from} \{l.label} \{l.to}
+            - \{l.from} \{l.label} \{l.to}
         }
     }
 }
@@ -399,7 +399,7 @@ widget bars(items: list<bar>[1...]) {
 
     markdown {
         @for (b in items) {
-        - \{b.label}: \{b.value}
+            - \{b.label}: \{b.value}
         }
     }
 }
@@ -460,14 +460,14 @@ It is \{$state.celsius}°C right now.
 
 @grid(cols = cols.EQUAL(2), gap = space.L) {
 
-@card(title = "Deploys", tone = color.INFO) {
-We shipped **42** times, up from 37.
-}
+    @card(title = "Deploys", tone = color.INFO) {
+        We shipped **42** times, up from 37.
+    }
 
-@stats(items = [
-    stat { label = "Failures", value = "3", change = "-2", tone = color.OK },
-    stat { label = "p95", value = "180 ms", note = "API" },
-]);
+    @stats(items = [
+        stat { label = "Failures", value = "3", change = "-2", tone = color.OK },
+        stat { label = "p95", value = "180 ms", note = "API" },
+    ]);
 
 }
 ````

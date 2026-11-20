@@ -1396,7 +1396,7 @@ extern widget plane(
         \{label}
 
         @for (p in items) {
-        \{p}
+            \{p}
         }
     }
 }
@@ -1860,7 +1860,7 @@ widget stack(align: align = align.CENTER, justify: justify = justify.CENTER, pad
 
     markdown {
         @for (c in children) {
-        \{c}
+            \{c}
         }
     }
 }
@@ -1987,7 +1987,7 @@ widget blocks(value: md) {
 
     markdown {
         @for (b in value.blocks) {
-        \{@block_view(b)}
+            \{@block_view(b)}
         }
     }
 }
