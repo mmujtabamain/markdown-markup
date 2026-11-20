@@ -132,10 +132,13 @@ jobs:
       - name: The VS Code extension's widgets, for the vscode target
         working-directory: ide/vscode
         run: npm install --no-audit --no-fund
-      - name: The Android libraries for the JVM
+      - name: The Android libraries for the JVM, and their check adapters' classpath
         run: |
           targets/android/xtmd/build.sh host
           targets/android/xtmd-live/build.sh host
+          # the adapters start as `java @build/check_adapter.args …` (targets/android/compose/target.yaml);
+          # without the file, android's and android-live's adapters can't start
+          (cd targets/android/compose && ./gradlew --no-daemon :xtmd-android:checkAdapterArgs)
       - name: A browser for the web targets
         run: echo "XTMD_CHROMIUM=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
       - name: Every target, every case
