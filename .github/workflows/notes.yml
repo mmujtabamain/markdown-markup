@@ -1,6 +1,8 @@
 # The release-notes check, for main: a merge request into main raises VERSION past main's and adds
-# notes/<VERSION>.md, and every note is well formed (tools/release/check-notes.mjs). Main's ruleset
-# (.github/rulesets/main.json) requires it by its job's name, "Release notes".
+# notes/<VERSION>.md, and every note is well formed (tools/release/check-notes.mjs). While main's
+# VERSION has no release yet (the Release workflow held, to run by hand later), a merge request may
+# keep it and add to its note: it is held only above the last release. Main's ruleset
+# (.github/rulesets/main.json) requires the check by its job's name, "Release notes".
 name: Release notes
 
 on:
@@ -24,10 +26,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: VERSION is raised past main's, and every note is well formed
+      - name: VERSION is raised past main's (or past the last release, while main's has none), and every note is well formed
         run: |
+          base=""
           if [ -n "${{ github.base_ref }}" ] && git show "origin/${{ github.base_ref }}:VERSION" > /tmp/base-version 2>/dev/null; then
-            node tools/release/check-notes.mjs --base-version "$(tr -d '[:space:]' < /tmp/base-version)"
+            base="$(tr -d '[:space:]' < /tmp/base-version)"
+            # main's version not released yet: the last release's is the one to pass
+            if ! git ls-remote --exit-code --tags origin "refs/tags/v$base" > /dev/null 2>&1; then
+              base="$(git ls-remote --tags --refs origin 'v*' | sed 's#.*refs/tags/v##' | sort -V | tail -n 1)"
+            fi
+          fi
+          if [ -n "$base" ]; then
+            node tools/release/check-notes.mjs --base-version "$base"
           else
             node tools/release/check-notes.mjs
           fi

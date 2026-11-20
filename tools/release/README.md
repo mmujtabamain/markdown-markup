@@ -7,6 +7,11 @@ the **Types, tests and conformance** check (ci.yml) runs the tests, both require
 (.github/rulesets/). A merge that leaves `VERSION` as it was releases nothing, and the workflow can
 be run by hand.
 
+To hold a release, disable the Release workflow (Actions → Release → Disable workflow) before the
+merge; enable it and run it by hand when the release should go out. While `main`'s `VERSION` has no
+release, a merge request may keep it and add to `notes/<VERSION>.md`: the check holds it only above
+the last release.
+
 What it does, in order:
 
 1. **Binaries.** `xtmd` for Linux on x64 and arm64 (static, musl), macOS on Intel and Apple

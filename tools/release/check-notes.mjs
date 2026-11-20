@@ -3,7 +3,8 @@
 // release job. It fails, naming the file and line, unless:
 //
 //   - VERSION is a valid version (whole numbers and dots: 0.3.0; no "v", no leading zeros, no
-//     suffix), and with --base-version strictly higher than the base branch's. Raising an earlier
+//     suffix), and with --base-version strictly higher than it (main's, or the last release while
+//     main's has none: .github/workflows/notes.yml picks which). Raising an earlier
 //     number (0.3.1 -> 0.4.0) passes with a warning, so a big step is a deliberate one.
 //   - notes/<VERSION>.md exists, named exactly as VERSION writes the version.
 //   - Every note, old and new, starts with front matter giving its version (its file's name), a
@@ -192,7 +193,7 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
   if (version && baseVersion !== undefined) {
     const why = versionProblem(baseVersion);
     if (why) throw new UsageError(`--base-version ${quote(baseVersion)} is not a version (${why})`);
-    if (compareVersions(version, baseVersion) <= 0) err(versionFile, 1, `${versionFile} is ${version}, which is not higher than main's ${baseVersion}: every merge raises it. The next one would be ${nextVersion(baseVersion)}`);
+    if (compareVersions(version, baseVersion) <= 0) err(versionFile, 1, `${versionFile} is ${version}, which is not higher than ${baseVersion} (main's, or the last release while main's has none): every merge raises it. The next one would be ${nextVersion(baseVersion)}`);
     else if (bumpLevel(baseVersion, version) === 'earlier') warn(versionFile, 1, `${baseVersion} to ${version} raises an earlier number: make sure the big step is meant (a breaking change)`);
   }
   const dir = join(root, notesDir);
