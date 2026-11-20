@@ -36,6 +36,8 @@ package it already has), with a token. npm stops taking direct publishes with a 
 | `NPM_TOKEN` (secret) | an npm token that can publish `xtmd`, `extended-mark` and the `@extended-mark` scope | with no trusted publishing either, the npm packages aren't published; the step says so |
 | `CRATES_TRUSTED_PUBLISHING` = `true` (variable) | crates.io: each crate's Trusted Publishing names this repository and `release.yml` | the token below is used |
 | `CARGO_REGISTRY_TOKEN` (secret) | a crates.io token with publish-new and publish-update for `xtmd*` | with no trusted publishing either, the crates aren't published; the step says so |
+| `VSCE_PAT` (secret) | an Azure DevOps token with Marketplace → Manage, for the publisher `extended-mark` | the extension isn't published to the VS Code Marketplace (it is still on the GitHub release, as a .vsix) |
+| `OVSX_PAT` (secret) | an Open VSX token whose account owns the namespace `extended-mark` | the extension isn't published to Open VSX, which VSCodium, Cursor and the like install from |
 
 Trusted publishing checks each package's `repository` against the repository the run is in, so
 they are moved together when the repository moves.

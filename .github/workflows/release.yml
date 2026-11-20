@@ -12,7 +12,8 @@
 # Then test runs the checks every pull request runs (ci.yml), and publish makes the GitHub release
 # v<VERSION>, its notes the note's, with the binaries, xtmd.wasm, the AARs and the VS Code extension
 # (xtmd-<VERSION>.vsix), and publishes the npm
-# packages (xtmd, extended-mark and @extended-mark/*) and the crates (xtmd-*). Each registry is published to by
+# packages (xtmd, extended-mark and @extended-mark/*), the crates (xtmd-*), and the VS Code extension
+# to the Marketplace (VSCE_PAT) and Open VSX (OVSX_PAT). Each registry is published to by
 # trusted publishing once the repository variable says it is set up (NPM_TRUSTED_PUBLISHING,
 # CRATES_TRUSTED_PUBLISHING = true), and otherwise with a token: NPM_TOKEN, CARGO_REGISTRY_TOKEN.
 # A package's first release needs the token, since a registry sets up trusted publishing only for a
@@ -219,6 +220,17 @@ jobs:
           npm install -g npm@11
           node tools/release/build-ts.mjs
           node tools/release/publish-npm.mjs --version "${{ needs.version.outputs.version }}"
+      - name: The VS Code extension on the Marketplace and Open VSX
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        working-directory: ide/vscode
+        run: |
+          v="${{ needs.version.outputs.version }}"
+          if [ -n "$VSCE_PAT" ]; then npx vsce publish --packagePath "../../release/xtmd-$v.vsix" -p "$VSCE_PAT"
+          else echo "::notice::No VSCE_PAT secret: the extension isn't published to the VS Code Marketplace"; fi
+          if [ -n "$OVSX_PAT" ]; then npx ovsx publish "../../release/xtmd-$v.vsix" -p "$OVSX_PAT"
+          else echo "::notice::No OVSX_PAT secret: the extension isn't published to Open VSX"; fi
       - name: A crates.io token from trusted publishing
         id: crates-auth
         if: vars.CRATES_TRUSTED_PUBLISHING == 'true'
