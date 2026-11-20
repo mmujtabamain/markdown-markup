@@ -21,7 +21,7 @@ export interface Host {
 
 export type ClientMaker = (options: LanguageClientOptions, log: Log) => Promise<{ client: BaseLanguageClient; server: string }>;
 
-const XTMD = [{ language: "xtmd" }, { language: "xtmd-prose" }];
+const XTMD = [{ language: "xtmd" }, { language: "xtmd-prose" }, { language: "xtmd-pack" }];
 
 export async function activate(context: vscode.ExtensionContext, makeClient: ClientMaker, host: Host): Promise<void> {
   const log = new Log();
@@ -66,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext, makeClient: Cli
 
   // a pack or xtmd.toml that changes: every open document's packs again
   const resend = () => vscode.workspace.textDocuments.forEach((d) => void sendPacks(d));
-  const watcher = vscode.workspace.createFileSystemWatcher("**/{xtmd.toml,*.xtpack}");
+  const watcher = vscode.workspace.createFileSystemWatcher("**/{xtmd.toml,*.xtmdpack}");
   context.subscriptions.push(watcher, watcher.onDidChange(resend), watcher.onDidCreate(resend), watcher.onDidDelete(resend));
 
   // core's own source, read only, where go to definition lands in core
@@ -79,9 +79,9 @@ export async function activate(context: vscode.ExtensionContext, makeClient: Cli
     }),
   );
 
-  // a .xt.md with no @@@ line is prose all through: read in the prose language
+  // a .xtmd with no @@@ line is prose all through: read in the prose language
   const pick = (doc: vscode.TextDocument) => {
-    if (!doc.uri.path.endsWith(".xt.md") || !XTMD.some((s) => s.language === doc.languageId)) return;
+    if (!doc.uri.path.endsWith(".xtmd") || !XTMD.some((s) => s.language === doc.languageId)) return;
     const want = languageFor(doc.uri.path, doc.getText());
     if (want !== doc.languageId) void vscode.languages.setTextDocumentLanguage(doc, want);
   };

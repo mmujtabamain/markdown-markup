@@ -6,21 +6,26 @@ language server (ide/lsp), built in as WebAssembly so there is nothing to instal
 preview, the `vscode` target, that draws the page with VS Code's own components in the editor's
 theme.
 
-- **Highlighting** for `.xt.md` and `.xtpack`: the code above a document's `@@@` line, and the
+- **Highlighting** for `.xtmd` and `.xtmdpack`: the code above a document's `@@@` line, and the
   Markdown below it with widget calls, holes, control lines and `@//` comments. A document with no
   `@@@` line is read as prose all through.
 - **The language server** answers in a Node process (or a web worker in a browser), built from
   ide/lsp into xtmd.wasm. The extension is self-contained: it needs no xtmd binary.
 - **Packs**: a document is built with the packs its `xtmd.toml` names, read through VS Code (so in
   vscode.dev too) and given to the server.
-- **The preview** (Extended Mark: Open Preview to the Side) compiles the text as it is edited and
-  draws it beside the editor. A draft that doesn't compile keeps the last page that did, and says
-  why at its top; a widget that fails while drawn is marked on its call in the editor. Reset the
-  Preview's $state starts it again.
+- **The preview** compiles the text as it is edited and draws it beside the editor. A draft that
+  doesn't compile keeps the last page that did, and says why at its top; a widget that fails while
+  drawn is marked on its call in the editor. Reset the Preview's $state starts it again. It opens
+  from the preview button at the top right of a document (Alt-click: in its place), from a
+  document's tab or explorer menu, with Ctrl+K V (beside) or Ctrl+Shift+V (in its place), Cmd on a
+  Mac, and as an editor of its own: **Extended Mark Preview**, in Open With… and in the editor's own
+  menu of editors.
+- **File icons**: a document is a page with the call sign on it, a pack a box with it, each for
+  light and dark themes (brand/README.md).
 - **Commands**, from xtmd.wasm, in a browser too:
   - **Show the IR** and **Show as Markdown** open what `xtmd build` and `xtmd md` write on a page
     of its own beside the document; nothing is saved.
-  - **Check a Folder** checks every `.xt.md` and `.xtpack` file under it as the language server
+  - **Check a Folder** checks every `.xtmd` and `.xtmdpack` file under it as the language server
     checks an open one, into Problems.
   - **Migrate** plans what `xtmd migrate` would do (xtmd-migrate, in xtmd.wasm), asks its questions
     one at a time, shows every change side by side with the file as it is, and on Write Them writes

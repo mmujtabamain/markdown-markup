@@ -1,12 +1,13 @@
-// Which of the two languages a `.xt.md` is read in: code then prose when it has a `@@@` line
-// (`xtmd`); with none, prose all through (`xtmd-prose`), unless it is only code. A TextMate grammar
-// reads line by line and can't look ahead for the line, so the extension picks, as the playground
-// does.
+// Which language a file is read in. A pack (`.xtmdpack`) is definitions only (`xtmd-pack`). A document
+// (`.xtmd`) is code then prose when it has a `@@@` line (`xtmd`); with none, prose all through
+// (`xtmd-prose`), unless it is only code. A TextMate grammar reads line by line and can't look ahead
+// for the line, so the extension picks, as the playground does.
 
 const CODE_FIRST = /^\s*(?:package|import|\$state|widget|record|enum|fn|let|extern|expose|token|tokens|type|interface|pack)\b/;
 
-export function languageFor(path: string, text: string): "xtmd" | "xtmd-prose" {
-  if (!path.endsWith(".xt.md")) return "xtmd";
+export function languageFor(path: string, text: string): "xtmd" | "xtmd-prose" | "xtmd-pack" {
+  if (path.endsWith(".xtmdpack")) return "xtmd-pack";
+  if (!path.endsWith(".xtmd")) return "xtmd";
   if (/^@@@\s*$/m.test(text)) return "xtmd";
   let lines = text.split("\n");
   // front matter is neither

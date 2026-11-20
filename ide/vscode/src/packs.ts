@@ -1,5 +1,5 @@
 // The packs a document is built with, as `xtmd check` finds them: the `xtmd.toml` in its folder or a
-// folder above, and its `packs = [...]`, each a folder of `.xtpack` files or one file, relative to
+// folder above, and its `packs = [...]`, each a folder of `.xtmdpack` files or one file, relative to
 // it. Read through VS Code's file system, so it works in vscode.dev too; the language server is
 // given them (`xtmd/packs`), since in a browser it can't read them itself.
 
@@ -55,7 +55,7 @@ async function walk(dir: vscode.Uri, out: vscode.Uri[]): Promise<void> {
     const at = vscode.Uri.joinPath(dir, name);
     if (type & vscode.FileType.Directory) {
       if (!name.startsWith(".") && !["node_modules", "target", "dist"].includes(name)) await walk(at, out);
-    } else if (name.endsWith(".xtpack")) out.push(at);
+    } else if (name.endsWith(".xtmdpack")) out.push(at);
   }
 }
 
@@ -99,8 +99,8 @@ export async function packsOf(config: vscode.Uri | undefined): Promise<Packs> {
     const at = vscode.Uri.joinPath(dir, n);
     const k = await kind(at);
     if (k !== undefined && k & vscode.FileType.Directory) await walk(at, files);
-    else if (k === vscode.FileType.File && n.endsWith(".xtpack")) files.push(at);
-    else problems.push(`${config.toString(true)}: packs = ["${n}"]: not a folder or a .xtpack file`);
+    else if (k === vscode.FileType.File && n.endsWith(".xtmdpack")) files.push(at);
+    else problems.push(`${config.toString(true)}: packs = ["${n}"]: not a folder or a .xtmdpack file`);
   }
   const packs: PackFile[] = [];
   for (const f of files) {

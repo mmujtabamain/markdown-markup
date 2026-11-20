@@ -26,21 +26,27 @@ function position(doc: vscode.TextDocument, line: number, column: number): vscod
   return new vscode.Position(l, units);
 }
 
-export class Previews {
-  private readonly open = new Map<string, Preview>();
+const same = (a: vscode.TextDocument, b: vscode.TextDocument) => a.uri.toString() === b.uri.toString();
+
+export class Previews implements vscode.CustomTextEditorProvider {
+  private readonly open = new Set<Preview>();
   readonly failures = vscode.languages.createDiagnosticCollection("xtmd preview");
   private wasm: Promise<Uint8Array> | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext, private readonly log: Log) {
     context.subscriptions.push(this.failures);
     context.subscriptions.push(
-      vscode.workspace.onDidChangeTextDocument((e) => this.open.get(e.document.uri.toString())?.changed()),
+      // the preview as an editor of its own: Open With…, and the editor's own menu of editors
+      vscode.window.registerCustomEditorProvider("xtmd.previewEditor", this, { webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: true }),
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        for (const p of this.open) if (same(p.doc, e.document)) p.changed();
+      }),
       vscode.workspace.onDidSaveTextDocument((d) => {
         // a pack or xtmd.toml saved: every preview reads its packs again
-        if (d.uri.path.endsWith(".xtpack") || d.uri.path.endsWith("/xtmd.toml")) for (const p of this.open.values()) p.reloadPacks();
+        if (d.uri.path.endsWith(".xtmdpack") || d.uri.path.endsWith("/xtmd.toml")) for (const p of this.open) p.reloadPacks();
       }),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("xtmd.preview.theme")) for (const p of this.open.values()) p.sendTheme();
+        if (e.affectsConfiguration("xtmd.preview.theme")) for (const p of this.open) p.sendTheme();
       }),
     );
   }
@@ -51,42 +57,44 @@ export class Previews {
     return this.wasm;
   }
 
-  show(doc: vscode.TextDocument): void {
-    const key = doc.uri.toString();
-    const had = this.open.get(key);
-    if (had) {
-      had.panel.reveal(vscode.ViewColumn.Beside, true);
-      return;
-    }
-    const p = new Preview(this, doc, this.context, this.log);
-    this.open.set(key, p);
+  /** The preview of `doc` beside it, or, `here`, in its place. One that is open already is shown. */
+  show(doc: vscode.TextDocument, here = false): void {
+    const column = here ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
+    const had = [...this.open].find((p) => same(p.doc, doc) && !p.custom);
+    if (had) return had.panel.reveal(column, !here);
+    const panel = vscode.window.createWebviewPanel("xtmd.preview", `Preview ${doc.uri.path.split("/").pop()}`, { viewColumn: column, preserveFocus: !here }, { retainContextWhenHidden: true });
+    this.adopt(new Preview(this, doc, panel, false, this.context, this.log));
+  }
+
+  resolveCustomTextEditor(doc: vscode.TextDocument, panel: vscode.WebviewPanel): void {
+    this.adopt(new Preview(this, doc, panel, true, this.context, this.log));
+  }
+
+  private adopt(p: Preview): void {
+    this.open.add(p);
     vscode.commands.executeCommand("setContext", "xtmd.previewOpen", true);
     p.panel.onDidDispose(() => {
-      this.open.delete(key);
-      this.failures.delete(doc.uri);
+      this.open.delete(p);
+      if (![...this.open].some((o) => same(o.doc, p.doc))) this.failures.delete(p.doc.uri);
       vscode.commands.executeCommand("setContext", "xtmd.previewOpen", this.open.size > 0);
     });
   }
 
-  /** $state and every widget's own variables at their start, in the preview of `doc` (or every one). */
+  /** $state and every widget's own variables at their start, in the previews of `doc` (or every one). */
   reset(doc?: vscode.TextDocument): void {
-    for (const [k, p] of this.open) if (!doc || k === doc.uri.toString()) p.post({ type: "reset" });
+    for (const p of this.open) if (!doc || same(p.doc, doc)) p.post({ type: "reset" });
   }
 }
 
 class Preview {
-  readonly panel: vscode.WebviewPanel;
   private packs: { path: string; text: string }[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private ready = false;
 
-  constructor(private readonly all: Previews, private readonly doc: vscode.TextDocument, context: vscode.ExtensionContext, private readonly log: Log) {
+  /** The preview of `doc` in `panel`: one of its own beside the document, or `custom`, the editor VS Code opens it in. */
+  constructor(private readonly all: Previews, readonly doc: vscode.TextDocument, readonly panel: vscode.WebviewPanel, readonly custom: boolean, context: vscode.ExtensionContext, private readonly log: Log) {
     const dist = vscode.Uri.joinPath(context.extensionUri, "dist");
-    this.panel = vscode.window.createWebviewPanel("xtmd.preview", `Preview ${doc.uri.path.split("/").pop()}`, { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true }, {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [dist],
-    });
+    this.panel.webview.options = { enableScripts: true, localResourceRoots: [dist] };
     this.panel.iconPath = {
       light: vscode.Uri.joinPath(context.extensionUri, "media", "xtmd-light.svg"),
       dark: vscode.Uri.joinPath(context.extensionUri, "media", "xtmd-dark.svg"),

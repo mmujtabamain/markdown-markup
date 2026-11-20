@@ -34,8 +34,9 @@
   "activationEvents": [
     "onLanguage:xtmd",
     "onLanguage:xtmd-prose",
-    "workspaceContains:**/*.xt.md",
-    "workspaceContains:**/*.xtpack"
+    "onLanguage:xtmd-pack",
+    "workspaceContains:**/*.xtmd",
+    "workspaceContains:**/*.xtmdpack"
   ],
   "contributes": {
     "languages": [
@@ -46,12 +47,7 @@
           "xtmd"
         ],
         "extensions": [
-          ".xt.md",
-          ".xtpack"
-        ],
-        "filenamePatterns": [
-          "*.xt.md",
-          "*.xtpack"
+          ".xtmd"
         ],
         "configuration": "./language-configuration.json",
         "icon": {
@@ -68,6 +64,20 @@
         "icon": {
           "light": "./media/xtmd-light.svg",
           "dark": "./media/xtmd-dark.svg"
+        }
+      },
+      {
+        "id": "xtmd-pack",
+        "aliases": [
+          "Extended Mark pack"
+        ],
+        "extensions": [
+          ".xtmdpack"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/xtmdpack-light.svg",
+          "dark": "./media/xtmdpack-dark.svg"
         }
       }
     ],
@@ -87,12 +97,23 @@
         "embeddedLanguages": {
           "meta.embedded.block.frontmatter": "yaml"
         }
+      },
+      {
+        "language": "xtmd-pack",
+        "scopeName": "source.xtmdpack",
+        "path": "./syntaxes/xtmdpack.tmLanguage.json"
       }
     ],
     "commands": [
       {
         "command": "xtmd.preview",
         "title": "Open Preview to the Side",
+        "category": "Extended Mark",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "xtmd.previewHere",
+        "title": "Open Preview",
         "category": "Extended Mark",
         "icon": "$(open-preview)"
       },
@@ -118,7 +139,7 @@
       },
       {
         "command": "xtmd.migrate",
-        "title": "Migrate\u2026",
+        "title": "Migrate…",
         "category": "Extended Mark"
       },
       {
@@ -127,15 +148,33 @@
         "category": "Extended Mark"
       }
     ],
+    "customEditors": [
+      {
+        "viewType": "xtmd.previewEditor",
+        "displayName": "Extended Mark Preview",
+        "selector": [
+          {
+            "filenamePattern": "*.xtmd"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
     "menus": {
       "editor/title": [
         {
           "command": "xtmd.preview",
-          "when": "editorLangId =~ /^xtmd/ && resourceFilename =~ /\\.xt\\.md$/",
+          "alt": "xtmd.previewHere",
+          "when": "(editorLangId == xtmd || editorLangId == xtmd-prose) && resourceExtname == .xtmd",
           "group": "navigation"
         }
       ],
       "explorer/context": [
+        {
+          "command": "xtmd.preview",
+          "when": "resourceExtname == .xtmd",
+          "group": "navigation"
+        },
         {
           "command": "xtmd.checkFolder",
           "when": "explorerResourceIsFolder",
@@ -143,14 +182,18 @@
         },
         {
           "command": "xtmd.migrate",
-          "when": "explorerResourceIsFolder || resourceFilename =~ /\\.(xt|mkp)\\.md$/",
+          "when": "explorerResourceIsFolder || resourceExtname == .xtmd || resourceFilename =~ /\\.mkp\\.md$/",
           "group": "7_modification"
         }
       ],
       "commandPalette": [
         {
           "command": "xtmd.preview",
-          "when": "editorLangId =~ /^xtmd/"
+          "when": "editorLangId == xtmd || editorLangId == xtmd-prose"
+        },
+        {
+          "command": "xtmd.previewHere",
+          "when": "editorLangId == xtmd || editorLangId == xtmd-prose"
         },
         {
           "command": "xtmd.resetState",
@@ -162,7 +205,7 @@
         },
         {
           "command": "xtmd.showMarkdown",
-          "when": "editorLangId =~ /^xtmd/"
+          "when": "editorLangId == xtmd || editorLangId == xtmd-prose"
         },
         {
           "command": "xtmd.checkFolder"
@@ -170,8 +213,29 @@
         {
           "command": "xtmd.migrate"
         }
+      ],
+      "editor/title/context": [
+        {
+          "command": "xtmd.preview",
+          "when": "resourceExtname == .xtmd",
+          "group": "1_open"
+        }
       ]
     },
+    "keybindings": [
+      {
+        "command": "xtmd.previewHere",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorTextFocus && (editorLangId == xtmd || editorLangId == xtmd-prose)"
+      },
+      {
+        "command": "xtmd.preview",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorTextFocus && (editorLangId == xtmd || editorLangId == xtmd-prose)"
+      }
+    ],
     "configuration": {
       "title": "Extended Mark",
       "properties": {

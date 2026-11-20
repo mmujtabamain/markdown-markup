@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Extended Mark",
   "scopeName": "source.xtmd",
-  "comment": "Extended Mark: a document's definitions above its @@@ line, and Markdown with widget calls below it (a .xt.md); a pack's file is definitions only (a .xtpack). The extension gives a document with no @@@ line the prose grammar (text.xtmd.prose).",
+  "comment": "Extended Mark: a document's definitions above its @@@ line, and Markdown with widget calls below it (a .xtmd). A pack's file (a .xtmdpack) is definitions only, in source.xtmdpack, which takes #code from here. The extension gives a document with no @@@ line the prose grammar (text.xtmd.prose).",
   "patterns": [
     {
       "include": "#front-matter"

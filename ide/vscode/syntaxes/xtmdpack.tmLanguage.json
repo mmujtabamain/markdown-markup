@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Extended Mark pack",
+  "scopeName": "source.xtmdpack",
+  "comment": "A pack's file (.xtmdpack): definitions only, coloured as a document's definitions are, by source.xtmd's own rules.",
+  "patterns": [
+    {
+      "include": "source.xtmd#code"
+    }
+  ]
+}

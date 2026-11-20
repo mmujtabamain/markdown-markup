@@ -23,7 +23,7 @@ interface Parts {
 function active(): vscode.TextDocument | undefined {
   const doc = vscode.window.activeTextEditor?.document;
   if (doc && (doc.languageId === "xtmd" || doc.languageId === "xtmd-prose")) return doc;
-  vscode.window.showWarningMessage("Open an Extended Mark document (.xt.md) first.");
+  vscode.window.showWarningMessage("Open an Extended Mark document (.xtmd) first.");
   return undefined;
 }
 
@@ -93,10 +93,13 @@ export function commands(context: vscode.ExtensionContext, { log, host, previews
   let migrating = false;
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider("xtmd-migrate", { provideTextDocumentContent: (u) => shown.get(u.toString()) ?? "" }));
 
-  register("xtmd.preview", () => {
-    const doc = active();
-    if (doc) previews.show(doc);
-  });
+  // from the editor, its tab's menu or the explorer's, which give the file
+  const preview = async (here: boolean, uri?: vscode.Uri) => {
+    const doc = uri instanceof vscode.Uri ? await vscode.workspace.openTextDocument(uri) : active();
+    if (doc) previews.show(doc, here);
+  };
+  register("xtmd.preview", (uri?: vscode.Uri) => preview(false, uri));
+  register("xtmd.previewHere", (uri?: vscode.Uri) => preview(true, uri));
   register("xtmd.resetState", () => previews.reset(vscode.window.activeTextEditor?.document));
   register("xtmd.showLog", () => log.channel.show());
 
@@ -133,10 +136,10 @@ export function commands(context: vscode.ExtensionContext, { log, host, previews
     if (!folder) return;
     const c = client();
     if (!c) return void vscode.window.showErrorMessage("Extended Mark's language server isn't running, so nothing can be checked.", "Show the Log").then((a) => a && log.channel.show());
-    const files = await filesUnder(folder, (n) => n.endsWith(".xt.md") || n.endsWith(".xtpack"));
+    const files = await filesUnder(folder, (n) => n.endsWith(".xtmd") || n.endsWith(".xtmdpack"));
     const named02 = (await filesUnder(folder, (n) => n.endsWith(".mkp.md"))).length;
     if (!files.length) {
-      vscode.window.showInformationMessage(`No Extended Mark files (.xt.md or .xtpack) in ${folder.path.split("/").pop()}${named02 ? `, but ${plural(named02, "document")} by MKP's name (.mkp.md): Migrate brings them to Extended Mark` : ""}.`);
+      vscode.window.showInformationMessage(`No Extended Mark files (.xtmd or .xtmdpack) in ${folder.path.split("/").pop()}${named02 ? `, but ${plural(named02, "document")} by MKP's name (.mkp.md): Migrate brings them to Extended Mark` : ""}.`);
       return;
     }
     // each xtmd.toml's packs, read once
@@ -196,8 +199,8 @@ export function commands(context: vscode.ExtensionContext, { log, host, previews
    * as one edit, shown first in the refactor preview. */
   const migrate = async (target: vscode.Uri, allow: { todos?: boolean; errors?: boolean } = {}) => {
     const folder = await isFolder(target);
-    const docs = folder ? await filesUnder(target, (n) => n.endsWith(".xt.md") || n.endsWith(".mkp.md")) : [target];
-    if (!folder && !/\.(xt|mkp)\.md$/.test(target.path)) return void vscode.window.showWarningMessage(`${target.path.split("/").pop()}: not a document (.xt.md) or a folder.`);
+    const docs = folder ? await filesUnder(target, (n) => n.endsWith(".xtmd") || n.endsWith(".mkp.md")) : [target];
+    if (!folder && !/\.(xtmd|mkp\.md)$/.test(target.path)) return void vscode.window.showWarningMessage(`${target.path.split("/").pop()}: not a document (.xtmd) or a folder.`);
     const at = folder ? target : vscode.Uri.joinPath(target, "..");
     const { root, name, uri } = naming(target);
     const config = await configFrom(at);
@@ -334,7 +337,7 @@ export function commands(context: vscode.ExtensionContext, { log, host, previews
     const doc = editor?.document;
     if (!doc || doc.uri.scheme !== "file" || !doc.uri.path.endsWith(".mkp.md") || offered.has(doc.uri.toString()) || migrating) return;
     offered.add(doc.uri.toString());
-    vscode.window.showInformationMessage(`${doc.uri.path.split("/").pop()} is named as MKP named a document. Migrate moves it to Extended Mark (name.xt.md).`, "Migrate It").then((a) => a && vscode.commands.executeCommand("xtmd.migrate", doc.uri));
+    vscode.window.showInformationMessage(`${doc.uri.path.split("/").pop()} is named as MKP named a document. Migrate moves it to Extended Mark (name.xtmd).`, "Migrate It").then((a) => a && vscode.commands.executeCommand("xtmd.migrate", doc.uri));
   };
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(offer));
   offer(vscode.window.activeTextEditor);

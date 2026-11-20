@@ -13,7 +13,7 @@ import oniguruma from "vscode-oniguruma";
 const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 await oniguruma.loadWASM(readFileSync(require.resolve("vscode-oniguruma/release/onig.wasm")).buffer);
-const files = { "source.xtmd": "xtmd.tmLanguage.json", "text.xtmd.prose": "xtmd-prose.tmLanguage.json" };
+const files = { "source.xtmd": "xtmd.tmLanguage.json", "text.xtmd.prose": "xtmd-prose.tmLanguage.json", "source.xtmdpack": "xtmdpack.tmLanguage.json" };
 const registry = new vsctm.Registry({
   onigLib: Promise.resolve({ createOnigScanner: (p) => new oniguruma.OnigScanner(p), createOnigString: (s) => new oniguruma.OnigString(s) }),
   loadGrammar: async (scope) => (files[scope] ? vsctm.parseRawGrammar(readFileSync(join(here, "..", "syntaxes", files[scope]), "utf8"), files[scope]) : null),
@@ -35,7 +35,7 @@ async function tokens(scope, text) {
 const scopeOf = (ts, text) => ts.find(([t]) => t === text)?.[1];
 
 test("a document's code above @@@ and its Markdown below get their scopes", async () => {
-  const ts = await tokens("source.xtmd", readFileSync(join(here, "workspace", "docs", "poll.xt.md"), "utf8"));
+  const ts = await tokens("source.xtmd", readFileSync(join(here, "workspace", "docs", "poll.xtmd"), "utf8"));
   assert.equal(scopeOf(ts, "import"), "keyword.other.import.xtmd");
   assert.equal(scopeOf(ts, "$state"), "variable.language.state.xtmd");
   assert.equal(scopeOf(ts, "share"), "entity.name.function.xtmd");
@@ -53,8 +53,9 @@ test("a document's code above @@@ and its Markdown below get their scopes", asyn
   assert.ok(ts.filter(([t]) => t === "$state").length >= 4);
 });
 
-test("a pack's file is code all through, with its declarations named", async () => {
-  const ts = await tokens("source.xtmd", readFileSync(join(here, "workspace", "kit", "kit.xtpack"), "utf8"));
+test("a pack's file is code all through, in its own grammar, with its declarations named", async () => {
+  const ts = await tokens("source.xtmdpack", readFileSync(join(here, "workspace", "kit", "kit.xtmdpack"), "utf8"));
+  assert.equal(ts[0][2][0], "source.xtmdpack");
   assert.equal(scopeOf(ts, "kit"), "entity.name.namespace.xtmd");
   assert.equal(scopeOf(ts, "tally"), "entity.name.function.xtmd");
   assert.equal(scopeOf(ts, "//@about A count with a name, and a press that adds one."), "comment.line.documentation.xtmd");

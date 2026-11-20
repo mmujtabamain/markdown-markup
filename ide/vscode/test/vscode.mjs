@@ -45,7 +45,7 @@ writeFileSync(
 );
 
 const code = await downloadAndUnzipVSCode("stable");
-const poll = readFileSync(join(workspace, "docs", "poll.xt.md"), "utf8");
+const poll = readFileSync(join(workspace, "docs", "poll.xtmd"), "utf8");
 const app = await electron.launch({
   executablePath: code,
   args: [
@@ -58,7 +58,7 @@ const app = await electron.launch({
     "--disable-gpu",
     "--no-sandbox",
     workspace,
-    join(workspace, "docs", "poll.xt.md"),
+    join(workspace, "docs", "poll.xtmd"),
   ],
   timeout: 120000,
 });
@@ -97,7 +97,7 @@ try {
   // the server compiles core once as it starts, then the document
   await win.locator(".statusbar-item", { hasText: "Extended Mark" }).first().waitFor({ timeout: 30000 });
   await pause(9000);
-  await shot("01-document", "poll.xt.md open: code above @@@, Markdown and widget calls below, highlighted; the status bar says no errors");
+  await shot("01-document", "poll.xtmd open: code above @@@, Markdown and widget calls below, highlighted; the status bar says no errors");
 
   // 2. hover: a pack's widget, how it is declared and its doc
   // the cursor on the name, then Show Hover (Ctrl+K Ctrl+I), as the keyboard does it
@@ -161,20 +161,20 @@ try {
   // 6. go to definition: into the pack
   await word('@tally(name = "No"', "tally").click();
   await win.keyboard.press("F12");
-  await win.locator(".tab.active", { hasText: "kit.xtpack" }).waitFor({ timeout: 15000 });
-  await shot("07-definition", "F12 on tally: kit.xtpack opens at the widget's declaration");
+  await win.locator(".tab.active", { hasText: "kit.xtmdpack" }).waitFor({ timeout: 15000 });
+  await shot("07-definition", "F12 on tally: kit.xtmdpack opens at the widget's declaration");
 
   // 7. the outline of the pack
   await palette("Explorer: Focus on Outline View");
   await pause(1500);
-  await shot("08-outline", "The outline of kit.xtpack: its pack and widget, and the widget's inputs");
+  await shot("08-outline", "The outline of kit.xtmdpack: its pack and widget, and the widget's inputs");
 
   // 8. format document
   await win.keyboard.press("Control+Home");
   await win.keyboard.press("Control+End");
   await win.keyboard.press("Control+Shift+Tab");
   await win.keyboard.press("Control+P");
-  await win.keyboard.type("poll.xt.md", { delay: 20 });
+  await win.keyboard.type("poll.xtmd", { delay: 20 });
   await pause(500);
   await win.keyboard.press("Enter");
   await pause(800);
@@ -232,6 +232,6 @@ try {
 }
 writeFileSync(join(out, "steps.json"), JSON.stringify(steps, null, 2));
 // leave the files as they were, unsaved changes dropped
-writeFileSync(join(workspace, "docs", "poll.xt.md"), poll);
+writeFileSync(join(workspace, "docs", "poll.xtmd"), poll);
 await app.close();
 rmSync(user, { recursive: true, force: true });
