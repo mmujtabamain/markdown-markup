@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn core_sources() -> Vec<Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -20,18 +20,18 @@ fn src(path: &str, text: &str) -> Source {
 
 #[test]
 fn a_pack_with_a_surface_beside_it_compiles_and_documents_see_only_the_pack() {
-    let packs = vec![src("kit/kit.xtpack", PACK), src("kit/migrations/kit@2.xtpack", MIGRATION), src("kit/surfaces/kit@1.xtpack", SURFACE)];
-    let ok = compile(&core_sources(), &[packs.clone()], &[src("doc.xt.md", "import kit;\n@@@\n@badge(label = \"new\");\n")], "doc");
+    let packs = vec![src("kit/kit.xtmdpack", PACK), src("kit/migrations/kit@2.xtmdpack", MIGRATION), src("kit/surfaces/kit@1.xtmdpack", SURFACE)];
+    let ok = compile(&core_sources(), &[packs.clone()], &[src("doc.xtmd", "import kit;\n@@@\n@badge(label = \"new\");\n")], "doc");
     assert!(ok.module.is_some(), "{:?}", ok.diagnostics.iter().map(|d| &d.diagnostic.message).collect::<Vec<_>>());
     // the surface's chart is kit@1's, which kit@2 no longer has
-    let old = compile(&core_sources(), &[packs], &[src("doc.xt.md", "import kit;\n@@@\n@chart(values = [1]);\n")], "doc");
+    let old = compile(&core_sources(), &[packs], &[src("doc.xtmd", "import kit;\n@@@\n@chart(values = [1]);\n")], "doc");
     assert!(old.module.is_none());
 }
 
 #[test]
 fn a_surface_holds_signatures_only() {
     let bad = "package kit@1;\n\nfn f(): number {\n    return 1;\n}\n";
-    let c = compile(&core_sources(), &[vec![src("kit/kit.xtpack", PACK), src("kit/surfaces/kit@1.xtpack", bad)]], &[], "main");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.xtmdpack", PACK), src("kit/surfaces/kit@1.xtmdpack", bad)]], &[], "main");
     assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "pack.surface" && d.diagnostic.message.contains("extern fn")));
 }
 
@@ -39,7 +39,7 @@ const KIT1: &str = "package kit;\n\npack kit@1 {\n    uses core@1;\n    provides
 const KIT1_SURFACE: &str = "package kit@1;\n\nrecord stat {\n    label: text[1...];\n    value: text;\n}\n\nenum state { DONE, LATE }\n\nextern widget chart(values: list<number>, color: color = color.ACCENT);\n";
 
 fn promise(pack: &str) -> Vec<String> {
-    let c = compile(&core_sources(), &[vec![src("kit/surfaces/kit@1.xtpack", KIT1_SURFACE)]], &[src("kit/kit.xtpack", pack)], "main");
+    let c = compile(&core_sources(), &[vec![src("kit/surfaces/kit@1.xtmdpack", KIT1_SURFACE)]], &[src("kit/kit.xtmdpack", pack)], "main");
     c.diagnostics.iter().filter(|d| d.diagnostic.code == "pack.version-break").map(|d| d.diagnostic.message.clone()).collect()
 }
 
@@ -66,7 +66,7 @@ fn a_break_without_a_new_version_is_a_compile_error() {
 
 #[test]
 fn a_surface_never_reaches_the_ir() {
-    let c = compile(&core_sources(), &[vec![src("kit/kit.xtpack", KIT1), src("kit/surfaces/kit@1.xtpack", KIT1_SURFACE)]], &[src("doc.xt.md", "import kit;\n@@@\n@chart(values = [1]);\n")], "doc");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.xtmdpack", KIT1), src("kit/surfaces/kit@1.xtmdpack", KIT1_SURFACE)]], &[src("doc.xtmd", "import kit;\n@@@\n@chart(values = [1]);\n")], "doc");
     let json = serde_json::to_string(&c.module.expect("compiles")).unwrap();
     assert!(!json.contains("kit@1"), "a surface's names are in the IR");
 }
@@ -74,7 +74,7 @@ fn a_surface_never_reaches_the_ir() {
 const KIT2: &str = "package kit;\n\npack kit@2 {\n    uses core@1;\n    provides plot, stat, state;\n}\n\nrecord stat {\n    title: text[1...];\n    value: text;\n    unit: text;\n}\n\nenum state { DONE, OVERDUE }\n\nextern widget plot(values: list<number>, tone: color = color.ACCENT);\n";
 
 fn migrate(migration: &str) -> Vec<(String, String)> {
-    let c = compile(&core_sources(), &[vec![src("kit/kit.xtpack", KIT2), src("kit/surfaces/kit@1.xtpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtpack", migration)], "main");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.xtmdpack", KIT2), src("kit/surfaces/kit@1.xtmdpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtmdpack", migration)], "main");
     c.diagnostics.iter().filter(|d| d.diagnostic.code.starts_with("pack.")).map(|d| (d.diagnostic.code.to_string(), d.diagnostic.message.clone())).collect()
 }
 
@@ -121,9 +121,9 @@ fn a_migrations_code_is_typed_against_both_versions() {
     let typed = COMPLETE.replace("        color_to_tone();\n", "        color_to_tone();\n        set(input = tone, value = color.BAD, when = !given(tone) && confirm(why = \"red?\"), why = \"red\");\n");
     assert_eq!(migrate(&typed), Vec::<(String, String)>::new());
     let wrong = COMPLETE.replace("        color_to_tone();\n", "        color_to_tone();\n        set(input = tone, value = \"red\", why = \"red\");\n");
-    let c = compile(&core_sources(), &[vec![src("kit/kit.xtpack", KIT2), src("kit/surfaces/kit@1.xtpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtpack", &wrong)], "main");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.xtmdpack", KIT2), src("kit/surfaces/kit@1.xtmdpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtmdpack", &wrong)], "main");
     assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "types.mismatch" && d.diagnostic.message.contains("expected color")), "{:?}", c.diagnostics.iter().map(|d| &d.diagnostic.message).collect::<Vec<_>>());
     let missing = COMPLETE.replace("        rename(to = plot);\n        color_to_tone();\n", "        rename(to = plot);\n        execute {\n            return @plot(tone = color);\n        }\n");
-    let c = compile(&core_sources(), &[vec![src("kit/kit.xtpack", KIT2), src("kit/surfaces/kit@1.xtpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtpack", &missing)], "main");
+    let c = compile(&core_sources(), &[vec![src("kit/kit.xtmdpack", KIT2), src("kit/surfaces/kit@1.xtmdpack", KIT1_SURFACE)]], &[src("kit/migrations/kit@2.xtmdpack", &missing)], "main");
     assert!(c.diagnostics.iter().any(|d| d.diagnostic.code == "views.missing-input" && d.diagnostic.message.contains("`values`")), "{:?}", c.diagnostics.iter().map(|d| &d.diagnostic.message).collect::<Vec<_>>());
 }

@@ -3,7 +3,7 @@
 //! run so a busy machine weighs on both alike. Prints the median ms per step, as
 //! targets/ts/dom/test/drag-bench.mjs does for the web.
 //!
-//!   cargo run --release -p xtmd-runtime --example drag_bench -- targets/android/compose/sample/pages/tour.xt.md
+//!   cargo run --release -p xtmd-runtime --example drag_bench -- targets/android/compose/sample/pages/tour.xtmd
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -26,7 +26,7 @@ impl Measure for Fixed {
 
 fn core() -> Vec<Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -69,7 +69,7 @@ fn median(mut xs: Vec<f64>) -> f64 {
 }
 
 fn main() {
-    let file = std::env::args().nth(1).expect("a page: drag_bench <page.xt.md>");
+    let file = std::env::args().nth(1).expect("a page: drag_bench <page.xtmd>");
     let text = std::fs::read_to_string(&file).unwrap();
     let base = xtmd_check::compile_core(&core());
     let c = xtmd_check::compile_on(&base, &[], &[Source { path: file.clone(), text }], "doc");

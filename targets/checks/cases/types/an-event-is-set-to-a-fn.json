@@ -1,7 +1,7 @@
 {
   "id": "types.an-event-is-set-to-a-fn",
   "about": "the caller sets an event to a fn with the same parameters and no return type",
-  "source": "an-event-is-set-to-a-fn.xtpack",
+  "source": "an-event-is-set-to-a-fn.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 15, "column": 24}

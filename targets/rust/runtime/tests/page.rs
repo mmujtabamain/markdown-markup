@@ -476,7 +476,7 @@ fn an_undone_change_leaves_no_reused_node_behind() {
 
 #[test]
 fn dragging_on_the_tour_page_observes_the_same_with_and_without_reuse() {
-    let source = std::fs::read_to_string(repo().join("targets/android/compose/sample/pages/tour.xt.md")).unwrap();
+    let source = std::fs::read_to_string(repo().join("targets/android/compose/sample/pages/tour.xtmd")).unwrap();
     let point = |x: &str, y: &str| {
         Expr::Record(xtmd_runtime::ir::ExprRecord { ty: "core/point".into(), fields: BTreeMap::from([("x".to_string(), num(x)), ("y".to_string(), num(y))]) })
     };

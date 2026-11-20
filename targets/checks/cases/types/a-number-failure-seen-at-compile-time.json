@@ -1,7 +1,7 @@
 {
   "id": "types.a-number-failure-seen-at-compile-time",
   "about": "a division by zero on constants is a compile error",
-  "source": "a-number-failure-seen-at-compile-time.xtpack",
+  "source": "a-number-failure-seen-at-compile-time.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.constant-failed", "line": 3, "column": 5}

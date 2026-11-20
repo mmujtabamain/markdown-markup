@@ -1,7 +1,7 @@
 {
   "id": "names.a-field-or-fn-exists-on-the-type",
   "about": "a small name after the dot is a field or a fn of the value's type, and the message names the type",
-  "source": "a-field-or-fn-exists-on-the-type.xtpack",
+  "source": "a-field-or-fn-exists-on-the-type.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-field", "line": 8, "column": 14}

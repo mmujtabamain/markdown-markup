@@ -31,12 +31,12 @@ type Found = (String, u32, u32);
 
 fn core() -> Vec<xtmd_check::Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| xtmd_check::Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
 
-/// The `.xtpack` files of a case's packs: files or folders beside it.
+/// The `.xtmdpack` files of a case's packs: files or folders beside it.
 fn packs(case_dir: &Path, case: &Value) -> Vec<xtmd_check::Source> {
     fn add(p: &Path, out: &mut Vec<xtmd_check::Source>) {
         if p.is_dir() {
@@ -45,7 +45,7 @@ fn packs(case_dir: &Path, case: &Value) -> Vec<xtmd_check::Source> {
             for f in files {
                 add(&f, out);
             }
-        } else if p.extension().map_or(false, |x| x == "xtpack") {
+        } else if p.extension().map_or(false, |x| x == "xtmdpack") {
             out.push(xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
         }
     }
@@ -71,7 +71,7 @@ fn compile(path: &Path, core: &[xtmd_check::Source], packs: &[xtmd_check::Source
         return parsed.diagnostics.iter().map(place).collect();
     }
     let main = xtmd_check::Source { path: name.clone(), text: src.clone() };
-    let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
+    let module = if name.ends_with(".xtmd") { "doc" } else { "t" };
     let c = xtmd_check::compile(core, &[packs.to_vec()], &[main], module);
     c.diagnostics.iter().filter(|d| d.file == name).map(|d| place(&d.diagnostic)).collect()
 }

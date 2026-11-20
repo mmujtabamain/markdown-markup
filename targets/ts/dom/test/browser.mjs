@@ -27,15 +27,15 @@ let n = 0;
 export function pack(name, source) {
   const p = join(dir, name);
   mkdirSync(p, { recursive: true });
-  writeFileSync(join(p, `${name}.xtpack`), source);
+  writeFileSync(join(p, `${name}.xtmdpack`), source);
   return p;
 }
 
 /** A document's IR, as text, built by the xtmd binary. */
 export function ir(source, { packs = [] } = {}) {
-  const file = join(dir, `page${n++}.xt.md`);
+  const file = join(dir, `page${n++}.xtmd`);
   writeFileSync(file, source);
-  const out = file.replace(/\.xt\.md$/, ".ir.json");
+  const out = file.replace(/\.xtmd$/, ".ir.json");
   try {
     execFileSync(xtmdBinary(), ["build", file, ...packs.flatMap((p) => ["--pack", p]), "--out", out], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   } catch (e) {

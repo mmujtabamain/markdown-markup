@@ -1,7 +1,7 @@
 {
   "id": "types.comparing-needs-same-and-ordered",
   "about": "== and != need same; < <= > >= and in need ordered; a fn fits neither",
-  "source": "comparing-needs-same-and-ordered.xtpack",
+  "source": "comparing-needs-same-and-ordered.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.not-comparable", "line": 4, "column": 12}

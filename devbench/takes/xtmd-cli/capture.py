@@ -3,7 +3,7 @@
     python3 devbench/takes/xtmd-cli/capture.py --work DIR [--xtmd PATH] [reel ...]
 
 Each scene is built afresh in DIR/scenes/<scene> from the repo's own fixtures (the consts of
-targets/rust/cli/tests/cli.rs, examples/graphs, schemas/examples/counter.xt.md). Each step's
+targets/rust/cli/tests/cli.rs, examples/graphs, schemas/examples/counter.xtmd). Each step's
 command then really runs there, as a terminal would run it, with a copy of the xtmd binary
 (DIR/bin/xtmd, copied from --xtmd, by default targets/rust/target/release/xtmd) first on PATH.
 What it printed, its exit code, how long it took, and the files the step names (before and
@@ -73,7 +73,7 @@ def git_commit(root):
         subprocess.run(["git"] + args, cwd=root, check=True, stdout=subprocess.DEVNULL)
 
 
-COUNTER = repo_text("schemas/examples/counter.xt.md")
+COUNTER = repo_text("schemas/examples/counter.xtmd")
 
 # check: two mistakes in the counter
 BROKEN = COUNTER.replace("\\{$state.n}", "\\{$state.count}").replace('label = "Add"', "label = 5")
@@ -115,8 +115,8 @@ USES_KIT1 = 'packs = ["kit"]\n\n[uses]\nkit = 1\n'
 
 
 def kit_tree(migration=C["MIGRATION"], doc=C["OLD_DOC"], config=USES_KIT1):
-    files = {"kit/kit.xtpack": C["KIT2"], "kit/surfaces/kit@1.xtpack": C["KIT1_SURFACE"],
-             "kit/migrations/kit@2.xtpack": migration, "docs/report.xt.md": doc}
+    files = {"kit/kit.xtmdpack": C["KIT2"], "kit/surfaces/kit@1.xtmdpack": C["KIT1_SURFACE"],
+             "kit/migrations/kit@2.xtmdpack": migration, "docs/report.xtmd": doc}
     if config is not None:
         files["xtmd.toml"] = config
     return files
@@ -124,16 +124,16 @@ def kit_tree(migration=C["MIGRATION"], doc=C["OLD_DOC"], config=USES_KIT1):
 
 # Each scene: (files, in git?). "repo" is the repository itself, read only.
 SCENES = {
-    "pages": ({"counter.xt.md": COUNTER, "broken.xt.md": BROKEN, "messy.xt.md": MESSY}, False),
-    "flow": ({"graphs/graphs.xtpack": repo_text("examples/graphs/graphs.xtpack"),
-              "release-flow.xt.md": repo_text("examples/graphs/release-flow.xt.md")}, False),
-    "kit1": ({"kit/kit.xtpack": C["SURFACE_PACK"]}, False),
+    "pages": ({"counter.xtmd": COUNTER, "broken.xtmd": BROKEN, "messy.xtmd": MESSY}, False),
+    "flow": ({"graphs/graphs.xtmdpack": repo_text("examples/graphs/graphs.xtmdpack"),
+              "release-flow.xtmd": repo_text("examples/graphs/release-flow.xtmd")}, False),
+    "kit1": ({"kit/kit.xtmdpack": C["SURFACE_PACK"]}, False),
     "report": (kit_tree(), True),
     "ask": (kit_tree(migration=ASKING), True),
     "split": (kit_tree(migration=SPLIT, doc=SPLIT_DOC), True),
     "ci": (kit_tree(), True),
-    "kit2": ({"kit/kit.xtpack": C["KIT2"], "kit/surfaces/kit@1.xtpack": C["KIT1_SURFACE"],
-              "kit/migrations/kit@2.xtpack": EXAMPLES}, False),
+    "kit2": ({"kit/kit.xtmdpack": C["KIT2"], "kit/surfaces/kit@1.xtmdpack": C["KIT1_SURFACE"],
+              "kit/migrations/kit@2.xtmdpack": EXAMPLES}, False),
     "notes": ({"docs/counter.mkp.md": C["COUNTER_02"], "docs/runs.mkp.md": C["RUNS_02"],
                "docs/plain.mkp.md": "# Notes\n\n```js\nlet x = 1;\n```\n",
                "old/units/manifest.mkp": C["UNITS_02_MANIFEST"],
@@ -158,41 +158,41 @@ REELS = {
         "chapters": ["xtmd", "check", "fmt", "parse", "build", "md", "flags"],
         "steps": [
             S("usage", "pages", "xtmd"),
-            S("check-ok", "pages", "xtmd check counter.xt.md", show=["counter.xt.md"]),
-            S("check-bad", "pages", "xtmd check broken.xt.md", show=["broken.xt.md"]),
-            S("check-json", "pages", "xtmd check --format json broken.xt.md"),
-            S("check-warn", "pages", "xtmd check messy.xt.md", show=["messy.xt.md"]),
-            S("fmt-check", "pages", "xtmd fmt --check messy.xt.md"),
-            S("fmt-diff", "pages", "xtmd fmt --diff messy.xt.md"),
-            S("fmt", "pages", "xtmd fmt messy.xt.md", show=["messy.xt.md"]),
-            S("parse", "pages", "xtmd parse counter.xt.md | head -n 26"),
-            S("build", "pages", "xtmd build counter.xt.md --out counter.ir.json && ls -lh counter.ir.json"),
+            S("check-ok", "pages", "xtmd check counter.xtmd", show=["counter.xtmd"]),
+            S("check-bad", "pages", "xtmd check broken.xtmd", show=["broken.xtmd"]),
+            S("check-json", "pages", "xtmd check --format json broken.xtmd"),
+            S("check-warn", "pages", "xtmd check messy.xtmd", show=["messy.xtmd"]),
+            S("fmt-check", "pages", "xtmd fmt --check messy.xtmd"),
+            S("fmt-diff", "pages", "xtmd fmt --diff messy.xtmd"),
+            S("fmt", "pages", "xtmd fmt messy.xtmd", show=["messy.xtmd"]),
+            S("parse", "pages", "xtmd parse counter.xtmd | head -n 26"),
+            S("build", "pages", "xtmd build counter.xtmd --out counter.ir.json && ls -lh counter.ir.json"),
             S("build-jq", "pages", "jq -c '.ir | {xtmd, version, module, levels}' counter.ir.json"),
-            S("rir", "pages", "xtmd build --rir counter.xt.md | head -n 32"),
-            S("md", "pages", "xtmd md counter.xt.md"),
-            S("md-json", "pages", "xtmd md --format json counter.xt.md"),
-            S("flag-unknown", "pages", "xtmd check --strict counter.xt.md"),
-            S("flag-dropped", "pages", "xtmd fmt --write counter.xt.md"),
+            S("rir", "pages", "xtmd build --rir counter.xtmd | head -n 32"),
+            S("md", "pages", "xtmd md counter.xtmd"),
+            S("md-json", "pages", "xtmd md --format json counter.xtmd"),
+            S("flag-unknown", "pages", "xtmd check --strict counter.xtmd"),
+            S("flag-dropped", "pages", "xtmd fmt --write counter.xtmd"),
         ],
     },
     "packs": {
         "part": 2, "title": "Packs, surfaces and the target checks",
         "chapters": ["--pack", "xtmd.toml", "surface", "target check"],
         "steps": [
-            S("tree", "flow", "find . -type f | sort", show=["release-flow.xt.md"]),
-            S("no-pack", "flow", "xtmd check release-flow.xt.md"),
-            S("pack", "flow", "xtmd check --pack graphs release-flow.xt.md"),
-            S("md", "flow", "xtmd md --pack graphs release-flow.xt.md"),
-            S("toml", "flow", "echo 'packs = [\"graphs\"]' > xtmd.toml && xtmd md release-flow.xt.md"),
-            S("surface", "kit1", "xtmd surface kit", show=["kit/kit.xtpack", "kit/surfaces/kit@1.xtpack"]),
+            S("tree", "flow", "find . -type f | sort", show=["release-flow.xtmd"]),
+            S("no-pack", "flow", "xtmd check release-flow.xtmd"),
+            S("pack", "flow", "xtmd check --pack graphs release-flow.xtmd"),
+            S("md", "flow", "xtmd md --pack graphs release-flow.xtmd"),
+            S("toml", "flow", "echo 'packs = [\"graphs\"]' > xtmd.toml && xtmd md release-flow.xtmd"),
+            S("surface", "kit1", "xtmd surface kit", show=["kit/kit.xtmdpack", "kit/surfaces/kit@1.xtmdpack"]),
             S("surface-check", "kit1", "xtmd surface kit --check"),
-            S("break", "kit1", "sed -i 's/color: color = color.ACCENT/tone: color = color.ACCENT/' kit/kit.xtpack"
-              " && xtmd check --pack kit kit/kit.xtpack", show=["kit/kit.xtpack"]),
+            S("break", "kit1", "sed -i 's/color: color = color.ACCENT/tone: color = color.ACCENT/' kit/kit.xtmdpack"
+              " && xtmd check --pack kit kit/kit.xtmdpack", show=["kit/kit.xtmdpack"]),
             S("unbreak", "kit1", "sed -i 's/tone: color = color.ACCENT/color: color = color.ACCENT, title: text = \"\"/'"
-              " kit/kit.xtpack && xtmd check --pack kit kit/kit.xtpack", show=["kit/kit.xtpack"]),
+              " kit/kit.xtmdpack && xtmd check --pack kit kit/kit.xtmdpack", show=["kit/kit.xtmdpack"]),
             S("surface-stale", "kit1", "xtmd surface kit --check"),
             S("surface-refused", "kit1", "xtmd surface kit"),
-            S("surface-force", "kit1", "xtmd surface kit --force", show=["kit/surfaces/kit@1.xtpack"]),
+            S("surface-force", "kit1", "xtmd surface kit --force", show=["kit/surfaces/kit@1.xtmdpack"]),
             S("targets", "repo", "xtmd target check test"),
             S("defect", "repo", "xtmd target check test --defect no-undo --expect-failures"),
             S("require", "repo", "xtmd target check test --require test:acme/chart"),
@@ -204,29 +204,29 @@ REELS = {
         "steps": [
             S("help", "report", "xtmd migrate --help"),
             S("tree", "report", "find . -type f -not -path './.git/*' | sort",
-              show=["kit/migrations/kit@2.xtpack", "docs/report.xt.md"]),
+              show=["kit/migrations/kit@2.xtmdpack", "docs/report.xtmd"]),
             S("toml", "report", "cat xtmd.toml"),
             S("dry", "report", "xtmd migrate docs --dry-run"),
             S("diff", "report", "xtmd migrate docs --diff"),
-            S("stdout", "report", "xtmd migrate docs/report.xt.md --stdout 2>/dev/null"),
-            S("ask", "report", "xtmd migrate docs", show=["docs/report.xt.md"], answers=[(r"Continue\? " + YES, "y\n")]),
+            S("stdout", "report", "xtmd migrate docs/report.xtmd --stdout 2>/dev/null"),
+            S("ask", "report", "xtmd migrate docs", show=["docs/report.xtmd"], answers=[(r"Continue\? " + YES, "y\n")]),
             S("toml-after", "report", "cat xtmd.toml"),
-            S("check-after", "report", "xtmd migrate docs --check && xtmd check docs/report.xt.md"),
+            S("check-after", "report", "xtmd migrate docs --check && xtmd check docs/report.xtmd"),
         ],
     },
     "questions": {
         "part": 4, "title": "xtmd migrate: questions, TODOs and errors",
         "chapters": ["--yes 1,3", "asked in a terminal", "a bare --yes, --allow-todos", "what is left"],
         "steps": [
-            S("dry", "ask", "xtmd migrate docs --dry-run", show=["kit/migrations/kit@2.xtpack"]),
-            S("yes13", "ask", "xtmd migrate docs --yes 1,3", show=["docs/report.xt.md"]),
+            S("dry", "ask", "xtmd migrate docs --dry-run", show=["kit/migrations/kit@2.xtmdpack"]),
+            S("yes13", "ask", "xtmd migrate docs --yes 1,3", show=["docs/report.xtmd"]),
             S("restore", "ask", "git restore docs xtmd.toml"),
-            S("asked", "ask", "xtmd migrate docs --answers answers.toml", show=["answers.toml", "docs/report.xt.md"],
+            S("asked", "ask", "xtmd migrate docs --answers answers.toml", show=["answers.toml", "docs/report.xtmd"],
               answers=[(r"small\? " + ASKED, "y\n"), (r"deploys\? " + ASKED, "n\n"), (r"tone\? " + ASKED, "y\n"),
                        (r"Continue\? " + YES, "y\n")]),
-            S("refused", "split", "xtmd migrate docs --yes", show=["kit/migrations/kit@2.xtpack", "docs/report.xt.md"]),
-            S("todos", "split", "xtmd migrate docs --yes --allow-todos", show=["docs/report.xt.md"]),
-            S("check", "split", "xtmd check docs/report.xt.md"),
+            S("refused", "split", "xtmd migrate docs --yes", show=["kit/migrations/kit@2.xtmdpack", "docs/report.xtmd"]),
+            S("todos", "split", "xtmd migrate docs --yes --allow-todos", show=["docs/report.xtmd"]),
+            S("check", "split", "xtmd check docs/report.xtmd"),
         ],
     },
     "reports": {
@@ -236,15 +236,15 @@ REELS = {
             S("check", "ci", "xtmd migrate docs --check"),
             S("no-tty", "ci", "xtmd migrate docs < /dev/null"),
             S("json", "ci", "xtmd migrate docs --dry-run --format json"),
-            S("report-md", "ci", "xtmd migrate docs --yes --report run.md", show=["run.md", "docs/report.xt.md"]),
+            S("report-md", "ci", "xtmd migrate docs --yes --report run.md", show=["run.md", "docs/report.xtmd"]),
             S("report-json", "ci", "xtmd migrate docs --check --report run.json", show=["run.json"]),
             S("write-flag", "ci", "xtmd migrate docs --write"),
             S("newer", "ci", "sed -i 's/^xtmd = \"0.3.0\"/xtmd = \"9.0.0\"/' xtmd.toml && xtmd migrate docs --check"),
-            S("examples", "kit2", "xtmd check --pack kit kit/migrations/kit@2.xtpack", show=["kit/migrations/kit@2.xtpack"]),
-            S("bad-after", "kit2", "sed -i 's/size = size.S))/size = size.M))/' kit/migrations/kit@2.xtpack"
-              " && xtmd check --pack kit kit/migrations/kit@2.xtpack", show=["kit/migrations/kit@2.xtpack"]),
-            S("bad-before", "kit2", "sed -i 's/color = color.OK), after/colour = color.OK), after/' kit/migrations/kit@2.xtpack"
-              " && xtmd check --pack kit kit/migrations/kit@2.xtpack", show=["kit/migrations/kit@2.xtpack"]),
+            S("examples", "kit2", "xtmd check --pack kit kit/migrations/kit@2.xtmdpack", show=["kit/migrations/kit@2.xtmdpack"]),
+            S("bad-after", "kit2", "sed -i 's/size = size.S))/size = size.M))/' kit/migrations/kit@2.xtmdpack"
+              " && xtmd check --pack kit kit/migrations/kit@2.xtmdpack", show=["kit/migrations/kit@2.xtmdpack"]),
+            S("bad-before", "kit2", "sed -i 's/color = color.OK), after/colour = color.OK), after/' kit/migrations/kit@2.xtmdpack"
+              " && xtmd check --pack kit kit/migrations/kit@2.xtmdpack", show=["kit/migrations/kit@2.xtmdpack"]),
         ],
     },
     "fixes": {
@@ -253,16 +253,16 @@ REELS = {
         "steps": [
             S("version", "pages", "xtmd --version"),
             S("help", "pages", "xtmd fmt --help"),
-            S("typo", "pages", "cp messy.xt.md before.xt.md && xtmd fmt --chek messy.xt.md; cmp -s before.xt.md messy.xt.md && echo 'messy.xt.md is as it was'"),
-            S("first", "pages", "xtmd --format json check counter.xt.md"),
-            S("copy", "pages", "xtmd fmt messy.xt.md --out tidy/messy.xt.md && cmp -s before.xt.md messy.xt.md && echo 'messy.xt.md is as it was'",
-              show=["tidy/messy.xt.md"]),
+            S("typo", "pages", "cp messy.xtmd before.xtmd && xtmd fmt --chek messy.xtmd; cmp -s before.xtmd messy.xtmd && echo 'messy.xtmd is as it was'"),
+            S("first", "pages", "xtmd --format json check counter.xtmd"),
+            S("copy", "pages", "xtmd fmt messy.xtmd --out tidy/messy.xtmd && cmp -s before.xtmd messy.xtmd && echo 'messy.xtmd is as it was'",
+              show=["tidy/messy.xtmd"]),
             S("folder", "pages", "xtmd check ."),
-            S("missing-pack", "flow", "xtmd check release-flow.xt.md"),
+            S("missing-pack", "flow", "xtmd check release-flow.xtmd"),
             S("root", "report", "xtmd migrate --dry-run"),
             S("patch", "report", "xtmd migrate --diff 2>/dev/null > migrate.diff && git apply --check migrate.diff && tail -n 9 migrate.diff"),
             S("bare-yes", "ask", "xtmd migrate docs --yes"),
-            S("yes-all", "ask", "xtmd migrate docs --yes all", show=["docs/report.xt.md"]),
+            S("yes-all", "ask", "xtmd migrate docs --yes all", show=["docs/report.xtmd"]),
             S("defect", "repo", "xtmd target check test --defect no-undoo --expect-failures"),
         ],
     },
@@ -277,8 +277,8 @@ REELS = {
             S("changed", "notes", "cp " + FROZEN + "/migrate-0.2.cjs changed.cjs && echo '// changed' >> changed.cjs"
               " && XTMD_MIGRATE_02=changed.cjs xtmd migrate docs --pack old/units --dry-run"),
             S("write", "notes", "xtmd migrate docs --pack old/units --yes --allow-todos",
-              show=["docs/counter.xt.md", "docs/runs.xt.md", "docs/plain.xt.md", "docs/stand-ins/units/units.xtpack"]),
-            S("check", "notes", "xtmd check --pack docs/stand-ins docs/counter.xt.md docs/runs.xt.md"),
+              show=["docs/counter.xtmd", "docs/runs.xtmd", "docs/plain.xtmd", "docs/stand-ins/units/units.xtmdpack"]),
+            S("check", "notes", "xtmd check --pack docs/stand-ins docs/counter.xtmd docs/runs.xtmd"),
             S("again", "notes", "xtmd migrate docs --pack docs/stand-ins,old/units --check"),
         ],
     },

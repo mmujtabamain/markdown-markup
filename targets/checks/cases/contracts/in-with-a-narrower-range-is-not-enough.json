@@ -1,7 +1,7 @@
 {
   "id": "contracts.in-with-a-narrower-range-is-not-enough",
   "about": "a range wider than the contract is no proof",
-  "source": "in-with-a-narrower-range-is-not-enough.xtpack",
+  "source": "in-with-a-narrower-range-is-not-enough.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 9, "column": 21}

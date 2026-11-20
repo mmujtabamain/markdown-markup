@@ -1,8 +1,8 @@
 {
   "id": "names.one-visible-token-case-per-name",
   "about": "two visible cases with one name on one type are a compile error",
-  "source": "one-visible-token-case-per-name.xtpack",
-  "packs": ["one-visible-token-case-per-name.packs/a.xtpack"],
+  "source": "one-visible-token-case-per-name.xtmdpack",
+  "packs": ["one-visible-token-case-per-name.packs/a.xtmdpack"],
   "expect": {
     "diagnostics": [
       {"code": "names.token-case-twice", "line": 4, "column": 11}

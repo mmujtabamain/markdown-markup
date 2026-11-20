@@ -1,7 +1,7 @@
 {
   "id": "widgets.table",
   "about": "claims are checked: a table keeps its head, rows and alignment",
-  "source": "table.xt.md",
+  "source": "table.xtmd",
   "target": {
     "levels": [
       "core.draw"

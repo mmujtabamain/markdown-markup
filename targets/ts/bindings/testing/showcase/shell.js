@@ -11,7 +11,7 @@ for (const [id, name] of FRAMEWORKS) {
   rows.append(row);
 }
 window.__showcase = { ir: null, source: "" };
-Promise.all([fetch("/counter.ir.json").then((r) => r.json()), fetch("/counter.xt.md").then((r) => r.text())]).then(([ir, source]) => {
+Promise.all([fetch("/counter.ir.json").then((r) => r.json()), fetch("/counter.xtmd").then((r) => r.text())]).then(([ir, source]) => {
   window.__showcase = { ir, source, wasm: "/xtmd.wasm" };
   for (const [id] of FRAMEWORKS) {
     document.getElementById(`${id}-source`).value = source;

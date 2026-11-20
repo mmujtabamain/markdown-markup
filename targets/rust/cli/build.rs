@@ -7,7 +7,7 @@ fn main() {
     let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let core = if here.join("core").is_dir() { here.join("core") } else { here.join("../../../core") };
     println!("cargo:rerun-if-changed={}", core.display());
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&core).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&core).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     let mut out = String::from("/// core's sources, as (path, text).\npub const CORE: &[(&str, &str)] = &[\n");
     for f in files {

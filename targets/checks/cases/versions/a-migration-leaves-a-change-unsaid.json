@@ -1,7 +1,7 @@
 {
   "id": "versions.a-migration-leaves-a-change-unsaid",
   "about": "a migration that doesn't say what happens to an input the newer version dropped",
-  "source": "a-migration-leaves-a-change-unsaid.xtpack",
+  "source": "a-migration-leaves-a-change-unsaid.xtmdpack",
   "packs": ["kit2"],
   "expect": {
     "diagnostics": [

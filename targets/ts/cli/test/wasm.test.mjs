@@ -11,12 +11,12 @@ import { build, check } from "../dist/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "xtmd-cli-wasm-"));
-const page = join(dir, "page.xt.md");
+const page = join(dir, "page.xtmd");
 writeFileSync(page, "import shapes;\n\n$state {\n    tries: int = 2;\n}\n@@@\n# Tries\n\nTried \\{$state.tries} times, \\{double(2)} over.\n");
 const pack = join(dir, "shapes");
 mkdirSync(pack);
-writeFileSync(join(pack, "shapes.xtpack"), "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n");
-const bad = join(dir, "bad.xtpack");
+writeFileSync(join(pack, "shapes.xtmdpack"), "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n");
+const bad = join(dir, "bad.xtmdpack");
 writeFileSync(bad, "package t;\n\nlet x: number = y;\n");
 
 /** The API, from a copy with @extended-mark/wasm and no binary: no platform package, no repository build. */
@@ -39,7 +39,7 @@ test("with no binary, build and check compile with @extended-mark/wasm and agree
   const found = await wasm.check(bad);
   assert.deepEqual(found, await check(bad));
   assert.equal(found[0].code, "names.unknown-name");
-  await assert.rejects(wasm.build(bad), (e) => e instanceof wasm.XtmdError && /bad\.xtpack:3:17: error\[names\.unknown-name\]/.test(e.message));
+  await assert.rejects(wasm.build(bad), (e) => e instanceof wasm.XtmdError && /bad\.xtmdpack:3:17: error\[names\.unknown-name\]/.test(e.message));
   // the commands only the binary has still say so
   await assert.rejects(wasm.md(page), /no xtmd binary/);
 });

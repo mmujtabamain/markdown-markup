@@ -1,7 +1,7 @@
 {
   "id": "widgets.flex",
   "about": "claims are checked: a row with a gap and padding",
-  "source": "flex.xt.md",
+  "source": "flex.xtmd",
   "target": {
     "levels": [
       "core.draw"

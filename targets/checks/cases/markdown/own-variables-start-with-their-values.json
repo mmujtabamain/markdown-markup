@@ -1,7 +1,7 @@
 {
   "id": "markdown.own-variables-start-with-their-values",
   "about": "a widget's own variables are written with their starting values",
-  "source": "own-variables-start-with-their-values.xt.md",
+  "source": "own-variables-start-with-their-values.xtmd",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "own-variables-start-with-their-values.expected.md"}

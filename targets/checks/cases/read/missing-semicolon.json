@@ -1,7 +1,7 @@
 {
   "id": "read.missing-semicolon",
   "about": "missing semicolon",
-  "source": "missing-semicolon.xtpack",
+  "source": "missing-semicolon.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.missing-semicolon", "line": 5, "column": 28}

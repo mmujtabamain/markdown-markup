@@ -1,7 +1,7 @@
 {
   "id": "contracts.an-alias-contract-combines",
   "about": "an alias's contract and the one written on it both hold: int 1..12",
-  "source": "an-alias-contract-combines.xtpack",
+  "source": "an-alias-contract-combines.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 8, "column": 24},

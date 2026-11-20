@@ -11,7 +11,7 @@ fn repo() -> PathBuf {
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -21,7 +21,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let p = e.unwrap().path();
         if p.is_dir() {
             walk(&p, out);
-        } else if p.to_str().unwrap().ends_with(".xt.md") || p.extension().map_or(false, |x| x == "xtpack") {
+        } else if p.to_str().unwrap().ends_with(".xtmd") || p.extension().map_or(false, |x| x == "xtmdpack") {
             out.push(p);
         }
     }
@@ -48,7 +48,7 @@ fn validate_all() {
     for p in sources {
         let path = p.strip_prefix(repo()).unwrap().to_str().unwrap().to_string();
         let src = Source { path: path.clone(), text: std::fs::read_to_string(&p).unwrap() };
-        let module = if path.ends_with(".xt.md") { "doc" } else { "t" };
+        let module = if path.ends_with(".xtmd") { "doc" } else { "t" };
         compiled.push((path, compile_on(&base, &[], &[src], module), false));
     }
     // the spec's packs, each compiled whole from its files across the pages (page 5's being core
@@ -128,13 +128,13 @@ fn spec_packs() -> (Vec<(String, Vec<Source>)>, Vec<Source>) {
                 match tags[n].as_str().unwrap() {
                     "java file" => {
                         let name = text.lines().find_map(|l| l.strip_prefix("package ")).map(|l| l.trim_end_matches(';').trim().to_string()).unwrap_or_default();
-                        let src = Source { path: format!("{}.xtpack", at), text };
+                        let src = Source { path: format!("{}.xtmdpack", at), text };
                         match packs.iter_mut().find(|(p, _)| *p == name) {
                             Some((_, files)) => files.push(src),
                             None => packs.push((name, vec![src])),
                         }
                     }
-                    "markdown doc" => documents.push(Source { path: format!("{}.xt.md", at), text }),
+                    "markdown doc" => documents.push(Source { path: format!("{}.xtmd", at), text }),
                     _ => {}
                 }
                 n += 1;

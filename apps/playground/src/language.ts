@@ -1,4 +1,4 @@
-// Extended Mark for Monaco: a Monarch tokenizer for `.xt.md` sources, code before the `@@@` line and
+// Extended Mark for Monaco: a Monarch tokenizer for `.xtmd` sources, code before the `@@@` line and
 // Markdown after it, and the brackets, quotes and comments the editor types and matches.
 //
 // Two language ids share the tokenizer and start in different states: `xtmd` starts in code and
@@ -181,7 +181,7 @@ export function registerXtmd(monaco: typeof Monaco): void {
     [XTMD, "code"],
     [XTMD_PROSE, "prose"],
   ] as const) {
-    monaco.languages.register({ id, extensions: id === XTMD ? [".xtpack", ".xt.md"] : [], aliases: [id === XTMD ? "Extended Mark" : "Extended Mark prose"] });
+    monaco.languages.register({ id, extensions: id === XTMD ? [".xtmdpack", ".xtmd"] : [], aliases: [id === XTMD ? "Extended Mark" : "Extended Mark prose"] });
     monaco.languages.setMonarchTokensProvider(id, tokenizer(start));
     monaco.languages.setLanguageConfiguration(id, configuration);
   }

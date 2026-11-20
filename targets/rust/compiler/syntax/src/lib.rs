@@ -37,11 +37,11 @@ impl Parsed {
     }
 }
 
-/// The entry a file's name calls for: `.xt.md` is a document, `.xtpack` a pack's file.
+/// The entry a file's name calls for: `.xtmd` is a document, `.xtmdpack` a pack's file.
 pub fn entry_for(path: &str) -> Option<Entry> {
-    if path.ends_with(".xt.md") {
+    if path.ends_with(".xtmd") {
         Some(Entry::Document)
-    } else if path.ends_with(".xtpack") {
+    } else if path.ends_with(".xtmdpack") {
         Some(Entry::Xtmd)
     } else {
         None

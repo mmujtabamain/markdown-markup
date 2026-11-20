@@ -1,7 +1,7 @@
 {
   "id": "markdown.a-hole-is-never-formatting",
   "about": "a hole's value is written as plain characters, escaped so it can't become formatting",
-  "source": "a-hole-is-never-formatting.xt.md",
+  "source": "a-hole-is-never-formatting.xtmd",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "a-hole-is-never-formatting.expected.md"}

@@ -1,7 +1,7 @@
 {
   "id": "versions.a-break-at-the-same-version",
   "about": "an input renamed while the version stays, against that version's surface",
-  "source": "a-break-at-the-same-version.xtpack",
+  "source": "a-break-at-the-same-version.xtmdpack",
   "packs": ["a-break-at-the-same-version"],
   "expect": {
     "diagnostics": [

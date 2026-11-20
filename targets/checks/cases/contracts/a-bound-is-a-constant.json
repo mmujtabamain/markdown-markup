@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-bound-is-a-constant",
   "about": "a contract's bound is a constant: a let that reads $state is not one",
-  "source": "a-bound-is-a-constant.xt.md",
+  "source": "a-bound-is-a-constant.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "contracts.bound-not-constant", "line": 10, "column": 22}

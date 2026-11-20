@@ -28,7 +28,7 @@ const cases = walk(casesDir, (p) => p.endsWith(".json")).flatMap((f) => {
   if (!c.id || !c.source) return [];
   const dir = dirname(f);
   const packs = (c.packs ?? []).map((p) => join(dir, p));
-  const files = packs.flatMap((p) => (statSync(p).isDirectory() ? walk(p, (x) => x.endsWith(".xtpack")) : [p]));
+  const files = packs.flatMap((p) => (statSync(p).isDirectory() ? walk(p, (x) => x.endsWith(".xtmdpack")) : [p]));
   return [{ id: c.id, source: join(dir, c.source), packs, files: files.map((path) => ({ path, text: readFileSync(path, "utf8") })) }];
 });
 
@@ -69,22 +69,22 @@ test("every conformance case gives the binary's IR, or the binary's errors", asy
 });
 
 test("a document with errors gives them, with no IR, and the compiler goes on", () => {
-  const bad = compiler.build("page.xt.md", "$state {\n    n: int 0..3 = 9;\n}\n@@@\n\\{$state.nope}\n");
+  const bad = compiler.build("page.xtmd", "$state {\n    n: int 0..3 = 9;\n}\n@@@\n\\{$state.nope}\n");
   assert.equal(bad.ir, null);
   assert.ok(bad.errors >= 1);
-  assert.ok(bad.diagnostics.every((d) => d.file === "page.xt.md" && d.line >= 1 && typeof d.message === "string"), JSON.stringify(bad.diagnostics));
-  const good = compiler.build("page.xt.md", "# Hello\n");
+  assert.ok(bad.diagnostics.every((d) => d.file === "page.xtmd" && d.line >= 1 && typeof d.message === "string"), JSON.stringify(bad.diagnostics));
+  const good = compiler.build("page.xtmd", "# Hello\n");
   assert.equal(good.errors, 0);
   assert.equal(good.ir.ir.module, "doc");
 });
 
 test("a pack given as text is used, and one the document names but isn't given is an error", () => {
-  const pack = { path: "shapes/shapes.xtpack", text: "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n" };
+  const pack = { path: "shapes/shapes.xtmdpack", text: "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n" };
   const doc = "import shapes;\n@@@\nTwice: \\{double(4)}\n";
-  const ok = compiler.build("page.xt.md", doc, [pack]);
+  const ok = compiler.build("page.xtmd", doc, [pack]);
   assert.equal(ok.errors, 0, JSON.stringify(ok.diagnostics));
   assert.ok(JSON.stringify(ok.ir).includes("shapes/double"));
-  const missing = compiler.build("page.xt.md", doc);
+  const missing = compiler.build("page.xtmd", doc);
   assert.ok(missing.errors > 0 && missing.diagnostics.some((d) => d.code === "names.unknown-pack"), JSON.stringify(missing.diagnostics));
 });
 
@@ -101,22 +101,22 @@ test("every case's resolved IR is the binary's (xtmd build --rir), and only when
     resolved++;
   }
   assert.ok(resolved >= 50, `${resolved} of ${cases.length} resolved`);
-  assert.equal(compiler.build("page.xt.md", "# Hello\n").rir, undefined);
+  assert.equal(compiler.build("page.xtmd", "# Hello\n").rir, undefined);
 });
 
 test("a draft with errors still has its resolved IR, for an editor", () => {
-  const b = compiler.build("page.xt.md", "$state {\n    n: int = 0;\n}\n@@@\n@press(label = 3);\n", [], { rir: true });
+  const b = compiler.build("page.xtmd", "$state {\n    n: int = 0;\n}\n@@@\n@press(label = 3);\n", [], { rir: true });
   assert.ok(b.errors > 0 && b.ir === null);
-  assert.equal(b.rir.files[0].path, "page.xt.md");
+  assert.equal(b.rir.files[0].path, "page.xtmd");
   assert.ok(JSON.stringify(b.rir).includes('"core/int"'));
 });
 
 test("core's files come first in the resolved IR when asked, resolved, as the binary's --core", async () => {
   const doc = "@@@\n@press(label = \"Go\");\n";
-  const got = compiler.build("page.xt.md", doc, [], { rir: true, core: true });
+  const got = compiler.build("page.xtmd", doc, [], { rir: true, core: true });
   const files = got.rir.files;
-  assert.ok(files.length > 10 && files[0].path.startsWith("core/") && files.at(-1).path === "page.xt.md", files.map((f) => f.path).join(" "));
-  const press = files.find((f) => f.path === "core/controls.xtpack").declarations.find((d) => d.extern_widget?.id === "core/press").extern_widget;
+  assert.ok(files.length > 10 && files[0].path.startsWith("core/") && files.at(-1).path === "page.xtmd", files.map((f) => f.path).join(" "));
+  const press = files.find((f) => f.path === "core/controls.xtmdpack").declarations.find((d) => d.extern_widget?.id === "core/press").extern_widget;
   assert.equal(press.inputs[0].id, "core/press.label");
   assert.match(press.doc.about, /^Something to press/);
 });
@@ -135,7 +135,7 @@ test("every case formats as xtmd fmt writes it", async () => {
     }
   }
   assert.ok(formatted >= 50, `${formatted} formatted`);
-  const bad = compiler.format("page.xt.md", "@@@\n@press(label = \n");
+  const bad = compiler.format("page.xtmd", "@@@\n@press(label = \n");
   const notOurs = compiler.format("notes.md", "# Hi\n");
   assert.ok(notOurs.text === null && /not an Extended Mark file/.test(notOurs.diagnostics[0].message));
   assert.ok(typeof bad.text === "string" || bad.diagnostics.length > 0);
@@ -144,8 +144,8 @@ test("every case formats as xtmd fmt writes it", async () => {
 test("the language server answers as xtmd lsp does: diagnostics, hover, completion", async () => {
   const { LanguageServer } = await import("../dist/index.js");
   const s = await LanguageServer.load();
-  const uri = "vscode-test-web://mount/docs/books.xt.md";
-  const pack = { path: "vscode-test-web://mount/shelf/shelf.xtpack", text: "package shelf;\n\npack shelf@1 {\n    provides row_of_books;\n}\n\nwidget row_of_books(title: text) {\n    view {\n        @label(value = title);\n    }\n    markdown {\n        \\{title}\n    }\n}\n" };
+  const uri = "vscode-test-web://mount/docs/books.xtmd";
+  const pack = { path: "vscode-test-web://mount/shelf/shelf.xtmdpack", text: "package shelf;\n\npack shelf@1 {\n    provides row_of_books;\n}\n\nwidget row_of_books(title: text) {\n    view {\n        @label(value = title);\n    }\n    markdown {\n        \\{title}\n    }\n}\n" };
   const doc = "import shelf;\n@@@\n@row_of_books(title = \"Read\");\n";
   const init = s.message({ jsonrpc: "2.0", id: 1, method: "initialize", params: { capabilities: {} } });
   assert.equal(init[0].result.serverInfo.name, "xtmd lsp");
@@ -173,7 +173,7 @@ test("every case's Markdown is xtmd md's, and a document that doesn't compile ha
     }
   }
   assert.ok(written >= 50, `${written} written`);
-  const bad = compiler.markdown("page.xt.md", "@@@\n@nope();\n");
+  const bad = compiler.markdown("page.xtmd", "@@@\n@nope();\n");
   assert.ok(bad.markdown === null && bad.errors > 0, JSON.stringify(bad));
 });
 
@@ -186,14 +186,14 @@ test("a migration plans what xtmd migrate writes, asks what it asks, and keeps n
   const migration = "package kit;\n\nmigration kit@1 to kit@2 {\n    widget chart {\n        rename(to = plot);\n        rename(input = color, to = tone);\n    }\n\n    widget badge {\n        drop(input = shadow, why = \"badges have no shadow\");\n        set(input = size, value = size.S, when = !given(size), why = \"kit@1's badges were small\");\n    }\n\n    widget sparkline {\n        drop(why = \"use plot\");\n    }\n\n    record stat {\n        rename(field = label, to = title);\n        add(field = unit, value = \"\", why = \"a stat names its unit\");\n    }\n\n    enum state {\n        split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");\n    }\n}\n";
   const doc = "import kit;\n\n$state {\n    s: state = state.LATE;\n}\n@@@\n# Report\n\n@chart(values = [1, 2], color = color.OK);\n\n@badge(label = \"Beta\", shadow = true);\n\n@sparkline(values = [3]);\n\n@stats(items = [stat { label = \"Deploys\", value = \"42\" }]);\n";
   const dir = mkdtempSync(join(tmpdir(), "xtmd-wasm-migrate-"));
-  const files = { "kit/kit.xtpack": kit, "kit/surfaces/kit@1.xtpack": surface, "kit/migrations/kit@2.xtpack": migration, "xtmd.toml": "packs = [\"kit\"]\n\n[uses]\nkit = 1\n", "docs/report.xt.md": doc };
+  const files = { "kit/kit.xtmdpack": kit, "kit/surfaces/kit@1.xtmdpack": surface, "kit/migrations/kit@2.xtmdpack": migration, "xtmd.toml": "packs = [\"kit\"]\n\n[uses]\nkit = 1\n", "docs/report.xtmd": doc };
   for (const [f, t] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, f)), { recursive: true });
     writeFileSync(join(dir, f), t);
   }
-  const docPath = join(dir, "docs/report.xt.md");
+  const docPath = join(dir, "docs/report.xtmd");
   const request = {
-    sources: ["kit/kit.xtpack", "kit/surfaces/kit@1.xtpack", "kit/migrations/kit@2.xtpack"].map((f) => ({ path: join(dir, f), text: files[f] })),
+    sources: ["kit/kit.xtmdpack", "kit/surfaces/kit@1.xtmdpack", "kit/migrations/kit@2.xtmdpack"].map((f) => ({ path: join(dir, f), text: files[f] })),
     docs: [{ path: docPath, text: doc }],
     config: { path: join(dir, "xtmd.toml"), text: files["xtmd.toml"] },
   };

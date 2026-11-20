@@ -23,14 +23,14 @@ itself (a browser has no disk) gives them with the `xtmd/packs` notification:
 
 ## Editors
 
-Any editor with a language client starts `xtmd lsp` for `.xt.md` and `.xtpack` files.
+Any editor with a language client starts `xtmd lsp` for `.xtmd` and `.xtmdpack` files.
 
 **VS Code:** the extension in ide/vscode.
 
 **Neovim** (0.11):
 
 ```lua
-vim.filetype.add({ pattern = { [".*%.xt%.md"] = "xtmd" }, extension = { xtpack = "xtmd" } })
+vim.filetype.add({ extension = { xtmd = "xtmd", xtmdpack = "xtmd" } })
 vim.lsp.config("xtmd", { cmd = { "xtmd", "lsp" }, filetypes = { "xtmd" }, root_markers = { "xtmd.toml", ".git" } })
 vim.lsp.enable("xtmd")
 ```
@@ -45,12 +45,12 @@ args = ["lsp"]
 [[language]]
 name = "xtmd"
 scope = "source.xtmd"
-file-types = [{ glob = "*.xt.md" }, "xtpack"]
+file-types = ["xtmd", "xtmdpack"]
 roots = ["xtmd.toml"]
 language-servers = ["xtmd"]
 ```
 
-**Zed:** a language entry for `*.xt.md` and `*.xtpack` whose language server runs `xtmd lsp`.
+**Zed:** a language entry for `*.xtmd` and `*.xtmdpack` whose language server runs `xtmd lsp`.
 
 ## Tests
 

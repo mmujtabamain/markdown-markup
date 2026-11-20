@@ -26,9 +26,9 @@ Every command takes:
                  write their document there); a run that stops at a usage error leaves it alone.
   --help         its own usage.
 And check, build, md, surface and migrate take:
-  --pack a,b     the packs: folders and .xtpack files.
+  --pack a,b     the packs: folders and .xtmdpack files.
   --config f     an xtmd.toml; left out, xtmd looks for one in the file's folder and the folders above.
-                 It says packs = [\"kit\", \"extra.xtpack\"] (as --pack does), xtmd = \"0.3.0\" (the release
+                 It says packs = [\"kit\", \"extra.xtmdpack\"] (as --pack does), xtmd = \"0.3.0\" (the release
                  of xtmd the tree is written for) and, under [uses], kit = 2 (each pack's version).
 
 Exit codes: 0 done, nothing wrong; 1 something is wrong (an error, a file that would change, a
@@ -39,12 +39,12 @@ writes nothing.";
 const FMT: &str = "usage: xtmd fmt <file|folder>… [--check | --diff | --stdout] [--out file] [--format json]
        xtmd fmt --stdin <file> [--check | --diff] [--format json]
   Rewrites each file in the canonical layout, in place, and says what it did: the standard
-  formatter. A folder means every .xtpack and .xt.md file under it.
+  formatter. A folder means every .xtmdpack and .xtmd file under it.
   --check        writes nothing: names each file that isn't in the canonical layout, and fails
   --diff         writes nothing: prints each change as a unified diff (with --check, it fails too)
   --stdout       writes nothing: prints one file in the canonical layout
   --stdin        formats the text on stdin instead, for an editor whose text isn't saved: the file
-                 named says what it is (.xt.md or .xtpack) and is never read or written; the text
+                 named says what it is (.xtmd or .xtmdpack) and is never read or written; the text
                  goes to stdout, or with --check and --diff, whether and how it would change
   --out f        alone: writes one file's canonical text to f, and leaves the file as it was;
                  with --check or --diff, what they print goes to f
@@ -53,16 +53,16 @@ const FMT: &str = "usage: xtmd fmt <file|folder>… [--check | --diff | --stdout
   The verdicts go to stderr, so --stdout and --diff print only the text.
   exit: 0 done, or nothing to change; 1 a file would change (--check) or doesn't read;
         2 a usage error, or a file that can't be read
-  e.g.  xtmd fmt page.xt.md
+  e.g.  xtmd fmt page.xtmd
         xtmd fmt --check src/
-        xtmd fmt page.xt.md --out tidy.xt.md
-        xtmd fmt --stdin page.xt.md < draft.xt.md";
+        xtmd fmt page.xtmd --out tidy.xtmd
+        xtmd fmt --stdin page.xtmd < draft.xtmd";
 
 const CHECK: &str = "usage: xtmd check <file|folder>… [--pack a,b] [--config xtmd.toml] [--out file] [--format json]
   Reports every error and warning in each file, then a line for each file and, for several, a
   total. A document's line names the levels it needs to run (core.draw, core.live, core.gfx).
   A folder means every Extended Mark file under it. A pack's file is checked with the rest of its pack,
-  against the surfaces it has released (surfaces/name@N.xtpack), and its migrations' examples are run.
+  against the surfaces it has released (surfaces/name@N.xtmdpack), and its migrations' examples are run.
   A document that looks like MKP 0.2's gets a warning: xtmd migrate brings it to 0.3.
   --pack a,b     the packs the files use (or packs = [...] in xtmd.toml)
   --out f        the report goes to f instead of stderr
@@ -73,13 +73,13 @@ const CHECK: &str = "usage: xtmd check <file|folder>… [--pack a,b] [--config x
                  and a summary last
   exit: 0 no errors (warnings are fine); 1 errors; 2 a usage error, or a file that can't be read
   e.g.  xtmd check docs/
-        xtmd check --pack graphs flow.xt.md --format json --out problems.jsonl";
+        xtmd check --pack graphs flow.xtmd --format json --out problems.jsonl";
 
 const PARSE: &str = "usage: xtmd parse <file> [--out tree.json] [--format json]
   Prints one file's syntax tree, as JSON, to stdout (or --out); its syntax errors go to stderr,
   as JSON lines with --format json.
   exit: 0 it parses; 1 it has syntax errors; 2 a usage error, or a file that can't be read
-  e.g.  xtmd parse page.xt.md --out tree.json";
+  e.g.  xtmd parse page.xtmd --out tree.json";
 
 const LSP: &str = "usage: xtmd lsp
   The language server, for an editor: it speaks the Language Server Protocol over stdin and
@@ -101,7 +101,7 @@ const BUILD: &str = "usage: xtmd build <file> [--pack a,b] [--config xtmd.toml] 
   --out f        writes it to f, its folder made if need be; without it, it goes to stdout
   --format json  its errors as JSON lines on stderr
   exit: 0 written; 1 it doesn't compile; 2 a usage error, or a file that can't be read
-  e.g.  xtmd build page.xt.md --out dist/page.ir.json";
+  e.g.  xtmd build page.xtmd --out dist/page.ir.json";
 
 const MD: &str = "usage: xtmd md <file> [--pack a,b] [--config xtmd.toml] [--out out.md] [--format json]
   Writes a document's Markdown, as the page reads when it first loads: each value at its start,
@@ -111,11 +111,11 @@ const MD: &str = "usage: xtmd md <file> [--pack a,b] [--config xtmd.toml] [--out
   --format json  the same page as a JSON list of blocks, each named by its kind ({\"heading\": …},
                  {\"paragraph\": …}), as the checks read it
   exit: 0 written; 1 it doesn't compile; 2 a usage error, or a file that can't be read
-  e.g.  xtmd md page.xt.md --out README.md";
+  e.g.  xtmd md page.xtmd --out README.md";
 
 const SURFACE: &str = "usage: xtmd surface <pack folder|file> [--pack a,b] [--check | --diff | --stdout] [--out file] [--force] [--format json]
   The release step. Writes what this version of the pack provides, its surface, to
-  <pack folder>/surfaces/<name>@<version>.xtpack (the version is the pack block's: pack kit@2).
+  <pack folder>/surfaces/<name>@<version>.xtmdpack (the version is the pack block's: pack kit@2).
   Commit it: a later version is held to it, and its migration starts from it.
   --check        writes nothing: fails if the surface is missing or out of date, or the pack
                  breaks one it has released

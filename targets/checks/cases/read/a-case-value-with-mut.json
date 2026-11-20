@@ -1,7 +1,7 @@
 {
   "id": "read.a-case-value-with-mut",
   "about": "a case value with mut",
-  "source": "a-case-value-with-mut.xtpack",
+  "source": "a-case-value-with-mut.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.case-value-is-plain", "line": 4, "column": 12}

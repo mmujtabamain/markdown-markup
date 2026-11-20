@@ -1,7 +1,7 @@
 {
   "id": "types.a-lambda-leaves-types-out-only-where-a-fn-type-is-expected",
   "about": "a lambda may leave its types out only where a fn type is expected",
-  "source": "a-lambda-leaves-types-out-only-where-a-fn-type-is-expected.xtpack",
+  "source": "a-lambda-leaves-types-out-only-where-a-fn-type-is-expected.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 12, "column": 20}

@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-step",
   "about": "step: a whole number of steps from the low bound",
-  "source": "a-step.xtpack",
+  "source": "a-step.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 8, "column": 26}

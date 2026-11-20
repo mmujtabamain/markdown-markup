@@ -93,9 +93,9 @@ impl<T> Body<T> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileKind {
-    /// A .xtpack file: `package`, imports and declarations.
+    /// A .xtmdpack file: `package`, imports and declarations.
     Xtmd,
-    /// A .xt.md document: definitions, a `@@@` line and prose.
+    /// A .xtmd document: definitions, a `@@@` line and prose.
     Document,
 }
 

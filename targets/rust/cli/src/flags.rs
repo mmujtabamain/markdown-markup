@@ -139,10 +139,10 @@ mod tests {
         assert_eq!(check("migrate", &args(&["docs", "--yes=1,3", "--pack=kit", "--stdout", "--quiet"])), (vec!["--quiet".to_string()], true));
         assert!(!check("migrate", &args(&["docs", "--write"])).1);
         assert!(!check("migrate", &args(&["docs", "--to", "0.3.0"])).1);
-        assert_eq!(check("fmt", &args(&["a.xtpack", "--check", "-", "--format", "json", "--out", "x.txt"])), (vec![], true));
-        assert!(!check("build", &args(&["a.xt.md", "-o", "a.ir.json"])).1);
-        assert!(!check("check", &args(&["a.xt.md", "-o", "report.txt"])).1);
-        assert!(!check("fmt", &args(&["a.xtpack", "--write"])).1);
+        assert_eq!(check("fmt", &args(&["a.xtmdpack", "--check", "-", "--format", "json", "--out", "x.txt"])), (vec![], true));
+        assert!(!check("build", &args(&["a.xtmd", "-o", "a.ir.json"])).1);
+        assert!(!check("check", &args(&["a.xtmd", "-o", "report.txt"])).1);
+        assert!(!check("fmt", &args(&["a.xtmdpack", "--write"])).1);
     }
 
     #[test]

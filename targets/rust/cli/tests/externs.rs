@@ -8,7 +8,7 @@ fn every_bodyless_core_extern_fn_is_native_or_target_only() {
     let dir = std::env::temp_dir().join(format!("xtmd-externs-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     // a pack's IR keeps all of core it builds on; a page's keeps only what the page uses
-    let page = dir.join("t.xtpack");
+    let page = dir.join("t.xtmdpack");
     std::fs::write(&page, "package t;\n").unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_xtmd")).args(["build", page.to_str().unwrap()]).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));

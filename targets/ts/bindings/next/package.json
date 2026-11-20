@@ -1,7 +1,7 @@
 {
   "name": "@extended-mark/next",
   "version": "0.3.0",
-  "description": "Extended Mark pages in Next.js: <XtmdPage> as a client component, .xt.md imports compiled at build time, and the page's Markdown as HTML for the server",
+  "description": "Extended Mark pages in Next.js: <XtmdPage> as a client component, .xtmd imports compiled at build time, and the page's Markdown as HTML for the server",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

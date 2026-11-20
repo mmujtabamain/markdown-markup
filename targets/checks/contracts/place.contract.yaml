@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/place (core/gfx.xtpack): ordinary widgets placed at a point of the canvas. Mounted in a
+# core/place (core/gfx.xtmdpack): ordinary widgets placed at a point of the canvas. Mounted in a
 # core/canvas (x and y -1..1) and a layer; its child slot holds a label. @extended-mark/dom draws an SVG
 # <foreignObject> at the point, holding a box moved by its anchor and nudge.
 id: core.place

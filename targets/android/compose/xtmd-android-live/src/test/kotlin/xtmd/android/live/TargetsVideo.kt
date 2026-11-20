@@ -75,7 +75,7 @@ class TargetsVideo {
     fun record() = runAndroidComposeUiTest<ComponentActivity> {
         assumeTrue("set -Pxtmd.video.out to write the frames", out != null)
         val dir = File(out!!).apply { mkdirs() }
-        val text0 = File(repo, "apps/playground/examples/counter.xt.md").readText()
+        val text0 = File(repo, "apps/playground/examples/counter.xtmd").readText()
         val ir = File(dir, "counter.ir.json").readText()
         val run = XtmdDocState()
         val live = XtmdDocState()
@@ -114,7 +114,7 @@ class TargetsVideo {
                                     XtmdLiveDoc(source = source, docState = live, onError = { e ->
                                         if (e is DocError.Compile) {
                                             broken = true
-                                            status = e.message.replace("page.xt.md doesn't compile", "Doesn't compile")
+                                            status = e.message.replace("page.xtmd doesn't compile", "Doesn't compile")
                                         }
                                     })
                                 }

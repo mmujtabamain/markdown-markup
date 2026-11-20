@@ -2,7 +2,7 @@
 // checkout through onCalls.
 import { useState } from "react";
 import { XtmdDoc, type Call, type XtmdDocHandle } from "@extended-mark/react";
-import shop from "../../pages/shop.xt.md";
+import shop from "../../pages/shop.xtmd";
 
 window.__calls = [];
 

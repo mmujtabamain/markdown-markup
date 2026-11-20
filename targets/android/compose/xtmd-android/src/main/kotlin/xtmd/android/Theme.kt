@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import xtmd.android.ffi.Val
 
-// core's tokens, drawn the Material 3 way (tokens.xtpack says which values): the colours a theme has
+// core's tokens, drawn the Material 3 way (tokens.xtmdpack says which values): the colours a theme has
 // a role for come from MaterialTheme.colorScheme, so an app's own theme restyles every page, and
 // the rest (INFO, OK, WARN, the chart colours C1…C6, SHADOW, and any colour a pack adds) from the
 // value the build gives the token, for the page's theme. Lengths are dp.

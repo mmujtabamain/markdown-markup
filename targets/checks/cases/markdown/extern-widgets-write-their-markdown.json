@@ -1,7 +1,7 @@
 {
   "id": "markdown.extern-widgets-write-their-markdown",
   "about": "core's widgets write their own markdown blocks",
-  "source": "extern-widgets-write-their-markdown.xt.md",
+  "source": "extern-widgets-write-their-markdown.xtmd",
   "expect": {
     "diagnostics": [],
     "markdown": {"file": "extern-widgets-write-their-markdown.expected.md"}

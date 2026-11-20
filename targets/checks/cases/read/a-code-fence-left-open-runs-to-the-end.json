@@ -1,7 +1,7 @@
 {
   "id": "read.a-code-fence-left-open-runs-to-the-end",
   "about": "a code fence left open at the top runs to the end, as in CommonMark",
-  "source": "a-code-fence-left-open-runs-to-the-end.xt.md",
+  "source": "a-code-fence-left-open-runs-to-the-end.xtmd",
   "expect": {
     "diagnostics": []
   }

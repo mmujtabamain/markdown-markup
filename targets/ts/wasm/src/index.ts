@@ -90,7 +90,7 @@ export interface Markdown {
 export interface MigrateRequest {
   /** The 0.3 packs' files, as xtmd.toml's `packs` gives them. */
   sources?: PackFile[];
-  /** The documents (`.xt.md`, and `.mkp.md` as MKP 0.2 named them), as the editor has them. */
+  /** The documents (`.xtmd`, and `.mkp.md` as MKP 0.2 named them), as the editor has them. */
   docs?: PackFile[];
   /** The tree's xtmd.toml: its `xtmd` release and `[uses]` say what the files are written for. */
   config?: PackFile | null;
@@ -114,7 +114,7 @@ export interface MigrateRequest {
  * or `refused` (`refused` says why, and nothing of it is written). */
 export interface MigratedFile {
   path: string;
-  /** Where it is written: a 0.2 name, `name.mkp.md`, moves to `name.xt.md`. */
+  /** Where it is written: a 0.2 name, `name.mkp.md`, moves to `name.xtmd`. */
   to: string;
   old: string;
   text: string;
@@ -322,7 +322,7 @@ export class Compiler {
   }
 
   /**
-   * Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its `text`; and
+   * Builds one file: `path` ending in `.xtmd` for a document, else a pack's file; its `text`; and
    * the files of the packs it uses. Gives the IR as `xtmd build` writes it, or the errors; with
    * `{ rir: true }`, the resolved IR too, as `xtmd build --rir` writes it (`core`: core's files in it).
    */
@@ -334,8 +334,8 @@ export class Compiler {
   }
 
   /**
-   * `text` in the canonical layout, as `xtmd fmt` writes it: `path` says a document (`.xt.md`) or a
-   * pack's file (`.xtpack`). A text that doesn't read gives its syntax errors and no text.
+   * `text` in the canonical layout, as `xtmd fmt` writes it: `path` says a document (`.xtmd`) or a
+   * pack's file (`.xtmdpack`). A text that doesn't read gives its syntax errors and no text.
    */
   format(path: string, text: string): Formatted {
     return this.call("xtmd_format", path, { path, text }) as Formatted;

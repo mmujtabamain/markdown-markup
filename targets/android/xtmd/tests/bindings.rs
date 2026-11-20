@@ -21,12 +21,12 @@ fn build(source: &str) -> String {
     let server = SERVER.get_or_init(|| {
         let (tx, rx) = channel::<Job>();
         std::thread::spawn(move || {
-            let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+            let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
             files.sort();
             let sources: Vec<Source> = files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect();
             let base = xtmd_check::compile_core(&sources);
             for (source, reply) in rx {
-                let c = xtmd_check::compile_on(&base, &[], &[Source { path: "page.xt.md".into(), text: source }], "doc");
+                let c = xtmd_check::compile_on(&base, &[], &[Source { path: "page.xtmd".into(), text: source }], "doc");
                 let out = match c.module {
                     Some(mut m) => {
                         xtmd_lower::lower(&mut m);

@@ -1,7 +1,7 @@
 {
   "id": "read.a-minus-in-front-of-a-name-in-a-range",
   "about": "a minus in front of a name in a range",
-  "source": "a-minus-in-front-of-a-name-in-a-range.xtpack",
+  "source": "a-minus-in-front-of-a-name-in-a-range.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.negated-range", "line": 4, "column": 12}

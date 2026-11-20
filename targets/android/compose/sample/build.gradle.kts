@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // The sample app: XtmdPage showing two pages built from Extended Mark source when the app is built, with the
-// xtmd binary (targets/rust/target/release/xtmd): examples/pages/shop.xt.md, and pages/tour.xt.md,
+// xtmd binary (targets/rust/target/release/xtmd): examples/pages/shop.xtmd, and pages/tour.xtmd,
 // a tour of core's widgets. `./gradlew :sample:assembleDebug` writes the APK.
 plugins {
     alias(libs.plugins.android.application)
@@ -59,8 +59,8 @@ tasks.withType<Test>().configureEach {
 // The pages' IR, from their Extended Mark source, by the compiler: `xtmd build <page> --out <name>.ir.json`.
 val xtmd = rootProject.file("../../rust/target/release/xtmd")
 val sources = mapOf(
-    "shop" to rootProject.file("../../../examples/pages/shop.xt.md"),
-    "tour" to file("pages/tour.xt.md"),
+    "shop" to rootProject.file("../../../examples/pages/shop.xtmd"),
+    "tour" to file("pages/tour.xtmd"),
 )
 val buildPages = sources.map { (name, src) ->
     tasks.register<Exec>("xtmdPage${name.replaceFirstChar { it.uppercase() }}") {

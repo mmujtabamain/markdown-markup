@@ -40,7 +40,7 @@ The page under it, `XtmdPage`:
 use xtmd_egui::{runtime::Page, XtmdPage};
 
 fn app(json: &str) -> XtmdPage {
-    // once: the IR `xtmd build page.xt.md --out page.ir.json` wrote, with egui's value fns
+    // once: the IR `xtmd build page.xtmd --out page.ir.json` wrote, with egui's value fns
     XtmdPage::new(Page::from_json(json, XtmdPage::options()).unwrap())
 }
 
@@ -146,9 +146,9 @@ cd targets/rust && cargo test -p xtmd-egui                              # this c
 ## The example
 
 ```sh
-cargo run -p xtmd-egui --example page --features app                          # examples/demo.xt.md
+cargo run -p xtmd-egui --example page --features app                          # examples/demo.xtmd
 cargo run -p xtmd-egui --example page --features app -- page.ir.json          # what xtmd build wrote
-cargo run -p xtmd-egui --example page --features app -- doc.xt.md packs/maps # compiled there
+cargo run -p xtmd-egui --example page --features app -- doc.xtmd packs/maps # compiled there
 ```
 
 ## Features

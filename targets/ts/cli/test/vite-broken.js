@@ -1,2 +1,2 @@
-import page from "./vite-broken.xt.md";
+import page from "./vite-broken.xtmd";
 console.log(page);

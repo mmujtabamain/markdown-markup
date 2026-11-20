@@ -35,9 +35,9 @@ pub struct XtmdLiveDoc {
 }
 
 impl XtmdLiveDoc {
-    /// A document from `text`, at `page.xt.md`, compiled now with the app's compiler.
+    /// A document from `text`, at `page.xtmd`, compiled now with the app's compiler.
     pub fn new(text: &str, options: DocOptions) -> XtmdLiveDoc {
-        XtmdLiveDoc::with(compiler(), "page.xt.md", Vec::new(), text, options)
+        XtmdLiveDoc::with(compiler(), "page.xtmd", Vec::new(), text, options)
     }
 
     /// A document at `path`, with the files of the packs it uses, compiled by `compiler`.

@@ -11,7 +11,7 @@ import { findBinary, locateBinary } from "./binary.js";
 export { findBinary, locateBinary } from "./binary.js";
 
 export interface Options {
-  /** Packs the document uses: folders and .xtpack files. */
+  /** Packs the document uses: folders and .xtmdpack files. */
   packs?: string[];
   /** An xtmd.toml; left out, xtmd looks beside the file and in the folders above. */
   config?: string;
@@ -70,13 +70,13 @@ function flags(o: Options = {}): string[] {
 
 let wasm: Promise<Compiler> | undefined;
 
-/** A pack's files, as the compiler reads them: each `.xtpack` in a folder, and each file named. */
+/** A pack's files, as the compiler reads them: each `.xtmdpack` in a folder, and each file named. */
 async function packFiles(packs: string[] = []): Promise<PackFile[]> {
   const out: PackFile[] = [];
   const add = async (path: string): Promise<void> => {
     if ((await stat(path)).isDirectory()) {
       for (const name of (await readdir(path)).sort()) await add(join(path, name));
-    } else if (path.endsWith(".xtpack")) {
+    } else if (path.endsWith(".xtmdpack")) {
       out.push({ path, text: await readFile(path, "utf8") });
     }
   };

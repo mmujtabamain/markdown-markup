@@ -54,7 +54,7 @@ mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
 /** A page's IR file, built once per source. */
-function build(source, ext = ".xt.md") {
+function build(source, ext = ".xtmd") {
   const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json`);
   if (!existsSync(out)) {
@@ -71,7 +71,7 @@ function build(source, ext = ".xt.md") {
 }
 
 // every core declaration: a pack's IR keeps all of core it builds on, a page's only what it uses
-const decls = declarations(JSON.parse(readFileSync(build("package omnicui_core;\n", ".xtpack"), "utf8")));
+const decls = declarations(JSON.parse(readFileSync(build("package omnicui_core;\n", ".xtmdpack"), "utf8")));
 
 createInterface({ input: process.stdin }).on("line", (line) => {
   if (!line.trim()) return;

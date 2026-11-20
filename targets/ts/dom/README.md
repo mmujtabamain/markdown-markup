@@ -6,7 +6,7 @@ bindings mount pages through it.
 
 ```ts
 import { run } from "@extended-mark/dom";
-import page from "./sprint.ir.json"; // xtmd build sprint.xt.md --out sprint.ir.json
+import page from "./sprint.ir.json"; // xtmd build sprint.xtmd --out sprint.ir.json
 
 const mounted = run(page, document.getElementById("app")!, { page: { theme: "DARK" } });
 mounted.page.setPage({ theme: "LIGHT" }); // the page redraws itself; the DOM follows

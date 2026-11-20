@@ -1,7 +1,7 @@
 {
   "id": "read.slot-line-outside-a-call-s-block",
   "about": "slot line outside a call's block",
-  "source": "slot-line-outside-a-call-s-block.xt.md",
+  "source": "slot-line-outside-a-call-s-block.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.slot-outside-a-call", "line": 1, "column": 1}

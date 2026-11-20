@@ -1,7 +1,7 @@
 {
   "id": "views.prose-fills-named-slots",
   "about": "in prose, a widget with several slots fills each from its own `@slot name {` block (page 1)",
-  "source": "prose-fills-named-slots.xt.md",
+  "source": "prose-fills-named-slots.xtmd",
   "target": {
     "levels": [
       "core.draw",

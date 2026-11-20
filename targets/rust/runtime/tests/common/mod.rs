@@ -15,7 +15,7 @@ pub fn repo() -> PathBuf {
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -33,11 +33,11 @@ fn compiler() -> &'static Mutex<Sender<Job>> {
             for (source, packs, reply) in rx {
                 let mut pack_sources = Vec::new();
                 for dir in packs {
-                    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+                    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
                     files.sort();
                     pack_sources.push(files.into_iter().map(|f| Source { path: f.to_string_lossy().into_owned(), text: std::fs::read_to_string(&f).unwrap() }).collect());
                 }
-                let c = xtmd_check::compile_on(&base, &pack_sources, &[Source { path: "page.xt.md".into(), text: source }], "doc");
+                let c = xtmd_check::compile_on(&base, &pack_sources, &[Source { path: "page.xtmd".into(), text: source }], "doc");
                 let out = match c.module {
                     Some(mut m) => {
                         xtmd_lower::lower(&mut m);

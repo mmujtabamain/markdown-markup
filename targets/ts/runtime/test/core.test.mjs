@@ -1,4 +1,4 @@
-// core's own tests, run on the TypeScript evaluator. targets/checks/core/*.xtpack hold lines such as
+// core's own tests, run on the TypeScript evaluator. targets/checks/core/*.xtmdpack hold lines such as
 // `let check_sorted: bool = nums.sorted() == [1, 2, 3];`, which the compiler folds when it builds
 // the file. Each one-line `let check_NAME: bool = EXPR;` is rewritten into
 // `fn check_NAME(): bool { return EXPR; }`, so the compiler leaves it as code, and the evaluator
@@ -13,7 +13,7 @@ import { Constants, Failure, Machine } from "../dist/index.js";
 import { build, declarations, program, repo, workdir } from "./xtmd.mjs";
 
 const coreDir = join(repo, "targets/checks/core");
-const files = readdirSync(coreDir).filter((f) => f.endsWith(".xtpack")).sort();
+const files = readdirSync(coreDir).filter((f) => f.endsWith(".xtmdpack")).sort();
 const dir = workdir();
 const totals = { run: 0, passed: 0, kept: [] };
 
@@ -38,7 +38,7 @@ function rewrite(text, keep) {
 
 for (const file of files) {
   test(`core: ${file}`, async (t) => {
-    const name = file.replace(/\.xtpack$/, "");
+    const name = file.replace(/\.xtmdpack$/, "");
     const text = readFileSync(join(coreDir, file), "utf8");
     const keep = new Map();
     let built;

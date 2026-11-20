@@ -1,7 +1,7 @@
 {
   "id": "names.a-bound-names-an-interface",
   "about": "a bound T: labelled names an interface",
-  "source": "a-bound-names-an-interface.xtpack",
+  "source": "a-bound-names-an-interface.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-type", "line": 3, "column": 13}

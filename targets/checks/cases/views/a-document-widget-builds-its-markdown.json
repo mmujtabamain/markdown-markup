@@ -1,7 +1,7 @@
 {
   "id": "views.a-document-widget-builds-its-markdown",
   "about": "a document's widget may leave markdown out; a branch that reads a variable gets a warning",
-  "source": "a-document-widget-builds-its-markdown.xt.md",
+  "source": "a-document-widget-builds-its-markdown.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "widget.built-markdown-reads-a-variable", "line": 7, "column": 13}

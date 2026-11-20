@@ -86,7 +86,7 @@ fn holds(base: &xtmd_check::Checker, file: &str, text: &str, packs: &[Source], m
         return Err(format!("an example of a {} block is a use of it: `before = @{}(…)`", b.kind.name, key));
     }
     let (doc, want) = (holder(&name, &key, &print_expr(before), view), holder(&name, &key, &print_expr(after), view));
-    let path = format!("{}.example.xt.md", file);
+    let path = format!("{}.example.xtmd", file);
     let (compiled, refs) = xtmd_check::compile_refs(base, &[world_at(&sources, &pack, from)], &[Source { path: path.clone(), text: doc.clone() }], "doc");
     if compiled.module.is_none() {
         let first = compiled.errors().find(|d| d.file == path).map(|d| d.diagnostic.message.clone()).unwrap_or_else(|| "an error in a pack".into());

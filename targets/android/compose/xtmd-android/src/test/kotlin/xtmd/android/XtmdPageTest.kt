@@ -53,8 +53,8 @@ class XtmdPageTest {
         return out.readText().also { out.delete() }
     }
 
-    private val shop by lazy { ir(File(repo, "examples/pages/shop.xt.md")) }
-    private val tour by lazy { ir(File(repo, "targets/android/compose/sample/pages/tour.xt.md")) }
+    private val shop by lazy { ir(File(repo, "examples/pages/shop.xtmd")) }
+    private val tour by lazy { ir(File(repo, "targets/android/compose/sample/pages/tour.xtmd")) }
 
     private fun state(page: CompiledPage, name: String) = page.state(name)?.toIrJson()
 
@@ -100,7 +100,7 @@ class XtmdPageTest {
     @Test
     fun aPressInASentenceIsDrawnAmongItsWordsAndClicked() = runAndroidComposeUiTest<ComponentActivity> {
         waitsForXtmd()
-        val source = File.createTempFile("sentence", ".xt.md")
+        val source = File.createTempFile("sentence", ".xtmd")
         source.writeText(
             """
             ${'$'}state {

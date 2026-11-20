@@ -7,5 +7,5 @@ levels: [core.draw, core.live, core.gfx]
 supplies:
   widgets: [core/*]                     # core's externs only; a pack brings its own
   fns: [core/can_draw_tex, core/moment.local]
-tokens: tokens.xtpack                      # Material 3 colours, type and spacing
+tokens: tokens.xtmdpack                      # Material 3 colours, type and spacing
 check_adapter: exec java @build/check_adapter.args xtmd.android.CheckAdapter   # Compose under Robolectric, on the JVM

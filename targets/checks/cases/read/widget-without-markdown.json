@@ -1,7 +1,7 @@
 {
   "id": "read.widget-without-markdown",
   "about": "widget without markdown",
-  "source": "widget-without-markdown.xtpack",
+  "source": "widget-without-markdown.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "widget.markdown-required", "line": 3, "column": 8}

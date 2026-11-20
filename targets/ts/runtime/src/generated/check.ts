@@ -139,7 +139,7 @@ export interface Case {
   /** Packs to build with, beside the case. */
   packs?: string[];
   page?: Page;
-  /** The .xt.md or .xtpack file, beside the case. */
+  /** The .xtmd or .xtmdpack file, beside the case. */
   source: string;
   steps?: Step[];
   target?: CaseTarget;

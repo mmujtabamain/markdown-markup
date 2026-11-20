@@ -4,7 +4,7 @@
       "declarations": [],
       "imports": [],
       "kind": "document",
-      "path": "schemas/examples/counter.xt.md",
+      "path": "schemas/examples/counter.xtmd",
       "prose": [
         {
           "markdown": {

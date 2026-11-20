@@ -1,7 +1,7 @@
 {
   "id": "names.a-widget-values-events-are-not-reached",
   "about": "the inputs of a widget value can be read; its events can't be reached",
-  "source": "a-widget-values-events-are-not-reached.xtpack",
+  "source": "a-widget-values-events-are-not-reached.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-field", "line": 16, "column": 14}

@@ -1,7 +1,7 @@
 {
   "id": "plane.a-layout-that-keeps-changing-stops",
   "about": "a spot placed by its own box moves on every layout pass, so the layout never settles: it is stopped after a fixed number of passes and is a failure of the plane",
-  "source": "a-layout-that-keeps-changing-stops.xt.md",
+  "source": "a-layout-that-keeps-changing-stops.xtmd",
   "target": {
     "levels": [
       "core.draw",

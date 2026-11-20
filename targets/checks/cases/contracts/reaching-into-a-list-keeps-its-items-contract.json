@@ -1,7 +1,7 @@
 {
   "id": "contracts.reaching-into-a-list-keeps-its-items-contract",
   "about": "xs[i] is an opt of the item, with the item's contract",
-  "source": "reaching-into-a-list-keeps-its-items-contract.xtpack",
+  "source": "reaching-into-a-list-keeps-its-items-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 8, "column": 12}

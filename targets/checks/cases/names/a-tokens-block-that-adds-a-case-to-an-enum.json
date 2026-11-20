@@ -1,7 +1,7 @@
 {
   "id": "names.a-tokens-block-that-adds-a-case-to-an-enum",
   "about": "a tokens block that adds a case to an enum",
-  "source": "a-tokens-block-that-adds-a-case-to-an-enum.xtpack",
+  "source": "a-tokens-block-that-adds-a-case-to-an-enum.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.not-a-token-type", "line": 6, "column": 5}

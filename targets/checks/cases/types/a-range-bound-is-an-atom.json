@@ -1,7 +1,7 @@
 {
   "id": "types.a-range-bound-is-an-atom",
   "about": "in an expression a range's bounds are a number, a name or a bracketed expression",
-  "source": "a-range-bound-is-an-atom.xtpack",
+  "source": "a-range-bound-is-an-atom.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 4, "column": 12}

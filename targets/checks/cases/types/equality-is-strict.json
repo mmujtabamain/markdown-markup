@@ -1,7 +1,7 @@
 {
   "id": "types.equality-is-strict",
   "about": "== stays strict: both sides are the same type",
-  "source": "equality-is-strict.xtpack",
+  "source": "equality-is-strict.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 4, "column": 17}

@@ -120,13 +120,13 @@ export function makeAlerter({ url, token, log, intervalMs = 5 * 60 * 1000, fetch
 
 // ---- the packs
 
-/** A pack's files, each as the compiler is given it: its path (`graphs/graphs.xtpack`) and its text. */
+/** A pack's files, each as the compiler is given it: its path (`graphs/graphs.xtmdpack`) and its text. */
 async function packFiles(name, dir) {
   const out = [];
   async function walk(d, rel) {
     for (const e of (await readdir(d, { withFileTypes: true })).sort((x, y) => x.name.localeCompare(y.name))) {
       if (e.isDirectory()) await walk(join(d, e.name), `${rel}/${e.name}`);
-      else if (e.name.endsWith(".xtpack")) out.push({ path: `${rel}/${e.name}`, text: await readFile(join(d, e.name), "utf8") });
+      else if (e.name.endsWith(".xtmdpack")) out.push({ path: `${rel}/${e.name}`, text: await readFile(join(d, e.name), "utf8") });
     }
   }
   await walk(dir, name);

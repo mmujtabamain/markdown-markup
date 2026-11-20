@@ -4,7 +4,7 @@ Page 6 of 9. Packs and imports, versions and migrations, tokens, talking to the 
 
 ### Packs and imports
 
-A pack is a folder of `.xtpack` files that all start with the same `package` line. They share one scope, so they use each other's declarations without importing. One of the files holds the `pack` block.
+A pack is a folder of `.xtmdpack` files that all start with the same `package` line. They share one scope, so they use each other's declarations without importing. One of the files holds the `pack` block.
 
 ```java
 package kit;
@@ -68,7 +68,7 @@ migration kit@1 to kit@2 {
 }
 ```
 
-- **A migration** belongs to the pack of the version it moves to, as one of its files, by convention `migrations/kit@2.xtpack`. `kit@3` holds `migration kit@1 to kit@2` and `migration kit@2 to kit@3`, so a use written for `kit@1` moves through each in turn. A pack may drop its oldest migrations, and a use older than them is then left for a person.
+- **A migration** belongs to the pack of the version it moves to, as one of its files, by convention `migrations/kit@2.xtmdpack`. `kit@3` holds `migration kit@1 to kit@2` and `migration kit@2 to kit@3`, so a use written for `kit@1` moves through each in turn. A pack may drop its oldest migrations, and a use older than them is then left for a person.
 - **A block** says what happens to the uses of one declaration. It is headed by the declaration's kind and its `kit@1` name: `widget chart`, `record stat`, `enum state`, `token color`, `fn text.slug`. A widget's event has a block of its own inside the widget's, `event click { … }`.
 - **Statements apply in order**, each to what the one before it left: after `rename(to = plot)`, the block is working on `plot`.
 - **A statement is a call with named arguments.** Where a parameter takes a name, the argument is written bare and checked: `input = color` is an input `chart` had in `kit@1`, and `to = tone` one `plot` has in `kit@2`. Anywhere else a name is the value the use gave, so in `set(input = values, value = values.map(…))` the first `values` is the input and the second its value. A case is written in full, `state.LATE`.

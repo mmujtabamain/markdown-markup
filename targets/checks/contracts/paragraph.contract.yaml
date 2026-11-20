@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/paragraph (core/blocks.xtpack): a paragraph of inline Markdown, parsed by core. @extended-mark/dom draws a <p>.
+# core/paragraph (core/blocks.xtmdpack): a paragraph of inline Markdown, parsed by core. @extended-mark/dom draws a <p>.
 id: core.paragraph
 
 props:

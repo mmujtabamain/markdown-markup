@@ -1,7 +1,7 @@
 // The shop page from plain TypeScript: no framework, just @extended-mark/dom's run.
 import { run } from "@extended-mark/dom";
 import type { Call } from "@extended-mark/runtime";
-import shop from "../../pages/shop.xt.md";
+import shop from "../../pages/shop.xtmd";
 
 const orders = document.getElementById("orders")!;
 window.__calls = [];

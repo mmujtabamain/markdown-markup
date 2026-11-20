@@ -95,7 +95,7 @@ function RealTime({ source: first }: { source: string }): ReactElement {
         wasm: "/xtmd.wasm",
         onStateChange: setState,
         onError: (e: DocError) => {
-          if (e.kind === "compile") setStatus({ state: "errors", text: e.message.replace(/^page\.xt\.md doesn't compile/, "Doesn't compile") });
+          if (e.kind === "compile") setStatus({ state: "errors", text: e.message.replace(/^page\.xtmd doesn't compile/, "Doesn't compile") });
           else if (e.kind === "load") setStatus({ state: "errors", text: e.message });
         },
       }),

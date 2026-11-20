@@ -1,7 +1,7 @@
 {
   "id": "contracts.whole-number-arithmetic",
   "about": "+, -, * and % on whole numbers give a whole number, and lose their range",
-  "source": "whole-number-arithmetic.xtpack",
+  "source": "whole-number-arithmetic.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 12}

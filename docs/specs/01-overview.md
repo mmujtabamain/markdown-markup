@@ -9,12 +9,12 @@ Extended Mark (called MKP, Markdown Markup, up to 0.2) is a statically typed lan
 | | |
 |---|---|
 | Keywords | **41** |
-| File types | **2** (.xtpack and .xt.md) |
+| File types | **2** (.xtmdpack and .xtmd) |
 | Rules | **19** |
 
 ### The rules
 
-1. **Two file types.** .xtpack holds definitions only and can't draw. .xt.md is a document: definitions, then a line that holds only `@@@`, then Markdown that Extended Mark renders. Nothing above the line draws, and below it an `xtmd` code fence is ordinary code.
+1. **Two file types.** .xtmdpack holds definitions only and can't draw. .xtmd is a document: definitions, then a line that holds only `@@@`, then Markdown that Extended Mark renders. Nothing above the line draws, and below it an `xtmd` code fence is ordinary code.
 2. **@ starts a view.** `@name(…)` builds a widget. A fn that returns a view is called with @ too, and `@name` stands for a view held in a value. A view written as a statement inside a view is drawn there. Empty parentheses can be left out: `@column { … }`.
 3. **The look comes from tokens.** A token type is an enum, and each of its named cases stands for a value written only in a `tokens` block. Everywhere else a token is used by name: `tone = color.OK`, `gap = space.M`. A token type that fits `literal<T>` also accepts a plain value, through a case that carries one: core's `stroke`, for drawing on a canvas, where the named strokes are the convention. The page's colours, spacing and sizes take tokens only. Extended Mark has no attributes, so a `#` at the start of a line is always a Markdown heading.
 4. **Constant by default, mut to change.** Locals, a widget's own variables, inputs, parameters and record fields. A document's shared variables are the fields of its `$state` block, which are variables without saying `mut` (rule 17). Everything is passed by reference: a plain parameter or input is read-only, and `mut` on it lets the fn or widget write through it to the caller's value. The caller's variable may have a narrower contract than the input, and every value written back is checked against it. To assign `a.b`, both `a` and `b` have to be mut.
@@ -63,8 +63,8 @@ Two sets of names exist, and the place a name is written decides which set it is
 
 ### Files
 
-- **.xtpack** (definitions): `package`, then imports, then declarations: `enum`, `record`, `token`, `type`, `interface`, `fn`, `widget`, `extern`, `tokens`, `pack` and top-level `let`s. A view statement outside a widget is a compile error, and so is a `mut` at the top of the file, which points to `$state` (rule 17).
-- **.xt.md** (documents): definitions, a `@@@` line, and the document. The definitions are what a .xtpack file holds, without `package` and `pack`, and two things only a document has: one `$state` block, and `expose` blocks. In a .xtpack file, each of those is a compile error. The document is Markdown, with widget calls and control lines in it.
+- **.xtmdpack** (definitions): `package`, then imports, then declarations: `enum`, `record`, `token`, `type`, `interface`, `fn`, `widget`, `extern`, `tokens`, `pack` and top-level `let`s. A view statement outside a widget is a compile error, and so is a `mut` at the top of the file, which points to `$state` (rule 17).
+- **.xtmd** (documents): definitions, a `@@@` line, and the document. The definitions are what a .xtmdpack file holds, without `package` and `pack`, and two things only a document has: one `$state` block, and `expose` blocks. In a .xtmdpack file, each of those is a compile error. The document is Markdown, with widget calls and control lines in it.
 
 A document is one scope. Everything declared above the `@@@` line can be used anywhere below it.
 
@@ -137,7 +137,7 @@ It has been retried \{$state.tries} times.
 - **The `@@@` line**: The first line that holds only `@@@` ends the definitions. It can never be valid code, because an `@` needs a name after it, so the definitions never need escaping. To show `@@@` as text in the document, write `\@@@`. A second unescaped `@@@` line is a compile error.
 - **No `@@@` line**: The whole file is the document, with only core imported.
 - **Below the line**: Everything is Markdown. A fenced code block marked `xtmd` is shown as code, like any other.
-- **A widget declared in a document may leave out `markdown`**: Extended Mark builds it from the view, with the starting values. A branch that depends on a variable, a `$state` field or the widget's own, gets a warning naming the line, and writing a `markdown` block replaces the built one. In a .xtpack file the block is required.
+- **A widget declared in a document may leave out `markdown`**: Extended Mark builds it from the view, with the starting values. A branch that depends on a variable, a `$state` field or the widget's own, gets a warning naming the line, and writing a `markdown` block replaces the built one. In a .xtmdpack file the block is required.
 - **`$state`**: One block, anywhere above the line, and a second one is a compile error. Its fields are written like a record's, each with its type and a starting value, and its `require` blocks link them (page 2).
 - **Front matter**: YAML front matter, if a document has it, stays at the very top, above the definitions, and is passed to the app untouched.
 - **Where they overlap**: A call with no block, such as `@stats(items = rows);`, and a call whose block holds only other calls are written in the document. A widget above the line is for what Markdown can't say: loops over data, `match`, buttons and variables.

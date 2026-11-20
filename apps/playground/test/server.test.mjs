@@ -105,8 +105,8 @@ describe("the server", () => {
     );
     for (const e of body.examples) assert.ok(e.title && e.source.includes("@@@"), `${e.id} has a title and a source`);
     assert.deepEqual(body.examples.find((e) => e.id === "release-flow").packs, ["graphs"]);
-    assert.deepEqual(body.packFiles.graphs.map((f) => f.path), ["graphs/graphs.xtpack"]);
-    assert.equal(body.packFiles.graphs[0].text, await readFile(join(app, "../../examples/graphs/graphs.xtpack"), "utf8"));
+    assert.deepEqual(body.packFiles.graphs.map((f) => f.path), ["graphs/graphs.xtmdpack"]);
+    assert.equal(body.packFiles.graphs[0].text, await readFile(join(app, "../../examples/graphs/graphs.xtmdpack"), "utf8"));
   });
 
   test("serves the UI's page", async () => {
@@ -156,7 +156,7 @@ describe("the server", () => {
   });
 
   test("a report from the browser is logged and alerts the team once per kind, without logging the token", async () => {
-    const res = await report(s.url, { kind: "compiler-crash", message: "the compiler stopped on page.xt.md: panicked at lower.rs:12\nindex out of bounds", bytes: 120, agent: "Chromium" });
+    const res = await report(s.url, { kind: "compiler-crash", message: "the compiler stopped on page.xtmd: panicked at lower.rs:12\nindex out of bounds", bytes: 120, agent: "Chromium" });
     assert.equal(res.status, 202);
     assert.ok(await waitFor(() => notify.received.length === 1), "the alert arrived");
     const [alert] = notify.received;
@@ -217,7 +217,7 @@ describe("the examples, compiled by the xtmd.wasm the page runs", () => {
     await rm(dist, { recursive: true, force: true });
   });
 
-  const build = (source, packs = []) => compiler.build("page.xt.md", source, packs.flatMap((p) => packFiles[p]));
+  const build = (source, packs = []) => compiler.build("page.xtmd", source, packs.flatMap((p) => packFiles[p]));
 
   test("every example compiles, and runs", () => {
     for (const e of examples) {
@@ -234,7 +234,7 @@ describe("the examples, compiled by the xtmd.wasm the page runs", () => {
     assert.equal(b.ir, null);
     assert.equal(b.diagnostics.length, 1);
     const [d] = b.diagnostics;
-    assert.deepEqual([d.severity, d.code, d.line, d.column, d.file], ["error", "syntax.missing-semicolon", 2, 19, "page.xt.md"]);
+    assert.deepEqual([d.severity, d.code, d.line, d.column, d.file], ["error", "syntax.missing-semicolon", 2, 19, "page.xtmd"]);
     const types = build(["$state {", "    count: int = 0;", "}", "@@@", "", "Count \\{$state.cuont}", "", "@press(label = 3);"].join("\n"));
     const lines = types.diagnostics.map((x) => x.line).sort();
     assert.ok(lines.includes(6) && lines.includes(8), `errors on lines 6 and 8: ${lines}`);
@@ -242,7 +242,7 @@ describe("the examples, compiled by the xtmd.wasm the page runs", () => {
   });
 
   test("a page that imports a pack needs its files", async () => {
-    const source = await example("release-flow.xt.md");
+    const source = await example("release-flow.xtmd");
     assert.ok(build(source).diagnostics.some((d) => d.code === "names.unknown-pack" && d.line === 1));
     const b = build(source, ["graphs"]);
     assert.deepEqual(b.diagnostics, []);

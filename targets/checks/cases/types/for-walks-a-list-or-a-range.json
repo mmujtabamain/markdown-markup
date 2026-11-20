@@ -1,7 +1,7 @@
 {
   "id": "types.for-walks-a-list-or-a-range",
   "about": "for walks a list, a slot that holds a list, or a range",
-  "source": "for-walks-a-list-or-a-range.xtpack",
+  "source": "for-walks-a-list-or-a-range.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.mismatch", "line": 5, "column": 15}

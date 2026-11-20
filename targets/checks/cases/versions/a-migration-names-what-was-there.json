@@ -1,7 +1,7 @@
 {
   "id": "versions.a-migration-names-what-was-there",
   "about": "a migration statement naming an input the older version didn't have",
-  "source": "a-migration-names-what-was-there.xtpack",
+  "source": "a-migration-names-what-was-there.xtmdpack",
   "packs": ["kit2"],
   "expect": {
     "diagnostics": [

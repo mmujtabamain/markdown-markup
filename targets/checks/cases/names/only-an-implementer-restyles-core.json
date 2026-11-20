@@ -1,7 +1,7 @@
 {
   "id": "names.only-an-implementer-restyles-core",
   "about": "in any pack without an implements line, giving a core case a value is a compile error",
-  "source": "only-an-implementer-restyles-core.xtpack",
+  "source": "only-an-implementer-restyles-core.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.core-token-restyled", "line": 4, "column": 11}

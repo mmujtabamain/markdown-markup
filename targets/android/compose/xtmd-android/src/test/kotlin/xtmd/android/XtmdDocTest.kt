@@ -43,9 +43,9 @@ class XtmdDocTest {
     }
 
     private fun testing(name: String) = build(File(repo, "targets/ts/bindings/testing/$name"))
-    private val v1 by lazy { testing("counter.xt.md") }
-    private val v2 by lazy { testing("counter-v2.xt.md") }
-    private val notes by lazy { testing("notes.xt.md") }
+    private val v1 by lazy { testing("counter.xtmd") }
+    private val v2 by lazy { testing("counter-v2.xtmd") }
+    private val notes by lazy { testing("notes.xtmd") }
     private val items = mapOf("app" to mapOf("unit" to Val.Text("items")))
     private fun num(n: Int) = Val.Num(n.toString())
 
@@ -162,7 +162,7 @@ class XtmdDocTest {
     @Test
     fun theAppsValueFnsAreCalled() = runAndroidComposeUiTest<ComponentActivity> {
         waitsForXtmd()
-        val page = File.createTempFile("xtmd-fns", ".xt.md").apply { writeText("let at: moment = \"2026-11-16T23:30+00:00\";\n@@@\nLocal: \\{at.local()}\n") }
+        val page = File.createTempFile("xtmd-fns", ".xtmd").apply { writeText("let at: moment = \"2026-11-16T23:30+00:00\";\n@@@\nLocal: \\{at.local()}\n") }
         val ir = build(page)
         val doc = XtmdDocState()
         val asked = mutableListOf<String>()

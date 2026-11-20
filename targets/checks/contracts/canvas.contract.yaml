@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mmujtabamain/omnicui/v0.2.4/tools/omnicui/schema/contract.schema.json
-# core/canvas (core/gfx.xtpack): a drawing surface with coordinates of its own, x from left to right,
+# core/canvas (core/gfx.xtmdpack): a drawing surface with coordinates of its own, x from left to right,
 # y from bottom to top. Its layers slot holds one layer with a labelled dot up and to the right of
 # its middle (the adapter's filler), so its middle is empty space. @extended-mark/dom draws a
 # figure[role=group] named by its label around an <svg>.

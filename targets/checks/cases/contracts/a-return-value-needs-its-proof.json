@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-return-value-needs-its-proof",
   "about": "a fn's return value meets its return type's contract",
-  "source": "a-return-value-needs-its-proof.xtpack",
+  "source": "a-return-value-needs-its-proof.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 4, "column": 12}

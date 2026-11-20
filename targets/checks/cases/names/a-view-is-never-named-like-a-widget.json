@@ -1,7 +1,7 @@
 {
   "id": "names.a-view-is-never-named-like-a-widget",
   "about": "a slot and a fn that returns a view can't take a visible widget's name",
-  "source": "a-view-is-never-named-like-a-widget.xtpack",
+  "source": "a-view-is-never-named-like-a-widget.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.view-named-like-a-widget", "line": 3, "column": 8},

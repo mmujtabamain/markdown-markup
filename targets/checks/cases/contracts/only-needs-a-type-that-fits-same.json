@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-needs-a-type-that-fits-same",
   "about": "only (…) is for types that implement same: a widget doesn't",
-  "source": "only-needs-a-type-that-fits-same.xtpack",
+  "source": "only-needs-a-type-that-fits-same.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.only-needs-same", "line": 4, "column": 12}

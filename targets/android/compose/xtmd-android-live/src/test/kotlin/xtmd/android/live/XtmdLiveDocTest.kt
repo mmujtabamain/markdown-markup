@@ -33,7 +33,7 @@ import org.robolectric.annotation.GraphicsMode
 class XtmdLiveDocTest {
     private val repo = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }.first { File(it, "targets/checks").isDirectory }
     private fun testing(name: String) = File(repo, "targets/ts/bindings/testing/$name").readText()
-    private val v1 by lazy { testing("counter.xt.md") }
+    private val v1 by lazy { testing("counter.xtmd") }
     private val items = mapOf("app" to mapOf("unit" to Val.Text("items")))
 
     /** Until the compile and the page it drew are done: Compose idle and the main looper run, so
@@ -59,15 +59,15 @@ class XtmdLiveDocTest {
         onNodeWithText("Add one").performClick()
         done("the click") { doc.markdown().startsWith("# Count: 1") }
         // an edit that compiles: the new page, `$state` kept
-        source = testing("counter-v2.xt.md")
+        source = testing("counter-v2.xtmd")
         done("the edit") { doc.markdown().startsWith("# Total") }
         assertTrue(doc.markdown(), doc.markdown().startsWith("# Total: 1 items, by 2"))
         // a broken draft: the last page stays, and onError says why
         source = v1.replace("# Count: \\{\$state.n}", "# Count: \\{\$state.nope}")
         done("the compile error") { errors.isNotEmpty() }
         val e = errors.single() as DocError.Compile
-        assertTrue(e.message, e.message.startsWith("page.xt.md doesn't compile (1 error): page.xt.md:"))
-        assertTrue(e.diagnostics.toString(), e.diagnostics.single().startsWith("page.xt.md:"))
+        assertTrue(e.message, e.message.startsWith("page.xtmd doesn't compile (1 error): page.xtmd:"))
+        assertTrue(e.diagnostics.toString(), e.diagnostics.single().startsWith("page.xtmd:"))
         assertTrue(doc.markdown().startsWith("# Total: 1 items"))
         // fixed
         source = v1
@@ -87,7 +87,7 @@ class XtmdLiveDocTest {
 
     @Test
     fun packsAreGivenAsText() = runAndroidComposeUiTest<ComponentActivity> {
-        val pack = PackFile("shapes/shapes.xtpack", "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n")
+        val pack = PackFile("shapes/shapes.xtmdpack", "package shapes;\n\npack shapes@1 {\n    provides double;\n}\n\nfn double(x: number): number {\n    return x * 2;\n}\n")
         val doc = XtmdDocState()
         setContent { XtmdLiveDoc(source = "import shapes;\n@@@\nTwice: \\{double(4)}\n", packs = listOf(pack), docState = doc) }
         done("the page") { doc.page != null }

@@ -30,7 +30,7 @@ use xtmd_runtime::ir::Expr;
 use xtmd_runtime::layout::{Measure, Size};
 use xtmd_runtime::{Drawn, Num, Page, PageOptions, Value};
 
-// a page from `xtmd build page.xt.md --out page.ir.json`, mounted and drawn once
+// a page from `xtmd build page.xtmd --out page.ir.json`, mounted and drawn once
 let json = std::fs::read_to_string("page.ir.json").unwrap();
 let mut page = Page::from_json(&json, PageOptions::default()).unwrap();
 
@@ -110,7 +110,7 @@ reported in `take_outcome()`.
 
 `PageOptions { memo: false, .. }` (or `set_memo(false)`) draws every widget anew on every change:
 the same observations, for comparing the two. `examples/drag_bench.rs` times a drag both ways in
-one run (`cargo run --release -p xtmd-runtime --example drag_bench -- <page.xt.md>`).
+one run (`cargo run --release -p xtmd-runtime --example drag_bench -- <page.xtmd>`).
 
 `fns` are the value fns the target supplies, by full name, each given the page's machine:
 `core/moment.local` reads the reader's time zone, `core/can_draw_tex` says which TeX it draws.

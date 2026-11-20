@@ -455,7 +455,7 @@ describe("the playground in Chromium", { skip }, () => {
       // a broken draft: the last page stays, and why is said
       await box.fill((await box.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
       await t.waitForFunction(() => document.getElementById("live-status").dataset.state === "errors");
-      assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xt\.md:\d+:\d+: /);
+      assert.match(await t.getByTestId("live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xtmd:\d+:\d+: /);
       assert.ok(await live.getByRole("button", { name: "Add 5" }).isVisible(), "the last page that compiled stays");
 
       // React: <XtmdDoc>, its $state in React's own state, and a snapshot that brings it back
@@ -475,7 +475,7 @@ describe("the playground in Chromium", { skip }, () => {
       await rlive.getByRole("button", { name: "Add 5" }).waitFor();
       await rbox.fill((await rbox.inputValue()).replace("@counter(by = 5);", "@counter(by = );"));
       await t.waitForFunction(() => document.querySelector("[data-testid=react-live-status]").dataset.state === "errors");
-      assert.match(await t.getByTestId("react-live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xt\.md:\d+:\d+: /);
+      assert.match(await t.getByTestId("react-live-status").textContent(), /^Doesn't compile \(\d+ errors?\): page\.xtmd:\d+:\d+: /);
       assert.ok(await rlive.getByRole("button", { name: "Add 5" }).isVisible(), "React keeps the last page that compiled");
       assert.deepEqual(errors, []);
     } finally {

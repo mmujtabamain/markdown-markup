@@ -234,7 +234,7 @@ class CheckSession(private val rpc: Rpc, private val live: Boolean = false) {
         return Loaded(
             ir = ir,
             source = source,
-            path = p.optString("source").ifEmpty { "page.xt.md" },
+            path = p.optString("source").ifEmpty { "page.xtmd" },
             packs = packs,
             width = if (ignores) null else values.optString("width").ifEmpty { null },
             theme = if (ignores) null else values.optString("theme").ifEmpty { null },

@@ -232,7 +232,7 @@ pub struct Case {
     pub packs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page: Option<Page>,
-    /// The .xt.md or .xtpack file, beside the case.
+    /// The .xtmd or .xtmdpack file, beside the case.
     pub source: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub steps: Vec<Step>,

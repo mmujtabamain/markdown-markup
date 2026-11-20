@@ -1,7 +1,7 @@
 {
   "id": "views.prose-beside-named-slots-is-an-error",
   "about": "prose beside `@slot` blocks belongs in one of them: a widget with several slots fills each by its name",
-  "source": "prose-beside-named-slots-is-an-error.xt.md",
+  "source": "prose-beside-named-slots-is-an-error.xtmd",
   "expect": {
     "diagnostics": [
       {

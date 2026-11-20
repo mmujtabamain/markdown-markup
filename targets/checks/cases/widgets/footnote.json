@@ -1,7 +1,7 @@
 {
   "id": "widgets.footnote",
   "about": "claims are checked: a footnote and its mark",
-  "source": "footnote.xt.md",
+  "source": "footnote.xtmd",
   "target": {
     "levels": [
       "core.draw"

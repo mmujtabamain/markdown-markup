@@ -1,7 +1,7 @@
 {
   "id": "read.else-on-prose-without-if",
   "about": "else on prose without if",
-  "source": "else-on-prose-without-if.xt.md",
+  "source": "else-on-prose-without-if.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.else-without-if", "line": 1, "column": 1}

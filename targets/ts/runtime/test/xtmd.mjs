@@ -37,16 +37,16 @@ function diagnostics(text, file) {
   return out;
 }
 
-/** Builds `source` as `<name>.xtpack` in `dir`: its IR module, or its errors. */
+/** Builds `source` as `<name>.xtmdpack` in `dir`: its IR module, or its errors. */
 export function build(dir, name, source) {
-  const file = join(dir, `${name}.xtpack`);
+  const file = join(dir, `${name}.xtmdpack`);
   const out = join(dir, `${name}.ir.json`);
   writeFileSync(file, source);
   try {
     execFileSync(xtmdBinary(), ["build", file, "--out", out], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   } catch (e) {
     const text = `${e.stdout ?? ""}\n${e.stderr ?? ""}`;
-    return { ok: false, errors: diagnostics(text, `${name}.xtpack`), output: text.trim() };
+    return { ok: false, errors: diagnostics(text, `${name}.xtmdpack`), output: text.trim() };
   }
   const ir = JSON.parse(readFileSync(out, "utf8")).ir;
   return { ok: true, ir, errors: [] };

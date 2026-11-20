@@ -22,7 +22,7 @@ def take(t):
     r.card(3.4)
 
     r.chapter(0)
-    r.file("dry", "kit/migrations/kit@2.xtpack", "before")
+    r.file("dry", "kit/migrations/kit@2.xtmdpack", "before")
     t.beat(r.line("Reset every chart's tone?"),
            "This kit@2 migration asks three questions with confirm: reset every chart's tone?", 3.6)
     t.beat(r.line("Make kit@1's badges small?"), "Make kit@1's badges small?", 2.4)
@@ -33,7 +33,7 @@ def take(t):
     r.run("yes13", "--yes 1,3 answers yes to those two only, and writes.")
     t.beat(r.out("yes13", "questions:", 4), "1 and 3 yes, 2 no: --yes names the others.", 3.0)
     t.beat(r.out("yes13", "tone = color.ACCENT, was color.OK"), "And each change says why: the tone reset is question 3's, one tone for charts.", 3.6)
-    r.file("yes13", "docs/report.xt.md", "after")
+    r.file("yes13", "docs/report.xtmd", "after")
     t.beat(r.line("@plot("), "Yes to 3: the chart's tone reset to ACCENT.", 2.8)
     t.beat(r.line("@badge("), "Yes to 1: the badge made small.", 2.4)
     t.beat(r.line("@stats("), "No to 2: the stat's unit left empty.", 2.6)
@@ -51,10 +51,10 @@ def take(t):
     t.beat("#filebody", "--answers kept them in answers.toml, so a run with no terminal answers the same.", 3.8)
 
     r.chapter(2)
-    r.file("refused", "kit/migrations/kit@2.xtpack", "before")
+    r.file("refused", "kit/migrations/kit@2.xtmdpack", "before")
     t.beat(r.line("split(from = state.LATE"),
            "Another kit@2: LATE splits into OVERDUE or DONE, which only a person can choose.", 3.8)
-    r.file("refused", "docs/report.xt.md", "before")
+    r.file("refused", "docs/report.xtmd", "before")
     t.beat(r.line("s: state = state.LATE"), "This document uses LATE twice: here…", 2.4)
     t.beat(r.line("$state.s == state.LATE"), "…and here.", 2.0)
     r.run("refused", "A bare --yes answers no question…")
@@ -66,7 +66,7 @@ def take(t):
     r.chapter(3, clear=False)
     t.beat(r.out("todos", "written though it doesn't compile", 2),
            "…and writes the file, though LATE doesn't compile at those TODOs: they are a person's to finish. Exit 0, as asked.", 4.4)
-    r.file("todos", "docs/report.xt.md", "after")
+    r.file("todos", "docs/report.xtmd", "after")
     t.beat(r.line("TODO(xtmd migrate)", 2), "In code, the TODO is a // comment…", 2.8)
     t.beat(r.line("@// TODO(xtmd migrate)", 2), "…above prose, an @// one. Everything else is migrated around them.", 3.6)
     r.run("check", "xtmd check shows what is left to finish.")

@@ -254,7 +254,7 @@ fn a_press_in_a_sentence_is_drawn_among_its_words_and_clicked() {
 
 #[test]
 fn an_extern_nobody_supplies_shows_its_markdown_and_is_reported() {
-    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/packs/a-pack-supplies-its-externs.xt.md")).unwrap();
+    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/packs/a-pack-supplies-its-externs.xtmd")).unwrap();
     let page = Page::new(common::ir(&doc, &["targets/checks/packs/badge"]), PageOptions::default()).unwrap();
     let mut h = Headless::new(XtmdPage::new(page).follow_theme(false), egui::vec2(640.0, 480.0), false);
     h.settle().unwrap();
@@ -366,7 +366,7 @@ fn the_plane_pans_with_the_arrow_keys_and_zooms_only_within_its_range() {
 fn a_layout_that_never_settles_is_held() {
     // the graphs example's edge labels get new keys at every redraw, so their own boxes are never
     // kept: egui, which lays out every frame, stops after a few frames instead of running on
-    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/graphs/release-flow.xt.md")).unwrap();
+    let doc = std::fs::read_to_string(common::repo().join("targets/checks/cases/graphs/release-flow.xtmd")).unwrap();
     let mut h = common::mount_with(&doc, &["examples/graphs"]);
     assert!(h.harness.try_run().is_ok());
     let nodes: Vec<_> = (0..3).map(|k| h.page().page().find(&format!("s1/s5[{}]/s7", k)).and_then(|d| region(d.props.get("box")))).collect();
@@ -404,7 +404,7 @@ fn the_page_follows_egui_s_theme() {
 
 #[test]
 fn the_example_s_page_draws_every_widget_it_uses() {
-    let h = common::mount_measured(include_str!("../examples/demo.xt.md"), &[]);
+    let h = common::mount_measured(include_str!("../examples/demo.xtmd"), &[]);
     let mut h = h;
     assert!(h.page().page().missing().is_empty());
     let all = check::all(h.root());

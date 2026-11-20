@@ -51,11 +51,11 @@ object LiveCompiler {
         XtmdWork.during { withContext(Dispatchers.Default) { get().build(path, text, packs) } }
 }
 
-/** A diagnostic as one line: `page.xt.md:5:3: there is no …`. */
+/** A diagnostic as one line: `page.xtmd:5:3: there is no …`. */
 fun Diagnostic.located(): String = "$file:$line:$column: $message"
 
 /**
- * An Extended Mark document from its text. `path` names it (`page.xt.md` for a document) in its
+ * An Extended Mark document from its text. `path` names it (`page.xtmd` for a document) in its
  * diagnostics, and `packs` are the files of the packs it uses. Everything else is `XtmdDoc`'s:
  * `state` with `onStateChange` controls `$state`, `defaultState` starts the first page, `docState`
  * is the handle.
@@ -64,7 +64,7 @@ fun Diagnostic.located(): String = "$file:$line:$column: $message"
 fun XtmdLiveDoc(
     source: String,
     modifier: Modifier = Modifier,
-    path: String = "page.xt.md",
+    path: String = "page.xtmd",
     packs: List<PackFile> = emptyList(),
     state: Map<String, Val>? = null,
     onStateChange: (Map<String, Val>) -> Unit = {},

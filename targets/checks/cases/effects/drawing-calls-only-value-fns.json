@@ -1,7 +1,7 @@
 {
   "id": "effects.drawing-calls-only-value-fns",
   "about": "a view, a markdown block, a require and a starting value call only a fn that has a return type",
-  "source": "drawing-calls-only-value-fns.xt.md",
+  "source": "drawing-calls-only-value-fns.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "effects.action-where-nothing-changes", "line": 10, "column": 5}

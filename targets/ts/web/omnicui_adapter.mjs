@@ -93,8 +93,8 @@ mkdirSync(cache, { recursive: true });
 for (const d of readdirSync(caches)) if (d !== salt) rmSync(join(caches, d), { recursive: true, force: true });
 
 /** Builds a page's source into IR (or finds it built): its hash, which names its file in the cache.
- * A pack's source (`.xtpack`) builds an IR with all of core; a page's, only what the page uses. */
-function buildPage(source, ext = ".xt.md") {
+ * A pack's source (`.xtmdpack`) builds an IR with all of core; a page's, only what the page uses. */
+function buildPage(source, ext = ".xtmd") {
   const hash = createHash("sha256").update(ext + source).digest("hex").slice(0, 24);
   const out = join(cache, `${hash}.ir.json.gz`);
   if (!existsSync(out)) {
@@ -114,7 +114,7 @@ function buildPage(source, ext = ".xt.md") {
 }
 
 // every core declaration: a pack's IR keeps all of core it builds on
-const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("package omnicui_core;\n", ".xtpack")}.ir.json.gz`))).toString("utf8")));
+const decls = declarations(JSON.parse(gunzipSync(readFileSync(join(cache, `${buildPage("package omnicui_core;\n", ".xtmdpack")}.ir.json.gz`))).toString("utf8")));
 
 // ---- the harness, served with each page's IR
 

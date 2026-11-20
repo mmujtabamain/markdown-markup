@@ -1,7 +1,7 @@
 {
   "id": "read.a-document-imports-with-no-version",
   "about": "a document imports above its @@@ line and writes no versions",
-  "source": "a-document-imports-with-no-version.xt.md",
+  "source": "a-document-imports-with-no-version.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "syntax.version-in-import", "line": 1, "column": 11}

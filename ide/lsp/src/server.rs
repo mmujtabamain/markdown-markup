@@ -235,7 +235,7 @@ impl Server {
                 }
                 Ok(Value::Array(actions))
             }
-            // core's own source, for a definition in core: `xtmd-core:/core/controls.xtpack`
+            // core's own source, for a definition in core: `xtmd-core:/core/controls.xtmdpack`
             "xtmd/core" => {
                 let path = params["path"].as_str().unwrap_or("");
                 Ok(xtmd_live::core().into_iter().find(|s| s.path == path).map_or(Value::Null, |s| json!({ "text": s.text })))
@@ -318,7 +318,7 @@ impl Server {
 
     fn core_index(&mut self) -> &Index {
         if self.core.is_none() {
-            let b = self.compiler.build_with("core.xt.md", "", &[], BuildOptions { rir: true, core: true });
+            let b = self.compiler.build_with("core.xtmd", "", &[], BuildOptions { rir: true, core: true });
             let texts: HashMap<String, String> = xtmd_live::core().into_iter().map(|s| (s.path, s.text)).collect();
             let mut core = b.rir.unwrap_or_default();
             // core's files only: the empty document it was built with is no one's
@@ -405,7 +405,7 @@ fn disk_packs(_path: &str) -> Vec<Source> {
 }
 
 /// The path the compiler is given for a URI: a `file:` URI's path, decoded; core's own source
-/// (`xtmd-core:/core/controls.xtpack`) by core's path; any other URI as it is.
+/// (`xtmd-core:/core/controls.xtmdpack`) by core's path; any other URI as it is.
 pub fn path_of(uri: &str) -> String {
     if let Some(p) = uri.strip_prefix("file://") {
         decode(p)

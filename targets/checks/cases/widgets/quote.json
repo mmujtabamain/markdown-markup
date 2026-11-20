@@ -1,7 +1,7 @@
 {
   "id": "widgets.quote",
   "about": "claims are checked: a quote holds its blocks",
-  "source": "quote.xt.md",
+  "source": "quote.xtmd",
   "target": {
     "levels": [
       "core.draw"

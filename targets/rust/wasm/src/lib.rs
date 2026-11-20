@@ -166,9 +166,9 @@ mod tests {
     fn a_document_s_markdown_is_xtmd_md_s_and_one_that_doesn_t_compile_has_none() {
         let c = Compiler::new();
         let doc = "$state {\n    n: number = 2;\n}\n@@@\n# Count\n\nIt is \\{$state.n}.\n";
-        let r: Value = serde_json::from_str(&markdown_json(&c, "page.xt.md", doc, "[]")).unwrap();
+        let r: Value = serde_json::from_str(&markdown_json(&c, "page.xtmd", doc, "[]")).unwrap();
         assert_eq!(r["markdown"], "# Count\n\nIt is 2.\n", "{}", r);
-        let r: Value = serde_json::from_str(&markdown_json(&c, "page.xt.md", "@@@\n@nope();\n", "[]")).unwrap();
+        let r: Value = serde_json::from_str(&markdown_json(&c, "page.xtmd", "@@@\n@nope();\n", "[]")).unwrap();
         assert_eq!((r["markdown"].clone(), r["errors"].as_u64()), (Value::Null, Some(1)), "{}", r);
     }
 }

@@ -1,7 +1,7 @@
 {
   "id": "effects.an-action-on-own-locals-that-changes-more",
   "about": "an action called on a value fn's own locals has to change nothing else, through every action it calls",
-  "source": "an-action-on-own-locals-that-changes-more.xt.md",
+  "source": "an-action-on-own-locals-that-changes-more.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "effects.action-where-nothing-changes", "line": 26, "column": 5}

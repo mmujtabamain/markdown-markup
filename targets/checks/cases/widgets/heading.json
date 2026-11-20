@@ -1,7 +1,7 @@
 {
   "id": "widgets.heading",
   "about": "claims are checked: headings keep their level",
-  "source": "heading.xt.md",
+  "source": "heading.xtmd",
   "target": {
     "levels": [
       "core.draw"

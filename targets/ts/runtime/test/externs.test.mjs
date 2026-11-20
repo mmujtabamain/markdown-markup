@@ -11,7 +11,7 @@ import { xtmdBinary, workdir } from "./xtmd.mjs";
 
 test("every bodyless core extern fn is a native or target-only", () => {
   // a pack's IR keeps all of core it builds on; a page's keeps only what the page uses
-  const page = join(workdir(), "t.xtpack");
+  const page = join(workdir(), "t.xtmdpack");
   writeFileSync(page, "package t;\n");
   const ir = JSON.parse(execFileSync(xtmdBinary(), ["build", page], { maxBuffer: 64 * 1024 * 1024 }).toString());
   const bodyless = ir.ir.declarations

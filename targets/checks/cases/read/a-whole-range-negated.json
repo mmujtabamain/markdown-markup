@@ -1,7 +1,7 @@
 {
   "id": "read.a-whole-range-negated",
   "about": "a whole range negated",
-  "source": "a-whole-range-negated.xtpack",
+  "source": "a-whole-range-negated.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.negated-range", "line": 3, "column": 28}

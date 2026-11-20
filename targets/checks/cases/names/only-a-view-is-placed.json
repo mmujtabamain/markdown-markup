@@ -1,7 +1,7 @@
 {
   "id": "names.only-a-view-is-placed",
   "about": "only a view, a widget, any of a widget interface, or a widget-bounded parameter is placed with @",
-  "source": "only-a-view-is-placed.xtpack",
+  "source": "only-a-view-is-placed.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-widget", "line": 5, "column": 10}

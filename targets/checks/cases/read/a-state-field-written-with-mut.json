@@ -1,7 +1,7 @@
 {
   "id": "read.a-state-field-written-with-mut",
   "about": "a $state field written with mut",
-  "source": "a-state-field-written-with-mut.xt.md",
+  "source": "a-state-field-written-with-mut.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "file.state-field-mut", "line": 2, "column": 5}

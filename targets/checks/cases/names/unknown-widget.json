@@ -1,7 +1,7 @@
 {
   "id": "names.unknown-widget",
   "about": "unknown widget",
-  "source": "unknown-widget.xtpack",
+  "source": "unknown-widget.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-widget", "line": 5, "column": 10}

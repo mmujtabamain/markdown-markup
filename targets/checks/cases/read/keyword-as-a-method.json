@@ -1,7 +1,7 @@
 {
   "id": "read.keyword-as-a-method",
   "about": "keyword as a method",
-  "source": "keyword-as-a-method.xtpack",
+  "source": "keyword-as-a-method.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.keyword-as-name", "line": 4, "column": 15}

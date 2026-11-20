@@ -1,7 +1,7 @@
 {
   "id": "contracts.every-write-needs-its-proof",
   "about": "assigning a mut value needs the same proof every time",
-  "source": "every-write-needs-its-proof.xtpack",
+  "source": "every-write-needs-its-proof.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 6, "column": 13}

@@ -52,13 +52,13 @@ def take(t):
     t.beat(r.out("newer", "newer than this xtmd"), "…xtmd stops, and says to update xtmd first: exit 2.", 3.4)
 
     r.chapter(4)
-    r.file("examples", "kit/migrations/kit@2.xtpack", "before")
+    r.file("examples", "kit/migrations/kit@2.xtmdpack", "before")
     t.beat(r.line("example(before = @chart"),
            "A migration can carry examples: a kit@1 use before, and the kit@2 use after.", 3.8)
     r.run("examples", "xtmd check runs each example through its block.")
     t.beat(r.exit("examples"), "All three come out as their after: exit 0.", 2.8)
     r.run("bad-after", "Now an after the block doesn't come to: size M, not S.")
-    r.file("bad-after", "kit/migrations/kit@2.xtpack", "after")
+    r.file("bad-after", "kit/migrations/kit@2.xtmdpack", "after")
     t.beat(r.out("bad-after", "pack.migration-example"), "A compile error: before becomes size.S, not that after.", 3.6)
     r.run("bad-before", "And a before kit@1 can't have: chart had no input colour.")
     t.beat(r.out("bad-before", "doesn't compile against kit@1"), "before doesn't compile against kit@1.", 3.0)

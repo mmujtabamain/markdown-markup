@@ -11,7 +11,7 @@ was given uses xtmd-android alone, and ships no compiler.
 var text by remember { mutableStateOf(initialText) }        // the editor's
 XtmdLiveDoc(
     source = text,                                         // when it changes is the app's: each key, a pause, a save
-    packs = listOf(PackFile("graphs/graphs.xtpack", graphsText)),
+    packs = listOf(PackFile("graphs/graphs.xtmdpack", graphsText)),
     onError = { e -> if (e is DocError.Compile) showProblem(e.message) },   // the first error and where
     onDiagnostics = { list -> markers = list },            // every diagnostic of the latest text
     // and everything XtmdDoc takes: state, onStateChange, externs, fns, docState …

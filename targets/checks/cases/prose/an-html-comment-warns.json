@@ -1,7 +1,7 @@
 {
   "id": "prose.an-html-comment-warns",
   "about": "an HTML comment in prose is raw HTML, shown as text, and the compiler warns, pointing to `@//`",
-  "source": "an-html-comment-warns.xt.md",
+  "source": "an-html-comment-warns.xtmd",
   "target": {
     "levels": [
       "core.draw"

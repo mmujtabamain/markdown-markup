@@ -14,9 +14,9 @@ let n = 0;
 
 /** A document's IR, built by the xtmd binary. */
 function page(source, opts = {}) {
-  const file = join(dir, `page${n++}.xt.md`);
+  const file = join(dir, `page${n++}.xtmd`);
   writeFileSync(file, source);
-  const out = file.replace(/\.xt\.md$/, ".ir.json");
+  const out = file.replace(/\.xtmd$/, ".ir.json");
   execFileSync(xtmdBinary(), ["build", file, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   return new Page(JSON.parse(readFileSync(out, "utf8")), opts);
 }
@@ -189,9 +189,9 @@ test("an app's write of the wrong type is refused, whatever its contract", () =>
 
 test("an extern widget the target doesn't supply shows its Markdown, and is reported", () => {
   const pack = join(repoRoot, "targets/checks/packs/badge");
-  const file = join(dir, "pack-page.xt.md");
+  const file = join(dir, "pack-page.xtmd");
   writeFileSync(file, 'import badge;\n@@@\n# Votes\n\n@badge(label = "Votes", count = 2);\n\n@seal(text = "Checked by nobody");\n');
-  const out = file.replace(/\.xt\.md$/, ".ir.json");
+  const out = file.replace(/\.xtmd$/, ".ir.json");
   execFileSync(xtmdBinary(), ["build", file, "--pack", pack, "--out", out], { stdio: ["ignore", "pipe", "pipe"] });
   const ir = JSON.parse(readFileSync(out, "utf8"));
   assert.deepEqual(ir.ir.needs.packs, [{ externs: ["badge/badge", "badge/seal"], name: "badge", version: 1 }]);

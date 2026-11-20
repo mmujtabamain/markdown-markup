@@ -1,7 +1,7 @@
 {
   "id": "names.a-deprecated-declaration-warns-where-used",
   "about": "//@deprecated makes every use of the declaration a warning with its text",
-  "source": "a-deprecated-declaration-warns-where-used.xtpack",
+  "source": "a-deprecated-declaration-warns-where-used.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.deprecated", "line": 9, "column": 12}

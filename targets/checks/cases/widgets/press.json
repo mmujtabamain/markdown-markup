@@ -1,7 +1,7 @@
 {
   "id": "widgets.press",
   "about": "claims are checked: a button, a toggle that is on, and one that is disabled",
-  "source": "press.xt.md",
+  "source": "press.xtmd",
   "target": {
     "levels": [
       "core.draw",

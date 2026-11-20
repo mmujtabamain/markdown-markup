@@ -164,8 +164,8 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
     }
     // the pack named is the one xtmd surface reads, not one of --pack's
     let p = Path::new(dir);
-    if !p.is_dir() && !dir.ends_with(".xtpack") {
-        eprintln!("{}: not a pack's folder or a .xtpack file{}", dir, if p.exists() { "" } else { ", and there is nothing by that name" });
+    if !p.is_dir() && !dir.ends_with(".xtmdpack") {
+        eprintln!("{}: not a pack's folder or a .xtmdpack file{}", dir, if p.exists() { "" } else { ", and there is nothing by that name" });
         return ExitCode::from(2);
     }
     let files = match crate::pack_sources(dir) {
@@ -176,7 +176,7 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         }
     };
     if files.is_empty() {
-        eprintln!("{}: no .xtpack files in it, so no pack", dir);
+        eprintln!("{}: no .xtmdpack files in it, so no pack", dir);
         return ExitCode::from(2);
     }
     let dir_path = Path::new(dir);
@@ -202,7 +202,7 @@ pub fn surface_cmd(args: &[String]) -> ExitCode {
         Ok(x) => x,
         Err(e) => return say(json, None, "has no surface", &e, 1, serde_json::json!({})),
     };
-    let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.xtpack", name, version)));
+    let path = out.map(PathBuf::from).unwrap_or_else(|| dir_path.join("surfaces").join(format!("{}@{}.xtmdpack", name, version)));
     let old = std::fs::read_to_string(&path).ok();
     let this = Some((name.as_str(), version.as_str(), path.as_path()));
     // --stdout: the surface, written nowhere; --diff: how it differs from the one written

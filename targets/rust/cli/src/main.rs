@@ -20,8 +20,8 @@ fn core_sources() -> Vec<xtmd_check::Source> {
     CORE.iter().map(|(p, t)| xtmd_check::Source { path: p.to_string(), text: t.to_string() }).collect()
 }
 
-/// The packs `--pack` names: a comma-separated list of folders and `.xtpack` files. A folder gives
-/// every `.xtpack` file under it; each file says its own pack with its `package` line.
+/// The packs `--pack` names: a comma-separated list of folders and `.xtmdpack` files. A folder gives
+/// every `.xtmdpack` file under it; each file says its own pack with its `package` line.
 fn pack_sources(list: &str) -> Result<Vec<xtmd_check::Source>, String> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) -> Result<(), String> {
         let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(dir).map_err(|e| format!("{}: {}", dir.display(), e))?.filter_map(|e| e.ok().map(|e| e.path())).collect();
@@ -29,7 +29,7 @@ fn pack_sources(list: &str) -> Result<Vec<xtmd_check::Source>, String> {
         for p in entries {
             if p.is_dir() {
                 walk(&p, out)?;
-            } else if p.extension().map_or(false, |x| x == "xtpack") {
+            } else if p.extension().map_or(false, |x| x == "xtmdpack") {
                 out.push(p);
             }
         }
@@ -43,10 +43,10 @@ fn pack_sources(list: &str) -> Result<Vec<xtmd_check::Source>, String> {
         }
         if p.is_dir() {
             walk(p, &mut paths)?;
-        } else if item.ends_with(".xtpack") {
+        } else if item.ends_with(".xtmdpack") {
             paths.push(p.to_path_buf());
         } else {
-            return Err(format!("--pack {}: not a folder or a .xtpack file", item));
+            return Err(format!("--pack {}: not a folder or a .xtmdpack file", item));
         }
     }
     paths
@@ -254,7 +254,7 @@ fn plural(n: usize, one: &str) -> String {
     format!("{} {}{}", n, one, if n == 1 { "" } else { "s" })
 }
 
-/// `xtmd build doc.xt.md [--pack a,b] [--rir] [--out out.ir.json]`: one standalone IR, core and the packs
+/// `xtmd build doc.xtmd [--pack a,b] [--rir] [--out out.ir.json]`: one standalone IR, core and the packs
 /// in it; with `--rir`, the resolved IR of the document and its packs instead.
 fn build(args: &[String]) -> ExitCode {
     let (files, packs, out) = match options(args) {
@@ -339,11 +339,11 @@ fn read(path: &str) -> Result<(String, xtmd_syntax::Entry), String> {
     }
     // MKP's names: check reads a name.mkp.md to say so, and the rest need the new name
     let entry = if let Some(stem) = path.strip_suffix(".mkp.md") {
-        return Err(format!("{}: MKP's name for a document: Extended Mark's is {}.xt.md, so rename it (xtmd migrate renames a 0.2 document as it moves it)", path, stem));
+        return Err(format!("{}: MKP's name for a document: Extended Mark's is {}.xtmd, so rename it (xtmd migrate renames a 0.2 document as it moves it)", path, stem));
     } else if path.ends_with(".mkp") {
-        return Err(format!("{}: MKP's name for a definitions file: Extended Mark's is .xtpack, so rename it", path));
+        return Err(format!("{}: MKP's name for a definitions file: Extended Mark's is .xtmdpack, so rename it", path));
     } else {
-        entry_for(path).ok_or_else(|| format!("{}: not an Extended Mark file (.xtpack or .xt.md)", path))?
+        entry_for(path).ok_or_else(|| format!("{}: not an Extended Mark file (.xtmdpack or .xtmd)", path))?
     };
     let src = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path, e))?;
     Ok((src, entry))
@@ -388,7 +388,7 @@ fn positional(args: &[String]) -> Vec<&String> {
 /// --diff, whether and how it would change; the file at `path` is never read or written.
 fn fmt_text(path: &str, check: bool, diff: bool, json: bool) -> ExitCode {
     let Some(entry) = entry_for(path) else {
-        eprintln!("{}: not an Extended Mark file (.xtpack or .xt.md): --stdin's path says what the text is", path);
+        eprintln!("{}: not an Extended Mark file (.xtmdpack or .xtmd): --stdin's path says what the text is", path);
         return ExitCode::from(2);
     };
     let mut src = String::new();
@@ -458,7 +458,7 @@ fn fmt(args: &[String]) -> ExitCode {
     if stdin {
         let named = positional(args);
         if named.len() != 1 || std::path::Path::new(named[0]).is_dir() {
-            eprintln!("--stdin formats one text: name the file it is for (xtmd fmt --stdin page.xt.md < page.xt.md)");
+            eprintln!("--stdin formats one text: name the file it is for (xtmd fmt --stdin page.xtmd < page.xtmd)");
             return ExitCode::from(2);
         }
         return fmt_text(named[0], check, diff, json);
@@ -623,7 +623,7 @@ fn check(args: &[String]) -> ExitCode {
         if named.is_empty() {
             eprintln!("{}", help::of("check").unwrap());
         } else {
-            eprintln!("{}: no Extended Mark files (.xtpack or .xt.md) in it", named.join(", "));
+            eprintln!("{}: no Extended Mark files (.xtmdpack or .xtmd) in it", named.join(", "));
         }
         return ExitCode::from(2);
     }
@@ -683,7 +683,7 @@ fn check(args: &[String]) -> ExitCode {
                 let d = Diagnostic::warning(
                     "file.mkp-name",
                     xtmd_syntax::Span { start: 0, end: 0 },
-                    format!("MKP's name for a document: Extended Mark's is {}.xt.md, so rename it (xtmd migrate renames a 0.2 document as it moves it)", std::path::Path::new(stem).file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned())),
+                    format!("MKP's name for a document: Extended Mark's is {}.xtmd, so rename it (xtmd migrate renames a 0.2 document as it moves it)", std::path::Path::new(stem).file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned())),
                 );
                 c.diagnostics.insert(0, xtmd_check::Found { file: path.to_string(), diagnostic: d });
             }
@@ -731,7 +731,7 @@ fn check(args: &[String]) -> ExitCode {
     ExitCode::from(code)
 }
 
-/// `xtmd md doc.xt.md [--pack a,b] [--format json] [--out out.md]`: the page as Markdown, with its
+/// `xtmd md doc.xtmd [--pack a,b] [--format json] [--out out.md]`: the page as Markdown, with its
 /// starting values; `--format json` gives its blocks as the checks read them.
 fn md(args: &[String]) -> ExitCode {
     let json = match json_or_exit(args) {

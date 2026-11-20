@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 fn core_sources() -> Vec<Source> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -89,7 +89,7 @@ fn an_indented_page_compiles_to_the_flat_page_s_ir() {
     assert!(indented.contains("@match ($state.n) {\n    case 0 {\n        Zero.\n    }\n"), "{}", indented);
     let base = compile_core(&core_sources());
     let ir = |text: &str| {
-        let c = compile_on(&base, &[], &[Source { path: "page.xt.md".into(), text: text.into() }], "doc");
+        let c = compile_on(&base, &[], &[Source { path: "page.xtmd".into(), text: text.into() }], "doc");
         let errors: Vec<String> = c.errors().map(|d| format!("{}: {}", d.file, d.diagnostic.message)).collect();
         assert!(errors.is_empty(), "{:?}", errors);
         serde_json::to_value(c.module.unwrap()).unwrap()

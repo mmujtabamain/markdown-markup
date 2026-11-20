@@ -1,7 +1,7 @@
 # @extended-mark/next
 
 Extended Mark documents in Next.js's app router: `<XtmdDoc>` (@extended-mark/react's, run time) as a client component,
-which Next renders on the server and hydrates; `.xt.md` imports compiled by xtmd at build time, as
+which Next renders on the server and hydrates; `.xtmd` imports compiled by xtmd at build time, as
 `withXtmd` sets up; and a page's Markdown as HTML. An editor in a Next app uses
 [@extended-mark/react-live](../react-live)'s `<XtmdLiveDoc>` for real time.
 
@@ -18,7 +18,7 @@ export default withXtmd({}, { packs: ["./packs/maps"] });
 ```tsx
 // app/shop.tsx: "use client". Next renders the page on the server, then React hydrates it
 import { XtmdDoc } from "@extended-mark/next";
-import shop from "./shop.xt.md";
+import shop from "./shop.xtmd";
 
 export function Shop() {
   return <XtmdDoc ir={shop} onCalls={(calls) => handle(calls)} />;

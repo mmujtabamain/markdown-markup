@@ -1,7 +1,7 @@
 {
   "id": "read.two-state-blocks",
   "about": "two $state blocks",
-  "source": "two-state-blocks.xt.md",
+  "source": "two-state-blocks.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "file.state-twice", "line": 5, "column": 1}

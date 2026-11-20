@@ -1,7 +1,7 @@
 {
   "id": "widgets.paragraph",
   "about": "claims are checked: a paragraph with its marks is drawn, and written back as Markdown",
-  "source": "paragraph.xt.md",
+  "source": "paragraph.xtmd",
   "target": {
     "levels": [
       "core.draw"

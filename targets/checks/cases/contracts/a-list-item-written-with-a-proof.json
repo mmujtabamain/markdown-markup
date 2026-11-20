@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-list-item-written-with-a-proof",
   "about": "a list's item written with a constant inside its contract, a clamp, or a value proved in its block compiles",
-  "source": "a-list-item-written-with-a-proof.xtpack",
+  "source": "a-list-item-written-with-a-proof.xtmdpack",
   "expect": {
     "diagnostics": []
   }

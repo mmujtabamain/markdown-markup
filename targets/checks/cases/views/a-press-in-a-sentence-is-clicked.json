@@ -1,7 +1,7 @@
 {
   "id": "views.a-press-in-a-sentence-is-clicked",
   "about": "a view in a sentence is drawn as its paragraph's slot, so a press there is in the page's tree and a click on it runs its handler",
-  "source": "a-press-in-a-sentence-is-clicked.xt.md",
+  "source": "a-press-in-a-sentence-is-clicked.xtmd",
   "target": {
     "levels": [
       "core.draw",

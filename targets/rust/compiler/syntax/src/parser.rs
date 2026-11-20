@@ -17,9 +17,9 @@ pub type R<T> = Result<T, Diagnostic>;
 /// What a parse starts from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Entry {
-    /// A .xtpack file.
+    /// A .xtmdpack file.
     Xtmd,
-    /// A .xt.md document.
+    /// A .xtmd document.
     Document,
     /// A document's definitions on their own, with no `@@@` line and no prose.
     Decls,
@@ -409,7 +409,7 @@ impl<'a> Parser<'a> {
             return Err(Diagnostic::error(
                 codes::PACKAGE_LINE,
                 at,
-                "a .xtpack file starts with its package line: `package name;`",
+                "a .xtmdpack file starts with its package line: `package name;`",
             ));
         }
         let leading = self.take_leading()?;
@@ -490,7 +490,7 @@ impl<'a> Parser<'a> {
             Tok::Kw(Kw::Pack) if !self.in_pack() && self.entry != Entry::Body => Err(Diagnostic::error(
                 codes::PACK_IN_DOCUMENT,
                 t.span,
-                "a document has no pack block: a pack is a folder of .xtpack files",
+                "a document has no pack block: a pack is a folder of .xtmdpack files",
             )),
             _ => {
                 if let Some(d) = self.decl()? {
@@ -499,7 +499,7 @@ impl<'a> Parser<'a> {
                 if self.entry == Entry::Body {
                     return Ok(Item::Stmt(self.stmt(BlockKind::View)?));
                 }
-                let where_ = if self.in_pack() { "in a .xtpack file" } else { "above the `@@@` line" };
+                let where_ = if self.in_pack() { "in a .xtmdpack file" } else { "above the `@@@` line" };
                 Err(Diagnostic::error(
                     codes::DRAWING_IN_FILE,
                     t.span,
@@ -894,7 +894,7 @@ impl<'a> Parser<'a> {
             self.diags.push(Diagnostic::error(
                 codes::WIDGET_MARKDOWN,
                 name.span,
-                format!("widget `{}` has no markdown block: in a .xtpack file every widget says what it is as Markdown (`markdown {{ }}` writes nothing)", name.name),
+                format!("widget `{}` has no markdown block: in a .xtmdpack file every widget says what it is as Markdown (`markdown {{ }}` writes nothing)", name.name),
             ));
         }
         Ok(WidgetDecl { name, generics, inputs, implements, body: Some(body) })

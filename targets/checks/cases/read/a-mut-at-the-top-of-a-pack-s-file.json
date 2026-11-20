@@ -1,7 +1,7 @@
 {
   "id": "read.a-mut-at-the-top-of-a-pack-s-file",
   "about": "a mut at the top of a pack's file",
-  "source": "a-mut-at-the-top-of-a-pack-s-file.xtpack",
+  "source": "a-mut-at-the-top-of-a-pack-s-file.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "file.mut-at-top", "line": 3, "column": 1}

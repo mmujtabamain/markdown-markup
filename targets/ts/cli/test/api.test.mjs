@@ -8,9 +8,9 @@ import { join } from "node:path";
 import { build, check, format, md, XtmdError } from "../dist/index.js";
 
 const dir = mkdtempSync(join(tmpdir(), "xtmd-cli-api-"));
-const page = join(dir, "page.xt.md");
+const page = join(dir, "page.xtmd");
 writeFileSync(page, "$state {\n    tries: int = 2;\n}\n@@@\n# Tries\n\nTried \\{$state.tries} times.\n");
-const bad = join(dir, "bad.xtpack");
+const bad = join(dir, "bad.xtmdpack");
 writeFileSync(bad, "package t;\n\nlet x: number = y;\n");
 
 test("check gives every diagnostic as data", async () => {

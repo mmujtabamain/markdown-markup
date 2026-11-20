@@ -1,7 +1,7 @@
 {
   "id": "contracts.clamp-with-ranged-bounds",
   "about": "clamp with ranged bounds runs from the low bound's lowest to the high bound's highest",
-  "source": "clamp-with-ranged-bounds.xtpack",
+  "source": "clamp-with-ranged-bounds.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 12}

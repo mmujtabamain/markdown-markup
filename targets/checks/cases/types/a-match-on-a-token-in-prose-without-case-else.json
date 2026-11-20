@@ -1,7 +1,7 @@
 {
   "id": "types.a-match-on-a-token-in-prose-without-case-else",
   "about": "a match on a token in prose without case else",
-  "source": "a-match-on-a-token-in-prose-without-case-else.xt.md",
+  "source": "a-match-on-a-token-in-prose-without-case-else.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "types.match-on-token-needs-else", "line": 8, "column": 1}

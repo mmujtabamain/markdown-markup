@@ -1,7 +1,7 @@
 {
   "id": "views.a-widget-values-inputs-are-read-only",
   "about": "the inputs of a widget value can be read, but not assigned",
-  "source": "a-widget-values-inputs-are-read-only.xtpack",
+  "source": "a-widget-values-inputs-are-read-only.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "views.widget-value-input-assigned", "line": 19, "column": 5}

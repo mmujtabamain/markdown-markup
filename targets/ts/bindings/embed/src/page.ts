@@ -3,7 +3,7 @@
 
 import { Page, type Outcome, type PageOptions, type Value, type ir } from "@extended-mark/runtime";
 
-/** A page's IR: the file `xtmd build` writes, as `import page from "./x.xt.md"` gives it. */
+/** A page's IR: the file `xtmd build` writes, as `import page from "./x.xtmd"` gives it. */
 export type Ir = ir.File | ir.Module;
 
 /** A value the app gives: in the IR's form (`{ "num": "3" }`), or a runtime value. */

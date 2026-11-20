@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-length-on-text",
   "about": "a length contract counts characters",
-  "source": "a-length-on-text.xtpack",
+  "source": "a-length-on-text.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 8, "column": 23}

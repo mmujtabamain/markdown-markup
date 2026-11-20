@@ -3,7 +3,7 @@
 // hears each checkout through onCalls.
 import { useState } from "react";
 import { XtmdDoc, type Call, type XtmdDocHandle } from "@extended-mark/next";
-import shop from "../../pages/shop.xt.md";
+import shop from "../../pages/shop.xtmd";
 
 if (typeof window !== "undefined") window.__calls = [];
 

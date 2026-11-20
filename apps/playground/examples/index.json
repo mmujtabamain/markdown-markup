@@ -3,25 +3,25 @@
     "id": "counter",
     "title": "A counter",
     "description": "Buttons that change a number in $state.",
-    "file": "counter.xt.md"
+    "file": "counter.xtmd"
   },
   {
     "id": "slider",
     "title": "A slider with a rule",
     "description": "Two sliders and a require on $state that refuses a level above the limit.",
-    "file": "slider.xt.md"
+    "file": "slider.xtmd"
   },
   {
     "id": "list",
     "title": "A list with rows",
     "description": "Tasks to tick, drop and add: each row follows its item.",
-    "file": "list.xt.md"
+    "file": "list.xtmd"
   },
   {
     "id": "release-flow",
     "title": "Release flow (graphs pack)",
     "description": "A graph on core's plane, from the graphs example pack.",
-    "file": "release-flow.xt.md",
+    "file": "release-flow.xtmd",
     "packs": ["graphs"]
   }
 ]

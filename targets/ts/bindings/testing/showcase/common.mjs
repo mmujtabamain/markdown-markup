@@ -17,7 +17,7 @@ export function status(id, state, text) {
 }
 
 export function failed(id) {
-  return (e) => status(id, "errors", e.kind === "compile" ? e.message.replace(/^page\.xt\.md doesn't compile/, "Doesn't compile") : (e.message ?? e.kind));
+  return (e) => status(id, "errors", e.kind === "compile" ? e.message.replace(/^page\.xtmd doesn't compile/, "Doesn't compile") : (e.message ?? e.kind));
 }
 
 export function onEdit(id, f) {

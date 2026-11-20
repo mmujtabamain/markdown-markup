@@ -58,7 +58,7 @@ For tests and takes, `window.playground` reads the editor without touching it: `
 
 | Request | Answer |
 |---|---|
-| `GET /api/examples` | `{examples: [{id, title, description, packs, source}], packs, packFiles}`, from `examples/index.json`; `packFiles` holds each pack's files as the compiler is given them: `{graphs: [{path: "graphs/graphs.xtpack", text}]}`. |
+| `GET /api/examples` | `{examples: [{id, title, description, packs, source}], packs, packFiles}`, from `examples/index.json`; `packFiles` holds each pack's files as the compiler is given them: `{graphs: [{path: "graphs/graphs.xtmdpack", text}]}`. |
 | `POST /api/report` `{kind, message, bytes?, agent?}` | `202`: a failure in the reader's browser (`compiler-load`, `compiler-crash`), logged and told to the team. A body over 16 KB is refused (413). |
 | `GET /healthz` | `200 {ok: true}`, or `503` when `dist/` has no `app.js`, `compiler.worker.js` or `xtmd.wasm`. |
 
@@ -69,7 +69,7 @@ Nothing is compiled on the server: `/api/compile` is gone.
 Every failure is logged to stderr. Two kinds also post an alert to DevBench, when both `DEVBENCH_NOTIFY_*` variables are set: an unexpected exception in the server, and a failure a reader's browser reports through `/api/report`. The compiler runs in the browser, so when `xtmd.wasm` can't be loaded, or stops on a page (a panic), the page tells the server:
 
 ```json
-{"text": "**Extended Mark playground: compiler-crash** in a reader's browser\n- the compiler stopped on page.xt.md: panicked at … | …\n- report 3f2a9c1e on host, page 1027 B, Mozilla/5.0 …", "level": "error", "source": "xtmd-playground"}
+{"text": "**Extended Mark playground: compiler-crash** in a reader's browser\n- the compiler stopped on page.xtmd: panicked at … | …\n- report 3f2a9c1e on host, page 1027 B, Mozilla/5.0 …", "level": "error", "source": "xtmd-playground"}
 ```
 
 Alerts of one kind are sent at most once every five minutes, with a count of the ones held back. A diagnostic in the reader's page is not a failure and never alerts.

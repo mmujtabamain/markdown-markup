@@ -60,7 +60,7 @@ let props: LiveDocProps = {
   onError: (e) => {
     if (e.kind === "compile") {
       status.dataset.state = "errors";
-      status.textContent = e.message.replace(/^page\.xt\.md doesn't compile/, "Doesn't compile");
+      status.textContent = e.message.replace(/^page\.xtmd doesn't compile/, "Doesn't compile");
     } else if (e.kind === "load") {
       status.dataset.state = "errors";
       status.textContent = e.message;

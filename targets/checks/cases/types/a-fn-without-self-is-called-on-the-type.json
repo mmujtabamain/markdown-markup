@@ -1,7 +1,7 @@
 {
   "id": "types.a-fn-without-self-is-called-on-the-type",
   "about": "a fn on a type without self is called on the type, not on a value",
-  "source": "a-fn-without-self-is-called-on-the-type.xtpack",
+  "source": "a-fn-without-self-is-called-on-the-type.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.arguments", "line": 12, "column": 12}

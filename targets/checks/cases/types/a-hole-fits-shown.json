@@ -1,7 +1,7 @@
 {
   "id": "types.a-hole-fits-shown",
   "about": "a hole's value fits shown, is a view, or an opt of one",
-  "source": "a-hole-fits-shown.xtpack",
+  "source": "a-hole-fits-shown.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.hole-not-shown", "line": 8, "column": 18}

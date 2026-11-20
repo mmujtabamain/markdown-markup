@@ -1,4 +1,4 @@
-// A Vite plugin: `import page from "./sprint.xt.md"` gives the page's IR, compiled by xtmd
+// A Vite plugin: `import page from "./sprint.xtmd"` gives the page's IR, compiled by xtmd
 // when the app is built or served.
 
 import type { Plugin } from "vite";
@@ -10,7 +10,7 @@ export default function xtmd(options: Options = {}): Plugin {
     enforce: "pre",
     async load(id) {
       const file = id.split("?")[0];
-      if (!file.endsWith(".xt.md")) return null;
+      if (!file.endsWith(".xtmd")) return null;
       this.addWatchFile(file);
       for (const p of options.packs ?? []) this.addWatchFile(p);
       try {

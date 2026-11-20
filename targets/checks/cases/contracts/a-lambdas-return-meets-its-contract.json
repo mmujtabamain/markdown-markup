@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-lambdas-return-meets-its-contract",
   "about": "a lambda's return meets the contract it writes, or, when it writes none, the return contract of the fn type it is given to",
-  "source": "a-lambdas-return-meets-its-contract.xtpack",
+  "source": "a-lambdas-return-meets-its-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 9, "column": 73},

@@ -1,6 +1,6 @@
 # migrate-0.2: MKP 0.2 documents to MKP 0.3, by way of the IR
 
-> MKP is now Extended Mark: `mkp` below is the `xtmd` command, and a 0.3 document is `name.xt.md`.
+> MKP is now Extended Mark: `mkp` below is the `xtmd` command, and a 0.3 document is `name.xtmd`.
 > This tool is frozen as it was, so it keeps the old names; `xtmd migrate` writes the new ones.
 
 `mkp migrate` runs it, frozen with 0.2.10's compiler into one file: see [frozen/](frozen/README.md).

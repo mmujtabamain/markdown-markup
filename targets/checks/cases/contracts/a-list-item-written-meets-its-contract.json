@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-list-item-written-meets-its-contract",
   "about": "a value written into a list, by a generic fn on it (add, insert) or by xs[i] =, meets the item's contract: a constant outside it, and a value nothing proves, are refused",
-  "source": "a-list-item-written-meets-its-contract.xtpack",
+  "source": "a-list-item-written-meets-its-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 6, "column": 12},

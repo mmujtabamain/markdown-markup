@@ -1,7 +1,7 @@
 {
   "id": "read.unclosed-block-in-prose",
   "about": "unclosed block in prose",
-  "source": "unclosed-block-in-prose.xt.md",
+  "source": "unclosed-block-in-prose.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.block-not-closed", "line": 1, "column": 1}

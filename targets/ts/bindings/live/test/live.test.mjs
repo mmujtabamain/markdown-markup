@@ -36,7 +36,7 @@ test("a text compiles into the IR a run-time target draws, and a broken draft le
   assert.equal(live.ir, first);
   assert.equal(errors.length, 1);
   assert.equal(errors[0].kind, "compile");
-  assert.match(errors[0].message, /^page\.xt\.md doesn't compile \(1 error\): page\.xt\.md:5:/);
+  assert.match(errors[0].message, /^page\.xtmd doesn't compile \(1 error\): page\.xtmd:5:/);
   assert.ok(errors[0].diagnostics.length >= 1);
   assert.ok(live.diagnostics.some((d) => d.severity === "error"));
   assert.equal(changes, before + 1);
@@ -51,7 +51,7 @@ test("a text compiles into the IR a run-time target draws, and a broken draft le
 test("the compiler is loaded once for the page", async () => {
   assert.equal(compiler(), compiler());
   const c = await compiler();
-  assert.equal(c.build("page.xt.md", "# Hi\n").errors, 0);
+  assert.equal(c.build("page.xtmd", "# Hi\n").errors, 0);
 });
 
 test("a compiler that answers late: the latest text wins, whatever order the answers come in", async () => {

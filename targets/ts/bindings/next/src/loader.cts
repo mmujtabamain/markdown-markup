@@ -1,4 +1,4 @@
-// The loader webpack and Turbopack run for each `.xt.md` file: its IR, as a module. CommonJS, so
+// The loader webpack and Turbopack run for each `.xtmd` file: its IR, as a module. CommonJS, so
 // both load it; xtmd is ESM, so it is imported when first needed.
 
 interface LoaderContext {

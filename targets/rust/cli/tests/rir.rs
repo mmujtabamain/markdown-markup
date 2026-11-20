@@ -42,7 +42,7 @@ fn sources(dir: &Path, names: &[&str]) -> Vec<xtmd_check::Source> {
             for f in files {
                 add(&f, out);
             }
-        } else if p.extension().map_or(false, |x| x == "xtpack") {
+        } else if p.extension().map_or(false, |x| x == "xtmdpack") {
             out.push(xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(p).unwrap() });
         }
     }
@@ -91,7 +91,7 @@ fn write_every_case() {
         let path = dir.join(source);
         let name = path.to_string_lossy().into_owned();
         let main = xtmd_check::Source { path: name.clone(), text: std::fs::read_to_string(&path).unwrap() };
-        let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
+        let module = if name.ends_with(".xtmd") { "doc" } else { "t" };
         let (_, rir) = xtmd_check::compile_rir(&base, &[packs], &[main], module);
         let Some(rir) = rir else { continue };
         let errs: Vec<String> = v.iter_errors(&rir).map(|e| format!("{} at {}", e, e.instance_path())).take(3).collect();
@@ -116,7 +116,7 @@ fn write_every_case() {
 
 #[test]
 fn the_example_is_what_xtmd_build_rir_writes() {
-    let (path, want) = ("schemas/examples/counter.xt.md", repo().join("schemas/examples/counter.rir.json"));
+    let (path, want) = ("schemas/examples/counter.xtmd", repo().join("schemas/examples/counter.rir.json"));
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_xtmd")).current_dir(repo()).args(["build", path, "--rir"]).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let got: Value = serde_json::from_slice(&out.stdout).unwrap();

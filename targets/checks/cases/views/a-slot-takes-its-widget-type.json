@@ -1,7 +1,7 @@
 {
   "id": "views.a-slot-takes-its-widget-type",
   "about": "a slot with a widget type takes only calls of that type, through for, if and match",
-  "source": "a-slot-takes-its-widget-type.xtpack",
+  "source": "a-slot-takes-its-widget-type.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "views.slot-takes-its-type", "line": 37, "column": 15}

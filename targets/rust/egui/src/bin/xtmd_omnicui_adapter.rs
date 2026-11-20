@@ -53,7 +53,7 @@ fn repo() -> Option<PathBuf> {
 
 fn core_sources(root: &Path) -> Vec<xtmd_check::Source> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(root.join("core")).map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect()).unwrap_or_default();
-    files.retain(|p| p.extension().is_some_and(|x| x == "xtpack"));
+    files.retain(|p| p.extension().is_some_and(|x| x == "xtmdpack"));
     files.sort();
     files.into_iter().map(|p| xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(&p).unwrap_or_default() }).collect()
 }
@@ -133,7 +133,7 @@ fn target_path(nodes: &[Drawn], widget: &str) -> Option<String> {
 
 impl Adapter {
     fn compile(&self, src: &str) -> Result<xtmd_egui::runtime::ir::Module, String> {
-        self.compile_as(src, "widget.xt.md", "doc")
+        self.compile_as(src, "widget.xtmd", "doc")
     }
 
     /// A file compiled as a page (`doc`) or a pack (`main`).
@@ -416,7 +416,7 @@ fn main() {
     let core = xtmd_check::compile_core(&core_sources(&root));
     let mut adapter = Adapter { root, core, decls: Decls::default(), defaults, mounted: None };
     // every core declaration: a pack's IR keeps all of core it builds on, a page's only what it uses
-    match adapter.compile_as("package omnicui_core;\n", "omnicui_core.xtpack", "main") {
+    match adapter.compile_as("package omnicui_core;\n", "omnicui_core.xtmdpack", "main") {
         Ok(m) => adapter.decls = source::declarations(&serde_json::to_value(xtmd_egui::runtime::ir::File { ir: m }).unwrap()),
         Err(e) => {
             log(&format!("core doesn't compile: {}", e));

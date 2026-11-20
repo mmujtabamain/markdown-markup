@@ -14,9 +14,9 @@ import assert from "node:assert/strict";
 const here = dirname(fileURLToPath(import.meta.url));
 
 export const pages = {
-  v1: join(here, "counter.xt.md"),
-  v2: join(here, "counter-v2.xt.md"),
-  notes: join(here, "notes.xt.md"),
+  v1: join(here, "counter.xtmd"),
+  v2: join(here, "counter-v2.xtmd"),
+  notes: join(here, "notes.xtmd"),
 };
 
 /** The test pages' IR, compiled by the xtmd binary through xtmd. */
@@ -278,8 +278,8 @@ export async function liveSteps(page) {
   await page.evaluate(() => window.__test.setSource(window.__SRC.broken));
   await until(page, () => window.__test.heard.errors.some((e) => e.kind === "compile"), null, "the compile error");
   const e = (await page.evaluate(() => window.__test.heard.errors)).find((x) => x.kind === "compile");
-  assert.match(e.message, /^page\.xt\.md doesn't compile \(\d+ errors?\): page\.xt\.md:\d+:\d+: /);
-  assert.ok(e.diagnostics.some((d) => d.severity === "error" && d.file === "page.xt.md"), JSON.stringify(e.diagnostics));
+  assert.match(e.message, /^page\.xtmd doesn't compile \(\d+ errors?\): page\.xtmd:\d+:\d+: /);
+  assert.ok(e.diagnostics.some((d) => d.severity === "error" && d.file === "page.xtmd"), JSON.stringify(e.diagnostics));
   assert.ok((await app()).includes("Total: 1 items, by 2"), "a broken draft leaves the last page");
   assert.ok(await page.evaluate(() => document.querySelector('#app [data-xtmd-widget="core/press"]') !== null), "and it still works");
 

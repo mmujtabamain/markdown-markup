@@ -1,7 +1,7 @@
 {
   "id": "read.a-mut-at-the-top-of-a-document-s-definitions",
   "about": "a mut at the top of a document's definitions",
-  "source": "a-mut-at-the-top-of-a-document-s-definitions.xt.md",
+  "source": "a-mut-at-the-top-of-a-document-s-definitions.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "file.mut-at-top", "line": 1, "column": 1}

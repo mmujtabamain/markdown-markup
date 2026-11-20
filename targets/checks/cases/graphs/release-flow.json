@@ -1,7 +1,7 @@
 {
   "id": "graphs.release-flow",
   "about": "examples/graphs: a graph on core's plane, in Extended Mark alone; its Markdown is its label, the nodes, then the links; on the checks' fixed sizes, each line runs from one node's outline to the other's, and each link's label sits at its line's middle",
-  "source": "release-flow.xt.md",
+  "source": "release-flow.xtmd",
   "packs": [
     "../../../../examples/graphs"
   ],

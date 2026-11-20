@@ -1,7 +1,7 @@
 {
   "id": "read.a-while-loop-with-an-empty-header",
   "about": "a while loop with an empty header",
-  "source": "a-while-loop-with-an-empty-header.xtpack",
+  "source": "a-while-loop-with-an-empty-header.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-counter-loop", "line": 4, "column": 5}

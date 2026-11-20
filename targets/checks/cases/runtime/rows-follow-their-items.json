@@ -1,7 +1,7 @@
 {
   "id": "runtime.rows-follow-their-items",
   "about": "a widget in a loop keeps its own variables with its item: rows follow their items",
-  "source": "rows-follow-their-items.xt.md",
+  "source": "rows-follow-their-items.xtmd",
   "target": {
     "levels": [
       "core.draw",

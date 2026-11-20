@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-field-with-a-contract",
   "about": "a record's field with a contract needs its proof",
-  "source": "a-field-with-a-contract.xtpack",
+  "source": "a-field-with-a-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 9, "column": 43}

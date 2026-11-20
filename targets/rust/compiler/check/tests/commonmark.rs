@@ -21,7 +21,7 @@ fn repo() -> PathBuf {
 }
 
 fn core_sources() -> Vec<Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(repo().join("core")).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -679,14 +679,14 @@ fn run(file: &str, base: &xtmd_check::Checker, readings: &Value, through_md: Opt
             }
             continue;
         }
-        let c = compile_on(base, &[], &[Source { path: "example.xt.md".into(), text: md.to_string() }], "doc");
+        let c = compile_on(base, &[], &[Source { path: "example.xtmd".into(), text: md.to_string() }], "doc");
         let found = match &c.module {
             Some(m) => match m.templates.iter().find(|t| t.name == "doc") {
                 Some(t) => json!(blocks_of_nodes(&t.view)),
                 None => json!([]),
             },
             None => {
-                let errs: Vec<String> = c.errors().filter(|d| d.file == "example.xt.md").map(|d| format!("[{}] {}", d.diagnostic.code, d.diagnostic.message)).collect();
+                let errs: Vec<String> = c.errors().filter(|d| d.file == "example.xtmd").map(|d| format!("[{}] {}", d.diagnostic.code, d.diagnostic.message)).collect();
                 json!({"errors": errs})
             }
         };

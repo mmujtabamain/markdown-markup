@@ -53,12 +53,12 @@ fn path_of(doc: &XtmdDoc, widget: &str) -> String {
 #[test]
 fn a_document_draws_its_page_from_the_state_it_starts_from_checked() {
     let ctx = egui::Context::default();
-    let mut doc = XtmdDoc::new(page("counter.xt.md"), DocOptions { state: Some(state(&[("n", num(2))])), externs: items(), ..DocOptions::default() }).unwrap();
+    let mut doc = XtmdDoc::new(page("counter.xtmd"), DocOptions { state: Some(state(&[("n", num(2))])), externs: items(), ..DocOptions::default() }).unwrap();
     let r = frame(&ctx, &mut doc, None);
     assert!(r.response.is_some() && r.errors.is_empty(), "{:?}", r.errors);
     assert_eq!(doc.markdown(), "# Count: 2 items\n\nAdd one\n");
     // one that doesn't fit: refused, told at the first frame, and the page starts from its default
-    let mut bad = XtmdDoc::new(page("counter.xt.md"), DocOptions { state: Some(state(&[("n", num(11))])), externs: items(), ..DocOptions::default() }).unwrap();
+    let mut bad = XtmdDoc::new(page("counter.xtmd"), DocOptions { state: Some(state(&[("n", num(11))])), externs: items(), ..DocOptions::default() }).unwrap();
     let r = frame(&ctx, &mut bad, None);
     assert!(matches!(&r.errors[..], [DocError::Refused(b)] if b.site.as_deref() == Some("$state.n")), "{:?}", r.errors);
     assert_eq!(bad.state(), state(&[("n", num(0))]));
@@ -67,7 +67,7 @@ fn a_document_draws_its_page_from_the_state_it_starts_from_checked() {
 #[test]
 fn a_controlled_state_is_written_checked_and_follows_the_page() {
     let ctx = egui::Context::default();
-    let mut doc = XtmdDoc::new(page("counter.xt.md"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
+    let mut doc = XtmdDoc::new(page("counter.xtmd"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
     let mut app = state(&[("n", num(0))]);
     frame(&ctx, &mut doc, Some(&mut app));
     // the app's change is written
@@ -95,7 +95,7 @@ fn a_controlled_state_is_written_checked_and_follows_the_page() {
 #[test]
 fn set_expose_and_externs_go_through_the_page() {
     let ctx = egui::Context::default();
-    let mut doc = XtmdDoc::new(page("counter.xt.md"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
+    let mut doc = XtmdDoc::new(page("counter.xtmd"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
     frame(&ctx, &mut doc, None);
     assert!(matches!(doc.set(state(&[("n", num(20))])), Err(DocError::Refused(_))));
     doc.set(state(&[("n", num(3))])).unwrap();
@@ -109,7 +109,7 @@ fn set_expose_and_externs_go_through_the_page() {
 #[test]
 fn a_snapshot_brings_back_state_and_widgets_own_variables() {
     let ctx = egui::Context::default();
-    let mut doc = XtmdDoc::new(page("notes.xt.md"), DocOptions::default()).unwrap();
+    let mut doc = XtmdDoc::new(page("notes.xtmd"), DocOptions::default()).unwrap();
     frame(&ctx, &mut doc, None);
     doc.set(state(&[("n", num(2))])).unwrap();
     let press = path_of(&doc, "core/press");
@@ -122,15 +122,15 @@ fn a_snapshot_brings_back_state_and_widgets_own_variables() {
     let json = serde_json::to_string(&snap).unwrap();
     assert!(snap.own.values().any(|o| o.get("k") == Some(&num(2))), "{}", json);
     // the same IR: all of it
-    let mut again = XtmdDoc::new(page("notes.xt.md"), DocOptions::default()).unwrap();
+    let mut again = XtmdDoc::new(page("notes.xtmd"), DocOptions::default()).unwrap();
     let back = again.restore(&serde_json::from_str(&json).unwrap());
     assert_eq!((back.restored, back.dropped), (RestoredHow::All, vec![]));
     assert!(again.markdown().contains("Apples: 2") && again.markdown().contains("# Notes: 2"), "{}", again.markdown());
     // started from it
-    let started = XtmdDoc::new(page("notes.xt.md"), DocOptions { snapshot: Some(snap.clone()), ..DocOptions::default() }).unwrap();
+    let started = XtmdDoc::new(page("notes.xtmd"), DocOptions { snapshot: Some(snap.clone()), ..DocOptions::default() }).unwrap();
     assert!(started.markdown().contains("Apples: 2"));
     // another IR: $state only
-    let mut other = XtmdDoc::new(page("counter.xt.md"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
+    let mut other = XtmdDoc::new(page("counter.xtmd"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
     let back = other.restore(&snap);
     assert_eq!((back.restored, back.dropped), (RestoredHow::State, vec!["own".to_string()]));
     assert_eq!(other.state(), state(&[("n", num(2))]));
@@ -147,9 +147,9 @@ fn a_snapshot_brings_back_state_and_widgets_own_variables() {
 #[test]
 fn a_new_ir_keeps_the_state_whose_fields_it_still_has() {
     let ctx = egui::Context::default();
-    let mut doc = XtmdDoc::new(page("counter.xt.md"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
+    let mut doc = XtmdDoc::new(page("counter.xtmd"), DocOptions { externs: items(), ..DocOptions::default() }).unwrap();
     doc.set(state(&[("n", num(3))])).unwrap();
-    doc.replace(page("counter-v2.xt.md"), items()).unwrap();
+    doc.replace(page("counter-v2.xtmd"), items()).unwrap();
     frame(&ctx, &mut doc, None);
     assert_eq!(doc.state(), state(&[("n", num(3)), ("stride", num(2))]));
     assert!(doc.markdown().starts_with("# Total: 3 items, by 2"), "{}", doc.markdown());

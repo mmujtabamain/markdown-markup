@@ -19,7 +19,7 @@ export interface Builds {
 export interface LiveProps {
   /** The document's text. */
   source: string;
-  /** Its path, for diagnostics and to say it is a document: `page.xt.md` when left out. */
+  /** Its path, for diagnostics and to say it is a document: `page.xtmd` when left out. */
   path?: string;
   /** The files of the packs it uses. */
   packs?: PackFile[];
@@ -64,7 +64,7 @@ export class Live {
   update(props: LiveProps, onError?: (e: DocError) => void): void {
     this.props = props;
     this.onError = onError;
-    const key = JSON.stringify([props.path ?? "page.xt.md", props.source, props.packs ?? []]);
+    const key = JSON.stringify([props.path ?? "page.xtmd", props.source, props.packs ?? []]);
     if (key === this.wanted) return;
     this.wanted = key;
     if (props.compiler) {
@@ -92,7 +92,7 @@ export class Live {
     const key = this.wanted;
     if (key === this.done) return;
     const seq = ++this.seq;
-    const path = p.path ?? "page.xt.md";
+    const path = p.path ?? "page.xtmd";
     let built: Built | Promise<Built>;
     try {
       built = this.builds!.build(path, p.source, p.packs ?? []);

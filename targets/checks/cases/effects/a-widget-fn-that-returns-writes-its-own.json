@@ -1,7 +1,7 @@
 {
   "id": "effects.a-widget-fn-that-returns-writes-its-own",
   "about": "a widget's fn with a return type can't assign the widget's own variable",
-  "source": "a-widget-fn-that-returns-writes-its-own.xtpack",
+  "source": "a-widget-fn-that-returns-writes-its-own.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "effects.write-where-nothing-changes", "line": 7, "column": 9}

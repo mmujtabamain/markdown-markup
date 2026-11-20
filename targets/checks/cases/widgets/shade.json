@@ -1,7 +1,7 @@
 {
   "id": "widgets.shade",
   "about": "claims are checked: a shader painting a region of a canvas, observed by its fn and arguments, and on the test target by its colour at the corners and the middle",
-  "source": "shade.xt.md",
+  "source": "shade.xtmd",
   "target": {
     "levels": [
       "core.draw",

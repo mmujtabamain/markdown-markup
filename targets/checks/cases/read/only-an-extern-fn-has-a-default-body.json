@@ -1,7 +1,7 @@
 {
   "id": "read.only-an-extern-fn-has-a-default-body",
   "about": "only an extern fn may have a body; an extern widget's block holds slots, events and markdown",
-  "source": "only-an-extern-fn-has-a-default-body.xtpack",
+  "source": "only-an-extern-fn-has-a-default-body.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.expected", "line": 8, "column": 5}

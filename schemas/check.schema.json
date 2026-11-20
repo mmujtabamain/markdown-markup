@@ -18,7 +18,7 @@
         },
         "source": {
           "type": "string",
-          "description": "The .xt.md or .xtpack file, beside the case."
+          "description": "The .xtmd or .xtmdpack file, beside the case."
         },
         "packs": {
           "type": "array",

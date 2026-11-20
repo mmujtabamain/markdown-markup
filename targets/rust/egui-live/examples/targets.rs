@@ -3,7 +3,7 @@
 //! drives itself (presses, a snapshot and restore, an edit, a broken draft) with a caption under it,
 //! for a recording.
 //!
-//!   cargo run --release -p xtmd-egui-live --example targets --features app -- page.xt.md page.ir.json [--demo]
+//!   cargo run --release -p xtmd-egui-live --example targets --features app -- page.xtmd page.ir.json [--demo]
 
 use std::time::Instant;
 
@@ -120,7 +120,7 @@ impl Demo {
     fn compile(&mut self) {
         match self.live.set_text(&self.text) {
             Followed::Compiled => self.status = (true, "Compiled in the app".into()),
-            Followed::Broken => self.status = (false, self.live.why().unwrap_or_default().replace("page.xt.md doesn't compile", "Doesn't compile")),
+            Followed::Broken => self.status = (false, self.live.why().unwrap_or_default().replace("page.xtmd doesn't compile", "Doesn't compile")),
             Followed::Same => {}
         }
     }

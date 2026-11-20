@@ -1,7 +1,7 @@
 {
   "id": "widgets.field",
   "about": "claims are checked: a text field writing to $state",
-  "source": "field.xt.md",
+  "source": "field.xtmd",
   "target": {
     "levels": [
       "core.draw",

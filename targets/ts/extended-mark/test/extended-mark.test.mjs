@@ -32,8 +32,8 @@ test("its xtmd command runs xtmd's, with the same arguments, output and exit cod
   assert.match(version.stdout, /^xtmd 0\.3\.\d+ \(Extended Mark 0\.3;/);
   assert.equal(version.stdout, run(theirs, ["--version"]).stdout);
   // a usage error: exit 2 from both, with the same message
-  const a = run(ours, ["check", "no-such-file.xt.md"]);
-  const b = run(theirs, ["check", "no-such-file.xt.md"]);
+  const a = run(ours, ["check", "no-such-file.xtmd"]);
+  const b = run(theirs, ["check", "no-such-file.xtmd"]);
   assert.notEqual(a.status, 0);
   assert.deepEqual([a.status, a.stderr], [b.status, b.stderr]);
 });

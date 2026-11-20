@@ -1,7 +1,7 @@
 {
   "id": "names.an-exposed-fn-is-not-called-by-xtmd",
   "about": "an expose block's fns are called only by the app, never by Extended Mark code",
-  "source": "an-exposed-fn-is-not-called-by-xtmd.xt.md",
+  "source": "an-exposed-fn-is-not-called-by-xtmd.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "names.unknown-fn", "line": 16, "column": 5}

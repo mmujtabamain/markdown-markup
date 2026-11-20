@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-list-literal-has-its-length",
   "about": "a list literal has exactly as many items as are written",
-  "source": "a-list-literal-has-its-length.xtpack",
+  "source": "a-list-literal-has-its-length.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 17}

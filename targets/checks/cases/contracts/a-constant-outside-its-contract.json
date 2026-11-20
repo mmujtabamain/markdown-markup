@@ -1,7 +1,7 @@
 {
   "id": "contracts.a-constant-outside-its-contract",
   "about": "a constant outside the contract is a compile error on its line",
-  "source": "a-constant-outside-its-contract.xtpack",
+  "source": "a-constant-outside-its-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 7, "column": 22}

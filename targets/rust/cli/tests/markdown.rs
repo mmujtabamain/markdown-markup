@@ -12,7 +12,7 @@ fn repo() -> PathBuf {
 
 fn core() -> Vec<Source> {
     let dir = repo().join("core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_str().unwrap()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -28,7 +28,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// The `.xtpack` files of a pack: a folder or a file beside the case.
+/// The `.xtmdpack` files of a pack: a folder or a file beside the case.
 fn pack(path: &Path, out: &mut Vec<Source>) {
     if path.is_dir() {
         let mut files: Vec<PathBuf> = std::fs::read_dir(path).unwrap().map(|e| e.unwrap().path()).collect();
@@ -36,7 +36,7 @@ fn pack(path: &Path, out: &mut Vec<Source>) {
         for f in files {
             pack(&f, out);
         }
-    } else if path.extension().map_or(false, |x| x == "xtpack") {
+    } else if path.extension().map_or(false, |x| x == "xtmdpack") {
         out.push(Source { path: path.to_string_lossy().into_owned(), text: std::fs::read_to_string(path).unwrap() });
     }
 }
@@ -44,7 +44,7 @@ fn pack(path: &Path, out: &mut Vec<Source>) {
 /// A page's blocks with its starting values.
 fn blocks(base: &Checker, packs: &[Source], src: Source) -> Result<Value, String> {
     let name = src.path.clone();
-    let module = if name.ends_with(".xt.md") { "doc" } else { "t" };
+    let module = if name.ends_with(".xtmd") { "doc" } else { "t" };
     let c = compile_on(base, &[packs.to_vec()], &[src], module);
     let Some(mut m) = c.module else {
         let errs: Vec<String> = c.errors().take(3).map(|d| format!("{}: [{}] {}", d.file, d.diagnostic.code, d.diagnostic.message)).collect();
@@ -57,7 +57,7 @@ fn blocks(base: &Checker, packs: &[Source], src: Source) -> Result<Value, String
 
 /// Markdown text read as blocks, by Extended Mark's own reader: a document of that text.
 fn read(base: &Checker, text: &str) -> Result<Value, String> {
-    blocks(base, &[], Source { path: "read-back.xt.md".into(), text: text.into() })
+    blocks(base, &[], Source { path: "read-back.xtmd".into(), text: text.into() })
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn every_case_writes_its_expected_markdown() {
 fn written(base: &Checker, packs: &[Source], case: &Value, dir: &Path) -> String {
     let src_path = dir.join(case["source"].as_str().unwrap());
     let src = Source { path: src_path.to_string_lossy().into_owned(), text: std::fs::read_to_string(&src_path).unwrap() };
-    let module = if src.path.ends_with(".xt.md") { "doc" } else { "t" };
+    let module = if src.path.ends_with(".xtmd") { "doc" } else { "t" };
     let c = compile_on(base, &[packs.to_vec()], &[src], module);
     let mut m = c.module.unwrap();
     xtmd_lower::lower(&mut m);
@@ -156,8 +156,8 @@ fn spec() -> (Vec<Source>, Vec<(String, Source)>) {
                 let text = lines[start..end].join("\n") + "\n";
                 let at = format!("{}-{}", page, start + 1);
                 match tags[n].as_str().unwrap() {
-                    "java file" => packs.push(Source { path: format!("docs/specs/{}.xtpack", at), text }),
-                    "markdown doc" => docs.push((at.clone(), Source { path: format!("docs/specs/{}.xt.md", at), text })),
+                    "java file" => packs.push(Source { path: format!("docs/specs/{}.xtmdpack", at), text }),
+                    "markdown doc" => docs.push((at.clone(), Source { path: format!("docs/specs/{}.xtmd", at), text })),
                     _ => {}
                 }
                 n += 1;

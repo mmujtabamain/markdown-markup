@@ -1,7 +1,7 @@
 {
   "id": "names.shadowing-in-a-loop",
   "about": "shadowing in a loop",
-  "source": "shadowing-in-a-loop.xtpack",
+  "source": "shadowing-in-a-loop.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "names.shadowing", "line": 5, "column": 10}

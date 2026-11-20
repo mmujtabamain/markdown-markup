@@ -1,7 +1,7 @@
 {
   "id": "widgets.image",
   "about": "claims are checked: an image with its alt text",
-  "source": "image.xt.md",
+  "source": "image.xtmd",
   "target": {
     "levels": [
       "core.draw"

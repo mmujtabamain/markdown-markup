@@ -19,7 +19,7 @@ import type { Call, DocError, DocProps, Restored, Snapshot, Value, ir } from "@e
 export class XtmdLiveDoc implements OnChanges, OnDestroy {
   /** The document's text. */
   @Input({ required: true }) source!: string;
-  /** Its path, for diagnostics: `page.xt.md` when left out. */
+  /** Its path, for diagnostics: `page.xtmd` when left out. */
   @Input() path?: string;
   /** The files of the packs it uses. */
   @Input() packs?: PackFile[];

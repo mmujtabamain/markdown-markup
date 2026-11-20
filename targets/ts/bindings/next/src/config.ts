@@ -1,4 +1,4 @@
-// `import page from "./sprint.xt.md"` in a Next.js app: the page's IR, compiled by the xtmd binary
+// `import page from "./sprint.xtmd"` in a Next.js app: the page's IR, compiled by the xtmd binary
 // (through xtmd) when the app is built or served. One loader, given to both of Next's bundlers:
 // Turbopack (`next dev` and `next build` by default since Next 16) and webpack (`--webpack`).
 
@@ -20,7 +20,7 @@ interface WebpackConfigLike {
 /** The loader's path, for a config that wires it in itself. */
 export const loader = fileURLToPath(new URL("./loader.cjs", import.meta.url));
 
-/** The Next.js config, with `.xt.md` files compiled to IR by xtmd. `packs` and `config` are xtmd's. */
+/** The Next.js config, with `.xtmd` files compiled to IR by xtmd. `packs` and `config` are xtmd's. */
 export function withXtmd<C extends NextConfigLike>(config: C = {} as C, options: Options = {}): C {
   const use = { loader, options: { ...options } };
   const webpack = config.webpack;
@@ -30,13 +30,13 @@ export function withXtmd<C extends NextConfigLike>(config: C = {} as C, options:
       ...config.turbopack,
       rules: {
         ...config.turbopack?.rules,
-        "*.xt.md": { loaders: [use], as: "*.js" },
+        "*.xtmd": { loaders: [use], as: "*.js" },
       },
     },
     webpack(wp: WebpackConfigLike, context: unknown) {
       wp.module ??= {};
       wp.module.rules ??= [];
-      wp.module.rules.push({ test: /\.xt\.md$/, use: [use], type: "javascript/auto" });
+      wp.module.rules.push({ test: /\.xtmd$/, use: [use], type: "javascript/auto" });
       return typeof webpack === "function" ? webpack(wp, context) : wp;
     },
   };

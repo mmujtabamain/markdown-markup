@@ -21,9 +21,9 @@ Markdown's mark is by Dustin Curtis and is in the public domain (CC0), so it can
 | `png/` | The icon at 128 to 1024 px, and the logo at twice its size | Where an SVG isn't taken |
 
 The VS Code extension's own copies are in `ide/vscode/media`: `icon.png` (256 px), and the file
-icons, each for a light and a dark theme. A document (`.xt.md`) is a page with the call sign on it,
-`xtmd-light.svg` and `xtmd-dark.svg`; a pack (`.xtpack`) is a box with the call sign on it,
-`xtpack-light.svg` and `xtpack-dark.svg`.
+icons, each for a light and a dark theme. A document (`.xtmd`) is a page with the call sign on it,
+`xtmd-light.svg` and `xtmd-dark.svg`; a pack (`.xtmdpack`) is a box with the call sign on it,
+`xtmdpack-light.svg` and `xtmdpack-dark.svg`.
 
 GitHub takes the avatar and the social preview by hand: the organisation's Settings → Profile →
 Profile picture (`github/avatar.png`), and the repository's Settings → General → Social preview

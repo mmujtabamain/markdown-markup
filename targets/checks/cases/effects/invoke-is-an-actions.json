@@ -1,7 +1,7 @@
 {
   "id": "effects.invoke-is-an-actions",
   "about": "invoke raises an event: only an action may",
-  "source": "invoke-is-an-actions.xtpack",
+  "source": "invoke-is-an-actions.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "effects.action-where-nothing-changes", "line": 7, "column": 16}

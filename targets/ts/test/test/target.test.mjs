@@ -81,7 +81,7 @@ function adapter() {
 test("the adapter speaks the check protocol: advertise, load, a step, observe, quit", async () => {
   const dir = mkdtempSync(join(tmpdir(), "xtmd-test-target-"));
   try {
-    const src = join(dir, "page.xt.md");
+    const src = join(dir, "page.xtmd");
     writeFileSync(src, '$state {\n    n: int 0..3 = 0;\n}\n@@@\n@slider(value = $state.n, label = "N");\n');
     const ir = join(dir, "page.ir.json");
     const b = spawnSync(xtmd(), ["build", src, "--out", ir], { encoding: "utf8" });

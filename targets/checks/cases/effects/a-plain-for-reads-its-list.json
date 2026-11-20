@@ -1,7 +1,7 @@
 {
   "id": "effects.a-plain-for-reads-its-list",
   "about": "a plain for can't change the list it walks or its items",
-  "source": "a-plain-for-reads-its-list.xtpack",
+  "source": "a-plain-for-reads-its-list.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "effects.for-changes-its-list", "line": 5, "column": 9},

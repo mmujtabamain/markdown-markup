@@ -1,7 +1,7 @@
 {
   "id": "effects.an-exposed-fn-is-an-action",
   "about": "a fn the app calls through expose is an action, and assigns $state (page 6)",
-  "source": "an-exposed-fn-is-an-action.xt.md",
+  "source": "an-exposed-fn-is-an-action.xtmd",
   "expect": {
     "diagnostics": []
   }

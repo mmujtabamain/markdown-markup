@@ -1,7 +1,7 @@
 {
   "id": "types.a-text-holds-no-view",
   "about": "a view in a hole of a text literal is a compile error",
-  "source": "a-text-holds-no-view.xtpack",
+  "source": "a-text-holds-no-view.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.view-in-text", "line": 3, "column": 25}

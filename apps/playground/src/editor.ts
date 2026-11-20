@@ -50,7 +50,7 @@ export class Editor {
       registered = true;
     }
     const dark = matchMedia("(prefers-color-scheme: dark)");
-    this.model = monaco.editor.createModel("", XTMD, monaco.Uri.parse("inmemory://playground/page.xt.md"));
+    this.model = monaco.editor.createModel("", XTMD, monaco.Uri.parse("inmemory://playground/page.xtmd"));
     // the model is ours, so its own options: four spaces, and brackets in the text's colour
     this.model.updateOptions({ tabSize: 4, indentSize: 4, insertSpaces: true, bracketColorizationOptions: { enabled: false, independentColorPoolPerBracketType: false } });
     this.view = monaco.editor.create(host, {

@@ -1,7 +1,7 @@
 {
   "id": "read.expose-inside-a-widget",
   "about": "expose inside a widget",
-  "source": "expose-inside-a-widget.xtpack",
+  "source": "expose-inside-a-widget.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "file.expose-in-widget", "line": 4, "column": 5}

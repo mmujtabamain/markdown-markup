@@ -15,7 +15,7 @@ the app's. The run-time target ships no WebAssembly; this one does.
 | Prop | What it does |
 |---|---|
 | `source` | The document's text. |
-| `path` | Its path, for diagnostics: `page.xt.md` when left out. |
+| `path` | Its path, for diagnostics: `page.xtmd` when left out. |
 | `packs` | The files of the packs it uses, `{ path, text }`. |
 | `wasm` or `compiler` | Where xtmd.wasm is (its URL, its bytes or the module), or a compiler in hand (one in a worker, which answers with a promise). Given a compiler already loaded, the first render has the page, on a server too. |
 

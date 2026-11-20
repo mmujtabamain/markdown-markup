@@ -1,7 +1,7 @@
 {
   "id": "read.a-hyphen-in-a-name",
   "about": "a hyphen in a name",
-  "source": "a-hyphen-in-a-name.xtpack",
+  "source": "a-hyphen-in-a-name.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.hyphen-in-name", "line": 3, "column": 5}

@@ -1,7 +1,7 @@
 {
   "id": "effects.a-handler-writes-state-and-its-widgets-own",
   "about": "a handler is an action: it assigns $state, the widget's own variables and mut inputs",
-  "source": "a-handler-writes-state-and-its-widgets-own.xt.md",
+  "source": "a-handler-writes-state-and-its-widgets-own.xtmd",
   "expect": {
     "diagnostics": []
   }

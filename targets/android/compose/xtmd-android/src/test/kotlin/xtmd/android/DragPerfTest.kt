@@ -61,7 +61,7 @@ class DragPerfTest {
         return out.readText().also { out.delete() }
     }
 
-    private val tour by lazy { ir(File(repo, "targets/android/compose/sample/pages/tour.xt.md")) }
+    private val tour by lazy { ir(File(repo, "targets/android/compose/sample/pages/tour.xtmd")) }
 
     /** One kind of drag's steps, on average. */
     /** One kind of drag's steps, by their medians: the main thread's processor time (what holds a

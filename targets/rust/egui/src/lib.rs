@@ -5,7 +5,7 @@
 //! ```no_run
 //! # fn app(ui: &mut egui::Ui, json: &str) {
 //! use xtmd_egui::{XtmdPage, runtime::{Page, PageOptions}};
-//! // once: the IR `xtmd build page.xt.md --out page.ir.json` wrote
+//! // once: the IR `xtmd build page.xtmd --out page.ir.json` wrote
 //! let mut page = XtmdPage::new(Page::from_json(json, XtmdPage::options()).unwrap());
 //! // every frame:
 //! page.show(ui);

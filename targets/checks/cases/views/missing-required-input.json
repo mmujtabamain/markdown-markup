@@ -1,7 +1,7 @@
 {
   "id": "views.missing-required-input",
   "about": "missing required input",
-  "source": "missing-required-input.xtpack",
+  "source": "missing-required-input.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "views.missing-input", "line": 5, "column": 10}

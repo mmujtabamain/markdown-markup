@@ -59,7 +59,7 @@ rtype     = type | "void"                                 no return type means v
 widget    = "widget" name [ generics ] "(" [ inputs ] ")" [ implements ] "{" wbody "}"
 inputs    = field { "," field } [ "," ]
 wbody     = { "param" field ";" } { slot } { event } { require } { own | let }
-            { fn } "view" vblock [ "markdown" prose-block ]      markdown required in a .xtpack file
+            { fn } "view" vblock [ "markdown" prose-block ]      markdown required in a .xtmdpack file
 slot      = "slot" name ":" type ";"
 event     = "event" name "(" [ params ] ")" ";"
 require   = "require" text block
@@ -224,7 +224,7 @@ in code     code spans, fenced code and indented code have no escapes and no hol
 - **Widget calls** (pass): Every argument is named, is a declared input or event, and is set once. Every input without a default is given.
 - **Blocks and slots** (pass): A block of children goes to a widget with exactly one slot. A named block, or a `@slot` line in prose, names a real slot. No slot has a widget's name.
 - **Cases and tokens** (pass): Every `type.CAPITALS` is a declared enum case or token case, counting the cases that `tokens` blocks add. Every `tokens` line names a declared token type, and a `match` on a token has a `case else`.
-- **Widget bodies** (pass): The body order, a `markdown` block on every widget in a .xtpack file, no `expose` in a widget, and `//@param` lines that name real inputs.
+- **Widget bodies** (pass): The body order, a `markdown` block on every widget in a .xtmdpack file, no `expose` in a widget, and `//@param` lines that name real inputs.
 - **State** (pass): No `mut` at the top of a document or a file. At most one `$state` block, above a document's `@@@` line, each field with a starting value. No `$state` and no `expose` in a pack's files.
 - **Documents and prose** (pass): Front matter, the `@@@` divider, no drawing above it, calls, control lines, slot lines, block ends, `$$` maths blocks, holes and `\@`, and no call inside a quote or a list item.
 - **Types, proofs, effects** (skipped): Not checked by a program. A type checker is the next step, and these rules were checked by hand.

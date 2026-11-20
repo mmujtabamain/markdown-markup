@@ -1,7 +1,7 @@
 {
   "id": "types.a-limit-passed-at-compile-time",
   "about": "passing a limit when the compiler runs code on constants is a compile error",
-  "source": "a-limit-passed-at-compile-time.xtpack",
+  "source": "a-limit-passed-at-compile-time.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.constant-failed", "line": 7, "column": 5}

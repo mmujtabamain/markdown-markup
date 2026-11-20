@@ -155,8 +155,8 @@ mod tests {
 
     fn request(migration: &str) -> Value {
         json!({
-            "sources": [{ "path": "kit/kit.xtpack", "text": KIT2 }, { "path": "kit/surfaces/kit@1.xtpack", "text": KIT1_SURFACE }, { "path": "kit/migrations/kit@2.xtpack", "text": migration }],
-            "docs": [{ "path": "docs/report.xt.md", "text": OLD_DOC }],
+            "sources": [{ "path": "kit/kit.xtmdpack", "text": KIT2 }, { "path": "kit/surfaces/kit@1.xtmdpack", "text": KIT1_SURFACE }, { "path": "kit/migrations/kit@2.xtmdpack", "text": migration }],
+            "docs": [{ "path": "docs/report.xtmd", "text": OLD_DOC }],
             "config": { "path": "xtmd.toml", "text": "packs = [\"kit\"]\n\n[uses]\nkit = 1\n" },
         })
     }
@@ -193,11 +193,11 @@ mod tests {
         let split = MIGRATION.replace("rename(from = state.LATE, to = state.OVERDUE);", "split(from = state.LATE, to = [state.OVERDUE, state.DONE], why = \"late is now overdue, or done\");");
         let r = run(&c, &request(&split));
         let q = &r["questions"][0];
-        assert_eq!((q["number"].as_u64(), q["key"].as_str(), q["options"].clone()), (Some(1), Some("docs/report.xt.md:4 LATE"), json!(["OVERDUE", "DONE"])), "{}", r);
+        assert_eq!((q["number"].as_u64(), q["key"].as_str(), q["options"].clone()), (Some(1), Some("docs/report.xtmd:4 LATE"), json!(["OVERDUE", "DONE"])), "{}", r);
         // planned with the questions open, the tree isn't moved
         assert_eq!(r["config"], Value::Null);
         let mut req = request(&split);
-        req["answers"] = json!({ "split": { "docs/report.xt.md:4 LATE": "DONE" } });
+        req["answers"] = json!({ "split": { "docs/report.xtmd:4 LATE": "DONE" } });
         let r = run(&c, &req);
         assert_eq!(r["questions"], json!([]), "{}", r);
         assert!(r["files"][0]["text"].as_str().unwrap().contains("s: state = state.DONE;"), "{}", r);
@@ -216,7 +216,7 @@ mod tests {
         let ran = json!({ "release": "0.2.10", "doc": "// Migrated from MKP 0.2.\n// Nothing to finish by hand.\n@@@\n# A\n", "packs": {}, "notes": [], "counts": { "widgets": 1 } });
         let r = run(&c, &json!({ "docs": docs, "step02": { "docs/a.mkp.md": ran } }));
         let f = &r["files"][0];
-        assert_eq!((f["result"].as_str(), f["to"].as_str(), r["needs02"].clone()), (Some("migrate"), Some("docs/a.xt.md"), json!([])), "{}", r);
+        assert_eq!((f["result"].as_str(), f["to"].as_str(), r["needs02"].clone()), (Some("migrate"), Some("docs/a.xtmd"), json!([])), "{}", r);
         // where the step can't run, the document is refused with why
         let r = run(&c, &json!({ "docs": docs, "step02": { "docs/a.mkp.md": { "notRun": "no Node here" } } }));
         assert_eq!(r["files"][0]["refused"], json!(["no Node here"]));

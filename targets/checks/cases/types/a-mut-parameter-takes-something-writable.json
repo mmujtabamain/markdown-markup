@@ -1,7 +1,7 @@
 {
   "id": "types.a-mut-parameter-takes-something-writable",
   "about": "a mut parameter is given a mut variable, a field of one, or a mut for variable",
-  "source": "a-mut-parameter-takes-something-writable.xtpack",
+  "source": "a-mut-parameter-takes-something-writable.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.not-mut", "line": 10, "column": 13}

@@ -2,7 +2,7 @@
 //!
 //!   cargo run -p xtmd-egui --example page --features app                       # the demo page
 //!   cargo run -p xtmd-egui --example page --features app -- page.ir.json      # what `xtmd build` wrote
-//!   cargo run -p xtmd-egui --example page --features app -- doc.xt.md [pack…] # compiled here
+//!   cargo run -p xtmd-egui --example page --features app -- doc.xtmd [pack…] # compiled here
 //!
 //! The page's Markdown is printed when the window closes, with the values it has then
 //! ([`xtmd_egui::run_window`]).
@@ -17,12 +17,12 @@ fn compile(doc: &str, packs: &[PathBuf]) -> Result<ir::File, String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let read = |dir: &Path| -> Vec<xtmd_check::Source> {
         let mut files: Vec<PathBuf> = std::fs::read_dir(dir).map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect()).unwrap_or_default();
-        files.retain(|p| p.extension().is_some_and(|x| x == "xtpack"));
+        files.retain(|p| p.extension().is_some_and(|x| x == "xtmdpack"));
         files.sort();
         files.into_iter().map(|p| xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(&p).unwrap_or_default() }).collect()
     };
     let packs: Vec<Vec<xtmd_check::Source>> = packs.iter().map(|p| read(p)).collect();
-    let c = xtmd_check::compile(&read(&root.join("core")), &packs, &[xtmd_check::Source { path: "page.xt.md".into(), text: doc.into() }], "doc");
+    let c = xtmd_check::compile(&read(&root.join("core")), &packs, &[xtmd_check::Source { path: "page.xtmd".into(), text: doc.into() }], "doc");
     let errors = format!("the page doesn't compile: {:?}", c.errors().collect::<Vec<_>>());
     let mut m = c.module.ok_or(errors)?;
     xtmd_lower::lower(&mut m);
@@ -34,7 +34,7 @@ fn main() -> eframe::Result {
     let page = match args.first() {
         Some(p) if p.ends_with(".json") => Page::from_json(&std::fs::read_to_string(p).expect("read the IR"), XtmdPage::options()),
         Some(p) => Page::new(compile(&std::fs::read_to_string(p).expect("read the page"), &args[1..].iter().map(PathBuf::from).collect::<Vec<_>>()).expect("compile"), XtmdPage::options()),
-        None => Page::new(compile(include_str!("demo.xt.md"), &[]).expect("compile the demo"), XtmdPage::options()),
+        None => Page::new(compile(include_str!("demo.xtmd"), &[]).expect("compile the demo"), XtmdPage::options()),
     }
     .expect("mount the page");
     let page = XtmdPage::new(page);

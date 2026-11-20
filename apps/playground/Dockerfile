@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-venv &&
  && rustup target add wasm32-wasip1
 ENV XTMD_ZIG="/opt/zig/bin/python -m ziglang"
 WORKDIR /src
-# wasm/build.rs embeds ../../../core, and the syntax crate includes core/entities.xtpack
+# wasm/build.rs embeds ../../../core, and the syntax crate includes core/entities.xtmdpack
 COPY core ./core
 COPY targets/rust ./targets/rust
 # members of targets/rust's workspace, so cargo can load the workspace
@@ -60,7 +60,7 @@ RUN set -e; \
       npm run build; \
     done; \
     # a page compiled with xtmd.wasm: a broken one stops the build here
-    cd /src/targets/ts/wasm && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.xt.md', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"; \
+    cd /src/targets/ts/wasm && node -e "import('./dist/index.js').then(async ({ Compiler }) => { const b = (await Compiler.load()).build('page.xtmd', '# Hello\\n'); if (b.errors || !b.ir) throw new Error(JSON.stringify(b.diagnostics)); })"; \
     cd /src/apps/playground && rm -rf node_modules dist && npm ci && npm run build \
  && test -s dist/app.js && test -s dist/app.css && test -s dist/editor.worker.js && test -s dist/compiler.worker.js && test -s dist/xtmd.wasm \
  && test -s dist/targets.js && test -s dist/targets-counter.ir.json && ls dist/codicon-*.ttf

@@ -1,7 +1,7 @@
 {
   "id": "types.a-records-require-holds-for-constants",
   "about": "a record's require blocks run at compile time for constants, where false is a compile error",
-  "source": "a-records-require-holds-for-constants.xtpack",
+  "source": "a-records-require-holds-for-constants.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "types.constant-failed", "line": 13, "column": 5}

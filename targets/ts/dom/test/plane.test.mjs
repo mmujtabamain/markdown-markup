@@ -244,7 +244,7 @@ test("shade: the shader's colour is painted for every sampled pixel, red across 
 
 test("the graphs example: nodes on a plane, lines from box to box, laid out once and then still", async () => {
   const graphs = join(repo, "examples/graphs");
-  const page = await open(browser, ir(readFileSync(join(graphs, "release-flow.xt.md"), "utf8"), { packs: [graphs] }));
+  const page = await open(browser, ir(readFileSync(join(graphs, "release-flow.xtmd"), "utf8"), { packs: [graphs] }));
   assert.deepEqual(await xtmd(page, "outcome"), { refused: [], failures: [] });
   assert.equal(await page.locator("[data-part=spot]").count(), 5);
   // each line starts where the line from one node's middle to the other's leaves its box

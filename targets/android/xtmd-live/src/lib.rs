@@ -39,7 +39,7 @@ pub struct Built {
     pub ir_json: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
     pub errors: u32,
-    /// `page.xt.md doesn't compile (1 error): page.xt.md:5:3: …`; none when it compiled.
+    /// `page.xtmd doesn't compile (1 error): page.xtmd:5:3: …`; none when it compiled.
     pub why: Option<String>,
 }
 
@@ -61,7 +61,7 @@ impl NativeCompiler {
         Arc::new(NativeCompiler { inner: Mutex::new(Held(Compiler::new())) })
     }
 
-    /// Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its text;
+    /// Builds one file: `path` ending in `.xtmd` for a document, else a pack's file; its text;
     /// and the files of the packs it uses.
     pub fn build(&self, path: String, text: String, packs: Vec<PackFile>) -> Built {
         let packs: Vec<Source> = packs.into_iter().map(|p| Source { path: p.path, text: p.text }).collect();

@@ -1,7 +1,7 @@
 {
   "id": "read.by-in-a-loop",
   "about": "by in a loop",
-  "source": "by-in-a-loop.xtpack",
+  "source": "by-in-a-loop.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.no-by", "line": 5, "column": 25}

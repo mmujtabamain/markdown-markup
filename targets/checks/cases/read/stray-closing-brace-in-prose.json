@@ -1,7 +1,7 @@
 {
   "id": "read.stray-closing-brace-in-prose",
   "about": "stray closing brace in prose",
-  "source": "stray-closing-brace-in-prose.xt.md",
+  "source": "stray-closing-brace-in-prose.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.stray-closing-brace", "line": 2, "column": 1}

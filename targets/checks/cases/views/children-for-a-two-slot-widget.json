@@ -1,7 +1,7 @@
 {
   "id": "views.children-for-a-two-slot-widget",
   "about": "children for a two-slot widget",
-  "source": "children-for-a-two-slot-widget.xtpack",
+  "source": "children-for-a-two-slot-widget.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "views.children-need-one-slot", "line": 26, "column": 10}

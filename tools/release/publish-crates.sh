@@ -17,10 +17,10 @@ cleanup() { rm -rf "$rust/cli/core" "$rust/live/core" "$rust/compiler/syntax/cor
 trap cleanup EXIT
 for c in cli live; do
   mkdir -p "$rust/$c/core"
-  cp "$repo"/core/*.xtpack "$rust/$c/core/"
+  cp "$repo"/core/*.xtmdpack "$rust/$c/core/"
 done
 mkdir -p "$rust/compiler/syntax/core"
-cp "$repo/core/entities.xtpack" "$rust/compiler/syntax/core/"
+cp "$repo/core/entities.xtmdpack" "$rust/compiler/syntax/core/"
 cd "$rust"
 cargo publish --workspace --allow-dirty \
   --exclude xtmd-schemagen --exclude xtmd-wasm --exclude xtmd-android --exclude xtmd-android-live "$@"

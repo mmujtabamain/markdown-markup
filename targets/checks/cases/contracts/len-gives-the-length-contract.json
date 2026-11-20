@@ -1,7 +1,7 @@
 {
   "id": "contracts.len-gives-the-length-contract",
   "about": "len() is an int with the list's or text's length contract as its range",
-  "source": "len-gives-the-length-contract.xtpack",
+  "source": "len-gives-the-length-contract.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.needs-proof", "line": 12, "column": 18}

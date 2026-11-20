@@ -1,7 +1,7 @@
 {
   "id": "widgets.math",
   "about": "claims are checked: a display formula keeps its TeX",
-  "source": "math.xt.md",
+  "source": "math.xtmd",
   "target": {
     "levels": [
       "core.draw"

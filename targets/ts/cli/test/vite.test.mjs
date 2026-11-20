@@ -1,4 +1,4 @@
-// A Vite build compiles a page through xtmd: `import page from "./sprint.xt.md"`.
+// A Vite build compiles a page through xtmd: `import page from "./sprint.xtmd"`.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

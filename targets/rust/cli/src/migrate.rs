@@ -22,7 +22,7 @@ pub(crate) const USAGE: &str = "usage: xtmd migrate [<file|folder>…] [--pack a
   A migration's questions are numbered. In a terminal they are listed, then asked one by one.
   --yes all answers every one yes; --yes 1,3 (or --yes 1 3) answers those yes and the rest no; a
   bare --yes, with questions open, lists them and writes nothing. --answers keeps answers in a
-  file: [confirm] \"Make kit@1's badges small?\" = true, and [split] \"docs/a.xt.md:4 LATE\" = \"DONE\".
+  file: [confirm] \"Make kit@1's badges small?\" = true, and [split] \"docs/a.xtmd:4 LATE\" = \"DONE\".
   --dry-run      what would change, file by file, each change with the statement's why; writes nothing
   --check        the same, and fails (exit 1) if anything would change: for CI
   --diff         the change as a unified diff on stdout (xtmd.toml's too), the summary on stderr
@@ -35,7 +35,7 @@ pub(crate) const USAGE: &str = "usage: xtmd migrate [<file|folder>…] [--pack a
   --from kit@1   the version the files are written for, where nothing says (xtmd.toml's [uses] does)
   A document written for MKP 0.2 is moved by 0.2.10's own compiler, run with Node (Extended Mark 0.3.0
   only); --pack takes its 0.2 packs (folders with a manifest.mkp) beside the 0.3 ones. Its name
-  moves too: MKP named a document name.mkp.md, and Extended Mark names it name.xt.md.
+  moves too: MKP named a document name.mkp.md, and Extended Mark names it name.xtmd.
   xtmd.toml's xtmd = \"0.3.x\" says the release the tree is written for (0.3.0 when it says none),
   and [uses] each pack's version; a run that moves the tree writes both.
   --format json prints a JSON line for each file, note and question, then the summary, and asks
@@ -175,7 +175,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
     };
     let targets = if targets.is_empty() { vec![".".to_string()] } else { targets };
     if stdout && (json || targets.len() != 1 || !is_doc(&targets[0])) {
-        eprintln!("--stdout prints one document's result: name one .xt.md file{}", if json { ", and leave out --format json" } else { "" });
+        eprintln!("--stdout prints one document's result: name one .xtmd file{}", if json { ", and leave out --format json" } else { "" });
         return ExitCode::from(2);
     }
     let mut docs: Vec<PathBuf> = Vec::new();
@@ -189,7 +189,7 @@ pub fn migrate_cmd(args: &[String]) -> ExitCode {
             if t.ends_with("xtmd.toml") {
                 eprintln!("{}: xtmd migrate moves an xtmd.toml with the tree it is in: name that folder (xtmd migrate {})", t, Path::new(t).parent().filter(|d| !d.as_os_str().is_empty()).map_or(".".to_string(), |d| d.display().to_string()));
             } else {
-                eprintln!("{}: not a document (.xt.md) or a folder", t);
+                eprintln!("{}: not a document (.xtmd) or a folder", t);
             }
             return ExitCode::from(2);
         }

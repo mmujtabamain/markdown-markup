@@ -1,7 +1,7 @@
 {
   "id": "read.a-character-that-is-not-xtmd",
   "about": "a character that is not part of Extended Mark's code",
-  "source": "a-character-that-is-not-xtmd.xtpack",
+  "source": "a-character-that-is-not-xtmd.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.unexpected-character", "line": 3, "column": 19}

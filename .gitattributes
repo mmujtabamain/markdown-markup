@@ -1,0 +1,2 @@
+# Documents are Markdown with Extended Mark in it: GitHub highlights them as Markdown.
+*.xtmd linguist-language=Markdown

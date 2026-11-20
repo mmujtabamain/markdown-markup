@@ -16,7 +16,7 @@ pub struct ReleaseStep {
     pub release: &'static str,
     /// What changes and why, as whoever migrates is told.
     pub why: &'static str,
-    /// The edits it makes to one file, read as a document or a `.xtpack` file; an error says why the
+    /// The edits it makes to one file, read as a document or a `.xtmdpack` file; an error says why the
     /// file can't be moved, and refuses it.
     pub edits: fn(&str, Entry) -> Result<Vec<Edit>, String>,
 }
@@ -91,10 +91,10 @@ pub mod tests {
     #[test]
     fn a_step_edits_what_the_reader_finds_and_says_why() {
         let doc = "# Notes\n\nA rule, in words.\n\n@rule();\n";
-        let (text, said) = run(doc, "notes.xt.md", &between("0.3.0", "0.3.2", STEPS)).unwrap();
+        let (text, said) = run(doc, "notes.xtmd", &between("0.3.0", "0.3.2", STEPS)).unwrap();
         assert_eq!(text, "# Notes\n\nA rule, in words.\n\n@divider();\n");
         assert_eq!(said, ["xtmd 0.3.2: `rule` is `divider` now"]);
-        let e = run(doc, "notes.xt.md", &between("0.3.2", "0.4.0", STEPS)).unwrap_err();
+        let e = run(doc, "notes.xtmd", &between("0.3.2", "0.4.0", STEPS)).unwrap_err();
         assert_eq!(e, "xtmd 0.4.0: a form only a person can rewrite");
     }
 }

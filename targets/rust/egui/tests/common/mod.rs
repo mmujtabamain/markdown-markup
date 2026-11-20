@@ -15,7 +15,7 @@ pub fn repo() -> PathBuf {
 }
 
 fn sources(dir: &Path) -> Vec<xtmd_check::Source> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| xtmd_check::Source { path: p.to_string_lossy().into_owned(), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -28,7 +28,7 @@ thread_local! {
 /// A document's IR, with the packs in some folders of the repository.
 pub fn ir(doc: &str, packs: &[&str]) -> xtmd_egui::runtime::ir::File {
     let packs: Vec<Vec<xtmd_check::Source>> = packs.iter().map(|p| sources(&repo().join(p))).collect();
-    let c = CORE.with(|core| xtmd_check::compile_on(core, &packs, &[xtmd_check::Source { path: "test.xt.md".into(), text: doc.into() }], "doc"));
+    let c = CORE.with(|core| xtmd_check::compile_on(core, &packs, &[xtmd_check::Source { path: "test.xtmd".into(), text: doc.into() }], "doc"));
     let Some(mut m) = c.module else {
         let errors: Vec<String> = c.errors().map(|e| format!("{:?}", e)).collect();
         panic!("the page doesn't compile: {}", errors.join("\n"));

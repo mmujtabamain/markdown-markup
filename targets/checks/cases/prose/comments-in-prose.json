@@ -1,7 +1,7 @@
 {
   "id": "prose.comments-in-prose",
   "about": "`@//` to the end of a line is a comment in prose: nothing draws it, Markdown out leaves it out, it ends no paragraph, it sits inside blocks, and `\\@//` shows one as text",
-  "source": "comments-in-prose.xt.md",
+  "source": "comments-in-prose.xtmd",
   "target": {
     "levels": [
       "core.draw"

@@ -1,7 +1,7 @@
 {
   "id": "views.a-view-is-not-held-in-a-mut",
   "about": "a view value can't be held in a mut variable",
-  "source": "a-view-is-not-held-in-a-mut.xtpack",
+  "source": "a-view-is-not-held-in-a-mut.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "views.view-in-mut", "line": 4, "column": 9}

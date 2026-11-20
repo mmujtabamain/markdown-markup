@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 export const SECTIONS = ['New', 'Changed', 'Fixed'];
 
-/** A changelog's sections (changelog/<version>.xt.md), in this order, each optional. */
+/** A changelog's sections (changelog/<version>.xtmd), in this order, each optional. */
 export const CHANGELOG_SECTIONS = ['Breaking', 'New', 'Changed', 'Fixed', 'API', 'Migration'];
 /** The kinds an API change comes in, as ### headings under ## API, in this order. */
 export const API_KINDS = ['Added', 'Changed', 'Deprecated', 'Removed'];
@@ -227,7 +227,7 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
     });
     named.set(stem, rel);
   }
-  // the descriptive changelog (changelog/<version>.xt.md), once a repo has one: each release's, and
+  // the descriptive changelog (changelog/<version>.xtmd), once a repo has one: each release's, and
   // the current version's above all
   const cdir = join(root, changelogDir);
   if (existsSync(cdir)) {
@@ -235,9 +235,9 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
     const have = new Set();
     for (const f of logs) {
       const rel = `${changelogDir}/${f}`;
-      const stem = f.replace(/\.xt\.md$|\.md$/, '');
-      if (!f.endsWith('.xt.md') || versionProblem(stem)) {
-        warn(rel, 1, `${f} is not named for a version, so it is not a changelog; name it <version>.xt.md, such as 0.3.0.xt.md`);
+      const stem = f.replace(/\.xtmd$|\.md$/, '');
+      if (!f.endsWith('.xtmd') || versionProblem(stem)) {
+        warn(rel, 1, `${f} is not named for a version, so it is not a changelog; name it <version>.xtmd, such as 0.3.0.xtmd`);
         continue;
       }
       have.add(stem);
@@ -246,8 +246,8 @@ export function checkNotes({ root = process.cwd(), versionFile = 'VERSION', note
       if (!noteFront) warn(rel, 1, `${rel} has no note beside it: add ${notesDir}/${stem}.md, the short version for the release page`);
       checkChangelog(rel, readFileSync(join(cdir, f), 'utf8'), stem, noteFront, err, warn);
     }
-    for (const v of named.keys()) if (!have.has(v) && v !== version) warn(`${changelogDir}/${v}.xt.md`, 1, `${v} has a note but no changelog: add ${changelogDir}/${v}.xt.md, the full account of it`);
-    if (version && !have.has(version)) err(`${changelogDir}/${version}.xt.md`, 1, `there is no changelog for ${version}: add ${changelogDir}/${version}.xt.md beside its note. Start from:\n\n${changelogTemplate(version)}`);
+    for (const v of named.keys()) if (!have.has(v) && v !== version) warn(`${changelogDir}/${v}.xtmd`, 1, `${v} has a note but no changelog: add ${changelogDir}/${v}.xtmd, the full account of it`);
+    if (version && !have.has(version)) err(`${changelogDir}/${version}.xtmd`, 1, `there is no changelog for ${version}: add ${changelogDir}/${version}.xtmd beside its note. Start from:\n\n${changelogTemplate(version)}`);
   }
   if (version && !named.has(version) && !errors.some((e) => e.file === `${notesDir}/${version}.md`)) {
     const near = files.find((f) => f !== `${version}.md` && f.replace(/^v/i, '').replace(/\.(md|markdown)$/, '') === version);

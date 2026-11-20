@@ -6,7 +6,7 @@ use xtmd_lsp::Server;
 
 const PACK: &str = "package shelf;\n\npack shelf@1 {\n    provides row_of_books;\n}\n\n//@about A row of books, under a title.\nwidget row_of_books(title: text, count: int = 3) {\n    view {\n        @label(value = title);\n    }\n    markdown {\n        \\{title}\n    }\n}\n";
 const DOC: &str = "import shelf;\n$state {\n    n: int = 0;\n}\n@@@\n# Books\n\n@row_of_books(title = \"Read\");\n\n@press(label = \"Add\", click = fn() {\n    $state.n = $state.n + 1;\n});\n";
-const URI: &str = "file:///work/docs/books.xt.md";
+const URI: &str = "file:///work/docs/books.xtmd";
 
 fn req(id: u64, method: &str, params: Value) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })
@@ -37,7 +37,7 @@ fn opened() -> Server {
     let caps = ask(&mut s, 1, "initialize", json!({ "capabilities": {} }));
     assert_eq!(caps["capabilities"]["hoverProvider"], true);
     s.handle(&note("initialized", json!({})));
-    s.handle(&note("xtmd/packs", json!({ "uri": URI, "packs": [{ "path": "file:///work/shelf/shelf.xtpack", "text": PACK }] })));
+    s.handle(&note("xtmd/packs", json!({ "uri": URI, "packs": [{ "path": "file:///work/shelf/shelf.xtmdpack", "text": PACK }] })));
     let out = s.handle(&note("textDocument/didOpen", json!({ "textDocument": { "uri": URI, "languageId": "xtmd", "version": 1, "text": DOC } })));
     let diags = &out[0]["params"]["diagnostics"];
     assert_eq!(out[0]["method"], "textDocument/publishDiagnostics");
@@ -84,12 +84,12 @@ fn hover_says_what_a_name_is_and_its_type() {
 fn definition_and_references_go_where_a_name_is_declared_and_used() {
     let mut s = opened();
     let d = ask(&mut s, 2, "textDocument/definition", json!({ "textDocument": { "uri": URI }, "position": at(DOC, "row_of_books(title", 2) }));
-    assert_eq!(d["uri"], "file:///work/shelf/shelf.xtpack");
+    assert_eq!(d["uri"], "file:///work/shelf/shelf.xtmdpack");
     assert_eq!(d["range"]["start"], at(PACK, "row_of_books(", 0));
     // core's press is in core's own source
     let d = ask(&mut s, 3, "textDocument/definition", json!({ "textDocument": { "uri": URI }, "position": at(DOC, "press(", 1) }));
-    assert_eq!(d["uri"], "xtmd-core:/core/controls.xtpack");
-    let core = ask(&mut s, 4, "xtmd/core", json!({ "path": "core/controls.xtpack" }));
+    assert_eq!(d["uri"], "xtmd-core:/core/controls.xtmdpack");
+    let core = ask(&mut s, 4, "xtmd/core", json!({ "path": "core/controls.xtmdpack" }));
     assert!(core["text"].as_str().unwrap().contains("extern widget press("));
     // $state.n: declared once, read once and written once
     let r = ask(&mut s, 5, "textDocument/references", json!({ "textDocument": { "uri": URI }, "position": at(DOC, "$state.n = ", 7) }));
@@ -105,8 +105,8 @@ fn the_outline_lists_state_and_what_the_document_declares() {
     assert_eq!(syms[0]["children"][0]["name"], "n");
     assert_eq!(syms[0]["children"][0]["detail"], "int");
     // a pack's file, opened: its pack and widget, with the widget's inputs
-    s.handle(&note("textDocument/didOpen", json!({ "textDocument": { "uri": "file:///work/shelf/shelf.xtpack", "languageId": "xtmd", "version": 1, "text": PACK } })));
-    let syms = ask(&mut s, 3, "textDocument/documentSymbol", json!({ "textDocument": { "uri": "file:///work/shelf/shelf.xtpack" } }));
+    s.handle(&note("textDocument/didOpen", json!({ "textDocument": { "uri": "file:///work/shelf/shelf.xtmdpack", "languageId": "xtmd", "version": 1, "text": PACK } })));
+    let syms = ask(&mut s, 3, "textDocument/documentSymbol", json!({ "textDocument": { "uri": "file:///work/shelf/shelf.xtmdpack" } }));
     let widget = syms.as_array().unwrap().iter().find(|s| s["name"] == "row_of_books").expect("the widget");
     let inputs: Vec<&str> = widget["children"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
     assert_eq!(inputs, ["title", "count"]);
@@ -173,7 +173,7 @@ fn serve_frames_messages_over_a_reader_and_a_writer() {
 #[test]
 fn a_pack_s_own_file_opened_is_built_without_itself_as_a_pack() {
     let mut s = opened();
-    let pack = "file:///work/shelf/shelf.xtpack";
+    let pack = "file:///work/shelf/shelf.xtmdpack";
     s.handle(&note("xtmd/packs", json!({ "uri": pack, "packs": [{ "path": pack, "text": PACK }] })));
     let out = s.handle(&note("textDocument/didOpen", json!({ "textDocument": { "uri": pack, "languageId": "xtmd", "version": 1, "text": PACK } })));
     assert_eq!(out[0]["params"]["diagnostics"], json!([]), "{}", out[0]);
@@ -182,8 +182,8 @@ fn a_pack_s_own_file_opened_is_built_without_itself_as_a_pack() {
 #[test]
 fn cores_own_source_opened_is_read_not_built_again() {
     let mut s = opened();
-    let text = ask(&mut s, 2, "xtmd/core", json!({ "path": "core/controls.xtpack" }))["text"].as_str().unwrap().to_string();
-    let uri = "xtmd-core:/core/controls.xtpack";
+    let text = ask(&mut s, 2, "xtmd/core", json!({ "path": "core/controls.xtmdpack" }))["text"].as_str().unwrap().to_string();
+    let uri = "xtmd-core:/core/controls.xtmdpack";
     let out = s.handle(&note("textDocument/didOpen", json!({ "textDocument": { "uri": uri, "languageId": "xtmd", "version": 1, "text": text } })));
     assert_eq!(out[0]["params"]["diagnostics"], json!([]), "{}", out[0]);
     // and it has its hover and outline, as core's
@@ -214,8 +214,8 @@ fn a_slip_has_a_quick_fix_that_writes_the_name_meant() {
 fn a_file_that_isn_t_open_is_checked_with_its_packs_and_an_open_one_keeps_its_own() {
     let mut s = opened();
     // another document, not open: checked with the packs the client gives, its diagnostics published
-    let other = "file:///work/docs/other.xt.md";
-    s.handle(&note("xtmd/packs", json!({ "uri": other, "packs": [{ "path": "file:///work/shelf/shelf.xtpack", "text": PACK }] })));
+    let other = "file:///work/docs/other.xtmd";
+    s.handle(&note("xtmd/packs", json!({ "uri": other, "packs": [{ "path": "file:///work/shelf/shelf.xtmdpack", "text": PACK }] })));
     let text = "import shelf;\n@@@\n@row_of_books(titel = \"x\");\n";
     let out = s.handle(&req(7, "xtmd/check", json!({ "uri": other, "text": text })));
     let published = out.iter().find(|m| m["method"] == "textDocument/publishDiagnostics").unwrap();

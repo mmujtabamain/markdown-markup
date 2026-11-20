@@ -12,7 +12,7 @@ targets/android/
     │                       its unit tests hold the two check adapters
     ├── sample/             an app showing two pages (the shop example, and a tour of the widgets)
     ├── target.yaml         the target, for `xtmd target check android`
-    └── tokens.xtpack          core's tokens as Material 3 draws them
+    └── tokens.xtmdpack          core's tokens as Material 3 draws them
 ```
 
 ## Using it
@@ -48,7 +48,7 @@ doc.restore(Snapshot.fromJson(snap!!)!!)               // ALL with the same IR, 
 The page under it:
 
 ```kotlin
-// the IR `xtmd build page.xt.md --out page.ir.json` wrote, in the app's assets
+// the IR `xtmd build page.xtmd --out page.ir.json` wrote, in the app's assets
 val page = remember { CompiledPage.fromAsset(context, "page.ir.json", PageOptions(theme = "DARK")) }
 XtmdPage(page)                                         // draws it, and keeps it drawn
 XtmdPage(page, Externs(mapOf("acme/chart" to Widget { props, ctx -> MyChart(props, ctx) })))
@@ -71,7 +71,7 @@ page.markdown()                                        // the page as Markdown, 
 - **Colours** come from the Material 3 colour scheme for the tokens a scheme has a role for (SURFACE, INK, MUTED,
   LINE, ACCENT, BAD), and from the build's values for the rest. `colors` gives the schemes, light and dark
   (Material 3's baseline by default; an app passes its own, and every page follows it), and the page's `theme`,
-  else the system, picks one. tokens.xtpack says which values these are, and a unit test holds the two together.
+  else the system, picks one. tokens.xtmdpack says which values these are, and a unit test holds the two together.
 - **Errors** caught by the runtime are logged with `Log.w("xtmd", …)` after each change. `XTMD_ANDROID_TRACE=1` in
   the environment logs each redraw and each spot's measured size to standard error.
 
@@ -138,7 +138,7 @@ cd targets/android/compose
 
 The library's build stops with a message when `native/` is missing (step 1). The sample builds its pages' IR with
 `targets/rust/target/release/xtmd` (`cargo build --release` in targets/rust) as part of its build:
-`examples/pages/shop.xt.md` and `sample/pages/tour.xt.md`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
+`examples/pages/shop.xtmd` and `sample/pages/tour.xtmd`. The APK carries arm64-v8a, armeabi-v7a (budget phones often run a 32-bit-only Android) and x86_64; build.sh needs `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 
 ## Keeping it fast
 

@@ -36,7 +36,7 @@ def take(t):
 
     r.chapter(1)
     r.run("dry", "--pack takes the 0.2 pack, beside any 0.3 ones.")
-    t.beat(r.out("dry", "docs/counter.mkp.md"), "counter.mkp.md is 0.2's by what 0.2.10 finds in it: 1 change, 1 thing to know, and its new name, counter.xt.md.", 4.2)
+    t.beat(r.out("dry", "docs/counter.mkp.md"), "counter.mkp.md is 0.2's by what 0.2.10 finds in it: 1 change, 1 thing to know, and its new name, counter.xtmd.", 4.2)
     t.beat(r.out("dry", "docs/plain.mkp.md"), "Plain Markdown reads the same in both: only its name moves.", 2.8)
     t.beat(r.out("dry", "docs/runs.mkp.md"),
            "runs.mkp.md isn't written: units has no 0.3 release here, only a stand-in made from its 0.2 definitions.", 4.6)
@@ -51,13 +51,13 @@ def take(t):
     t.beat(r.out("write", "to know:", 3), "To know: the summary dropped, and 0.2's stamp taken out of the front matter.", 3.8)
     t.beat(r.out("write", "Left for a person, as asked"), "Left for a person, as --allow-todos asked: units' stand-in, until its own 0.3 release replaces it. Exit 0.", 3.8)
     t.beat(r.out("write", "a stand-in for units", 3), "The stand-in is written, and xtmd says how to check against it.", 3.4)
-    r.file("write", "docs/counter.xt.md", "after")
+    r.file("write", "docs/counter.xtmd", "after")
     t.beat(r.line("widget counter(", 19), "The counter in 0.3: a widget with its view and its markdown block…", 3.6)
     t.beat(r.line("@counter(start = 3);"), "…used once on the page.", 2.4)
-    r.file("write", "docs/runs.xt.md", "after")
-    t.beat(r.line("@distance("), "runs.xt.md, its 0.3 name, calls distance, from units.", 2.8)
+    r.file("write", "docs/runs.xtmd", "after")
+    t.beat(r.line("@distance("), "runs.xtmd, its 0.3 name, calls distance, from units.", 2.8)
     t.beat(r.line("checked against a stand-in for units"), "Its header says what is left: it is checked against a stand-in for units.", 3.6)
-    r.file("write", "docs/stand-ins/units/units.xtpack", "after")
+    r.file("write", "docs/stand-ins/units/units.xtmdpack", "after")
     t.beat(r.line("TODO(xtmd migrate)"), "The stand-in starts with that TODO…", 2.8)
     t.beat(r.line("extern widget distance", 5), "…and gives distance as an extern with a markdown block.", 3.4)
 

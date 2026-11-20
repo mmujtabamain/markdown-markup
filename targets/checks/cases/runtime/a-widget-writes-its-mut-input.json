@@ -1,7 +1,7 @@
 {
   "id": "runtime.a-widget-writes-its-mut-input",
   "about": "a widget writing its mut input writes the caller's variable, checked against the variable's own contract",
-  "source": "a-widget-writes-its-mut-input.xt.md",
+  "source": "a-widget-writes-its-mut-input.xtmd",
   "target": {
     "levels": [
       "core.draw",

@@ -33,7 +33,7 @@ interface CompileResult {
 
 const DEBOUNCE_MS = 300;
 /** The page's own path, as the compiler names it in diagnostics. */
-const SOURCE_NAME = "page.xt.md";
+const SOURCE_NAME = "page.xtmd";
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);

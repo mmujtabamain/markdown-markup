@@ -1,5 +1,5 @@
 //! The packs a file on disk is built with, as `xtmd check` finds them: the `xtmd.toml` in its folder
-//! or a folder above, and its `packs = [...]`, each a folder of `.xtpack` files or one file,
+//! or a folder above, and its `packs = [...]`, each a folder of `.xtmdpack` files or one file,
 //! relative to it. Only `xtmd lsp` reads the disk; in a browser the client gives the packs.
 
 use std::path::{Path, PathBuf};
@@ -32,10 +32,10 @@ pub fn packs_for(file: &Path) -> (Vec<Source>, Vec<String>) {
         let mut files = Vec::new();
         if at.is_dir() {
             walk(&at, &mut files);
-        } else if at.extension().is_some_and(|x| x == "xtpack") && at.is_file() {
+        } else if at.extension().is_some_and(|x| x == "xtmdpack") && at.is_file() {
             files.push(at.clone());
         } else {
-            wrong.push(format!("{}: packs = [\"{}\"]: not a folder or a .xtpack file", config.display(), p));
+            wrong.push(format!("{}: packs = [\"{}\"]: not a folder or a .xtmdpack file", config.display(), p));
         }
         for f in files {
             match std::fs::read_to_string(&f) {
@@ -57,7 +57,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
             if !name.starts_with('.') && !matches!(name, "node_modules" | "target" | "dist") {
                 walk(&p, out);
             }
-        } else if p.extension().is_some_and(|x| x == "xtpack") {
+        } else if p.extension().is_some_and(|x| x == "xtmdpack") {
             out.push(p);
         }
     }

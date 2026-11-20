@@ -179,7 +179,7 @@ struct Case {
 
 /// Markdown text read as blocks, by Extended Mark's own reader.
 fn read_blocks(base: &xtmd_check::Checker, text: &str) -> Result<Value, String> {
-    let c = xtmd_check::compile_on(base, &[], &[xtmd_check::Source { path: "observed.xt.md".into(), text: text.into() }], "doc");
+    let c = xtmd_check::compile_on(base, &[], &[xtmd_check::Source { path: "observed.xtmd".into(), text: text.into() }], "doc");
     let mut m = c.module.ok_or("the Markdown doesn't read")?;
     xtmd_lower::lower(&mut m);
     let b = xtmd_markdown::page(&m).map_err(|e| e.0)?;
@@ -339,7 +339,7 @@ fn cases(base: &xtmd_check::Checker, dir: &Path, tmp: &Path) -> Vec<Case> {
         }
         let pack_files: Vec<PathBuf> = packs.iter().map(|p| PathBuf::from(&p.path)).collect();
         let path = src.to_string_lossy().into_owned();
-        let module = if path.ends_with(".xt.md") { "doc" } else { "t" };
+        let module = if path.ends_with(".xtmd") { "doc" } else { "t" };
         let c = xtmd_check::compile_on(base, &[packs], &[xtmd_check::Source { path, text }], module);
         let Some(mut m) = c.module else { continue };
         xtmd_lower::lower(&mut m);
@@ -369,7 +369,7 @@ fn walk_xtmd(dir: &Path, out: &mut Vec<PathBuf>) {
     for p in paths {
         if p.is_dir() {
             walk_xtmd(&p, out);
-        } else if p.extension().map_or(false, |x| x == "xtpack") {
+        } else if p.extension().map_or(false, |x| x == "xtmdpack") {
             out.push(p);
         }
     }

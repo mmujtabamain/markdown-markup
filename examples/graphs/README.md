@@ -5,8 +5,8 @@ places each node on a plane with a `spot`, reads where each node landed from the
 and draws each edge on the plane's background as a line from one node's outline to the other's.
 
 ```sh
-xtmd check --pack examples/graphs examples/graphs/release-flow.xt.md
-xtmd md --pack examples/graphs examples/graphs/release-flow.xt.md
+xtmd check --pack examples/graphs examples/graphs/release-flow.xtmd
+xtmd md --pack examples/graphs examples/graphs/release-flow.xtmd
 ```
 
 It needs `core.live` for the boxes and `core.gfx` for its lines; on a target without them, the

@@ -1,7 +1,7 @@
 {
   "id": "runtime.an-app-write-is-checked",
   "about": "an app's write to $state is one change, checked once against every rule that reads it; a refused write changes nothing",
-  "source": "an-app-write-is-checked.xt.md",
+  "source": "an-app-write-is-checked.xtmd",
   "target": {
     "levels": [
       "core.draw"

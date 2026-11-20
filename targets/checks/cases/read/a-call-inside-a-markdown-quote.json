@@ -1,7 +1,7 @@
 {
   "id": "read.a-call-inside-a-markdown-quote",
   "about": "a call inside a Markdown quote",
-  "source": "a-call-inside-a-markdown-quote.xt.md",
+  "source": "a-call-inside-a-markdown-quote.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.call-in-quote-or-item", "line": 1, "column": 1}

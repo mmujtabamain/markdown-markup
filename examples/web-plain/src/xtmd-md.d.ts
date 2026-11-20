@@ -1,5 +1,5 @@
-// `import page from "./x.xt.md"`: the page's IR, compiled by xtmd/vite.
-declare module "*.xt.md" {
+// `import page from "./x.xtmd"`: the page's IR, compiled by xtmd/vite.
+declare module "*.xtmd" {
   const page: import("@extended-mark/runtime").ir.File;
   export default page;
 }

@@ -6,7 +6,7 @@ is enough.
 
 ```sh
 npm i -g extended-mark     # or: npm i -g xtmd
-xtmd check poll.xt.md
+xtmd check poll.xtmd
 ```
 
 ```js

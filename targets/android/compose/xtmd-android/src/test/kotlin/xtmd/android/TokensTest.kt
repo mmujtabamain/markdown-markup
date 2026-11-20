@@ -8,11 +8,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** tokens.xtpack, beside target.yaml, says the colours xtmd-android draws core's tokens with: they are
+/** tokens.xtmdpack, beside target.yaml, says the colours xtmd-android draws core's tokens with: they are
  * the Material 3 baseline's, which XtmdTheme gives, so the file and the code can't drift apart. */
 class TokensTest {
     private val file = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
-        .map { File(it, "tokens.xtpack") }.first { it.exists() }
+        .map { File(it, "tokens.xtmdpack") }.first { it.exists() }
 
     private fun tokens(): Map<String, Pair<String, String>> =
         Regex("""color\.(\w+) = color_value \{ light = "(#\w+)", dark = "(#\w+)" \}""").findAll(file.readText())

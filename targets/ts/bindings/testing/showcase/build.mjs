@@ -60,8 +60,8 @@ for (const [fw, o] of Object.entries(FRAMEWORKS)) {
 
 const repo = join(bindings, "../../..");
 copyFileSync(join(repo, "targets/ts/wasm/xtmd.wasm"), join(out, "xtmd.wasm"));
-const counter = join(repo, "apps/playground/examples/counter.xt.md");
-copyFileSync(counter, join(out, "counter.xt.md"));
+const counter = join(repo, "apps/playground/examples/counter.xtmd");
+copyFileSync(counter, join(out, "counter.xtmd"));
 const cli = await import(pathToFileURL(join(bindings, "react/node_modules/xtmd/dist/index.js")).href);
 writeFileSync(join(out, "counter.ir.json"), JSON.stringify(await cli.build(counter)));
 process.stderr.write("built dist/: react, vue, svelte, solid, angular, xtmd.wasm, counter\n");

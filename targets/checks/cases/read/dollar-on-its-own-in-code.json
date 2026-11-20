@@ -1,7 +1,7 @@
 {
   "id": "read.dollar-on-its-own-in-code",
   "about": "$ on its own in code",
-  "source": "dollar-on-its-own-in-code.xtpack",
+  "source": "dollar-on-its-own-in-code.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "syntax.dollar-is-only-state", "line": 3, "column": 17}

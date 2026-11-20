@@ -140,7 +140,7 @@ impl Compiler {
         &self.base
     }
 
-    /// Builds one file: `path` ending in `.xt.md` for a document, else a pack's file; its text;
+    /// Builds one file: `path` ending in `.xtmd` for a document, else a pack's file; its text;
     /// and the files of the packs it may use. The IR is the one `xtmd build` writes: every prop
     /// that isn't constant a binding, and a page's only what it uses.
     pub fn build(&self, path: &str, text: &str, packs: &[Source]) -> Built {
@@ -150,7 +150,7 @@ impl Compiler {
     /// [`Compiler::build`], with the resolved IR when `opts` asks.
     pub fn build_with(&self, path: &str, text: &str, packs: &[Source], opts: BuildOptions) -> Built {
         let packs: Vec<Source> = packs.iter().filter(|p| p.path != path).cloned().collect();
-        let module = if path.ends_with(".xt.md") { "doc" } else { "main" };
+        let module = if path.ends_with(".xtmd") { "doc" } else { "main" };
         let main = [Source { path: path.to_string(), text: text.to_string() }];
         let (c, rir) = if opts.rir {
             let base = if opts.core { self.logged.get_or_init(|| xtmd_check::compile_core_logged(&Self::core_sources())) } else { &self.base };
@@ -179,10 +179,10 @@ impl Compiler {
     }
 
     /// `text` in the canonical layout, as `xtmd fmt` writes it: `path` says a document
-    /// (`.xt.md`) or a pack's file (`.xtpack`). A text that doesn't read gives its syntax errors.
+    /// (`.xtmd`) or a pack's file (`.xtmdpack`). A text that doesn't read gives its syntax errors.
     pub fn format(&self, path: &str, text: &str) -> Formatted {
         let Some(entry) = xtmd_syntax::entry_for(path) else {
-            let d = xtmd_syntax::Diagnostic::error("file.not-extended-mark", xtmd_syntax::Span { start: 0, end: 0 }, format!("{}: not an Extended Mark file (.xtpack or .xt.md)", path));
+            let d = xtmd_syntax::Diagnostic::error("file.not-extended-mark", xtmd_syntax::Span { start: 0, end: 0 }, format!("{}: not an Extended Mark file (.xtmdpack or .xtmd)", path));
             return Formatted { text: None, diagnostics: vec![diagnostic(path, text, &d)] };
         };
         match xtmd_syntax::format(text, entry) {
@@ -192,7 +192,7 @@ impl Compiler {
     }
 }
 
-/// Core's own files, as this library compiles them: `core/controls.xtpack` and the rest, with their
+/// Core's own files, as this library compiles them: `core/controls.xtmdpack` and the rest, with their
 /// text, for an editor that shows core's declarations.
 pub fn core() -> Vec<Source> {
     CORE.iter().map(|(p, t)| Source { path: p.to_string(), text: t.to_string() }).collect()
@@ -250,12 +250,12 @@ pub struct Live {
 
 impl Default for Live {
     fn default() -> Self {
-        Live::new("page.xt.md")
+        Live::new("page.xtmd")
     }
 }
 
 impl Live {
-    /// A text to follow at `path` (`page.xt.md` for a document), for diagnostics and the module.
+    /// A text to follow at `path` (`page.xtmd` for a document), for diagnostics and the module.
     pub fn new(path: &str) -> Live {
         Live { path: path.to_string(), packs: Vec::new(), built: None, ir: None, diagnostics: Vec::new(), errors: 0, revision: 0 }
     }
@@ -309,8 +309,8 @@ impl Live {
         self.errors
     }
 
-    /// The latest text's errors as one line, as a target tells an app: `page.xt.md doesn't
-    /// compile (1 error): page.xt.md:5:3: …`; none when it compiled.
+    /// The latest text's errors as one line, as a target tells an app: `page.xtmd doesn't
+    /// compile (1 error): page.xtmd:5:3: …`; none when it compiled.
     pub fn why(&self) -> Option<String> {
         if self.errors == 0 {
             return None;

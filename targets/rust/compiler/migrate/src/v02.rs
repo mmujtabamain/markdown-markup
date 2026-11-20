@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 /// What the frozen step wrote for one 0.2 document.
 pub struct Migrated {
     pub doc: String,
-    /// The packs it uses, as stand-ins made from their 0.2 definitions: name → `.xtpack` text.
+    /// The packs it uses, as stand-ins made from their 0.2 definitions: name → `.xtmdpack` text.
     pub packs: BTreeMap<String, String>,
     /// What 0.3 can't say as 0.2 did, each left in the document with a TODO, by its 0.2 line.
     pub todos: Vec<String>,

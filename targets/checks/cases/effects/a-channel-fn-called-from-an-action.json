@@ -1,7 +1,7 @@
 {
   "id": "effects.a-channel-fn-called-from-an-action",
   "about": "a channel's action called from an action and from a handler, with values that fit its contract, compiles",
-  "source": "a-channel-fn-called-from-an-action.xt.md",
+  "source": "a-channel-fn-called-from-an-action.xtmd",
   "expect": {
     "diagnostics": []
   }

@@ -30,7 +30,7 @@ export async function buildBundle({ minify = true, sourcemap = !minify } = {}) {
   // the Targets page's run-time half draws an IR built ahead, as a reader's page is: built here
   const { Compiler } = await import("@extended-mark/wasm");
   const compiler = await Compiler.load(pathToFileURL(wasm));
-  const built = compiler.build("page.xt.md", readFileSync(join(here, "examples/counter.xt.md"), "utf8"));
+  const built = compiler.build("page.xtmd", readFileSync(join(here, "examples/counter.xtmd"), "utf8"));
   if (!built.ir) throw new Error(`the counter example doesn't compile: ${JSON.stringify(built.diagnostics)}`);
   writeFileSync(join(outdir, "targets-counter.ir.json"), JSON.stringify(built.ir));
   const common = {

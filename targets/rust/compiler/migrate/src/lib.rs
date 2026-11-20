@@ -56,15 +56,15 @@ pub struct Outcome {
     pub stand_ins: Vec<String>,
 }
 
-/// A document: `.xt.md`, or `.mkp.md` as 0.2 named it.
+/// A document: `.xtmd`, or `.mkp.md` as 0.2 named it.
 pub fn is_doc(p: &str) -> bool {
-    p.ends_with(".xt.md") || p.ends_with(".mkp.md")
+    p.ends_with(".xtmd") || p.ends_with(".mkp.md")
 }
 
-/// Where a document is written: a 0.2 name, `name.mkp.md`, moves to `name.xt.md`.
+/// Where a document is written: a 0.2 name, `name.mkp.md`, moves to `name.xtmd`.
 pub fn written_as(p: &Path) -> PathBuf {
     match p.to_str().and_then(|s| s.strip_suffix(".mkp.md")) {
-        Some(stem) => PathBuf::from(format!("{}.xt.md", stem)),
+        Some(stem) => PathBuf::from(format!("{}.xtmd", stem)),
         None => p.to_path_buf(),
     }
 }
@@ -272,7 +272,7 @@ fn migrate_02_doc(base: &xtmd_check::Checker, packs: &[Pack], sources: &[Source]
             from.insert(name.clone(), crate::v02::version_of(shim).unwrap_or(1));
             continue;
         }
-        let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.xtpack", name)), String::new()));
+        let entry = stand_ins.entry(name.clone()).or_insert_with(|| (stand_in_dir.join(name).join(format!("{}.xtmdpack", name)), String::new()));
         entry.1 = if entry.1.is_empty() { crate::v02::marked(shim, name) } else { crate::v02::merge(&entry.1, shim) };
         o.stand_ins.push(name.clone());
         world.push(Source { path: entry.0.display().to_string(), text: entry.1.clone() });
@@ -802,7 +802,7 @@ pub fn uses_after(packs: &[Pack], uses: &BTreeMap<String, u32>) -> BTreeMap<Stri
 #[cfg(test)]
 fn core_sources() -> Vec<Source> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../core");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtpack")).collect();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().map_or(false, |x| x == "xtmdpack")).collect();
     files.sort();
     files.into_iter().map(|p| Source { path: format!("core/{}", p.file_name().unwrap().to_string_lossy()), text: std::fs::read_to_string(&p).unwrap() }).collect()
 }
@@ -825,14 +825,14 @@ mod tests {
         let base = xtmd_check::compile_core(&core_sources());
         let steps = crate::releases::between("0.3.0", "0.3.2", crate::releases::tests::STEPS);
         let doc = "# Notes\n\n@rule();\n";
-        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xt.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &steps, "xtmd 0.3.0 → 0.3.2");
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xtmd"), doc, &BTreeMap::new(), &BTreeMap::new(), &steps, "xtmd 0.3.0 → 0.3.2");
         assert!(o.refused.is_empty(), "{:?}", o.refused);
         assert_eq!(o.text, "# Notes\n\n@divider();\n");
         assert_eq!(o.moved, ["xtmd 0.3.0 → 0.3.2"]);
         assert_eq!(o.notices, ["xtmd 0.3.2: `rule` is `divider` now"]);
         // a release whose step can't move it refuses it, as it was
         let later = crate::releases::between("0.3.2", "0.4.0", crate::releases::tests::STEPS);
-        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xt.md"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "xtmd 0.3.2 → 0.4.0");
+        let o = doc_through_releases(&base, &[], &[], &[], Path::new("notes.xtmd"), doc, &BTreeMap::new(), &BTreeMap::new(), &later, "xtmd 0.3.2 → 0.4.0");
         assert_eq!((o.text.as_str(), o.refused), (doc, vec!["xtmd 0.4.0: a form only a person can rewrite".to_string()]));
     }
 }

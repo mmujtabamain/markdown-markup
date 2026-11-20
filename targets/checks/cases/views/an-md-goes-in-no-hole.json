@@ -1,7 +1,7 @@
 {
   "id": "views.an-md-goes-in-no-hole",
   "about": "an md holds blocks, so it goes in no hole: @blocks places it",
-  "source": "an-md-goes-in-no-hole.xt.md",
+  "source": "an-md-goes-in-no-hole.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.md-in-hole", "line": 5, "column": 9}

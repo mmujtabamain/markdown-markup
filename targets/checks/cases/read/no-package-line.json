@@ -1,7 +1,7 @@
 {
   "id": "read.no-package-line",
-  "about": "a .xtpack file without its package line",
-  "source": "no-package-line.xtpack",
+  "about": "a .xtmdpack file without its package line",
+  "source": "no-package-line.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "file.package-line", "line": 1, "column": 1}

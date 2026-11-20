@@ -1,7 +1,7 @@
 {
   "id": "read.a-prose-block-whose-brace-does-not-end-its-line",
   "about": "a call's block that starts on the call's line",
-  "source": "a-prose-block-whose-brace-does-not-end-its-line.xt.md",
+  "source": "a-prose-block-whose-brace-does-not-end-its-line.xtmd",
   "expect": {
     "diagnostics": [
       {"code": "prose.brace-ends-its-line", "line": 1, "column": 22}

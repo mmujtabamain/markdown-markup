@@ -1,7 +1,7 @@
 {
   "id": "contracts.only-lists-the-allowed-values",
   "about": "only (…) takes the listed constants",
-  "source": "only-lists-the-allowed-values.xtpack",
+  "source": "only-lists-the-allowed-values.xtmdpack",
   "expect": {
     "diagnostics": [
       {"code": "contracts.outside", "line": 8, "column": 22},
